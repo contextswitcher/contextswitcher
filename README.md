@@ -77,5 +77,6 @@ Following alternatives should be considered:
 - Python 3.0
 - C#
 - Java
+  - Reuse code of [Eclipse Jubula](https://www.eclipse.org/jubula/)
 
 It might be required to write plugins on the side of the supported application.
