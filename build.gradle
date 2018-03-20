@@ -1,6 +1,3 @@
-// see https://github.com/ben-manes/gradle-versions-plugin
-
-
 // see http://www.gradle.org/docs/current/userguide/tutorial_java_projects.html
 apply plugin: 'java'
 
@@ -53,6 +50,7 @@ dependencies {
 	// in case [XLlogger](http://www.slf4j.org/extensions.html#extended_logger) is required
 	// compile group:'org.slf4j', name:'slf4j-ext', version:'1.7.12'
 
+    compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.10.0'
     testCompile 'junit:junit:4.12'
 }
 
