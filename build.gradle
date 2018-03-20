@@ -1,3 +1,6 @@
+// see https://github.com/ben-manes/gradle-versions-plugin
+
+
 // see http://www.gradle.org/docs/current/userguide/tutorial_java_projects.html
 apply plugin: 'java'
 
