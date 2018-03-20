@@ -30,6 +30,8 @@ A list of tasks with the possibility to add a new task, remove a task and focus 
 Following Applications should be supported:
 
 * Chrome
+  - Not possible using [ChromeDriver](https://sites.google.com/a/chromium.org/chromedriver/downloads), because [just attaching to a running instance isn't technically possible](https://github.com/seleniumhq/selenium-google-code-issue-archive/issues/18#issuecomment-191402419) 
+  - Or implement own extension based on messaging: https://github.com/vakho10/Native-Messaging or http://git.javadeploy.net/coderrooftrellen/simple-chrome-extension/blob/f4d38c82c7e7cce68c89a5d008a26c7689cfe4fa/Readme.md
 * Firefox
 * Word
 * Excel
