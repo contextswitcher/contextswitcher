@@ -57,6 +57,7 @@ It was announced as [complete desktop task-focused interface for everyone](https
 * Windows Timline. See <https://winaero.com/blog/enable-use-timeline-windows-10/>, <https://www.digitaltrends.com/computing/how-to-use-windows-timeline/>, <http://winfuture.de/videos/Software/Windows-Timeline-So-funktioniert-die-Zeitleiste-von-Windows-10-18708.html>, and [Windows Timeline Introduction Video](https://youtu.be/jV09HpVj4gg?t=123)
 * [Windows 10 Sets](https://insider.windows.com/de-de/articles/introducing-sets/).
   [Sundown in April 2019](https://www.heise.de/newsticker/meldung/Bedienkonzept-Microsoft-beerdigt-Sets-fuer-Windows-10-4404211.html).
+* [bug.n](https://github.com/fuhsjr00/bug.n) - can provide views on opened windows.
 
 ### Mac OS X
 
