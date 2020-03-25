@@ -2,7 +2,9 @@
 
 > ContextSwitcher is [Mylyn](https://www.eclipse.org/mylyn/) for the Windows desktop.
 
-More user information in [docs/](docs/).
+Information on the motivation is available at [docs/](docs/).
+
+In the following, development aspects are given.
 
 ## Development phases
 
