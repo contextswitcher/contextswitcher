@@ -2,7 +2,9 @@
 
 > ContextSwitcher is [Mylyn](https://www.eclipse.org/mylyn/) for the Windows desktop.
 
-Information on the motivation is available at [docs/](docs/).
+**Information on the motivation is available at [docs/](docs/).**
+
+**Call for student development** In relation to [ICSE 2021](https://conf.researchr.org/home/icse-2021) in the context of [SCORE 2021](https://conf.researchr.org/home/icse-2021/score-2021) --> <https://conf.researchr.org/home/icse-2021/score-2021#adr-manager-the-software-architects-favorite-tool>
 
 In the following, development aspects are given.
 
