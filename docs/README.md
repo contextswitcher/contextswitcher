@@ -9,6 +9,8 @@ This requires you to switch the context to another task.
 When you left that task, you had different browser windows and different Word documents opened.
 ContextSwitcher restores these at a finger type.
 
+More simpler: ContextSwitcher is a workspace manager across multiple applications.
+
 ## Example tasks and opened applications
 
 * “Search for city tours in Leipzig”: Chrome and OneNote (for taking notes)
@@ -72,3 +74,8 @@ It was announced as [complete desktop task-focused interface for everyone](https
 * IntelliJ 2017.3 restores the current editors when changing branches in git.
   See <https://blog.jetbrains.com/idea/2017/10/intellij-idea-2017-3-vcs-enhancements-and-more/>.
 * The [Bento Browser](https://bentobrowser.com/) by the [Carnegie Mellon Human Computer Interaction Institute](https://hcii.cmu.edu/) groups browser tabs into projects.
+* [Marketer Browser](https://www.marketerbrowser.com/) supports multiple accounts for the same web page
+  * Similar to [Session Box](https://sessionbox.io/)
+  * Similar to [BiscuitBrowser](https://eatbiscuit.com/)
+* [Workona](https://workona.com/) - workspaces in the browser
+
