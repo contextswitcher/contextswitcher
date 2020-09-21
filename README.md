@@ -81,6 +81,9 @@ It was announced as [complete desktop task-focused interface for everyone](https
   * Similar to [Session Box](https://sessionbox.io/)
   * Similar to [BiscuitBrowser](https://eatbiscuit.com/)
 * [Workona](https://workona.com/) - workspaces in the browser
+* Chrome Plugin [Simple Window Saver](https://chrome.google.com/webstore/detail/simple-window-saver/fpfmklldfnlcblofkhdeoohfppdoejdc)
+
+   > Simple Window Saver makes it super easy to save and restore windows. Keep one window for work tabs, one for Gmail and Facebook, and one for your vacation planning or the research on that new TV you want to buy.
 
 ## Goal
 
