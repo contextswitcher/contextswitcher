@@ -76,6 +76,9 @@ It was announced as [complete desktop task-focused interface for everyone](https
 
 * IntelliJ 2017.3 restores the current editors when changing branches in git.
   See <https://blog.jetbrains.com/idea/2017/10/intellij-idea-2017-3-vcs-enhancements-and-more/>.
+   
+   > IntelliJ IDEA saves your context (a set of opened files, the current run configuration, and breakpoints) provided that the Restore workspace on branch switching option is enabled in the Settings/Preferences dialog Ctrl+Alt+S under Version Control | Confirmation. When you switch to a branch, IntelliJ IDEA automatically restores your context associated with that branch.
+  
 * The [Bento Browser](https://bentobrowser.com/) by the [Carnegie Mellon Human Computer Interaction Institute](https://hcii.cmu.edu/) groups browser tabs into projects.
 * [Marketer Browser](https://www.marketerbrowser.com/) supports multiple accounts for the same web page
   * Similar to [Session Box](https://sessionbox.io/)
