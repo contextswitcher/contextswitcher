@@ -47,14 +47,15 @@ When using multipe desktops for a single context, the current context might be "
 * Microsoft Office applications show all opened windows in the "Window" drop down. ContextSwitcher will display only relevent Windows for the task (because only these documents are opened)
 * Skype cannot be opened in multipe virtual desktops
 
-## Background and related work
+## Background and Related Work
 
 When working with code in Eclipse, one has opened many files by the time.
 Often, not all opened files are required for a task.
 What if only the relevant files are opened and even the most touched lines are highlighted?
 What if one can give a colleague a reference to the current state of the IDE to enable a simpler reproduction of an issue?
-For this, the concept of a “[task-focused interface](https://en.wikipedia.org/wiki/Task-focused_interface)” has been invented and turned into software as Eclipse [Mylyn](https://www.eclipse.org/mylyn/). 
-Regarding supporting the task-focused interface across multiple applications, the [Tasktop Dev Standalone Application](http://www.tasktop.com/node/1176/) is available.
+For this, the concept of a “[task-focused interface](https://en.wikipedia.org/wiki/Task-focused_interface)” has been invented and turned into software as Eclipse [Mylyn](https://www.eclipse.org/mylyn/).
+One can read more about Mylyn at the [Mylyn Tutorial](https://web.archive.org/web/20170929190100/http://www.tasktop.com/mylyn/tutorial).
+Concerning the availability of the task-focused interface across multiple applications, the [Tasktop Dev Standalone Application](http://www.tasktop.com/node/1176/) is available.
 It was announced as [complete desktop task-focused interface for everyone](https://www.infoq.com/news/2008/02/tasktop-10), but it does not support arbitrary applications.
 
 ### Windows
