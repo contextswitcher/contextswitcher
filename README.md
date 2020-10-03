@@ -42,7 +42,7 @@ Alternatively, virutal desktops need to be resued and maybe won't be named prope
 
 When using multipe desktops for a single context, the current context might be "coding" with the virtual desktops "email reading and surfing" and "coding". When switching to the context "Thesis writing", browser tabs need to be closed and new ones opened, JabRef will be loaded, the "coding" desktop will be renamed to "LaTeX" (containing TeXstudio).
 
-#### Application limitations
+#### Application Limitations
 
 * Microsoft Office applications show all opened windows in the "Window" drop down. ContextSwitcher will display only relevent Windows for the task (because only these documents are opened)
 * Skype cannot be opened in multipe virtual desktops
@@ -73,6 +73,10 @@ It was announced as [complete desktop task-focused interface for everyone](https
 
 * [Plasma Activities](https://wiki.ubuntuusers.de/Plasma/Aktivit%C3%A4ten/)
 
+### Browser
+
+* Light Table as new IDE concept: <http://www.chris-granger.com/2012/04/12/light-table-a-new-ide-concept/>
+
 ### Special Features
 
 * IntelliJ 2017.3 restores the current editors when changing branches in git.
@@ -88,6 +92,12 @@ It was announced as [complete desktop task-focused interface for everyone](https
 * Chrome Plugin [Simple Window Saver](https://chrome.google.com/webstore/detail/simple-window-saver/fpfmklldfnlcblofkhdeoohfppdoejdc)
 
    > Simple Window Saver makes it super easy to save and restore windows. Keep one window for work tabs, one for Gmail and Facebook, and one for your vacation planning or the research on that new TV you want to buy.
+   
+### Research Papers
+
+- Focusing knowledge work with task context. PhD thesis. Available at: <https://www.researchgate.net/publication/235350419_Focusing_knowledge_work_with_task_context>
+- What You See Is What You Need: [WYSIWYN: Using Task Focus to Ease Collaboration](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.99.3548). [[PDF](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.99.3548&rep=rep1&type=pdf)]
+- [Beyond Integrated Development Environments: Adding Context to Software Development](https://doi.org/10.1109/ICSE-NIER.2019.00027). This paper reasons on an "Automated Assistant" and calls for a deeper investigation of the concept of "context". In contrast, the ContextSwitcher assumes that the user knows about his context and defines queries for the context by hirself.
 
 ## Goal
 
