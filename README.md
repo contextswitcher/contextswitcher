@@ -76,6 +76,7 @@ It was announced as [complete desktop task-focused interface for everyone](https
 ### Browser
 
 * Light Table as new IDE concept: <http://www.chris-granger.com/2012/04/12/light-table-a-new-ide-concept/>
+* [ZenHub's Workspaces](https://help.zenhub.com/support/solutions/articles/43000495219). This concept is bound to GitHub.
 
 ### Special Features
 
