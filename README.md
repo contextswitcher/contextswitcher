@@ -15,7 +15,7 @@ ContextSwitcher restores these at a finger type.
 
 More simpler: ContextSwitcher is a workspace manager across multiple applications.
 
-## Example tasks and opened applications
+## Example Tasks and Opened Applications
 
 * “Search for city tours in Leipzig”: Chrome and OneNote (for taking notes)
 * “Hold meeting with screen sharing”: Chrome (meeting application), Word (Documents), Excel (Documents), Explorer (SVN directory listing)
@@ -28,7 +28,7 @@ When switching a task, the already opened applications should be left opened, no
 The same applies to files (tabs) in the applications.
 If possible, the last focused position (line in Word documents, cell in Excel, slide in PowerPoint) should be restored.
 
-### Comparision to Virtual Desktops
+## Comparison to Virtual Desktops
 
 Users use virtual desktops in two ways:
 
@@ -42,10 +42,38 @@ Alternatively, virutal desktops need to be resued and maybe won't be named prope
 
 When using multipe desktops for a single context, the current context might be "coding" with the virtual desktops "email reading and surfing" and "coding". When switching to the context "Thesis writing", browser tabs need to be closed and new ones opened, JabRef will be loaded, the "coding" desktop will be renamed to "LaTeX" (containing TeXstudio).
 
-#### Application Limitations
+Not all applications fully support Virtual Desktop.
+For instance, Microsoft Excel shows opened windows on *all* virtual desktops:
+
+![Excel showing two possible files](docs/ng-excel-window.png)
+
+For Skype, when focusing the application on a virutal desktop, the skype app steals the focus on its current virutal desktop.
+
+When working on **one** task, possibly, **multiple** virtual desktops are required.
+Currently, they have to be renamed for each task manually.
+
+In the following example, they are named "Desktop 1", "vs.code", and "Compilation Result".
+The first one is intended for a web browser, the second one for Visual Studio Code, and the final one holds some LaTeX compilation result.
+These desktops are required in the latex-template context only, not in a context for searching for a trip, for instance.
+
+![not good - virtual desktop names](docs/ng-virtual-desktops-genrator-latex-template.png)
+
+## Application Limitations
 
 * Microsoft Office applications show all opened windows in the "Window" drop down. ContextSwitcher will display only relevent Windows for the task (because only these documents are opened)
 * Skype cannot be opened in multipe virtual desktops
+
+### Unnecessary Icons and IDE Details
+
+![not good - firefox and IntelliJ](docs/ng-firefox-intellij-1.png)
+
+The yellow-marked things in the tools are either obsolete in this context (firefox, icons in the task bar) - or wrong (IntelliJ - I don't need this run thing).
+
+### Cross-Application Context Switching Not Working
+
+When reviewing a pull request on GitHub, the IDE should checkout the code and switch to the branch. This doesn't happen.
+
+![not good - firefox and IntelliJ](docs/ng-firefox-intellij-2.png)
 
 ## Background and Related Work
 
@@ -77,13 +105,15 @@ It was announced as [complete desktop task-focused interface for everyone](https
 
 * Light Table as new IDE concept: <http://www.chris-granger.com/2012/04/12/light-table-a-new-ide-concept/>
 * [ZenHub's Workspaces](https://help.zenhub.com/support/solutions/articles/43000495219). This concept is bound to GitHub.
+* Firefox supportorts [profiles](https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Multiple_profiles) where seperate Firefox configurations could be done (e.g., family or work).
+  However, it requires much effort to create a Firefox profile for each context
 
 ### Special Features
 
 * IntelliJ 2017.3 restores the current editors when changing branches in git.
   See <https://blog.jetbrains.com/idea/2017/10/intellij-idea-2017-3-vcs-enhancements-and-more/>.
-   
-   > IntelliJ IDEA saves your context (a set of opened files, the current run configuration, and breakpoints) provided that the Restore workspace on branch switching option is enabled in the Settings/Preferences dialog Ctrl+Alt+S under Version Control | Confirmation. When you switch to a branch, IntelliJ IDEA automatically restores your context associated with that branch.
+
+  > IntelliJ IDEA saves your context (a set of opened files, the current run configuration, and breakpoints) provided that the Restore workspace on branch switching option is enabled in the Settings/Preferences dialog Ctrl+Alt+S under Version Control | Confirmation. When you switch to a branch, IntelliJ IDEA automatically restores your context associated with that branch.
   
 * The [Bento Browser](https://bentobrowser.com/) by the [Carnegie Mellon Human Computer Interaction Institute](https://hcii.cmu.edu/) groups browser tabs into projects.
 * [Marketer Browser](https://www.marketerbrowser.com/) supports multiple accounts for the same web page
@@ -92,13 +122,53 @@ It was announced as [complete desktop task-focused interface for everyone](https
 * [Workona](https://workona.com/) - workspaces in the browser
 * Chrome Plugin [Simple Window Saver](https://chrome.google.com/webstore/detail/simple-window-saver/fpfmklldfnlcblofkhdeoohfppdoejdc)
 
-   > Simple Window Saver makes it super easy to save and restore windows. Keep one window for work tabs, one for Gmail and Facebook, and one for your vacation planning or the research on that new TV you want to buy.
-   
+  > Simple Window Saver makes it super easy to save and restore windows. Keep one window for work tabs, one for Gmail and Facebook, and one for your vacation planning or the research on that new TV you want to buy.
+
 ### Research Papers
 
-- Focusing knowledge work with task context. PhD thesis. Available at: <https://www.researchgate.net/publication/235350419_Focusing_knowledge_work_with_task_context>
-- What You See Is What You Need: [WYSIWYN: Using Task Focus to Ease Collaboration](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.99.3548). [[PDF](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.99.3548&rep=rep1&type=pdf)]
-- [Beyond Integrated Development Environments: Adding Context to Software Development](https://doi.org/10.1109/ICSE-NIER.2019.00027). This paper reasons on an "Automated Assistant" and calls for a deeper investigation of the concept of "context". In contrast, the ContextSwitcher assumes that the user knows about his context and defines queries for the context by hirself.
+* Focusing knowledge work with task context. PhD thesis. Available at: <https://www.researchgate.net/publication/235350419_Focusing_knowledge_work_with_task_context>
+* What You See Is What You Need: [WYSIWYN: Using Task Focus to Ease Collaboration](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.99.3548). [[PDF](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.99.3548&rep=rep1&type=pdf)]
+* [Beyond Integrated Development Environments: Adding Context to Software Development](https://doi.org/10.1109/ICSE-NIER.2019.00027). This paper reasons on an "Automated Assistant" and calls for a deeper investigation of the concept of "context". In contrast, the ContextSwitcher assumes that the user knows about his context and defines queries for the context by hirself.
+
+## Usage Examples
+
+### Context Switching from GitHub Issue 1 to GitHub Issue 5
+
+Context "Add Quick Access Support":
+
+* Firefox:
+  * <https://www.mailbox.org>
+  * <https://github.com/contextswitcher/contextswitcher/issues/1>
+* IntelliJ: Branch `add-quick-access-support`
+* Windows Explorer shows `C:\temp`
+
+Context "Support Icon Rearranging":
+
+* Firefox:
+  * <https://www.mailbox.org>
+  * <https://github.com/contextswitcher/contextswitcher/issues/5>
+* IntelliJ: Branch `add-desktop-rearrange-support`
+
+User is in context "Add Quick Access Support".
+User demands switchting to "Support Icon Rearranging".
+Context Switcher causes following actions:
+
+* Firefox: close tab <https://github.com/contextswitcher/contextswitcher/issues/1>
+* Firefox: open tab <https://github.com/contextswitcher/contextswitcher/issues/5>
+* IntelliJ: Switch to branch `add-desktop-rearrange-support`
+* Close of Windows Explorer window
+
+### Context Switcher and Virtual Desktops
+
+Suppose switching from A to B:
+
+* Store the number of virtual desktops
+* Store the applications (and their position) opened at each virtual desktop
+* Store the name of each virtual desktop
+* Close all apps
+* Change the number of virtual desktops according to B
+* Change the names of the virtual desktops according to B
+* Position the applications on the virtual desktops according to B
 
 ## Goal
 
@@ -127,7 +197,7 @@ Following Applications should be supported:
 
 In the following, development aspects are given.
 
-### Development phases
+### Development Phases
 
 The intended development phases for this project are as follows:
 
@@ -152,3 +222,83 @@ Following alternatives should be considered:
   * Reuse code of [Eclipse Jubula](https://www.eclipse.org/jubula/)
 
 It might be required to write a plugin foreach supported application.
+
+### How to Implement Context Switching
+
+#### Option 1: Impleneting Plugins for Each Supported App
+
+Assumption: Three hard-coded context names "Context A", "Context B", "Context C"
+
+ContextSwitcher freshly started.
+Opened applications:
+
+* Nodepad++
+* Word
+
+They register at ContextSwitcher
+
+```
+Notepad++ --> ContextSwitcher: {"appid": "Notepad++", "state": "started"}
+Word --> ContextSwitcher: {"appid": "Word", "state": "started"}
+```
+
+* Notepad++: User opens `c:\temp\test.txt`
+* Word User opens `c:\temp\test.docx`
+
+ContextSwitcher: User clicks on "Save to Context A".
+
+```
+ContextSwitcher -> Notepad++: {"appid": "Nodepad++", "command": "SaveContext"}
+ContextSwitcher -> Word: { "appid": "Word", "command": "SaveContext"}
+```
+
+```
+Word -> ContextSwitcher: {"appid": "Word", "state" : { "files": ["c:\temp\test.docx"] } }
+Notepad++ -> ContextSwitcher: {"appid": " Notepad++", "state" : { "files": ["c:\temp\test.txt"] } }
+```
+
+Now, ContextSwitcher can save the JSONs.
+
+User closes Word, Notepad++ and ContextSwitcher
+
+User starts Word, Notepad++ and ContextSwitcher
+
+```
+Notepad++ --> ContextSwitcher: {"appid": "Notepad++", "state": "started"}
+Word --> ContextSwitcher: {"appid": "Word", "state": "started"}
+```
+
+User klicks on "start Context A" in ContextSwitcher.
+
+```
+ContextSwitcher  -> Word: {"appid": "Word", "state" : { "files": ["c:\temp\test.docx"] } }
+ContextSwitcher  -> Notepad++ {"appid": " Notepad++", "state" : { "files": ["c:\temp\test.txt"] } }
+```
+
+See that the same JSON is sent back to Word and Notepad++ as it was received? No need for custom plugins.
+
+The custom plugin would be needed to start the application out of a context. - For that, I would just have a configuration json
+
+```json
+{
+  "Notepad++": {
+    "startCommand": "C:\\Program Files\\Notepad++\\notepad++.exe"
+  },
+  "Word": {
+    "startCommand": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE"}
+  }
+}
+```
+
+The "only" thing left is the communication between the apps.
+
+I would propose "messaging". Maybe [RabbitMQ](https://www.rabbitmq.com/download.html)? There is a .net client library.
+
+Maybe, each application creates a queue to ContextSwitcher and a call-back queue (see <https://www.rabbitmq.com/tutorials/tutorial-six-python.html> for details). The mentioned "temporary" queue is kept open as long as the application runs. It receives the commands from ContextSwitcher.
+
+(I am not sure about the [channel concept](https://www.rabbitmq.com/channels.html))
+
+#### Option 2: ContextSwitcher Controls Application
+
+ContextSwitcher has dedicated plugins for each supported applicatons.
+It controls the applications by sending keyboard presses and tries to read the window through the Windows API.
