@@ -225,7 +225,7 @@ It might be required to write a plugin foreach supported application.
 
 ### How to Implement Context Switching
 
-#### Option 1: Impleneting Plugins for Each Supported App
+#### Option 1: Plugins for Each Supported App
 
 Assumption: Three hard-coded context names "Context A", "Context B", "Context C"
 
@@ -290,15 +290,40 @@ The custom plugin would be needed to start the application out of a context. - F
 }
 ```
 
+Word offers writing plugins using JavaScript. See <https://docs.microsoft.com/en-us/office/dev/add-ins/develop/understanding-the-javascript-api-for-office>.
+The manifest allows to specify domains to open. See <https://docs.microsoft.com/en-us/office/dev/add-ins/develop/add-in-manifests?tabs=tabid-1#specify-domains-you-want-to-open-in-the-add-in-window>.
+
 The "only" thing left is the communication between the apps.
-
-I would propose "messaging". Maybe [RabbitMQ](https://www.rabbitmq.com/download.html)? There is a .net client library.
-
-Maybe, each application creates a queue to ContextSwitcher and a call-back queue (see <https://www.rabbitmq.com/tutorials/tutorial-six-python.html> for details). The mentioned "temporary" queue is kept open as long as the application runs. It receives the commands from ContextSwitcher.
-
-(I am not sure about the [channel concept](https://www.rabbitmq.com/channels.html))
+Read on at "How to Communicate between the Apps and Context Switcher?"
 
 #### Option 2: ContextSwitcher Controls Application
 
 ContextSwitcher has dedicated plugins for each supported applicatons.
 It controls the applications by sending keyboard presses and tries to read the window through the Windows API.
+
+### How to Communicate between the Apps and Context Switcher?
+
+Follow-up to "How to Implement Context Switching", Option 1.
+
+#### Context and Problem Statement
+
+When crafting a plugin for each supported application, each plugin has to communicate to Context Switcher and receive commands from Context Switcher.
+
+#### Discussion on Options
+
+As general pattern, "messaging" should be used.
+Maybe, each application creates a queue to ContextSwitcher and a call-back queue (see <https://www.rabbitmq.com/tutorials/tutorial-six-python.html> for details). The mentioned "temporary" queue is kept open as long as the application runs. It receives the commands from ContextSwitcher.
+
+Example implementation is [RabbitMQ](https://www.rabbitmq.com/download.html)? There is a .net client library.
+(I am not sure about the [channel concept](https://www.rabbitmq.com/channels.html))
+
+There is [Microsoft Message Queueing](https://en.wikipedia.org/wiki/Microsoft_Message_Queuing). It can be installed (and removed) on Windows 10 easily. See <https://superuser.com/a/986399/138868>.
+
+Possibly, it is easer to host a http endpoint, where each application registers.
+Then, the server can send commands to the client using [Server-Sent Events](https://www.w3schools.com/html/html5_serversentevents.asp).
+For instance, ContextSwitcher sends "save state". Then, the application PUTs its new state to ContextSwitcher.
+After all registered applications did this, ContextSwitcher can continue.
+
+Chrome Extensions can only communicate to the outside using [Native Messaging](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging). The application reads from `stdin` and writes to `stdout` to communicate with the extension.
+This is a solution to communicate with the Context Switcher browser extension.
+For each extension (Chrome, Firefox), one instance of the "Native Messaging Host" (the Context Switcher part) is started.
