@@ -301,6 +301,11 @@ Read on at "How to Communicate between the Apps and Context Switcher?"
 ContextSwitcher has dedicated plugins for each supported applicatons.
 It controls the applications by sending keyboard presses and tries to read the window through the Windows API.
 
+Here, frameworks such as [FlaUI](https://github.com/FlaUI/FlaUI) (C#) could be used.
+See https://github.com/FlaUI/FlaUI/wiki/FAQ for discussions on the powers on FlaUI.
+
+When using the tool [Snipaste](https://www.snipaste.com/), one can see how good UI element detection by an external application can work.
+
 ### How to Communicate between the Apps and Context Switcher?
 
 Follow-up to "How to Implement Context Switching", Option 1.
