@@ -6,25 +6,32 @@
 
 ## Motivation
 
-Suppose you are working on a task.
+The target group are persons working on multiple projects.
+One project may be "buy Acme Brick Co.".
+Most people have between 30 and 100 of these [says David Allen](https://gettingthingsdone.com/2011/01/the-6-horizons-of-focus/).
+
+Context switcher allows for switchting between projects.
+
+Suppose you are working on a project.
 You have opened IntelliJ, some browser tabs, and a Word document.
 Now, an urgent email comes in.
-This requires you to switch the context to another task.
-When you left that task, you had different browser windows and different Word documents opened.
+This requires you to switch the context to another project.
+When you left that project, you had different browser windows and different Word documents opened.
 ContextSwitcher restores these at a finger type.
 
 More simpler: ContextSwitcher is a workspace manager across multiple applications.
 
-## Example Tasks and Opened Applications
+## Example Projects, Tasks and Opened Applications
 
-* “Search for city tours in Leipzig”: Chrome and OneNote (for taking notes)
-* “Hold meeting with screen sharing”: Chrome (meeting application), Word (Documents), Excel (Documents), Explorer (SVN directory listing)
-* “Collection information about a topic”: Chrome and JabRef (for storing the bibliography entries)
-* “Meeting with students about their project”: Outlook (with all relevant emails), Notepad++ (for meeting minutes), Explorer (showing the project directory), Eclipse (with the current workspace and the linked Mylyn task being active)
-* Working on a large LaTeX document
+A project might be subdivided into several tasks. These examples show a current task of a project.
+
+* Project "Holiday 2025": Task: “Search for city tours in Leipzig”: Chrome and OneNote (for taking notes)
+* Project "Research Agenda 2025": Task: “Collection information about a topic”: Chrome and JabRef (for storing the bibliography entries)
+* Project "Student Project: Implement Software X": “Meeting with students about their project”: Outlook (with all relevant emails), Notepad++ (for meeting minutes), Explorer (showing the project directory), Eclipse (with the current workspace and the linked Mylyn task being active)
+* Project "Be MSc in 2021": Task: "Write thesis": Working on a large LaTeX document
 
 In each opened application, only the relevant files (tabs) should be opened.
-When switching a task, the already opened applications should be left opened, not required should be closed and new ones have to be opened.
+When switching a project, the already opened applications should be left opened, not required should be closed and new ones have to be opened.
 The same applies to files (tabs) in the applications.
 If possible, the last focused position (line in Word documents, cell in Excel, slide in PowerPoint) should be restored.
 
@@ -37,7 +44,7 @@ Users use virtual desktops in two ways:
 
 When using each virtual desktop for a context, the first context might be "email reading and surfing" and the next one "coding".
 For "Thesis writing", a third desktop "LaTeX" needs to be opened.
-Thus, one needs n different desktops for n tasks.
+Thus, one needs n different desktops for n projects.
 Alternatively, virutal desktops need to be resued and maybe won't be named properly (e.g., "LaTeX" versus "Desktop 2").
 
 When using multipe desktops for a single context, the current context might be "coding" with the virtual desktops "email reading and surfing" and "coding". When switching to the context "Thesis writing", browser tabs need to be closed and new ones opened, JabRef will be loaded, the "coding" desktop will be renamed to "LaTeX" (containing TeXstudio).
@@ -49,8 +56,8 @@ For instance, Microsoft Excel shows opened windows on *all* virtual desktops:
 
 For Skype, when focusing the application on a virutal desktop, the skype app steals the focus on its current virutal desktop.
 
-When working on **one** task, possibly, **multiple** virtual desktops are required.
-Currently, they have to be renamed for each task manually.
+When working on **one** project, possibly, **multiple** virtual desktops are required.
+Currently, they have to be renamed for each project manually.
 
 In the following example, they are named "Desktop 1", "vs.code", and "Compilation Result".
 The first one is intended for a web browser, the second one for Visual Studio Code, and the final one holds some LaTeX compilation result.
@@ -78,13 +85,10 @@ When reviewing a pull request on GitHub, the IDE should checkout the code and sw
 ## Background and Related Work
 
 When working with code in Eclipse, one has opened many files by the time.
-Often, not all opened files are required for a task.
-What if only the relevant files are opened and even the most touched lines are highlighted?
-What if one can give a colleague a reference to the current state of the IDE to enable a simpler reproduction of an issue?
-For this, the concept of a “[task-focused interface](https://en.wikipedia.org/wiki/Task-focused_interface)” has been invented and turned into software as Eclipse [Mylyn](https://www.eclipse.org/mylyn/).
-One can read more about Mylyn at the [Mylyn Tutorial](https://web.archive.org/web/20170929190100/http://www.tasktop.com/mylyn/tutorial).
-Concerning the availability of the task-focused interface across multiple applications, the [Tasktop Dev Standalone Application](http://www.tasktop.com/node/1176/) is available.
-It was announced as [complete desktop task-focused interface for everyone](https://www.infoq.com/news/2008/02/tasktop-10), but it does not support arbitrary applications.
+Often, not all opened files are required for a specific project.
+Moreover, when looking deeper into a project, there are different "tasks" to do.
+Currently, such tasks are called "issues".
+See the GitHub guidelines on issues for more information on issues: <https://guides.github.com/features/issues>.
 
 ### Windows
 
@@ -123,6 +127,16 @@ It was announced as [complete desktop task-focused interface for everyone](https
 * Chrome Plugin [Simple Window Saver](https://chrome.google.com/webstore/detail/simple-window-saver/fpfmklldfnlcblofkhdeoohfppdoejdc)
 
   > Simple Window Saver makes it super easy to save and restore windows. Keep one window for work tabs, one for Gmail and Facebook, and one for your vacation planning or the research on that new TV you want to buy.
+
+### Concept of "Task-Focused Interface"
+
+The concept of a “[task-focused interface](https://en.wikipedia.org/wiki/Task-focused_interface)” has been invented and turned into software as Eclipse [Mylyn](https://www.eclipse.org/mylyn/).
+It answers following questions:
+What if only the relevant files are opened and even the most touched lines are highlighted?
+What if one can give a colleague a reference to the current state of the IDE to enable a simpler reproduction of an issue?
+One can read more about Mylyn at the [Mylyn Tutorial](https://web.archive.org/web/20170929190100/http://www.tasktop.com/mylyn/tutorial).
+Concerning the availability of the task-focused interface across multiple applications, the [Tasktop Dev Standalone Application](http://www.tasktop.com/node/1176/) is available.
+It was announced as [complete desktop task-focused interface for everyone](https://www.infoq.com/news/2008/02/tasktop-10), but it does not support arbitrary applications.
 
 ### Research Papers
 
@@ -174,14 +188,16 @@ Suppose switching from A to B:
 
 In this project, a framework with an UI and ten plugins for task-focused applications on Windows should be implemented.
 The main UI should be kept simple:
-A list of tasks with the possibility to add a new task, remove a task and focus a task.
+A list of projects with the possibility to add a new project, remove a project and focus a project.
+
+If possibly, supporting multiple tasks per project is a nice add-on, but not a must.
 
 Following Applications should be supported:
 
 * Windows Virtual Desktop
   * The names of the virtual desktop should change according to the context (e.g., in the context "Working on a large LaTeX document": "vs.code" (having vs.code and guit gui) and "compilation result" (showing SumatraPDF)).
 * Chrome
-  * Not possible using [ChromeDriver](https://sites.google.com/a/chromium.org/chromedriver/downloads), because [just attaching to a running instance isn't technically possible](https://github.com/seleniumhq/selenium-google-code-issue-archive/issues/18#issuecomment-191402419) 
+  * Not possible using [ChromeDriver](https://sites.google.com/a/chromium.org/chromedriver/downloads), because [just attaching to a running instance isn't technically possible](https://github.com/seleniumhq/selenium-google-code-issue-archive/issues/18#issuecomment-191402419)
   * Or implement own extension based on messaging: <https://github.com/vakho10/Native-Messaging> or <http://git.javadeploy.net/coderrooftrellen/simple-chrome-extension/blob/f4d38c82c7e7cce68c89a5d008a26c7689cfe4fa/Readme.md>
 * Firefox
 * Word
@@ -237,7 +253,7 @@ Opened applications:
 
 They register at ContextSwitcher
 
-```
+```text
 Notepad++ --> ContextSwitcher: {"appid": "Notepad++", "state": "started"}
 Word --> ContextSwitcher: {"appid": "Word", "state": "started"}
 ```
@@ -247,12 +263,12 @@ Word --> ContextSwitcher: {"appid": "Word", "state": "started"}
 
 ContextSwitcher: User clicks on "Save to Context A".
 
-```
+```text
 ContextSwitcher -> Notepad++: {"appid": "Nodepad++", "command": "SaveContext"}
 ContextSwitcher -> Word: { "appid": "Word", "command": "SaveContext"}
 ```
 
-```
+```text
 Word -> ContextSwitcher: {"appid": "Word", "state" : { "files": ["c:\temp\test.docx"] } }
 Notepad++ -> ContextSwitcher: {"appid": " Notepad++", "state" : { "files": ["c:\temp\test.txt"] } }
 ```
@@ -263,14 +279,14 @@ User closes Word, Notepad++ and ContextSwitcher
 
 User starts Word, Notepad++ and ContextSwitcher
 
-```
+```text
 Notepad++ --> ContextSwitcher: {"appid": "Notepad++", "state": "started"}
 Word --> ContextSwitcher: {"appid": "Word", "state": "started"}
 ```
 
 User klicks on "start Context A" in ContextSwitcher.
 
-```
+```text
 ContextSwitcher  -> Word: {"appid": "Word", "state" : { "files": ["c:\temp\test.docx"] } }
 ContextSwitcher  -> Notepad++ {"appid": " Notepad++", "state" : { "files": ["c:\temp\test.txt"] } }
 ```
@@ -332,3 +348,5 @@ After all registered applications did this, ContextSwitcher can continue.
 Chrome Extensions can only communicate to the outside using [Native Messaging](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging). The application reads from `stdin` and writes to `stdout` to communicate with the extension.
 This is a solution to communicate with the Context Switcher browser extension.
 For each extension (Chrome, Firefox), one instance of the "Native Messaging Host" (the Context Switcher part) is started.
+
+<!-- markdownlint-disable-file MD026 -->
