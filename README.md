@@ -96,6 +96,7 @@ See the GitHub guidelines on issues for more information on issues: <https://gui
 * [Windows 10 Sets](https://insider.windows.com/de-de/articles/introducing-sets/).
   [Sundown in April 2019](https://www.heise.de/newsticker/meldung/Bedienkonzept-Microsoft-beerdigt-Sets-fuer-Windows-10-4404211.html).
 * [bug.n](https://github.com/fuhsjr00/bug.n) - can provide views on opened windows.
+* [Workspacer](https://github.com/rickbutton/workspacer) - tiling Window management on Windows - with multiple desktops.
 
 ### Mac OS X
 
