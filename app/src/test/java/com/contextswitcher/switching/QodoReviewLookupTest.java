@@ -179,6 +179,17 @@ class QodoReviewLookupTest {
     }
 
     @Test
+    void stripsARepeatedPreambleAboveAHeadingWithoutHashes() {
+        // Qodo's current shape (PR JabRef#14493): bare headings, and each edit
+        // of the summary stacks another preamble line on a carried-over finding.
+        String prompt = "Issue description\nThe finding.\nRecommended Fix\nFix it.";
+        String stacked = "The issue below was found during a code review. Follow the provided context and guidance below and implement a solution\n"
+                .repeat(3) + prompt;
+        assertThat(QodoReviewLookup.extractPrompts(summaryBodyWithPrompt(stacked)))
+                .containsExactly(prompt);
+    }
+
+    @Test
     void extractsEveryPromptWhenACommentBundlesSeveral() {
         String body = bodyWithPrompt("First prompt.") + "\n" + bodyWithPrompt("Second prompt.");
         assertThat(QodoReviewLookup.extractPrompts(body))

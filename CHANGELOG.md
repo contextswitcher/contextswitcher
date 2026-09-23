@@ -13,4 +13,8 @@ The topmost section is the day in progress — its link points at `main` until t
 - Initial release.
 - A task's context menu offers "Copy link" for its `contextswitcher://task/…` deep link, e.g. to link it from OneNote.
 
+### Fixed
+
+- "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
+
 [2026-09-23]: https://github.com/contextswitcher/contextswitcher/commits/v2026-09-23

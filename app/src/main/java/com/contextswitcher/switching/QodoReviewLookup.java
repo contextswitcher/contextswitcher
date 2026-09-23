@@ -108,8 +108,12 @@ public class QodoReviewLookup {
     /// The sentence qodo puts above the prompt in the **summary** comment and
     /// leaves off the inline one. Dropped so the same finding has the same
     /// text from either source and [#activePrompts] can collapse the two.
+    /// Qodo has since dropped the `## ` from its headings, and every edit of its
+    /// summary stacks one more copy of the sentence on a carried-over finding —
+    /// so the anchor takes the heading with or without `## ` and everything
+    /// above it goes, however many lines that is.
     private static final Pattern PROMPT_PREAMBLE =
-            Pattern.compile("\\A.*?(?=^## Issue description$)", Pattern.DOTALL | Pattern.MULTILINE);
+            Pattern.compile("\\A.*?(?=^(?:## )?Issue description$)", Pattern.DOTALL | Pattern.MULTILINE);
 
     private static final Pattern UPDATED_AT = Pattern.compile("\"updatedAt\"\\s*:\\s*\"([^\"]+)\"");
 
