@@ -13,6 +13,10 @@ The topmost section is the day in progress — its link points at `main` until t
 - Initial release.
 - A task's context menu offers "Copy link" for its `contextswitcher://task/…` deep link, e.g. to link it from OneNote.
 
+### Changed
+
+- A task's Firefox tab group is named after its first PR, MR or issue number (`#17148`) instead of its tmux window number, which remains the fallback.
+
 ### Fixed
 
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.

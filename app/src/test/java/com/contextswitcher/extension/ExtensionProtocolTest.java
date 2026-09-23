@@ -41,7 +41,7 @@ class ExtensionProtocolTest {
                 .doesNotContain("windowTitle");
     }
 
-    // [utest->dsn~browser-tab-group~2]
+    // [utest->dsn~browser-tab-group~3]
     @Test
     void focusUrlNamesTheTabGroupOnlyWhenGiven() {
         assertThat(ExtensionProtocol.encodeFocusUrl("abc-1", "https://example.org/", true, null, "339"))
@@ -51,7 +51,7 @@ class ExtensionProtocolTest {
                 .doesNotContain("group");
     }
 
-    // [utest->dsn~browser-tab-group~2]
+    // [utest->dsn~browser-tab-group~3]
     @Test
     void focusUrlMarksABackgroundTabOnlyWhenItIsOne() {
         assertThat(ExtensionProtocol.encodeFocusUrl("abc-1", "https://example.org/", true, null, "339", true))

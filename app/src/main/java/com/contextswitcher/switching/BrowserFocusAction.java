@@ -28,7 +28,7 @@ import org.jspecify.annotations.Nullable;
 /// Every focused or opened tab is collected in the task's tab group
 /// ([Task#tabGroup()]), so the task's pages sit together in the tab bar.
 // [impl->dsn~browser-focus-action~4]
-// [impl->dsn~browser-tab-group~2]
+// [impl->dsn~browser-tab-group~3]
 public class BrowserFocusAction implements SwitchAction {
 
     /// Opens `firstUrl` on the named desktop: switch to it, raise a Firefox

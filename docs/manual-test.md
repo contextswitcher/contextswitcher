@@ -1290,11 +1290,11 @@ Needs a real Firefox with the extension loaded — the reporting side lives in t
 - [ ] Activate the tab of a **done** task → it is selected and stays done.
 - [ ] With task A selected, move between the tabs of A's own tab group → the task list does not move at all: no scroll, no repaint, and a category collapsed over A's row stays collapsed.
 
-## Task tabs in a tab group (`dsn~browser-tab-group~2`)
+## Task tabs in a tab group (`dsn~browser-tab-group~3`)
 
 Needs Firefox 139+ with the updated extension (`tabGroups` permission) loaded.
 
-- [ ] Switch to a task with two `browser.urls` → both tabs sit in one tab group named after the task's tmux window number (`@339` → `339`).
+- [ ] Switch to a task with two `browser.urls` → both tabs sit in one tab group named after the task's first PR number (`#17148`); a task without a PR/issue URL uses its tmux window number (`@339` → `339`).
 - [ ] Switch to a task without a `tmux:` section → its tabs are grouped under `l:<task id>`.
 - [ ] Switch to the task again → the tabs stay in the same group; no second group of the same name appears.
 - [ ] Switch to a second task → its tabs land in that task's own group, the first task's group is left intact.

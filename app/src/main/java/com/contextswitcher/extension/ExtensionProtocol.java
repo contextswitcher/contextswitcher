@@ -99,7 +99,7 @@ public final class ExtensionProtocol {
 
     /// `group` is the name of the Firefox tab group the tab is collected in
     /// (null: no grouping).
-    // [impl->dsn~browser-tab-group~2]
+    // [impl->dsn~browser-tab-group~3]
     public static String encodeFocusUrl(String id, String url, boolean openIfMissing,
             @Nullable String windowTitle, @Nullable String group) {
         return encodeFocusUrl(id, url, openIfMissing, windowTitle, group, false);
@@ -107,7 +107,7 @@ public final class ExtensionProtocol {
 
     /// `background` opens (or keeps) the tab without activating it and without
     /// raising its window — every URL of a task but its first.
-    // [impl->dsn~browser-tab-group~2]
+    // [impl->dsn~browser-tab-group~3]
     public static String encodeFocusUrl(String id, String url, boolean openIfMissing,
             @Nullable String windowTitle, @Nullable String group, boolean background) {
         ObjectNode node = MAPPER.createObjectNode();

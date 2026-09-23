@@ -123,15 +123,29 @@ public record Task(
     }
 
     /// Name of the Firefox tab group the task's tabs are collected in: the
-    /// tmux window number (`window: "@339"` → `339`), or `l:<id>` for a task
-    /// running no remote tmux window. A `window:` naming the window instead of
-    /// numbering it is not unique across sessions and uses the `l:` form too.
-    // [impl->dsn~browser-tab-group~2]
+    /// number of the first PR, MR or issue among the task's browser URLs
+    /// (`#17148`, GitLab MRs `!42`), else the tmux window number
+    /// (`window: "@339"` → `339`), else `l:<id>`. A `window:` naming the
+    /// window instead of numbering it is not unique across sessions and uses
+    /// the `l:` form too.
+    // [impl->dsn~browser-tab-group~3]
     public String tabGroup() {
+        if (browser != null) {
+            for (String url : browser.urls()) {
+                java.util.regex.Matcher m = TAB_GROUP_NUMBER.matcher(url);
+                if (m.find()) {
+                    return (m.group(1).equals("merge_requests") ? "!" : "#") + m.group(2);
+                }
+            }
+        }
         String window = tmux == null ? null : tmux.window();
         String number = window == null ? "" : window.replaceFirst("^@", "");
         return number.matches("\\d+") ? number : "l:" + id;
     }
+
+    /// A GitHub PR/issue or GitLab MR/issue URL, capturing kind and number.
+    private static final java.util.regex.Pattern TAB_GROUP_NUMBER = java.util.regex.Pattern.compile(
+            "^https://[^/\\s]+/(?:[\\w.-]+/)+(pull|issues|merge_requests)/(\\d+)(?:[/?#]|$)");
 
     public record TmuxConfig(String session, @Nullable String window) {
 

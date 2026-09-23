@@ -184,7 +184,7 @@ class BrowserFocusActionTest {
         assertThat(tabs.focused).containsExactly("https://a.example/");
     }
 
-    // [utest->dsn~browser-tab-group~2]
+    // [utest->dsn~browser-tab-group~3]
     @Test
     void everyUrlIsCollectedInTheTaskTabGroup() {
         FakeTabs tabs = new FakeTabs();
