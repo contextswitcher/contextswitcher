@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+bin/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# direnv (the .envrc itself is checked in; this is its per-machine cache)
+.direnv/
+
+# Per-machine Android SDK location; absent = :android is
+# skipped in settings.gradle.kts.
+local.properties
+
+# JVM crash dumps
+hs_err_pid*.log
+replay_pid*.log
+
+.claude/worktrees/

@@ -1,0 +1,513 @@
+/* Application stylesheet, layered over the AtlantaFX theme (AUTHOR origin, so
+   these rules win over the theme's user-agent stylesheet). */
+
+/* Reserve the 3px accent left-edge on every task row (transparent when
+   unselected) so selecting a row never shifts its content sideways — all rows
+   keep their text in the same column. A 1px hairline on the bottom edge separates
+   one two-line task row from the next; without it the rows run together.
+   The selected row colours the left edge in,
+   and stays marked even when the list is unfocused (the default :selected dims
+   to grey off-focus).
+   Scoped to the task list: a ComboBox renders its current value in a
+   .list-cell too — and that one is always :filled:selected, so an unscoped
+   rule drew a blue accent bar inside every combo box in the app. */
+.task-list .list-cell:filled {
+    -fx-border-color: transparent transparent -color-border-muted transparent;
+    -fx-border-width: 0 0 1 3;
+}
+.task-list .list-cell:filled:selected {
+    -fx-border-color: transparent transparent -color-border-muted -color-accent-emphasis;
+}
+
+/* Section backgrounds are painted on the ListCell (full width, edge to edge)
+   rather than the inner row — the row's width is bound narrower than the cell to
+   reserve room for the scrollbar, so a background on it leaves gaps at both
+   edges (invisible in light mode, obvious in dark). The :filled left accent
+   border is transparent, and the background shows under it. */
+.task-list .list-cell.group-header-cell {
+    -fx-background-color: -color-bg-subtle;
+}
+.task-list .list-cell.done-cell {
+    -fx-background-color: -color-bg-inset;
+}
+/* …but selection wins over them: both rules above are AUTHOR origin, so they
+   beat the theme's own :selected background, and a selected row in the Done
+   section (or a selected group header) kept its section colour and looked
+   unselected — barely noticeable in light mode, glaring in dark. Repeating the
+   theme's colour restores the highlight; the focused/unfocused variants are the
+   same colour in both Nord themes, so one rule covers both.
+   The selector has to name the section class: JavaFX ranks a rule by its
+   style-class count before its pseudo-class count, so a plain
+   `.list-cell:filled:selected` still loses to `.list-cell.done-cell`. */
+.task-list .list-cell.group-header-cell:selected,
+.task-list .list-cell.done-cell:selected {
+    -fx-background-color: -color-cell-bg-selected;
+}
+
+/* One shared definition for EVERY control in the task-list toolbar — plain icon
+   button, group-by-labels toggle, and the filter/sort/add menu buttons alike —
+   so they are all the same size and the same flat look. AtlantaFX otherwise
+   styles the three types differently: it pads `.button`/`.menu-button` icon
+   buttons 8x12 in a toolbar (bigger), and — because it ships no
+   `.toggle-button.flat` rule — gives the toggle the toolbar's default toggle
+   colours (a filled subtle background and an accent-muted hover border) instead
+   of the flat buttons' transparent background and subtle hover.
+   The reference is the toggle at 5.7x8.5, transparent, subtle hover. The
+   selector lists each type only to clear AtlantaFX's toolbar-scoped rules
+   (specificity); the property block is a single shared definition. */
+.tool-bar > .container > .button.button-icon,
+.tool-bar > .container > .toggle-button.button-icon,
+.tool-bar > .container > .menu-button.button-icon {
+    -fx-padding: 0.4em 0.6em 0.4em 0.6em;
+    -fx-background-insets: 0;
+    -color-button-bg: transparent;
+    -color-button-fg: -color-fg-default;
+    -color-button-border: transparent;
+    /* The toolbar's own background is -color-bg-subtle, so the hover must differ
+       from it on both themes. -color-accent-subtle nearly equals bg-subtle in
+       Nord light (invisible there), so use the stronger -color-accent-muted,
+       which contrasts with bg-subtle in both light and dark. */
+    -color-button-bg-hover: -color-accent-muted;
+    -color-button-fg-hover: -color-button-fg;
+    -color-button-border-hover: -color-accent-muted;
+}
+
+/* The plain and menu buttons hover via the -color-button-bg-hover variable
+   above, but AtlantaFX's toolbar-toggle rule sets a toggle's hover
+   -fx-background-color *directly* (to a bg-subtle fill), so the variable never
+   takes and the group-by-labels toggle showed no hover. Override that fill
+   directly (higher specificity, incl. the selected-and-hovered case). */
+.tool-bar > .container > .toggle-button.button-icon:hover,
+.tool-bar > .container > .toggle-button.button-icon:hover:selected {
+    -fx-background-color: -color-accent-muted;
+}
+
+/* A MenuButton additionally wraps its glyph in a child `.label` (padded again)
+   and adds a drop-down arrow — extra width the plain button and the toggle do
+   not have. Zero the label padding and collapse the arrow, so only the shared
+   control padding above wraps the icon and all three types end up identical.
+   Content display is restored to graphic + text (a bare graphic-only rule would
+   hide it) so the small count badge still shows, at a shrunk font. */
+.menu-button.button-icon {
+    -fx-content-display: left;
+    -fx-graphic-text-gap: 0.2em;
+}
+.menu-button.button-icon > .label {
+    -fx-padding: 0;
+    -fx-font-size: 0.8em;
+}
+.menu-button.button-icon > .arrow-button {
+    -fx-padding: 0;
+    -fx-min-width: 0;
+    -fx-pref-width: 0;
+    -fx-max-width: 0;
+}
+.menu-button.button-icon > .arrow-button > .arrow {
+    -fx-min-width: 0;
+    -fx-pref-width: 0;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+
+/* Every pane's own toolbar (the Notes and Configuration headers, the Terminal
+   pane's band, the Queue's top bar) shares the tasks-pane toolbar's background —
+   the exact same two-layer paint as `.tool-bar` (a muted bottom border over a
+   subtle fill) — so every pane toolbar reads as one band.
+   [impl->dsn~shell-layout~2] */
+.panel-header {
+    -fx-background-color: -color-border-muted, -color-bg-subtle;
+    -fx-background-insets: 0, 0 0 1px 0;
+}
+
+/* …and one height: fixed, not a floor, so no band grows past the task toolbar
+   whatever it holds. The task toolbar's icon controls are the tallest content,
+   and this sits a touch above them; font-relative (em) so it tracks the UI font. */
+.list-toolbar,
+.panel-header {
+    -fx-min-height: 2.75em;
+    -fx-pref-height: 2.75em;
+    -fx-max-height: 2.75em;
+}
+
+/* No × on the dock tabs (ShellFxHost.DOCK_STYLE): one stray click beside a tab
+   title closed a pane. The tabs stay closable — their context menu closes one —
+   so the button is hidden and takes no room, rather than switched off.
+   Transparent and zero-wide, not only invisible: TabPanePro's skin sets the
+   button visible from code while a selected tab is hovered, which outranks a
+   CSS `visibility` until the next restyle (field report 2026-09-13).
+   [impl->dsn~shell-layout~2] */
+.pane-dock .tab-close-button {
+    visibility: hidden;
+    -fx-opacity: 0;
+    -fx-padding: 0;
+    -fx-min-width: 0;
+    -fx-pref-width: 0;
+    -fx-max-width: 0;
+}
+
+/* The find bar's search field (dsn~task-find~2): a bordered box wrapping a
+   leading magnifier glyph, a borderless inner TextField, and a trailing clear
+   button — the look of GemsFX's SearchTextField, built natively. The box draws
+   the input frame (two background layers: border, then fill) and shows the
+   accent border while anything inside it has focus. Sizes in em (font-relative).*/
+.search-field {
+    -fx-background-color: -color-border-default, -color-bg-default;
+    -fx-background-insets: 0, 1px;
+    -fx-background-radius: 0.35em;
+    /* Vertical padding keeps the category chip's fill off the frame. */
+    -fx-padding: 0.2em 0.4em 0.2em 0.5em;
+    -fx-spacing: 0.3em;
+}
+.search-field:focus-within {
+    -fx-background-color: -color-accent-emphasis, -color-bg-default;
+    -fx-background-insets: 0, 1px;
+}
+/* The inner field is transparent and border-less — the box above is the frame. */
+.search-field > .search-inner {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0.45em 0 0.45em 0;
+}
+/* The trailing clear button sits tight inside the field. */
+.search-field > .button.button-icon {
+    -fx-padding: 0.2em;
+    -fx-background-color: transparent;
+}
+
+/* The queue pane's read-only "Last sent" record: a subtly different background
+   separates it from the editable queue boxes above. AtlantaFX paints a text
+   area's background on its .content child, so the rule must target that node —
+   an inline -fx-control-inner-background on the control would not take. */
+.queue-last-sent .content {
+    -fx-background-color: -color-bg-subtle;
+}
+
+/* The queue add box's Ctrl+Enter chord: one shade greener per press while the
+   chord is on its way, so the run that ends in a send is visible before it
+   fires. Theme colours, so Nord and Everforest each land on their own green;
+   the .content again, like .queue-last-sent. The firing press wears no shade —
+   it empties the box, and green would then colour the next message's box. */
+.queue-chord-1 .content {
+    -fx-background-color: -color-success-subtle;
+}
+
+.queue-chord-2 .content {
+    -fx-background-color: -color-success-muted;
+}
+
+/* Reserve the check-mark column even when the item is not ticked. AtlantaFX
+   sizes `.check`/`.radio` only under `:checked`, so an unticked item's mark node
+   is 0 wide — and toggling one item inside an open menu changes only that item's
+   left-container width, while JavaFX keeps the label offset it computed when the
+   popup was laid out. Result: the label of the item you just clicked sits
+   indented (or outdented) against its neighbours until the menu is reopened.
+   Sizing the mark unconditionally keeps every row's left column identical; with
+   no `-fx-shape`/background of its own the unticked mark stays invisible. */
+.check-menu-item > .left-container > .check,
+.radio-menu-item > .left-container > .radio {
+    -fx-min-width: 0.75em;
+    -fx-max-width: 0.75em;
+    -fx-min-height: 0.75em;
+    -fx-max-height: 0.75em;
+}
+
+/* The queue's collapsed "Read" section: AtlantaFX ships no .titled-pane.small,
+   and the default header towers over the small queue controls next to it. */
+.queue-read > .title {
+    -fx-padding: 2px 6px;
+    -fx-font-size: 0.9em;
+}
+
+/* The header of the category the selected task lives in wears the selection's
+   own colours (background and accent left edge), so the highlighted row always
+   names its context — with the row itself selected somewhere below it, the
+   header is a second mark, not a competing one. Listed after the :selected
+   rules above and with the same style-class count, so a header that is both
+   current and selected simply lands on the same colours.
+   [impl->dsn~current-category-highlight~1] */
+/* The pinned-header overlay carries `.list-view` only for the cell rules and
+   colours it scopes (MainWindow#installStickyHeader); the list inside draws
+   its own frame, so the overlay must not add a second one. */
+.sticky-header-overlay {
+    -fx-border-width: 0;
+}
+
+.task-list .list-cell.group-header-cell.group-header-current {
+    -fx-background-color: -color-cell-bg-selected;
+    -fx-border-color: transparent transparent -color-border-muted -color-accent-emphasis;
+}
+
+/* Colours live here, never in Java: a node gets a style class, and the class
+   resolves the theme's own variables, so every theme — and a live switch —
+   recolours it. MainWindow adds this stylesheet to every window, dialogs
+   included. The few literals below are deliberate constants, named once. */
+.root {
+    /* The app mark's blue (Paul Tol's vibrant blue, the extension icon's too). */
+    -cs-brand-blue: #0077BB;
+    /* claude-semaphore's (MIT) traffic light, so a user running both reads a
+       dot the same way in either. */
+    -cs-working: #FF8A00;
+    -cs-needs-you: #FF1010;
+    /* A tag chip's text on its palette background, which no theme owns. */
+    -cs-chip-text-on-light: #1f2328;
+    -cs-chip-text-on-dark: white;
+}
+
+/* The probe Themes.variablesResolve styles in a scene of its own: it gets a
+   background exactly when the theme in force defines its colour variables. */
+.theme-probe {
+    -fx-background-color: -color-bg-default;
+}
+
+/* Every SvgNode glyph's fill. SvgNode's own stylesheet points at modena's
+   -fx-text-base-color, which AtlantaFX does not define — without this rule a
+   glyph renders invisible. The classes after it narrow the fill where the
+   colour carries meaning. [impl->dsn~theme-select~8] */
+.svg-node {
+    -fx-color: -color-fg-muted;
+}
+.svg-node.status-glyph {
+    -fx-color: -color-fg-subtle;
+}
+/* PR state [impl->dsn~pr-state-indicator~3]. AtlantaFX has no purple, so a
+   merged PR takes the accent; its merge glyph already tells it from an open one. */
+.svg-node.pr-open {
+    -fx-color: -color-success-fg;
+}
+.svg-node.pr-draft,
+.svg-node.pr-unknown {
+    -fx-color: -color-fg-subtle;
+}
+.svg-node.pr-merged {
+    -fx-color: -color-accent-fg;
+}
+.svg-node.pr-closed {
+    -fx-color: -color-danger-fg;
+}
+/* The update glyph once a newer version waits: the mark's blue in every theme,
+   since it names ContextSwitcher itself. [impl->dsn~restart-to-update~7] */
+.svg-node.update-available {
+    -fx-color: -cs-brand-blue;
+}
+.update-badge {
+    -fx-background-color: -color-danger-emphasis;
+    -fx-text-fill: -color-fg-emphasis;
+    -fx-font-size: 8px;
+    -fx-font-weight: bold;
+    -fx-padding: 0 2 0 2;
+    -fx-background-radius: 6;
+}
+
+/* The task row's running dot [impl->dsn~task-running-indicator~7]. */
+.running-dot {
+    -fx-text-fill: transparent;
+}
+.running-dot.running-dot-working {
+    -fx-text-fill: -cs-working;
+}
+.running-dot.running-dot-needs-you {
+    -fx-text-fill: -cs-needs-you;
+}
+.running-dot.running-dot-done {
+    -fx-text-fill: -color-fg-subtle;
+}
+
+/* The switch status bar's per-action chips. Prefixed class names: AtlantaFX
+   already colours a `.label.success`/`.label.danger`. */
+.switch-chip {
+    -fx-text-fill: -color-fg-emphasis;
+    -fx-background-radius: 10;
+    -fx-padding: 2 10 2 10;
+}
+.switch-chip.switch-chip-pending {
+    -fx-background-color: -color-neutral-emphasis;
+}
+.switch-chip.switch-chip-running {
+    -fx-background-color: -color-accent-emphasis;
+}
+.switch-chip.switch-chip-ok {
+    -fx-background-color: -color-success-emphasis;
+}
+.switch-chip.switch-chip-failed {
+    -fx-background-color: -color-danger-emphasis;
+}
+
+/* A tag chip. Its background is the tag's palette colour — data the user
+   picked, so the one inline style left (TagChips); the text takes whichever of
+   the two reads on that background, not on the theme's. */
+.tag-chip {
+    -fx-background-radius: 6;
+    -fx-padding: 1 6 1 6;
+    -fx-font-size: 0.72em;
+}
+.tag-chip.tag-chip-on-light {
+    -fx-text-fill: -cs-chip-text-on-light;
+}
+.tag-chip.tag-chip-on-dark {
+    -fx-text-fill: -cs-chip-text-on-dark;
+}
+
+/* A task row or header a dragged task is hovering over (TaskListCell). */
+*:drop-target {
+    -fx-background-color: -color-accent-muted;
+}
+
+/* A task row's secondary text: category, config summary, creation step. */
+.row-detail {
+    -fx-font-size: 0.85em;
+}
+
+/* Text that must line up: raw YAML, list fields, inline changelog code. */
+.monospace {
+    -fx-font-family: 'Consolas', monospace;
+}
+
+/* A settings form row under the mouse. */
+.field-row:hover {
+    -fx-background-color: -color-bg-subtle;
+    -fx-background-radius: 4;
+}
+
+/* Editor-lane syntax colours: the decorator gives each segment one of these
+   style names. [impl->dsn~markdown-syntax-highlighting~3] */
+.md-yaml-key {
+    -fx-fill: -color-accent-fg;
+}
+.md-comment {
+    -fx-fill: -color-fg-subtle;
+}
+.md-heading {
+    -fx-fill: -color-accent-fg;
+    -fx-font-weight: bold;
+}
+.md-bullet {
+    -fx-fill: -color-warning-fg;
+    -fx-font-weight: bold;
+}
+.md-quote {
+    -fx-fill: -color-fg-muted;
+}
+.md-code {
+    -fx-fill: -color-danger-fg;
+}
+
+/* GemsFX info center (MADR 0034): its own look is a translucent grey panel with
+   hard-coded warning yellow; paint the notifications as theme cards instead.
+   [impl->dsn~refresh-progress~2] */
+.info-center-view .notification-view > .content {
+    -fx-background-color: -color-border-default, -color-bg-default;
+    -fx-background-insets: 0, 1px;
+    -fx-background-radius: 0.5em;
+}
+
+.info-center-view .notification-view.warning > .content {
+    -fx-background-color: -color-warning-emphasis, -color-warning-subtle;
+}
+
+.info-center-view .notification-view .label {
+    -fx-text-fill: -color-fg-default;
+}
+
+/* An active task's accent bar on the row's left edge (the selected row keeps
+   the stronger selection edge). Three style classes, so it outranks the plain
+   :filled edge; the :selected variant restores the selection's colour, which
+   this rule would otherwise beat. [impl->dsn~running-task-accent~1] */
+.task-list .list-cell.running-task-cell:filled {
+    -fx-border-color: transparent transparent -color-border-muted -color-accent-muted;
+}
+.task-list .list-cell.running-task-cell:filled:selected {
+    -fx-border-color: transparent transparent -color-border-muted -color-accent-emphasis;
+}
+/* A category header's "N running" next to its name. */
+.running-count {
+    -fx-text-fill: -color-accent-fg;
+    -fx-font-weight: bold;
+}
+
+/* A task row under the mouse takes the accent's subtle tone across its whole
+   width (a selected row keeps its selection colour). -cs-row-bg names the
+   colour the row shows, so the action gutter can fade into exactly it.
+   [impl->dsn~task-row-hover-actions~7] */
+.task-list .list-cell.task-cell {
+    -cs-row-bg: -color-bg-default;
+}
+.task-list .list-cell.task-cell:filled:hover {
+    -fx-background-color: -color-accent-subtle;
+    -cs-row-bg: -color-accent-subtle;
+}
+.task-list .list-cell.task-cell:filled:selected:hover {
+    -fx-background-color: -color-cell-bg-selected;
+    -cs-row-bg: -color-cell-bg-selected;
+}
+/* The task row's hover action gutter, laid over the end of the title: no
+   frame, just the row's own colour, faded in from the left so the title
+   under it fades out instead of being cut. */
+.task-action-gutter {
+    -fx-background-color: linear-gradient(from 0px 0px to 24px 0px, transparent, -cs-row-bg);
+    -fx-padding: 0 0 0 24px;
+}
+.task-action-gutter > .separator:vertical {
+    -fx-padding: 3 2 3 2;
+}
+/* The gutter's play/pause toggle stands out as the row's main action. */
+.svg-node.task-toggle-glyph {
+    -fx-color: -color-accent-fg;
+}
+
+/* A PR number on a task row's second line. Until its state is loaded it is
+   shaped like a tag chip (same padding and size) without the chip's colour;
+   once loaded the state icon leads it and the chip's left padding goes.
+   [impl->dsn~pr-state-indicator~3] */
+.pr-chip {
+    -fx-background-radius: 6;
+    -fx-padding: 1 6 1 6;
+    -fx-font-size: 0.72em;
+    -fx-text-fill: -color-fg-muted;
+}
+.pr-chip.pr-chip-resolved {
+    -fx-padding: 1 6 1 0;
+}
+
+/* The slim "Add task…" row closing a category: the button spans the row
+   (every point of it adds), its text indented to the task titles. */
+.task-list .button.add-task-row-button,
+.task-list .button.add-task-row-button:hover,
+.task-list .button.add-task-row-button:pressed {
+    -fx-padding: 1 4 1 18;
+    -fx-alignment: center-left;
+    -fx-background-color: transparent;
+    -fx-font-size: 0.85em;
+    -fx-text-fill: -color-fg-muted;
+}
+/* …and the highlight is the cell's, so it reaches edge to edge. */
+.task-list .list-cell.add-task-cell:filled:hover {
+    -fx-background-color: -color-accent-subtle;
+}
+
+/* The category scope chip inside the find field. [impl->dsn~category-search~3] */
+.find-scope-chip {
+    -fx-background-color: -color-accent-subtle;
+    -fx-background-radius: 0.3em;
+    -fx-padding: 0.1em 0.15em 0.1em 0.45em;
+    -fx-spacing: 0.15em;
+}
+.find-scope-chip > .label {
+    -fx-font-size: 0.9em;
+}
+/* The × must not bring its button size along: AtlantaFX's minimum button
+   height made the chip taller than the field and it spilled over the frame. */
+.search-field > .find-scope-chip > .button.button-icon {
+    -fx-padding: 0.1em;
+    -fx-min-width: 0;
+    -fx-min-height: 0;
+    -fx-background-color: transparent;
+}
+
+/* The Ctrl+J jump-to-category popup (dsn~category-jump~1): a Popup has no
+   background of its own. */
+.category-jump {
+    -fx-background-color: -color-border-default, -color-bg-default;
+    -fx-background-insets: 0, 1px;
+    -fx-background-radius: 0.35em;
+    -fx-effect: dropshadow(gaussian, -color-shadow-default, 12, 0, 0, 3);
+}

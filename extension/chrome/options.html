@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: sans-serif; margin: 1em; }
+    label { display: block; margin-top: 0.8em; }
+    input { width: 100%; box-sizing: border-box; margin-top: 0.2em; }
+    button { margin-top: 1em; }
+    #status { margin-left: 0.6em; color: green; }
+  </style>
+</head>
+<body>
+  <label>
+    Port (wsPort in the app's settings.yaml)
+    <input type="number" id="port" min="1" max="65535">
+  </label>
+  <label>
+    Token (wsToken in the app's settings.yaml)
+    <input type="password" id="token">
+  </label>
+  <button id="save">Save</button><span id="status"></span>
+  <script src="options.js"></script>
+</body>
+</html>

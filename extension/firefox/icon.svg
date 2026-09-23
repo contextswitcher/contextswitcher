@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- Target rings in Paul Tol's vibrant blue.
+       SVG rather than a PNG set: Firefox takes it at every size, so there is
+       no icon-generation script to run and no rasters to keep in sync. -->
+  <circle cx="8" cy="8" r="7.5" fill="#0077BB"/>
+  <circle cx="8" cy="8" r="5" fill="#FFFFFF"/>
+  <circle cx="8" cy="8" r="2.5" fill="#0077BB"/>
+</svg>

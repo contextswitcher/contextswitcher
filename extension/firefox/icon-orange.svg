@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- icon.svg's rings in Paul Tol's vibrant orange: token set, but no socket to the app.
+       [impl->dsn~extension-state-icon~3] -->
+  <circle cx="8" cy="8" r="7.5" fill="#EE7733"/>
+  <circle cx="8" cy="8" r="5" fill="#FFFFFF"/>
+  <circle cx="8" cy="8" r="2.5" fill="#EE7733"/>
+</svg>

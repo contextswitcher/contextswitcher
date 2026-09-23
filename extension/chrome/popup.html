@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: sans-serif; font-size: 13px; margin: 0; min-width: 22em; }
+    h1 { font-size: 11px; font-weight: normal; text-transform: uppercase;
+         letter-spacing: 0.05em; color: #666; margin: 0; padding: 0.7em 0.9em 0.5em; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { display: flex; align-items: stretch; border-top: 1px solid #ddd; }
+    button { font: inherit; background: none; border: 0; cursor: pointer; padding: 0.6em 0.9em; }
+    .task { flex: 1; text-align: left; }
+    .task:hover, .switch:hover { background: #e6f0f7; }
+    .switch { color: #0077BB; }
+    .status { color: #888; font-size: 11px; margin-left: 0.5em; }
+    .note { padding: 0 0.9em 0.8em; color: #666; }
+    .state { display: flex; align-items: center; margin: 0; color: #666; border-top: 1px solid #ddd; }
+    #state { flex: 1; padding: 0.5em 0.9em; }
+    .options { color: #0077BB; }
+    .options:hover, .toggle:hover { background: #e6f0f7; }
+    .toggle { display: block; width: 100%; text-align: left; border-top: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <h1 id="heading">ContextSwitcher</h1>
+  <ul id="tasks"></ul>
+  <p class="note" id="note"></p>
+  <button class="toggle" id="toggle"></button>
+  <p class="state"><span id="state"></span><button class="options" id="options" title="Set the port and token">Options</button></p>
+  <script src="popup.js"></script>
+</body>
+</html>

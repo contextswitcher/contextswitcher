@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "ContextSwitcher",
+  "version": "0.7.0",
+  "description": "Focuses, opens, and closes task tabs and windows on ContextSwitcher context switches.",
+  "permissions": ["tabs", "tabGroups", "storage", "alarms"],
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "48": "icon-48.png",
+      "128": "icon-128.png"
+    },
+    "default_title": "ContextSwitcher",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html"
+  },
+  "minimum_chrome_version": "116"
+}

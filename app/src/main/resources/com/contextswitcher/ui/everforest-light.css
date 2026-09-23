@@ -1,0 +1,125 @@
+/* Everforest Light Medium for AtlantaFX — GENERATED, do not edit. */
+/* Regenerate with: python3 scripts/everforest-atlantafx.py   (dsn~everforest-theme~1) */
+
+.root {
+
+  /* Base ramps: 0 lightest … 9 darkest. */
+  -color-base-0: #fdf6e3;
+  -color-base-1: #f4f0d9;
+  -color-base-2: #efebd4;
+  -color-base-3: #e6e2cc;
+  -color-base-4: #e0dcc7;
+  -color-base-5: #bdc3af;
+  -color-base-6: #a6b0a0;
+  -color-base-7: #939f91;
+  -color-base-8: #829181;
+  -color-base-9: #5c6a72;
+
+  -color-accent-0: #ece9c1;
+  -color-accent-1: #d9db9b;
+  -color-accent-2: #c6cc74;
+  -color-accent-3: #b3be4e;
+  -color-accent-4: #a0af27;
+  -color-accent-5: #8da101;
+  -color-accent-6: #7b8d0a;
+  -color-accent-7: #6a7a13;
+  -color-accent-8: #58661c;
+  -color-accent-9: #465225;
+
+  -color-success-0: #dfead4;
+  -color-success-1: #bdddc2;
+  -color-success-2: #9bcfb1;
+  -color-success-3: #79c29f;
+  -color-success-4: #57b48e;
+  -color-success-5: #35a77c;
+  -color-success-6: #34926e;
+  -color-success-7: #337d60;
+  -color-success-8: #326952;
+  -color-success-9: #305444;
+
+  -color-warning-0: #f8e9c1;
+  -color-warning-1: #f3da9a;
+  -color-warning-2: #eecc74;
+  -color-warning-3: #e9bd4d;
+  -color-warning-4: #e4af27;
+  -color-warning-5: #dfa000;
+  -color-warning-6: #be8c09;
+  -color-warning-7: #9d7912;
+  -color-warning-8: #7c661c;
+  -color-warning-9: #5b5225;
+
+  -color-danger-0: #fcdecd;
+  -color-danger-1: #fbc2b5;
+  -color-danger-2: #fba79c;
+  -color-danger-3: #fa8c83;
+  -color-danger-4: #f9706b;
+  -color-danger-5: #f85552;
+  -color-danger-6: #d2504c;
+  -color-danger-7: #ad4a46;
+  -color-danger-8: #87453f;
+  -color-danger-9: #613f39;
+
+  /* Semantic colours. */
+  -color-dark: #2f3831;
+  -color-light: #fdf6e3;
+  -color-fg-default: #5c6a72;
+  -color-fg-muted: #829181;
+  -color-fg-subtle: #a6b0a0;
+  -color-fg-emphasis: #fdf6e3;
+  -color-bg-default: #fdf6e3;
+  -color-bg-overlay: #fdf6e3;
+  -color-bg-subtle: #f4f0d9;
+  -color-bg-inset: #efebd4;
+  -color-border-default: #bdc3af;
+  -color-border-muted: #e0dcc7;
+  -color-border-subtle: #e6e2cc;
+  -color-shadow-default: #bdc3af;
+  -color-neutral-emphasis-plus: #5c6a72;
+  -color-neutral-emphasis: #829181;
+  -color-neutral-muted: #dadac8;
+  -color-neutral-subtle: #f4efdc;
+  -color-accent-fg: #58661c;
+  -color-accent-emphasis: #465225;
+  -color-accent-muted: #d8da98;
+  -color-accent-subtle: #f4efd0;
+  -color-success-fg: #326952;
+  -color-success-emphasis: #305444;
+  -color-success-muted: #bbdcc1;
+  -color-success-subtle: #ecefda;
+  -color-warning-fg: #7c661c;
+  -color-warning-emphasis: #5b5225;
+  -color-warning-muted: #f3da98;
+  -color-warning-subtle: #faefd0;
+  -color-danger-fg: #87453f;
+  -color-danger-emphasis: #613f39;
+  -color-danger-muted: #fbc0b3;
+  -color-danger-subtle: #fde9d7;
+
+  /* Chart series. */
+  -color-chart-1: #8da101;
+  -color-chart-2: #3a94c5;
+  -color-chart-3: #f85552;
+  -color-chart-4: #dfa000;
+  -color-chart-5: #df69ba;
+  -color-chart-6: #35a77c;
+  -color-chart-7: #f57d26;
+  -color-chart-8: #829181;
+
+  -color-chart-1-alpha70: rgba(141, 161, 1, 0.7);
+  -color-chart-2-alpha70: rgba(58, 148, 197, 0.7);
+  -color-chart-3-alpha70: rgba(248, 85, 82, 0.7);
+  -color-chart-4-alpha70: rgba(223, 160, 0, 0.7);
+  -color-chart-5-alpha70: rgba(223, 105, 186, 0.7);
+  -color-chart-6-alpha70: rgba(53, 167, 124, 0.7);
+  -color-chart-7-alpha70: rgba(245, 125, 38, 0.7);
+  -color-chart-8-alpha70: rgba(130, 145, 129, 0.7);
+
+  -color-chart-1-alpha20: rgba(141, 161, 1, 0.2);
+  -color-chart-2-alpha20: rgba(58, 148, 197, 0.2);
+  -color-chart-3-alpha20: rgba(248, 85, 82, 0.2);
+  -color-chart-4-alpha20: rgba(223, 160, 0, 0.2);
+  -color-chart-5-alpha20: rgba(223, 105, 186, 0.2);
+  -color-chart-6-alpha20: rgba(53, 167, 124, 0.2);
+  -color-chart-7-alpha20: rgba(245, 125, 38, 0.2);
+  -color-chart-8-alpha20: rgba(130, 145, 129, 0.2);
+}

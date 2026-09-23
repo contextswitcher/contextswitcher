@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 108dp adaptive-icon canvas. The launcher mask (72dp visible) cuts the
+     blue field to its shape, which stands in for the mark's outer ring; the
+     white ring (r 24) and the blue centre (r 12) keep the mark's three equal
+     bands inside the 66dp safe zone. Blue is Paul Tol's vibrant blue, #0077BB. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#0077BB" android:pathData="M0,0h108v108h-108z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M54,30a24,24 0 1,0 0,48a24,24 0 1,0 0,-48z" />
+    <path android:fillColor="#0077BB" android:pathData="M54,42a12,12 0 1,0 0,24a12,12 0 1,0 0,-24z" />
+</vector>

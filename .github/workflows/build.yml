@@ -1,0 +1,145 @@
+name: Build
+
+on:
+  push:
+    branches: [main, experimental]
+    # CalVer day tags (MADR 0017) only publish the debug APK; the other jobs
+    # already ran for that commit on main.
+    tags: ['v*']
+  pull_request:
+
+# A newer push to the same branch or PR supersedes the running build: a burst
+# of merges to main otherwise runs every intermediate commit to completion and
+# burns the org's included Actions minutes on results nobody reads.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    if: "!startsWith(github.ref, 'refs/tags/')"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Explicit targets, not the bare `build`: the runner's preinstalled
+      # Android SDK would otherwise pull :android (settings.gradle.kts) into
+      # this desktop job; the dex spike gets its own job.
+      - name: Build, test, and trace requirements
+        run: ./gradlew :core:build :app:build traceRequirements
+
+      - name: Package testing artifacts (app image zip + browser extensions)
+        run: ./gradlew packageApp packageExtension
+
+      # Uploads are continue-on-error: they are testing conveniences, and a
+      # hit storage quota must not turn a passing build red.
+      # The app image is ~50 MB per run. Kept at the 90-day default and never
+      # replaced, a few weeks of pushes exhausted the account's artifact
+      # storage, and every run then failed on "Artifact storage quota has been
+      # hit" — a red build with nothing wrong in it. `overwrite` keeps one
+      # zip per artifact name instead of one per run, and the short retention
+      # bounds what a burst of pushes can accumulate. These are testing
+      # builds: the interesting one is always the latest.
+      - name: Upload app image
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ContextSwitcher-windows
+          path: app/build/distributions/ContextSwitcher-*.zip
+          retention-days: 7
+          overwrite: true
+
+      - name: Upload Firefox extension
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: contextswitcher-firefox-xpi
+          path: build/distributions/*.xpi
+          retention-days: 7
+          overwrite: true
+
+      - name: Upload Chrome extension
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: contextswitcher-chrome-zip
+          path: build/distributions/contextswitcher-chrome-*.zip
+          retention-days: 7
+          overwrite: true
+
+  # Dex spike: proves D8 dexes all of :core. The hosted runner's preinstalled
+  # SDK (ANDROID_HOME) is enough.
+  android:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Assemble the debug APK
+        run: ./gradlew :android:assembleDebug
+
+      # Pushes only build the APK; `android-dev` is published on request by
+      # android-dev.yml.
+
+      # A release asset instead of an Actions artifact: release files don't
+      # count against the artifact storage quota. Day tags additionally keep
+      # their own pre-release, one per tag.
+      - name: Publish debug APK to the tag's pre-release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" android/build/outputs/apk/debug/android-debug.apk --prerelease --verify-tag --notes "Debug APK built from $GITHUB_REF_NAME."
+
+  changelog:
+    runs-on: ubuntu-latest
+    if: "!startsWith(github.ref, 'refs/tags/')"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jbangdev/setup-jbang@v0.1.1
+
+      - name: Check the changelog format
+        run: |
+          jbang trust add https://github.com/nbbrd/
+          jbang heylogs@nbbrd check --format=github-actions CHANGELOG.md
+
+  # TestFX UI tests under Xvfb (MADR 0014) — Linux because xvfb-run ships
+  # there; the app itself stays Windows-first.
+  ui-test:
+    runs-on: ubuntu-latest
+    # A healthy run takes a few minutes; a wedged one otherwise runs into
+    # GitHub's six-hour default.
+    timeout-minutes: 30
+    if: "!startsWith(github.ref, 'refs/tags/')"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The screen size is spelled out rather than left to the `xvfb-run`
+      # default: that default is the distribution's, not Xvfb's (Debian/Ubuntu
+      # 1280x1024, nixpkgs 640x480), so a test that needs room to click passes
+      # or fails depending on who packaged the wrapper. Same geometry as the
+      # `just uitest` recipe developers run.
+      - name: Run UI tests
+        run: xvfb-run -a -s "-screen 0 1920x1200x24" ./gradlew :app:uiTest

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- icon-gray.svg faded, like a disabled toolbar button: switched off in the popup.
+       [impl->dsn~extension-enable-toggle~1] -->
+  <g opacity="0.4">
+    <circle cx="8" cy="8" r="7.5" fill="#BBBBBB"/>
+    <circle cx="8" cy="8" r="5" fill="#FFFFFF"/>
+    <circle cx="8" cy="8" r="2.5" fill="#BBBBBB"/>
+  </g>
+</svg>

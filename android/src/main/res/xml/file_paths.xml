@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What FileProvider may hand out: only the attachments directory, where
+     the camera app writes a photo for a message (AttachmentStore). -->
+<paths>
+    <files-path name="attachments" path="attachments/" />
+</paths>

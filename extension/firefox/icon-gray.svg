@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- icon.svg's rings in Paul Tol's grey: connected, but no task lists the page in view.
+       [impl->dsn~extension-state-icon~3] -->
+  <circle cx="8" cy="8" r="7.5" fill="#BBBBBB"/>
+  <circle cx="8" cy="8" r="5" fill="#FFFFFF"/>
+  <circle cx="8" cy="8" r="2.5" fill="#BBBBBB"/>
+</svg>

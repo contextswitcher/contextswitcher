@@ -1,0 +1,45 @@
+name: Publish Android dev build
+
+# Replaces the APK on the fixed `android-dev` pre-release and moves its tag to
+# the built commit — only when Oliver asks for it: Actions → "Publish Android
+# dev build" → Run workflow, or `gh workflow run android-dev.yml` (add
+# `--ref experimental` to put the working branch on the phone). Never on
+# push: a stream of pushes would keep replacing the release, which Oliver does
+# not want GitHub to see as misuse, and the app's update hint would nag.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: android-dev
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Assemble the debug APK
+        run: ./gradlew :android:assembleDebug
+
+      # The app's update hint compares the tag with the commit it was built
+      # from, so the upload goes first and the tag never names a commit whose
+      # APK is not up yet. Moving `android-dev` does not match build.yml's `v*`
+      # tag trigger, so it starts no run.
+      - name: Publish debug APK to the android-dev pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # First run in a repository: create the pre-release and its tag.
+          gh release view android-dev >/dev/null 2>&1 || gh release create android-dev --prerelease --target "$GITHUB_SHA" --title "Android dev build" --notes "Debug APK, replaced on request."
+          gh release upload android-dev android/build/outputs/apk/debug/android-debug.apk --clobber
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/android-dev" -f sha="$GITHUB_SHA" -F force=true
