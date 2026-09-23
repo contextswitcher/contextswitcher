@@ -632,6 +632,19 @@ Covers:
 
 Needs: dsn
 
+### Copy a task's deep link
+`req~task-link-copy~1`
+
+A task's context menu offers "Copy link", putting `contextswitcher://task/<id>` on the clipboard.
+Pasted into a OneNote page (or a README), it links back from the note to the task; following it selects the task and raises the app.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Rename a project group
 `req~group-rename~1`
 
@@ -1009,6 +1022,19 @@ Tags: windows, linux
 
 Covers:
 - req~category-link-copy~1
+
+Needs: impl, utest
+
+### Task deep link and its "Copy link" menu item
+`dsn~task-link-copy~1`
+
+`DeepLink.taskUrl` builds `contextswitcher://task/<id>`, percent-encoding each `/`-separated segment of the id, which `DeepLink.parse` decodes back to the same id.
+The task context menu's "Copy link" puts that URL on the system clipboard; following it is handled like any `task` link (`dsn~deep-link-url~1`).
+
+Tags: windows, linux
+
+Covers:
+- req~task-link-copy~1
 
 Needs: impl, utest
 

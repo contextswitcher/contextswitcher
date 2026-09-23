@@ -11,5 +11,6 @@ The topmost section is the day in progress — its link points at `main` until t
 ### Added
 
 - Initial release.
+- A task's context menu offers "Copy link" for its `contextswitcher://task/…` deep link, e.g. to link it from OneNote.
 
 [2026-09-23]: https://github.com/contextswitcher/contextswitcher/commits/v2026-09-23
