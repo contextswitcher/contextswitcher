@@ -30,6 +30,18 @@ public record DeepLink(Kind kind, String target) {
                 + URLEncoder.encode(category, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
+    /// The `contextswitcher://task/<id>` link to the task `id`, ready to be
+    /// pasted into a note. Percent-encodes each path segment but keeps the
+    /// `/` of group folders, so the id survives the round trip through [#parse].
+    // [impl->dsn~task-link-copy~1]
+    public static String taskUrl(String id) {
+        StringBuilder url = new StringBuilder("contextswitcher://task");
+        for (String segment : id.split("/")) {
+            url.append('/').append(URLEncoder.encode(segment, StandardCharsets.UTF_8).replace("+", "%20"));
+        }
+        return url.toString();
+    }
+
     /// Parses `url`.
     ///
     /// @throws IllegalArgumentException on a non-`contextswitcher` scheme, an

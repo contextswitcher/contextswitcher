@@ -55,6 +55,15 @@ class DeepLinkTest {
                 .isEqualTo(new DeepLink(DeepLink.Kind.CATEGORY, "My Project"));
     }
 
+    // [utest->dsn~task-link-copy~1]
+    @Test
+    void taskLinkRoundTrips() {
+        String url = DeepLink.taskUrl("jabref/fix npe");
+        assertThat(url).isEqualTo("contextswitcher://task/jabref/fix%20npe");
+        assertThat(DeepLink.parse(url))
+                .isEqualTo(new DeepLink(DeepLink.Kind.TASK, "jabref/fix npe"));
+    }
+
     @Test
     void isDeepLinkChecksScheme() {
         assertThat(DeepLink.isDeepLink("contextswitcher://task/x")).isTrue();

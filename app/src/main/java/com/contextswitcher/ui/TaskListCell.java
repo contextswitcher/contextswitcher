@@ -693,6 +693,16 @@ public class TaskListCell extends ListCell<Object> {
         pinned.setOnAction(event -> onTogglePinned.accept(task));
         menu.getItems().add(pinned);
 
+        // The task's deep link, for pasting into a note (OneNote, README).
+        // [impl->dsn~task-link-copy~1]
+        MenuItem copyLink = new MenuItem("Copy link");
+        copyLink.setOnAction(event -> {
+            ClipboardContent content = new ClipboardContent();
+            content.putString(DeepLink.taskUrl(task.id()));
+            Clipboard.getSystemClipboard().setContent(content);
+        });
+        menu.getItems().add(copyLink);
+
         MenuItem rename = new MenuItem("Rename task…");
         rename.setOnAction(event -> onRename.accept(task));
         MenuItem delete = new MenuItem("Delete task…");
