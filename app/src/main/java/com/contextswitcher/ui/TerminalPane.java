@@ -407,7 +407,7 @@ public class TerminalPane {
     /// is running", when a key sent into the fresh session would break its
     /// start. On the bar, not the buttons, which [#enableBar] and the
     /// placeholder toggle themselves.
-    // [impl->dsn~busy-while-creating~1]
+    // [impl->dsn~busy-while-creating~2]
     public void disableBarWhile(ObservableBooleanValue busy) {
         bar.disableProperty().bind(busy);
     }

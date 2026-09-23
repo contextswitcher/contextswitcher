@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // [utest->dsn~whats-new-upstream~7]
-// [utest->dsn~restart-to-update~10]
+// [utest->dsn~restart-to-update~11]
 class NewsTitleTest {
 
     private static final WhatsNew.Item ITEM = new WhatsNew.Item("me", "2026-09-13", "Added", List.of("**x**"));

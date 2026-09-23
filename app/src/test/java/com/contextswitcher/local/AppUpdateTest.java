@@ -13,7 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~restart-to-update~10]
+// [utest->dsn~restart-to-update~11]
 class AppUpdateTest {
 
     /// A git that answers `stdout` to every call and records what it was asked.
@@ -37,7 +37,7 @@ class AppUpdateTest {
 
     /// The count starts at the commit the app runs, so a checkout pulled
     /// outside the app still counts the commits the running build lacks.
-    // [utest->dsn~restart-to-update~10]
+    // [utest->dsn~restart-to-update~11]
     @Test
     void countsFromTheRunningCommitNotTheCheckoutHead(@TempDir Path repo) {
         List<List<String>> calls = new ArrayList<>();
@@ -49,7 +49,7 @@ class AppUpdateTest {
 
     /// The running commit is the full sha `HEAD` names at startup, or nothing
     /// when git cannot say — the check then falls back to `HEAD`.
-    // [utest->dsn~restart-to-update~10]
+    // [utest->dsn~restart-to-update~11]
     @Test
     void runningCommitIsTheShaHeadNamesAtStartup(@TempDir Path repo) {
         List<List<String>> calls = new ArrayList<>();

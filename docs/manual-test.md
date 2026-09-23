@@ -1453,14 +1453,15 @@ Needs the debug APK on a phone, a synced task with a reachable `remote` and `tmu
 - [ ] Tap a draft's **Edit** → it leaves the list, its text is in the box and the keyboard is open; tap **Edit** on a message queued on the desktop → a copy is in the box, the desktop's message stays listed.
 - [ ] Force-stop the app and reopen the task → the drafts are still there.
 
-## Restart to update (`dsn~restart-to-update~10`)
+## Restart to update (`dsn~restart-to-update~11`)
 
 Needs a checkout whose upstream has a commit the local branch does not (push one from another clone, or reset the branch one commit back).
 
 - [ ] Start with `just run-loop` (`scripts/run-loop.cmd` on Windows) → the app pulls, builds and comes up; the update button is in the toolbar in the same gray as its neighbours.
 - [ ] Wait for the check (or reset the branch back before starting) → the update glyph turns blue, the status bar says a new version is available, and — when the new commits add changelog bullets — a red badge at its lower right counts those pending changes (no icon beside it moves); the tooltip names the commit count.
-- [ ] Click it → the "What's new" window opens with a bar and "Checking remote …" in its button row and **Restart to update** disabled; seconds later the bar is gone, the button is live, and the title's count matches the badge (`N pending changes since you last looked — now at <sha> …`); the badge is gone, the glyph stays blue.
+- [ ] Click it → the "What's new" window opens with a bar and "Checking remote …" in its button row and **Restart to update** already live; seconds later the bar is gone, and the title's count matches the badge (`N pending changes since you last looked — now at <sha> …`); the badge is gone, the glyph stays blue.
 - [ ] Push another commit from the other clone between the tick and this click → the window lists that bullet too: the click fetched, it did not reuse the five-minute-old answer.
+- [ ] Cut the network, click it and press **Restart to update** while "Checking remote …" still runs → the app restarts.
 - [ ] Press **Later** instead → the window closes and nothing restarts; the update button is still there and opens it again.
 - [ ] With the app up to date, click it → after the check the window has no **Restart to update**, and the other button reads **Close**.
 - [ ] Press **Restart to update** → the app closes, the script pulls and rebuilds, and the app comes up again on the new commit; the window is where it was left.

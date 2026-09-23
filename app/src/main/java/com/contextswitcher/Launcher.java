@@ -14,7 +14,7 @@ public final class Launcher {
         Main.main(args);
         // `launch` has returned, so the FX toolkit is down and `Main.stop` has
         // run: the exit code is all that is left to say.
-        // [impl->dsn~restart-to-update~10]
+        // [impl->dsn~restart-to-update~11]
         if (AppUpdate.restartRequested()) {
             System.exit(AppUpdate.RESTART_EXIT_CODE);
         }
