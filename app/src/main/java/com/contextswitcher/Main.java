@@ -671,6 +671,8 @@ public class Main extends Application {
         QueuePane queuePane = new QueuePane(queueDir,
                 queueDir.resolve("qodo"),
                 configDir().resolve("attachments"),
+                // [impl->dsn~message-queue-delayed-send~4]
+                configDir().resolve("armed-messages.yaml"),
                 (task, text, progress) -> switch (ChatRoute.of(task)) {
                     // Remote or local: the host decides the transport, not
                     // the caller. [impl->dsn~terminal-local-mirror~2]
@@ -986,7 +988,7 @@ public class Main extends Application {
                         window.updateRunningStatuses(statuses);
                         // A message armed for "delayed next" goes out on the
                         // tick its chat reports idle.
-                        // [impl->dsn~message-queue-delayed-send~3]
+                        // [impl->dsn~message-queue-delayed-send~4]
                         queuePane.sendDelayed(statuses);
                         // [impl->dsn~terminal-markdown-copy~1]
                         terminalPane.showStatuses(statuses);

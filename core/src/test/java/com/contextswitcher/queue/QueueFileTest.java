@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -127,6 +128,20 @@ class QueueFileTest {
         assertThat(QueueFile.readFile(dir, "old")).doesNotExist();
         assertThat(QueueFile.load(QueueFile.readFile(dir, "new")))
                 .containsExactly("done one", "done two");
+    }
+
+    // [utest->dsn~message-queue-delayed-send~4]
+    @Test
+    void armedMessagesRoundTripAndNothingArmedDeletesTheFile() throws IOException {
+        Path file = dir.resolve("armed-messages.yaml");
+        Map<String, List<String>> armed = Map.of("group/task", List.of("first\nline two", "---"));
+
+        QueueFile.saveArmed(file, armed);
+        assertThat(QueueFile.loadArmed(file)).isEqualTo(armed);
+
+        QueueFile.saveArmed(file, Map.of());
+        assertThat(file).doesNotExist();
+        assertThat(QueueFile.loadArmed(file)).isEmpty();
     }
 
     @Test

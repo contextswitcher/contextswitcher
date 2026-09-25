@@ -2695,7 +2695,7 @@ All rows share one skeleton (handle/send column, text, delete) with inapplicable
 Every box (add box and cards alike) carries a resize grip along its bottom edge — a thin `Region` with an `S_RESIZE` cursor whose drag sets the box's `prefHeight` (screen-y deltas, since the grip moves with the drag; floored at one row) — so a long message gets the room a browser's `<textarea>` gives it.
 The height is per box and not persisted: it belongs to the message being written, and a task switch starts from the default row counts again (a rebuild within the task keeps the areas, `~26`).
 Each card auto-saves edits on focus loss (editor-lane convention) or on its own triple `Ctrl+Enter` chord (which then sends it, changed in `~20`), shows a ✕ delete button while hovered, and is reordered by dragging its ≡ handle onto another card (string-payload drag'n'drop like the task-row move).
-The handle carries the card's **position in the delayed send order** as a negative-circled number (`CircledCount`, the glyphs of `dsn~message-queue-count-badge~1`), and only an **armed** card gets one (changed in `~22`): `➊` is the armed card that goes out first, and the tooltip spells the number out — a stack of look-alike cards otherwise leaves the order to be guessed, which matters most for the delayed send (`dsn~message-queue-delayed-send~3`), where nothing is pasted right away to confirm what went.
+The handle carries the card's **position in the delayed send order** as a negative-circled number (`CircledCount`, the glyphs of `dsn~message-queue-count-badge~1`), and only an **armed** card gets one (changed in `~22`): `➊` is the armed card that goes out first, and the tooltip spells the number out — a stack of look-alike cards otherwise leaves the order to be guessed, which matters most for the delayed send (`dsn~message-queue-delayed-send~4`), where nothing is pasted right away to confirm what went.
 An unarmed card keeps a bare `≡` handle: nothing sends it on its own, so a number on it promised a turn it would never get.
 Every card carries a send button on its left (a mirrored ➤ pointing left, towards the terminal the message goes to) — disabled with a tooltip when the task has no `remote`+`tmux` — which delivers exactly that card's message via `dsn~message-queue-send~5` on the background executor, so any message can jump the queue; on success it leaves the queue through the same `QueuePane.dropFromQueue` as the delayed send (changed in `~21`) — re-located by content, so an in-flight edit or reorder cannot remove the wrong card, and written straight to the task's queue file when the pane has meanwhile switched to another task, which previously left a delivered message queued forever.
 A failure keeps it and shows the error in the pane's status line.
@@ -2818,7 +2818,7 @@ Covers:
 Needs: impl, utest
 
 ### Delayed send when the chat is done working
-`dsn~message-queue-delayed-send~3`
+`dsn~message-queue-delayed-send~4`
 
 Below each card's ➤ send button (and below the add box's) sits a **delayed next** toggle — a clock icon: instead of pasting the message now, into a chat that is mid-run where it queues behind whatever Claude is doing and is easily missed, it arms the message, and the status poll (`dsn~task-running-indicator~7`) delivers it on the first tick that reports the task's window `waiting` or `done`.
 The add box's toggle commits what is typed first, like its send button, and keeps the caret in the emptied box.
@@ -2830,7 +2830,10 @@ A delivered message blocks its task until the poll reports the window busy again
 The poll also checks a blocked task whose delayed queue is already empty, so its block lifts when the chat goes busy — a message armed later on the idle chat otherwise never went out (field report 2026-09-14).
 `QueuePane.save` is the single place that keeps an armed queue honest: it drops entries whose message left the queue (sent by hand, deleted, edited into a different text) and re-sorts the rest into card order after a reorder.
 A `working` or `limit` window keeps waiting — the poll's own stuck-status safety net (a silent `working` window read as `waiting`) is what keeps a missed `Stop` hook from arming forever.
-`QueuePane` holds the armed message per task id together with the `Task` it was armed on, so it survives switching to another task — the point of the button is to arm the follow-up and walk away — and the send then runs while a different task is shown, dropping the delivered message from its own queue file directly (the pane holds no other task's queue in memory).
+`QueuePane` holds the armed messages per task id, so they survive switching to another task — the point of the button is to arm the follow-up and walk away — and the send then runs while a different task is shown, looking the task up fresh by id and dropping the delivered message from its own queue file directly (the pane holds no other task's queue in memory).
+The armed queues also survive an app restart (changed in `~4`): every change is written to `armed-messages.yaml` in the local config directory, a YAML map of task id to armed texts, read back when the pane is created.
+It is deliberately **not** beside the queue files in the synced `.queues/`: two machines sharing the tasks directory would both deliver the same message.
+A task rename moves its armed queue to the new id; an armed task that is not (or no longer) in the repository keeps its messages armed but sends nothing.
 An armed message that is edited stays armed with its new text; deleting it disarms; a failed delivery leaves it queued and disarmed, with the error in the pane's status line, rather than retrying against a chat that may be broken — the rest of that task's delayed queue tries again on the next idle tick.
 
 Tags: windows, linux
@@ -2844,7 +2847,7 @@ Needs: impl, utest
 `dsn~message-queue-resume-send~2`
 
 A suspended task's `tmux:` section names only the session (its `window:` line was dropped, `dsn~task-suspend~6`), so a plain send would paste into whatever window that session currently shows.
-Instead, the send button and the delayed-send toggle on a suspended task **arm** the message (`dsn~message-queue-delayed-send~3`) and resume the task through `MainWindow.resumeTask` — the regular resume: status back to `active`, switch, resurrect with `claude --resume`.
+Instead, the send button and the delayed-send toggle on a suspended task **arm** the message (`dsn~message-queue-delayed-send~4`) and resume the task through `MainWindow.resumeTask` — the regular resume: status back to `active`, switch, resurrect with `claude --resume`.
 The armed message goes out on the first poll tick that reports the recreated window idle; for that, `QueuePane.sendDelayed` re-reads the armed task by id from the repository (the resurrect wrote the new window id into the file; the armed `Task` still has none) and skips a task without a window id.
 A freshly resumed session publishes `waiting` from its `SessionStart` hook (README, remote setup) — before that hook existed, a resumed window reported no status until its first `Stop`, and the armed message would have waited for a turn that never came.
 Clicking into a message field of a suspended task — the add box or any queued message's text area — resumes it on the spot, before anything is typed: writing a message is the decision to work on that task again, and starting the resurrect then rather than at the send hides the half minute the window needs to come up.

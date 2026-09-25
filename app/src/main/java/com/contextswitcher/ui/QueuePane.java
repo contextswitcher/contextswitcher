@@ -247,54 +247,47 @@ public class QueuePane {
     private final List<TextArea> areas = new ArrayList<>();
     /// The messages armed for a **delayed** send, per task id, in the order
     /// they go out (queue order, ➊ first): one per idle turn, so an idle chat
-    /// still never gets a burst. The [Task] is kept with the text because the
-    /// send may fire while the pane shows another task.
-    // [impl->dsn~message-queue-delayed-send~3]
-    private final Map<String, List<Armed>> armed = new HashMap<>();
+    /// still never gets a burst. Keyed by id alone: the send may fire while
+    /// the pane shows another task, and [#taskById] supplies it fresh.
+    /// Mirrored to [#armedFile] on every change, so a restart keeps them.
+    // [impl->dsn~message-queue-delayed-send~4]
+    private final Map<String, List<String>> armed = new HashMap<>();
+    private final Path armedFile;
 
     /// Task ids that got a delayed message and have not been reported busy
     /// since: the status poll may still be carrying the pre-paste `waiting`,
     /// and without this the next armed message would go out on top of it.
-    // [impl->dsn~message-queue-delayed-send~3]
+    // [impl->dsn~message-queue-delayed-send~4]
     private final Set<String> justSent = new HashSet<>();
 
-    /// One message waiting for its task's chat to fall idle.
-    // [impl->dsn~message-queue-delayed-send~3]
-    private record Armed(Task task, String text) {
-    }
-
     /// A task's armed messages, empty when it has none.
-    private List<Armed> armedFor(String taskId) {
+    private List<String> armedFor(String taskId) {
         return armed.getOrDefault(taskId, List.of());
     }
 
     /// The 1-based place of the message at `index` in the shown task's armed
     /// queue, or 0 when that message is not armed.
-    // [impl->dsn~message-queue-delayed-send~3]
+    // [impl->dsn~message-queue-delayed-send~4]
     private int armedRank(int index) {
         if (task == null || index < 0 || index >= messages.size()) {
             return 0;
         }
         String text = messages.get(index);
-        List<Armed> queue = armedFor(task.id());
-        for (int i = 0; i < queue.size(); i++) {
-            if (queue.get(i).text().equals(text)) {
-                return i + 1;
-            }
-        }
-        return 0;
+        return armedFor(task.id()).indexOf(text) + 1;
     }
 
     /// The statuses that mean "Claude is not working right now", as reported
     /// by the status poll — a `limit` or `working` window keeps waiting.
-    // [impl->dsn~message-queue-delayed-send~3]
+    // [impl->dsn~message-queue-delayed-send~4]
     private static final Set<String> IDLE_STATUSES = Set.of("waiting", "done");
 
-    public QueuePane(Path queuesDir, Path qodoDir, Path attachmentsDir, Sender sender,
+    public QueuePane(Path queuesDir, Path qodoDir, Path attachmentsDir, Path armedFile, Sender sender,
             QodoPrompts qodoFetcher, BiConsumer<@Nullable Task, String> onFocusUrlInBrowser,
             BiConsumer<Task, String> onMessageQueued, Executor executor,
             Runnable onQueueChanged, Consumer<Task> onResume, Function<String, @Nullable Task> taskById) {
         this.queuesDir = queuesDir;
+        this.armedFile = armedFile;
+        QueueFile.loadArmed(armedFile).forEach((id, texts) -> armed.put(id, new ArrayList<>(texts)));
         this.onResume = onResume;
         this.taskById = taskById;
         this.qodoDir = qodoDir;
@@ -432,6 +425,14 @@ public class QueuePane {
     /// appeared, and the message ended up in a queue file no task points at.
     // [impl->dsn~message-queue-ui~26]
     public void taskRenamed(String fromId, String toId) {
+        // The armed queue is keyed by id too: it follows, or it waits forever
+        // for a task that no longer exists under the old id.
+        // [impl->dsn~message-queue-delayed-send~4]
+        List<String> pending = armed.remove(fromId);
+        if (pending != null) {
+            armed.put(toId, pending);
+            saveArmed();
+        }
         Task shown = this.task;
         if (shown != null && shown.id().equals(fromId)) {
             renamedTo = toId;
@@ -1165,7 +1166,7 @@ public class QueuePane {
     /// message, and the status poll delivers it as soon as that task's window
     /// reports `waiting`/`done`. Untick to disarm. Arming another message
     /// queues it behind the armed ones; one goes out per idle turn.
-    // [impl->dsn~message-queue-delayed-send~3]
+    // [impl->dsn~message-queue-delayed-send~4]
     private ToggleButton delayButton(int index) {
         SvgNode svg = new SvgNode(MDIInterface.CLOCK_OUTLINE.path(), 14);
         ToggleButton delay = new ToggleButton(null, svg);
@@ -1176,13 +1177,13 @@ public class QueuePane {
         delay.setTooltip(new Tooltip(delayTooltip(task)));
         String text = index >= 0 && index < messages.size() ? messages.get(index) : null;
         delay.setSelected(task != null && text != null
-                && armedFor(task.id()).stream().anyMatch(a -> a.text().equals(text)));
+                && armedFor(task.id()).contains(text));
         delay.setOnAction(event -> {
             if (delay.isSelected()) {
                 arm(index);
             } else if (task != null && text != null) {
-                List<Armed> rest = new ArrayList<>(armedFor(task.id()));
-                rest.removeIf(a -> a.text().equals(text));
+                List<String> rest = new ArrayList<>(armedFor(task.id()));
+                rest.remove(text);
                 putArmed(task.id(), rest);
                 // The cards behind it move up a rank, so their numbers change.
                 rebuild();
@@ -1194,7 +1195,7 @@ public class QueuePane {
 
     /// The add box's delayed-send toggle: queue what is typed, then arm it —
     /// the delayed twin of [#addSendButton].
-    // [impl->dsn~message-queue-delayed-send~3]
+    // [impl->dsn~message-queue-delayed-send~4]
     private ToggleButton addDelayButton() {
         ToggleButton delay = delayButton(-1);
         delay.setOnAction(event -> {
@@ -1221,7 +1222,7 @@ public class QueuePane {
 
     /// Arms the message at `index` for a delayed send, moves its card right
     /// below the last armed one (so it gets the next number) and redraws.
-    // [impl->dsn~message-queue-delayed-send~3]
+    // [impl->dsn~message-queue-delayed-send~4]
     private void arm(int index) {
         Task armTask = this.task;
         if (!ChatRoute.of(armTask).canDelay()) {
@@ -1232,19 +1233,19 @@ public class QueuePane {
             return;
         }
         String text = messages.get(index);
-        List<Armed> queue = new ArrayList<>(armedFor(armTask.id()));
-        if (queue.stream().noneMatch(a -> a.text().equals(text))) {
+        List<String> queue = new ArrayList<>(armedFor(armTask.id()));
+        if (!queue.contains(text)) {
             // The card moves directly below the last armed one, so it takes
             // the next number and the armed cards stay one contiguous block
             // in the order the clocks were ticked; a drag afterwards reorders
             // and renumbers as usual. Nothing armed yet: it stays where it is.
-            int last = queue.stream().mapToInt(a -> messages.indexOf(a.text())).max().orElse(-1);
+            int last = queue.stream().mapToInt(messages::indexOf).max().orElse(-1);
             if (last >= 0) {
                 messages.remove(index);
                 messages.add(last < index ? last + 1 : last, text);
                 save();
             }
-            queue.add(new Armed(armTask, text));
+            queue.add(text);
         }
         putArmed(armTask.id(), queue);
         rebuild();
@@ -1262,23 +1263,35 @@ public class QueuePane {
 
     /// Stores a task's armed queue, dropping the entry entirely when nothing
     /// is armed any more — `armed` holds only tasks with a pending send.
-    // [impl->dsn~message-queue-delayed-send~3]
-    private void putArmed(String taskId, List<Armed> queue) {
+    // [impl->dsn~message-queue-delayed-send~4]
+    private void putArmed(String taskId, List<String> queue) {
         if (queue.isEmpty()) {
             armed.remove(taskId);
             justSent.remove(taskId);
         } else {
             armed.put(taskId, inQueueOrder(queue));
         }
+        saveArmed();
+    }
+
+    /// Mirrors [#armed] to disk — best effort, a failure only logs: the
+    /// armed queue still works until the app exits.
+    // [impl->dsn~message-queue-delayed-send~4]
+    private void saveArmed() {
+        try {
+            QueueFile.saveArmed(armedFile, armed);
+        } catch (IOException e) {
+            Logger.warn("Cannot save armed messages: {}", e.getMessage());
+        }
     }
 
     /// Sorts an armed queue into the shown task's card order (index 0 = bottom
     /// card = ➊), so the delayed sends go out in the order the cards' numbers
     /// promise rather than the order the clocks were ticked.
-    // [impl->dsn~message-queue-delayed-send~3]
-    private List<Armed> inQueueOrder(List<Armed> queue) {
-        List<Armed> sorted = new ArrayList<>(queue);
-        sorted.sort(Comparator.comparingInt(a -> messages.indexOf(a.text())));
+    // [impl->dsn~message-queue-delayed-send~4]
+    private List<String> inQueueOrder(List<String> queue) {
+        List<String> sorted = new ArrayList<>(queue);
+        sorted.sort(Comparator.comparingInt(messages::indexOf));
         return sorted;
     }
 
@@ -1287,7 +1300,7 @@ public class QueuePane {
     /// tick the running indicator uses, so "done" reaches the user and the
     /// message at once). A message that goes out leaves its task's queue —
     /// also when that task is not the one shown.
-    // [impl->dsn~message-queue-delayed-send~3]
+    // [impl->dsn~message-queue-delayed-send~4]
     public void sendDelayed(Map<String, String> byKey) {
         // Blocked tasks with nothing armed are visited too: their block must
         // lift when the chat goes busy, or a message armed later on the idle
@@ -1295,11 +1308,11 @@ public class QueuePane {
         Set<String> taskIds = new HashSet<>(armed.keySet());
         taskIds.addAll(justSent);
         for (String taskId : taskIds) {
-            List<Armed> pending = armedFor(taskId);
-            // Fresh: a resumed task's window id is only in the file.
+            List<String> pending = armedFor(taskId);
+            // Fresh: a resumed task's window id is only in the file. Unknown
+            // task (not loaded yet, or deleted): its messages stay armed.
             // [impl->dsn~message-queue-resume-send~2]
-            Task current = taskById.apply(taskId);
-            Task sendTask = current != null ? current : pending.isEmpty() ? null : pending.get(0).task();
+            Task sendTask = taskById.apply(taskId);
             String host = sendTask == null ? null : TmuxHost.of(sendTask);
             Task.TmuxConfig tmux = sendTask == null ? null : sendTask.tmux();
             if (host == null || tmux == null || tmux.window() == null) {
@@ -1320,16 +1333,17 @@ public class QueuePane {
                 // Idle, but this is still the status from before our paste.
                 continue;
             }
-            Armed entry = pending.get(0);
-            List<Armed> rest = new ArrayList<>(pending.subList(1, pending.size()));
+            String text = pending.get(0);
+            List<String> rest = new ArrayList<>(pending.subList(1, pending.size()));
             if (rest.isEmpty()) {
                 armed.remove(taskId);
             } else {
                 armed.put(taskId, rest);
             }
-            deliver(sendTask, entry.text(), result -> {
+            saveArmed();
+            deliver(sendTask, text, result -> {
                 if (result instanceof SendResult.Sent) {
-                    dropFromQueue(entry.task(), entry.text());
+                    dropFromQueue(sendTask, text);
                 } else {
                     // Nothing was pasted, so the chat stays idle and the block
                     // above would never lift: let the rest of the queue try on
@@ -1348,7 +1362,7 @@ public class QueuePane {
     /// holds no other task's queue). The message is located by **content**,
     /// so an in-flight edit or reorder cannot drop the wrong one; false when
     /// it is no longer there (an edited message stays queued).
-    // [impl->dsn~message-queue-delayed-send~3]
+    // [impl->dsn~message-queue-delayed-send~4]
     // [impl->dsn~message-queue-ui~26]
     private boolean dropFromQueue(Task sent, String text) {
         if (task != null && task.id().equals(sent.id())) {
@@ -1482,12 +1496,12 @@ public class QueuePane {
             if (!messages.get(i).equals(text)) {
                 // An armed message that is edited stays armed — with its new
                 // text, or the stale one would go out.
-                // [impl->dsn~message-queue-delayed-send~3]
-                List<Armed> queue = task == null ? null : armed.get(task.id());
+                // [impl->dsn~message-queue-delayed-send~4]
+                List<String> queue = task == null ? null : armed.get(task.id());
                 if (queue != null) {
                     String stale = messages.get(i);
-                    queue.replaceAll(a ->
-                            a.text().equals(stale) ? new Armed(a.task(), text) : a);
+                    queue.replaceAll(a -> a.equals(stale) ? text : a);
+                    saveArmed();
                 }
                 messages.set(i, text);
                 changed = true;
@@ -1775,10 +1789,10 @@ public class QueuePane {
         // Every queue mutation lands here, so this is the one place that keeps
         // the armed queue honest: a message that was sent, deleted or edited
         // away must not still go out, and a reorder moves its send with it.
-        // [impl->dsn~message-queue-delayed-send~3]
-        List<Armed> pending = new ArrayList<>(armedFor(task.id()));
+        // [impl->dsn~message-queue-delayed-send~4]
+        List<String> pending = new ArrayList<>(armedFor(task.id()));
         if (!pending.isEmpty()) {
-            pending.removeIf(a -> !messages.contains(a.text()));
+            pending.removeIf(a -> !messages.contains(a));
             putArmed(task.id(), pending);
         }
         try {

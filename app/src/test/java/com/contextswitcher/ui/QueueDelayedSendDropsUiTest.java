@@ -25,10 +25,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// A message armed for the delayed send (`dsn~message-queue-delayed-send~3`)
+/// A message armed for the delayed send (`dsn~message-queue-delayed-send~4`)
 /// leaves the queue once it went out — it used to stay there next to its own
 /// "Last sent" record.
-// [utest->dsn~message-queue-delayed-send~3]
+// [utest->dsn~message-queue-delayed-send~4]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class QueueDelayedSendDropsUiTest {
@@ -42,7 +42,7 @@ class QueueDelayedSendDropsUiTest {
                 new Task.TmuxConfig("0", "@1"), null, null, null, null, null, "");
         QueueFile.save(QueueFile.file(queues, task.id()), List.of("follow-up"));
         onFx(() -> {
-            QueuePane pane = new QueuePane(queues, queues.resolve("qodo"), queues.resolve("att"),
+            QueuePane pane = new QueuePane(queues, queues.resolve("qodo"), queues.resolve("att"), queues.resolve("armed.yaml"),
                     (t, text, progress) -> new SendResult.Sent(), t -> Map.of(),
                     (t, url) -> {}, (t, text) -> {}, Runnable::run, () -> {}, t -> {}, id -> task);
             pane.showTask(task);
@@ -70,9 +70,7 @@ class QueueDelayedSendDropsUiTest {
         Map<String, String> waiting = Map.of(TmuxStatusPoller.key("host", "@1"), "waiting");
         QueuePane[] pane = new QueuePane[1];
         onFx(() -> {
-            pane[0] = new QueuePane(queues, queues.resolve("qodo"), queues.resolve("att"),
-                    (t, text, progress) -> new SendResult.Sent(), t -> Map.of(),
-                    (t, url) -> {}, (t, text) -> {}, Runnable::run, () -> {}, t -> {}, id -> task);
+            pane[0] = pane(queues.resolve("armed-blocked.yaml"), task);
             pane[0].showTask(task);
             Parent root = (Parent) pane[0].getRoot();
             new Scene(root);
@@ -90,6 +88,35 @@ class QueueDelayedSendDropsUiTest {
         });
         onFx(() -> {});
         assertThat(QueueFile.load(QueueFile.file(queues, task.id()))).isEmpty();
+    }
+
+    /// An armed message survives an app restart: a fresh pane on the same
+    /// armed file still delivers it once the chat falls idle.
+    @Test
+    void armedMessageSurvivesARestart() throws Exception {
+        Task task = new Task("restart", "restart", TaskStatus.ACTIVE, "host",
+                new Task.TmuxConfig("0", "@2"), null, null, null, null, null, "");
+        QueueFile.save(QueueFile.file(queues, task.id()), List.of("after restart"));
+        Path armedFile = queues.resolve("armed.yaml");
+        onFx(() -> {
+            QueuePane before = pane(armedFile, task);
+            before.showTask(task);
+            Parent root = (Parent) before.getRoot();
+            new Scene(root);
+            root.applyCss();
+            ((ToggleButton) root.lookup(".toggle-button")).fire();
+            // The "restart": a new pane that was never shown the task.
+            pane(armedFile, task).sendDelayed(Map.of(TmuxStatusPoller.key("host", "@2"), "waiting"));
+        });
+        onFx(() -> {});
+        assertThat(QueueFile.load(QueueFile.file(queues, task.id()))).isEmpty();
+        assertThat(armedFile).doesNotExist();
+    }
+
+    private QueuePane pane(Path armedFile, Task task) {
+        return new QueuePane(queues, queues.resolve("qodo"), queues.resolve("att"), armedFile,
+                (t, text, progress) -> new SendResult.Sent(), t -> Map.of(),
+                (t, url) -> {}, (t, text) -> {}, Runnable::run, () -> {}, t -> {}, id -> task);
     }
 
     private static void onFx(Runnable action) throws Exception {
