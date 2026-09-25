@@ -20,7 +20,7 @@ import org.tinylog.Logger;
 /// A process-wide flag like `EnergySaver`: the app has one window, and
 /// threading a callback through the `MainWindow` constructor for a one-shot
 /// "leave now" would buy nothing.
-// [impl->dsn~restart-to-update~10]
+// [impl->dsn~restart-to-update~11]
 public final class AppUpdate {
 
     /// The exit code that means "rebuild and relaunch me". Chosen far away
@@ -53,7 +53,7 @@ public final class AppUpdate {
     }
 
     /// Records the commit the app runs, once at startup, before any check.
-    // [impl->dsn~restart-to-update~10]
+    // [impl->dsn~restart-to-update~11]
     public static void rememberRunningCommit(Path repo) {
         runningCommit = runningCommit(repo, new LocalCommandRunner(GIT_TIMEOUT)::run);
     }
@@ -91,7 +91,7 @@ public final class AppUpdate {
     /// fetch — counted from [#runningCommitOrHead], not the checkout's current
     /// `HEAD`. Every failure — no network, no upstream, no git — is 0: the
     /// check is an offer, never an error the user has to dismiss.
-    // [impl->dsn~restart-to-update~10]
+    // [impl->dsn~restart-to-update~11]
     public static int commitsBehind(Path repo) {
         return commitsBehind(repo, runningCommitOrHead(), new LocalCommandRunner(GIT_TIMEOUT)::run);
     }

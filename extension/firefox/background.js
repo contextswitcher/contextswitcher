@@ -3,7 +3,7 @@
 // close window), collecting a task's tabs in a named tab group. Reconnects with exponential backoff, so browser and app may
 // start in any order.
 // [impl->dsn~firefox-extension-mv2~4]
-// [impl->dsn~browser-tab-group~2]
+// [impl->dsn~browser-tab-group~3]
 
 const BACKOFF_INITIAL_MS = 1000;
 const BACKOFF_MAX_MS = 30000;
@@ -210,7 +210,7 @@ function isSameOrSubUrl(tabUrl, url) {
 // that order in the tab bar — for a tab that was already open elsewhere too.
 // Tab groups exist from Firefox 139; an older browser has no API and simply
 // leaves the tab where it is.
-// [impl->dsn~browser-tab-group~2]
+// [impl->dsn~browser-tab-group~3]
 async function groupTab(tabId, name) {
   if (!name || !browser.tabs.group || !browser.tabGroups) {
     return;

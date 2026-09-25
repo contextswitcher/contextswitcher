@@ -19,11 +19,11 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The badge on the update button (`dsn~restart-to-update~10`) counts the
+/// The badge on the update button (`dsn~restart-to-update~11`) counts the
 /// pending changes the click shows, not the commits behind; with nothing
 /// pending there is no badge while the tooltip still names the commits, and
 /// appearing does not widen the button.
-// [utest->dsn~restart-to-update~10]
+// [utest->dsn~restart-to-update~11]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class UpdateBadgeUiTest {

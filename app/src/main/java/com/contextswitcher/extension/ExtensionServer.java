@@ -183,7 +183,7 @@ public class ExtensionServer extends WebSocketServer implements TabCommands {
     /// [ExtensionProtocol#NO_TAB]), so the caller can prepare *where* a new tab
     /// is to land before asking for it.
     // [impl->dsn~pr-open-on-category-desktop~3]
-    // [impl->dsn~browser-tab-group~2]
+    // [impl->dsn~browser-tab-group~3]
     @Override
     public ExtensionProtocol.Result focusUrl(String url, boolean openIfMissing, @Nullable String windowTitle,
             @Nullable String group, boolean background) {

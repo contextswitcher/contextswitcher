@@ -47,10 +47,10 @@ Covers:
 Needs: dsn
 
 ### Task tabs in a tab group
-`req~browser-tab-group~2`
+`req~browser-tab-group~3`
 
 Every tab ContextSwitcher focuses or opens for a task is collected in a Firefox tab group of its own, so a task's pages sit together in the tab bar instead of scattered between unrelated tabs.
-The group is named after the task's tmux window number; a task running no remote tmux window uses `l:<task id>`.
+The group is named after the task's first pull request, merge request or issue (`#17148`, `!42`), so it matches what the user already calls the task; a task with none falls back to its tmux window number, and one running no remote tmux window either to `l:<task id>`.
 Inside the group the tabs stand in the order the task lists its URLs, and only the first URL is activated — the rest open behind it, so a switch never pulls the user away from the task's primary page.
 
 Tags: windows, linux
@@ -249,7 +249,7 @@ Covers:
 - req~browser-tab-selects-task~2
 - req~browser-tab-context-count~1
 - req~browser-tab-task-popup~1
-- req~browser-tab-group~2
+- req~browser-tab-group~3
 - req~task-suspend-resume~2
 - req~complete-control-desktop~1
 - req~browser-choice~2
@@ -370,7 +370,7 @@ Needs: impl
 ### Browser focus action
 `dsn~browser-focus-action~4`
 
-`BrowserFocusAction` submits a `focus-url` request for every one of the task's browser URLs to the extension server, in the order the task lists them and with only the first one in the foreground (`dsn~browser-tab-group~2`), and maps the correlated results (or timeout / no-extension-connected) to the action status shown to the user.
+`BrowserFocusAction` submits a `focus-url` request for every one of the task's browser URLs to the extension server, in the order the task lists them and with only the first one in the foreground (`dsn~browser-tab-group~3`), and maps the correlated results (or timeout / no-extension-connected) to the action status shown to the user.
 The chip detail is the first URL's outcome, with `(+n more)` for the others; any failing URL fails the action.
 A task carrying `storedTabs:` (what a complete-control suspend left behind) first reopens each stored URL as focus-or-open — an already-open tab is thereby kept, never closed and reopened, which is the whole of the overlap rule.
 On a complete-control category the first stored URL is probed (`openIfMissing: false`) and, when gone, routed through `Main.openOnDesktop` — switch to the category's desktop, raise a Firefox window living there or launch one carrying the URL — so the restored tabs land on the desktop they were stored from; the remaining URLs then focus-or-open into that raised window.
@@ -457,9 +457,9 @@ Covers:
 Needs: impl, utest
 
 ### Tab group per task
-`dsn~browser-tab-group~2`
+`dsn~browser-tab-group~3`
 
-`Task.tabGroup()` derives the group name from the task: the `tmux:` `window:` value with a leading `@` stripped when what remains is a number (`@339` → `339`), else `l:<task id>` — a named window (`window: claude`) is not unique across sessions and uses the id form like a task with no tmux section at all.
+`Task.tabGroup()` derives the group name from the task: the number of the first `browser.urls` entry that is a GitHub pull request or issue (`#<n>`) or a GitLab merge request (`!<n>`) or issue (`#<n>`); else the `tmux:` `window:` value with a leading `@` stripped when what remains is a number (`@339` → `339`), else `l:<task id>` — a named window (`window: claude`) is not unique across sessions and uses the id form like a task with no tmux section at all.
 `BrowserFocusAction` passes it with every `focus-url` (`"group"` field, optional; `Main`'s own PR/deep-link focus sends none and leaves those tabs alone), plus `"background": true` on every URL but the first.
 The extension puts the focused or newly created tab into the group whose title equals the name, creating the group when none carries that title (`tabs.group` + `tabGroups.update`), and then moves it behind the last tab of that group — a tab that was already in the group is moved as well, which is what re-orders an already-open page into the task's order.
 A `background` tab is created inactive, is neither activated nor its window raised, and answers without a title (nothing is to be raised, so nothing waits for the title to settle).
@@ -468,7 +468,7 @@ Grouping is cosmetic: a browser without the tab-group API (before Firefox 139) o
 Tags: windows, linux
 
 Covers:
-- req~browser-tab-group~2
+- req~browser-tab-group~3
 
 Needs: impl, utest
 

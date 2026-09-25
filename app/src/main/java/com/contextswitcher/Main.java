@@ -226,9 +226,9 @@ public class Main extends Application {
     /// status bar can report the parallel ones instead of the last one
     /// silently overwriting the others. FX thread only.
     /// Observable, so the terminal bar and *Restart to update* can stay
-    /// disabled while any creation runs (`dsn~busy-while-creating~1`).
+    /// disabled while any creation runs (`dsn~busy-while-creating~2`).
     // [impl->dsn~task-create-progress~5]
-    // [impl->dsn~busy-while-creating~1]
+    // [impl->dsn~busy-while-creating~2]
     private final IntegerProperty creationsInFlight = new SimpleIntegerProperty();
     /// The step each still-windowless creation is on, so the terminal lane of
     /// a just-created (and now selected) task shows the launch coming up
@@ -891,7 +891,7 @@ public class Main extends Application {
                     task, choice.withClaude(), choice.mode());
         });
         // A key sent into, or a restart during, a session that is still being
-        // started breaks that start. [impl->dsn~busy-while-creating~1]
+        // started breaks that start. [impl->dsn~busy-while-creating~2]
         terminalPane.disableBarWhile(creationsInFlight.greaterThan(0));
         window.disableRestartWhile(creationsInFlight.greaterThan(0));
         this.window = window;
@@ -1121,7 +1121,7 @@ public class Main extends Application {
         schedulePeriodicReconcile(repository, settings, files);
         // [impl->dsn~active-desktop-filter~6]
         scheduleActiveDesktopWatch();
-        // [impl->dsn~restart-to-update~10]
+        // [impl->dsn~restart-to-update~11]
         scheduleUpdateCheck(window);
         // [impl->dsn~task-sync-groups-ui~1]
         scheduleTaskSync(window, settings);
@@ -1139,7 +1139,7 @@ public class Main extends Application {
     /// The scheduler thread only dispatches: `git fetch` waits on the network,
     /// and this scheduler is the single thread the memory log, the reconcile
     /// and the desktop watch tick on.
-    // [impl->dsn~restart-to-update~10]
+    // [impl->dsn~restart-to-update~11]
     // [impl->dsn~whats-new-upstream~7]
     private void scheduleUpdateCheck(MainWindow window) {
         ScheduledExecutorService scheduler = this.scheduler;
@@ -1153,7 +1153,7 @@ public class Main extends Application {
         // [impl->dsn~running-commit~3]
         scheduler.execute(() -> {
             // The build that runs, recorded before any check can ask: the
-            // checkout's HEAD may move under it later. [impl->dsn~restart-to-update~10]
+            // checkout's HEAD may move under it later. [impl->dsn~restart-to-update~11]
             AppUpdate.rememberRunningCommit(repo);
             String commit = AppUpdate.headCommit(repo);
             if (commit != null) {
@@ -1226,7 +1226,7 @@ public class Main extends Application {
     /// decides what the restart will actually pull. Answers even when the
     /// fetch found nothing \u2014 an unattended bar is a hang. FX thread; the git
     /// work runs on the action pool.
-    // [impl->dsn~restart-to-update~10]
+    // [impl->dsn~restart-to-update~11]
     private void checkRemoteNow(MainWindow window, Path repo) {
         ExecutorService executor = this.actionExecutor;
         if (executor == null) {

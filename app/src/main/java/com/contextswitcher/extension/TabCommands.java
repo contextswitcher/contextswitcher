@@ -33,7 +33,7 @@ public interface TabCommands {
 
     /// Focus-or-open collecting the tab in a Firefox tab group: `group` is the
     /// group's name (null: leave the tab where it is).
-    // [impl->dsn~browser-tab-group~2]
+    // [impl->dsn~browser-tab-group~3]
     default ExtensionProtocol.Result focusUrl(String url, boolean openIfMissing, @Nullable String windowTitle,
             @Nullable String group) {
         return focusUrl(url, openIfMissing, windowTitle, group, false);
@@ -42,7 +42,7 @@ public interface TabCommands {
     /// Focus-or-open in the background: `background` leaves the tab
     /// unactivated and its window unraised, and appends it at the end of the
     /// group — how every URL of a task but the first is opened.
-    // [impl->dsn~browser-tab-group~2]
+    // [impl->dsn~browser-tab-group~3]
     ExtensionProtocol.Result focusUrl(String url, boolean openIfMissing, @Nullable String windowTitle,
             @Nullable String group, boolean background);
 

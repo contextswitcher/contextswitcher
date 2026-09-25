@@ -37,7 +37,7 @@ final class Badge {
     }
 
     /// The badge text for `count`: `99+` past 99, so the badge keeps its size.
-    // [impl->dsn~restart-to-update~10]
+    // [impl->dsn~restart-to-update~11]
     static String text(int count) {
         return count > 99 ? "99+" : String.valueOf(count);
     }

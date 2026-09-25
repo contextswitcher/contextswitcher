@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 
 import atlantafx.base.theme.Styles;
 import com.contextswitcher.local.AppUpdate;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.geometry.Insets;
@@ -35,7 +34,7 @@ import org.jspecify.annotations.Nullable;
 /// opens — with the fetch behind "Checking remote …" and *Restart to update*.
 /// `Main` owns the git calls and feeds the answers in; `MainWindow` only places
 /// the button.
-// [impl->dsn~restart-to-update~10]
+// [impl->dsn~restart-to-update~11]
 // [impl->dsn~whats-new-upstream~7]
 final class UpdateNews {
 
@@ -76,17 +75,15 @@ final class UpdateNews {
     private @Nullable Runnable onCheckRemote;
 
     /// The controls of the open "What's new" window — null while none is
-    /// open. [#newsChecked] fills the body in and arms the restart once the
-    /// fetch behind "Checking remote …" has answered.
+    /// open. [#newsChecked] fills the body in once the fetch behind
+    /// "Checking remote …" has answered.
     private @Nullable Stage newsDialog;
     private @Nullable BorderPane newsRoot;
     private @Nullable Button newsLater;
     private @Nullable Button newsRestart;
     private @Nullable Node newsChecking;
-    /// True while the open window's fetch has not answered yet.
-    private final BooleanProperty newsCheckPending = new SimpleBooleanProperty();
     /// Set by `Main`: a task creation is running, which a restart would cut off.
-    // [impl->dsn~busy-while-creating~1]
+    // [impl->dsn~busy-while-creating~2]
     private ObservableBooleanValue restartBlocked = new SimpleBooleanProperty();
 
     /// `button` is the toolbar's icon button, which this takes over: its
@@ -198,7 +195,7 @@ final class UpdateNews {
     }
 
     /// Keeps *Restart to update* disabled while `busy`. FX thread.
-    // [impl->dsn~busy-while-creating~1]
+    // [impl->dsn~busy-while-creating~2]
     void disableRestartWhile(ObservableBooleanValue busy) {
         restartBlocked = busy;
     }
@@ -206,8 +203,9 @@ final class UpdateNews {
     /// A non-modal window with pending changelog bullets (`WhatsNew.view`),
     /// a *Later* button that closes it and a *Restart to update* one. With
     /// `check` it opens on a fetch: an indeterminate bar says "Checking
-    /// remote …" and the restart stays disabled until [#newsChecked] brings
-    /// the answer, so nobody restarts into a version that is already stale.
+    /// remote …" until [#newsChecked] brings the answer. The restart stays
+    /// live meanwhile — the run loop pulls on its own, so a slow or hanging
+    /// fetch must not hold the restart hostage.
     /// Owned by the main stage, so it stays with the app on a desktop switch.
     /// FX thread.
     void showWhatsNew(String title, List<WhatsNew.Item> items, boolean check) {
@@ -271,9 +269,8 @@ final class UpdateNews {
         Runnable fetch = check ? onCheckRemote : null;
         checking.setVisible(fetch != null);
         checking.setManaged(fetch != null);
-        newsCheckPending.set(fetch != null);
-        // [impl->dsn~busy-while-creating~1]
-        restart.disableProperty().bind(newsCheckPending.or(restartBlocked));
+        // [impl->dsn~busy-while-creating~2]
+        restart.disableProperty().bind(restartBlocked);
         dialog.show();
         if (fetch != null) {
             fetch.run();
@@ -281,8 +278,8 @@ final class UpdateNews {
     }
 
     /// The fetch behind "Checking remote …" has answered: the open window
-    /// takes the freshly projected bullets and upstream commit, and *Restart to update*
-    /// goes live — or, when the app is not `behind` its upstream, goes away
+    /// takes the freshly projected bullets and upstream commit — and, when the
+    /// app is not `behind` its upstream, *Restart to update* goes away
     /// and *Later* becomes *Close*: there is nothing to restart into.
     /// Nothing to do when the user closed the window meanwhile. FX thread.
     void newsChecked(List<WhatsNew.Item> items, @Nullable String upstream, boolean behind) {
@@ -299,7 +296,6 @@ final class UpdateNews {
         dialog.setTitle(newsTitle(items, upstream));
         checking.setVisible(false);
         checking.setManaged(false);
-        newsCheckPending.set(false);
         restart.setVisible(behind);
         restart.setManaged(behind);
         later.setText(behind ? "Later" : "Close");

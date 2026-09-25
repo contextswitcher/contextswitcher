@@ -12,7 +12,7 @@
 // ponytail: two copies kept in sync by hand; extract a shared file when the
 // diff between them stops being readable.
 // [impl->dsn~chrome-extension-mv3~1]
-// [impl->dsn~browser-tab-group~2]
+// [impl->dsn~browser-tab-group~3]
 
 // --- Chrome compat -------------------------------------------------------
 // `browser` is Firefox's promise-based namespace; Chrome's `chrome` is the
@@ -271,7 +271,7 @@ function isSameOrSubUrl(tabUrl, url) {
 // group carries that title yet) and moves it to the group's end. The app
 // sends a task's URLs in its own order, so appending each one reproduces
 // that order in the tab bar — for a tab that was already open elsewhere too.
-// [impl->dsn~browser-tab-group~2]
+// [impl->dsn~browser-tab-group~3]
 async function groupTab(tabId, name) {
   if (!name || !browser.tabs.group || !browser.tabGroups) {
     return;

@@ -57,7 +57,7 @@ and the browser extensions — `contextswitcher-firefox-xpi` (unsigned, [install
 From a source checkout, `gradlew :app:registerUrlHandler` (or `just register`) builds an image and registers against it in one step.
 
 **Staying current:** the app checks its own checkout against its upstream every half hour and shows an update button in the toolbar when a newer commit exists.
-Clicking it quits the app with exit code 55, which `just run-loop` takes as "pull, rebuild, start again" ([`dsn~restart-to-update~10`](docs/requirements/ui.md)).
+Clicking it quits the app with exit code 55, which `just run-loop` takes as "pull, rebuild, start again" ([`dsn~restart-to-update~11`](docs/requirements/ui.md)).
 
 ## First steps
 
