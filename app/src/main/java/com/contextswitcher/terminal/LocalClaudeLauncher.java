@@ -25,7 +25,7 @@ import com.contextswitcher.tasks.Task;
 ///
 /// Windows has no tmux, so the app hosts the session itself instead:
 /// [#ownedCommand] builds the argv and `TerminalPane.startOwned` runs it in
-/// the pane's own ConPTY (`dsn~terminal-owned-session~3`).
+/// the pane's own ConPTY (`dsn~terminal-owned-session~4`).
 // [impl->dsn~task-create-local~4]
 public class LocalClaudeLauncher {
 
@@ -49,11 +49,11 @@ public class LocalClaudeLauncher {
     /// Whether this task's Claude session is one the **app itself** hosts: on
     /// Windows, a task with no `remote:` and no tmux window — there is no tmux
     /// there to run it in and no host to open a window on
-    /// (`dsn~terminal-owned-session~3`).
+    /// (`dsn~terminal-owned-session~4`).
     /// Deliberately not gated on a `claude:` section: a task that has not been
     /// started yet is still an owned one, and gating on it left such a task
     /// with the remote flow's placeholder instead.
-    // [impl->dsn~terminal-owned-session~3]
+    // [impl->dsn~terminal-owned-session~4]
     public static boolean ownsSession(Task task) {
         return onWindows() && task.remote() == null && task.tmux() == null;
     }
@@ -64,7 +64,7 @@ public class LocalClaudeLauncher {
     /// them. Always bracketed — Claude Code always asks for it, and the widget
     /// keeps whether it was asked private. Not submitted: the caller sends the
     /// `Enter` after a pause.
-    // [impl->dsn~terminal-owned-session~3]
+    // [impl->dsn~terminal-owned-session~4]
     public static String ownedPaste(String text) {
         return ESC + "[200~" + text.replace("\r\n", "\r").replace('\n', '\r') + ESC + "[201~";
     }
@@ -72,7 +72,7 @@ public class LocalClaudeLauncher {
     private static final char ESC = 27;
 
     /// The argv for a Claude session the **app itself** hosts in a ConPTY
-    /// (`dsn~terminal-owned-session~3`) — the Windows answer to "type into a
+    /// (`dsn~terminal-owned-session~4`) — the Windows answer to "type into a
     /// local session", where there is no tmux to mirror.
     ///
     /// `cmd /k` because `claude` is a `.cmd` shim and ConPTY starts the command

@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// The send-order numbers on the queue cards' ≡ handles
 /// (`dsn~message-queue-ui~26`): only a card armed for the delayed send
-/// (`dsn~message-queue-delayed-send~3`) carries one, and it counts within the
+/// (`dsn~message-queue-delayed-send~4`) carries one, and it counts within the
 /// armed cards, not within the whole stack — an unarmed card is never sent on
 /// its own, so a number on it would promise a turn it never gets. Arming a
 /// card moves it below the last armed one, so it gets the next number.

@@ -9,42 +9,42 @@ import static org.assertj.core.api.Assertions.assertThat;
 // [utest->dsn~task-create-local~4]
 class LocalClaudeLauncherTest {
 
-    // [utest->dsn~terminal-owned-session~3]
+    // [utest->dsn~terminal-owned-session~4]
     @Test
     void ownedSessionRunsClaudeWithThePromptAndNoWindowsTerminal() {
         assertThat(LocalClaudeLauncher.ownedCommand("Fix the importer", "opus", null))
                 .containsExactly("cmd", "/k", "claude", "--model", "opus", "Fix the importer");
     }
 
-    // [utest->dsn~terminal-owned-session~3]
+    // [utest->dsn~terminal-owned-session~4]
     @Test
     void ownedSessionResumesATranscriptWithoutModelOrPrompt() {
         assertThat(LocalClaudeLauncher.ownedCommand("Fix the importer", "opus", "a1b2-c3"))
                 .containsExactly("cmd", "/k", "claude", "--resume", "a1b2-c3");
     }
 
-    // [utest->dsn~terminal-owned-session~3]
+    // [utest->dsn~terminal-owned-session~4]
     @Test
     void ownedSessionFoldsNewlinesSoTheCommandLineStaysOneLine() {
         assertThat(LocalClaudeLauncher.ownedCommand("First\nsecond", null, null).getLast())
                 .isEqualTo("First second");
     }
 
-    // [utest->dsn~terminal-owned-session~3]
+    // [utest->dsn~terminal-owned-session~4]
     @Test
     void ownedSessionTurnsDoubleQuotesSoCmdMetacharactersStayQuoted() {
         assertThat(LocalClaudeLauncher.ownedCommand("chevron left \"<\" & more", null, null).getLast())
                 .isEqualTo("chevron left '<' & more");
     }
 
-    // [utest->dsn~terminal-owned-session~3]
+    // [utest->dsn~terminal-owned-session~4]
     @Test
     void omitsAnEmptyPrompt() {
         assertThat(LocalClaudeLauncher.ownedCommand("   ", null, null))
                 .containsExactly("cmd", "/k", "claude");
     }
 
-    // [utest->dsn~terminal-owned-session~3]
+    // [utest->dsn~terminal-owned-session~4]
     @Test
     void ownedPasteBracketsTheMessageAndTypesLineBreaksAsEnter() {
         assertThat(LocalClaudeLauncher.ownedPaste("First\nsecond\r\nthird"))

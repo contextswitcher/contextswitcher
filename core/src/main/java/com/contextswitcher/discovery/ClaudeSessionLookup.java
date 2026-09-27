@@ -32,13 +32,21 @@ public class ClaudeSessionLookup {
         return cwd.replaceAll("[/\\\\:.]", "-");
     }
 
-    /// The newest session id for a directory on **this** machine, read from
+    /// The session id to resume for a directory on **this** machine, read from
     /// `~/.claude/projects/<encoded>` directly — an app-owned local session
-    /// (`dsn~terminal-owned-session~3`) has no host to ask over ssh.
-    /// Null when the directory holds no transcript.
-    public static @Nullable String findLatestLocalSession(String cwd) {
-        Path dir = Path.of(System.getProperty("user.home"), ".claude", "projects",
-                encodeProjectDir(cwd));
+    /// (`dsn~terminal-owned-session~4`) has no host to ask over ssh.
+    /// The task's `recorded` id when its transcript is there (so one folder
+    /// can hold several tasks, each resuming its own conversation), else the
+    /// newest transcript; null when the directory holds none.
+    public static @Nullable String localSessionToResume(String cwd, @Nullable String recorded) {
+        return sessionToResume(Path.of(System.getProperty("user.home"), ".claude", "projects",
+                encodeProjectDir(cwd)), recorded);
+    }
+
+    static @Nullable String sessionToResume(Path dir, @Nullable String recorded) {
+        if (recorded != null && Files.isRegularFile(dir.resolve(recorded + ".jsonl"))) {
+            return recorded;
+        }
         try (Stream<Path> files = Files.list(dir)) {
             return files.filter(file -> file.getFileName().toString().endsWith(".jsonl"))
                     .max(Comparator.comparing(ClaudeSessionLookup::modifiedAt))

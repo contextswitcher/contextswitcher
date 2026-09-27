@@ -627,7 +627,7 @@ public class Main extends Application {
         // [impl->dsn~terminal-diff-window~2]
         terminalPane.setDiffOpener((remote, tmux) ->
                 showDiffWindow(repository, files, ssh, terminalPane, remote, tmux));
-        // [impl->dsn~terminal-owned-session~3]
+        // [impl->dsn~terminal-owned-session~4]
         terminalPane.setOwnedDiffOpener(taskId -> showOwnedDiff(repository, taskId));
         // [impl->dsn~terminal-mirrored-task~1]
         terminalPane.setMirroredTaskSelector((remote, window) ->
@@ -671,13 +671,15 @@ public class Main extends Application {
         QueuePane queuePane = new QueuePane(queueDir,
                 queueDir.resolve("qodo"),
                 configDir().resolve("attachments"),
+                // [impl->dsn~message-queue-delayed-send~4]
+                configDir().resolve("armed-messages.yaml"),
                 (task, text, progress) -> switch (ChatRoute.of(task)) {
                     // Remote or local: the host decides the transport, not
                     // the caller. [impl->dsn~terminal-local-mirror~2]
                     case ChatRoute.Tmux(String host, Task.TmuxConfig tmux) -> SendResult.of(
                             messageSender.send(host, tmux.target(), text, ClaudeMode.DEFAULT, progress));
                     // Windows: no tmux, the chat runs in the pane's own ConPTY
-                    // and is typed into. [impl->dsn~terminal-owned-session~3]
+                    // and is typed into. [impl->dsn~terminal-owned-session~4]
                     case ChatRoute.Owned(String taskId) ->
                             terminalPane.sendToOwned(taskId, messageSender.localText(text));
                     case ChatRoute.None() -> new SendResult.Failed("No tmux window configured for this task.");
@@ -986,7 +988,7 @@ public class Main extends Application {
                         window.updateRunningStatuses(statuses);
                         // A message armed for "delayed next" goes out on the
                         // tick its chat reports idle.
-                        // [impl->dsn~message-queue-delayed-send~3]
+                        // [impl->dsn~message-queue-delayed-send~4]
                         queuePane.sendDelayed(statuses);
                         // [impl->dsn~terminal-markdown-copy~1]
                         terminalPane.showStatuses(statuses);
@@ -3849,7 +3851,7 @@ public class Main extends Application {
         if (LocalClaudeLauncher.onWindows() && terminal != null) {
             // Windows has no tmux to run the session in, so the **app** hosts
             // it in the terminal pane's own ConPTY — a Windows Terminal tab
-            // could not be typed into from here (`dsn~terminal-owned-session~3`).
+            // could not be typed into from here (`dsn~terminal-owned-session~4`).
             terminal.startOwned(taskId,
                     LocalClaudeLauncher.ownedCommand(description, mode.model(), null), workdir);
             if (currentWindow != null) {
@@ -4086,11 +4088,11 @@ public class Main extends Application {
         });
     }
 
-    /// "Show diff" for an app-owned session (`dsn~terminal-owned-session~3`):
+    /// "Show diff" for an app-owned session (`dsn~terminal-owned-session~4`):
     /// git runs on this machine in the task's workspace — the recorded
     /// `claude.workspace`, else the directory the session runs in — and the
     /// colored output opens in a read-only terminal window.
-    // [impl->dsn~terminal-owned-session~3]
+    // [impl->dsn~terminal-owned-session~4]
     private void showOwnedDiff(TaskRepository repository, String taskId) {
         ExecutorService executor = this.actionExecutor;
         if (executor == null) {
@@ -4585,7 +4587,7 @@ public class Main extends Application {
         // On Windows a task with no host runs in the app's own ConPTY, so the
         // owned branch answers *before* the remote offers below — those two
         // buttons open a window on a remote, which such a task does not have.
-        // [impl->dsn~terminal-owned-session~3]
+        // [impl->dsn~terminal-owned-session~4]
         if (LocalClaudeLauncher.ownsSession(task) && showOwnedSession(terminal, task)) {
             return;
         }
@@ -4651,7 +4653,7 @@ public class Main extends Application {
     /// be started from the placeholder even when its creation died before the
     /// write-back. Null for a task with neither, the one case that still has
     /// nowhere to run and says so.
-    // [impl->dsn~terminal-owned-session~3]
+    // [impl->dsn~terminal-owned-session~4]
     private static @Nullable String ownedCwd(Task task) {
         if (task.claude() != null) {
             return task.claude().cwd();
@@ -4661,12 +4663,13 @@ public class Main extends Application {
 
     /// Shows the task's app-owned session, or — when no process of the app's
     /// is running for it — offers to start one. After an app restart the
-    /// offer is a **resume**: the newest transcript for the task's `cwd`
-    /// continues the same conversation, which is what replaces the detach a
-    /// tmux mirror would have given (`dsn~terminal-owned-session~3`).
+    /// offer is a **resume**: the task's `claude.sessionId` (else the newest
+    /// transcript for its `cwd`) continues the same conversation, which is
+    /// what replaces the detach a
+    /// tmux mirror would have given (`dsn~terminal-owned-session~4`).
     /// False when the task names no directory to run in, the one case that
     /// falls through to the ordinary "No tmux configured" placeholder.
-    // [impl->dsn~terminal-owned-session~3]
+    // [impl->dsn~terminal-owned-session~4]
     private boolean showOwnedSession(TerminalPane terminal, Task task) {
         if (terminal.showOwnedIfRunning(task.id())) {
             return true;
@@ -4675,7 +4678,8 @@ public class Main extends Application {
         if (cwd == null) {
             return false;
         }
-        String session = ClaudeSessionLookup.findLatestLocalSession(cwd);
+        String session = ClaudeSessionLookup.localSessionToResume(cwd,
+                task.claude() == null ? null : task.claude().sessionId());
         terminal.showActionMessage(
                 session == null
                         ? "No session running — start Claude in " + cwd + "."

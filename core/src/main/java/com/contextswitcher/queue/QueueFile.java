@@ -3,7 +3,9 @@ package com.contextswitcher.queue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 import org.yaml.snakeyaml.LoaderOptions;
@@ -155,6 +157,43 @@ public final class QueueFile {
         } catch (IOException e) {
             org.tinylog.Logger.warn("Cannot move {} to {}: {}", from, to, e.getMessage());
         }
+    }
+
+    /// The messages armed for a delayed send, per task id in send order — kept
+    /// so an app restart does not silently disarm them. Local, **not** beside
+    /// the synced queues: two machines sharing the tasks directory would
+    /// otherwise both deliver the same message. Missing or unreadable = none.
+    // [impl->dsn~message-queue-delayed-send~4]
+    public static Map<String, List<String>> loadArmed(Path file) {
+        if (!Files.exists(file)) {
+            return Map.of();
+        }
+        try {
+            Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
+            Map<String, List<String>> armed = new LinkedHashMap<>();
+            if (yaml.load(TextFiles.read(file)) instanceof Map<?, ?> map) {
+                map.forEach((id, texts) -> {
+                    if (texts instanceof List<?> list && !list.isEmpty()) {
+                        armed.put(id.toString(), list.stream().map(Object::toString).toList());
+                    }
+                });
+            }
+            return armed;
+        } catch (IOException | RuntimeException e) {
+            org.tinylog.Logger.warn("Cannot read armed messages {}: {}", file, e.getMessage());
+            return Map.of();
+        }
+    }
+
+    /// Writes the armed messages; nothing armed deletes the file.
+    // [impl->dsn~message-queue-delayed-send~4]
+    public static void saveArmed(Path file, Map<String, List<String>> armed) throws IOException {
+        if (armed.isEmpty()) {
+            Files.deleteIfExists(file);
+            return;
+        }
+        Files.createDirectories(file.getParent());
+        TextFiles.write(file, new Yaml().dump(armed));
     }
 
     /// Writes the queue; an empty queue deletes the file so `queues/` holds

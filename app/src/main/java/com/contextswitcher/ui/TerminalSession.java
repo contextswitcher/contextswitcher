@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
 /// Claude session the app hosts itself ([OwnedSession]). The pane holds at
 /// most one and asks it, instead of checking which mode it is in.
 // [impl->dsn~terminal-pane~14]
-// [impl->dsn~terminal-owned-session~3]
+// [impl->dsn~terminal-owned-session~4]
 sealed interface TerminalSession permits TmuxSession, OwnedSession {
 
     /// Where "Copy reply" and the Markdown selection copy read Claude's

@@ -202,7 +202,7 @@ public class RemoteFiles {
     /// Where **this machine's** Claude sessions keep their scratchpads: Claude
     /// Code puts them under the temp directory as `claude/<encoded-cwd>/<session>/scratchpad`
     /// — the remote layout without the `-<uid>` suffix.
-    // [impl->dsn~terminal-owned-session~3]
+    // [impl->dsn~terminal-owned-session~4]
     public static Path localScratchpads() {
         return Path.of(System.getProperty("java.io.tmpdir"), "claude");
     }
@@ -212,7 +212,7 @@ public class RemoteFiles {
     /// ([#localScratchpads]), newest first, as absolute local paths. Same
     /// depth as the remote `find -maxdepth 2`. Empty when there are none.
     /// Blocking.
-    // [impl->dsn~terminal-owned-session~3]
+    // [impl->dsn~terminal-owned-session~4]
     public static List<RemoteFile> listLocal(Path claudeTemp) {
         if (!Files.isDirectory(claudeTemp)) {
             return List.of();

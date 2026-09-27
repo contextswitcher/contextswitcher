@@ -350,7 +350,7 @@ Needs: impl, utest
 ### Enqueue on the phone
 `dsn~android-enqueue~1`
 
-The desktop arms a message to go out when Claude falls idle (`dsn~message-queue-delayed-send~3`); the phone has its own queue for that, never synced (MADR 0036): *Enqueue* after *Save draft* moves the box's text into `DraftStore(filesDir/enqueued)` (`TaskWatchService.enqueuedStore`), and the page lists it under *Sent when Claude is idle* with *Edit* and *Delete*, re-reading the store every 2 s to follow the sends. Offered only for a task with a tmux window and remote, since the watch sends them.
+The desktop arms a message to go out when Claude falls idle (`dsn~message-queue-delayed-send~4`); the phone has its own queue for that, never synced (MADR 0036): *Enqueue* after *Save draft* moves the box's text into `DraftStore(filesDir/enqueued)` (`TaskWatchService.enqueuedStore`), and the page lists it under *Sent when Claude is idle* with *Edit* and *Delete*, re-reading the store every 2 s to follow the sends. Offered only for a task with a tmux window and remote, since the watch sends them.
 `TaskWatchService.pollOnce` sends the watched task's oldest enqueued message through `MessageSender` when `EnqueuedDelivery.ready` says so — a `waiting` or `done` reading, once per turn: after a send (or a failed one) it waits for `working` before the next, as the reading right after a paste can still be `waiting`. A sent message leaves the store; a failure keeps it and posts *Enqueued message not sent*.
 Ceiling: only the watched task — the one opened last — sends; the queues of other tasks wait until they are opened again.
 

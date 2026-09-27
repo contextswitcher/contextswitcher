@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 // [utest->dsn~generated-file-download~2]
 class RemoteFilesTest {
 
-    // [utest->dsn~terminal-owned-session~3]
+    // [utest->dsn~terminal-owned-session~4]
     @Test
     void listsLocalScratchpadFilesNewestFirst(@TempDir Path claudeTemp) throws IOException {
         Path scratchpad = Files.createDirectories(
@@ -41,7 +41,7 @@ class RemoteFilesTest {
         assertEquals(2000, files.get(0).modified());
     }
 
-    // [utest->dsn~terminal-owned-session~3]
+    // [utest->dsn~terminal-owned-session~4]
     @Test
     void listsNothingWithoutALocalClaudeTempDirectory(@TempDir Path dir) {
         assertTrue(RemoteFiles.listLocal(dir.resolve("missing")).isEmpty());

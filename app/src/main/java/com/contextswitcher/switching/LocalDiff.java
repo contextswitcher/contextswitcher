@@ -9,12 +9,12 @@ import java.util.List;
 
 import org.tinylog.Logger;
 
-/// "Show diff" for an app-owned local session (`dsn~terminal-owned-session~3`).
+/// "Show diff" for an app-owned local session (`dsn~terminal-owned-session~4`).
 /// There is no tmux to open a throwaway window in ([TaskDiffWindow]), so git
 /// runs on this machine and its output is handed back as text for a read-only
 /// terminal view. Same choice of what to show: tracked changes when there are
 /// any, else the last commit.
-// [impl->dsn~terminal-owned-session~3]
+// [impl->dsn~terminal-owned-session~4]
 public final class LocalDiff {
 
     private LocalDiff() {
