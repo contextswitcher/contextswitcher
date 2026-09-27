@@ -111,7 +111,7 @@ With that in place the local session joins the remote features unchanged:
   Only the attachments differ: a local chat reads the image where it already is, so nothing is uploaded and the marker is rewritten to its own absolute path.
 - **Status polling** (`dsn~task-running-indicator~7`): the pseudo-host is one of the polled hosts, so a local session gets the same running dots, `@cs_title` adoption, `@cs_pr` capture and model report — through a local shell, without an ssh round-trip.
 
-On Windows there is no tmux at all, so a local session is not mirrored but **owned** by the app instead (`dsn~terminal-owned-session~3`).
+On Windows there is no tmux at all, so a local session is not mirrored but **owned** by the app instead (`dsn~terminal-owned-session~4`).
 
 Tags: windows, linux
 
@@ -123,7 +123,7 @@ Covers:
 Needs: impl, utest
 
 ### On Windows the app owns the local Claude session
-`dsn~terminal-owned-session~3`
+`dsn~terminal-owned-session~4`
 
 Windows has no tmux, so there is nothing for the pane to attach to and a local session used to be a dead end there: a Windows Terminal tab the app could not type into, and a pane saying so.
 The app therefore **hosts the session itself** — `cmd /k claude [--model <alias>] [description]` in the pane's own ConPTY (`TerminalPane.startOwned`, pty4j `setUseWinConPty(true)`, working directory the task's `claude.cwd`), the same mechanism that already hosts `ssh.exe` for the mirror.
@@ -147,7 +147,8 @@ No running dot is claimed for such a task either: the dots come from tmux option
 A live theme switch leaves an owned session in the old colors — `TerminalPane.retheme` re-attaches a mirror, and re-attaching this would mean killing the Claude it hosts.
 
 What is given up deliberately is **detach**: closing the app ends the process, because no tmux holds it.
-The way back is a resume, so the pane keeps owned sessions across selections — one widget per task in `TerminalPane.owned`, only the one in view changes — and offers a **resume** when none is running: `ClaudeSessionLookup.findLatestLocalSession` reads `%USERPROFILE%\.claude\projects\<encoded cwd>` directly (no host to ask) and the newest transcript there is continued with `claude --resume <id>`, neither model nor prompt passed — both belong to the conversation being continued.
+The way back is a resume, so the pane keeps owned sessions across selections — one widget per task in `TerminalPane.owned`, only the one in view changes — and offers a **resume** when none is running: `ClaudeSessionLookup.localSessionToResume` reads `%USERPROFILE%\.claude\projects\<encoded cwd>` directly (no host to ask) and continues a transcript there with `claude --resume <id>`, neither model nor prompt passed — both belong to the conversation being continued.
+The transcript is the task's `claude.sessionId` when that file exists, else the newest one (`~3`→`~4`): several tasks can then share one folder, each resuming its own conversation — which is also how an existing local session is taken over, by a task file naming its id.
 The encoding replaces every separator and dot with `-`, the drive colon and the backslashes included: `C:\git-repositories\github.com\contextswitcher\contextswitcher` → `C--git-repositories-github-com-contextswitcher-contextswitcher`.
 With no transcript yet the same placeholder offers a plain **start**.
 `Main.ownsSession` is the whole marker: on Windows, a task with no `remote:` and no `tmux:`.
@@ -167,7 +168,7 @@ Needs: impl, utest
 `dsn~wsl-sessions~1`
 
 On Windows the third place a session can live is a **WSL distribution**: a real Linux with a real tmux, on the user's own machine.
-It is the answer to what `dsn~terminal-owned-session~3` gives up — a session that detaches, survives an app restart and carries the status dots — without a second machine or an sshd to set up.
+It is the answer to what `dsn~terminal-owned-session~4` gives up — a session that detaches, survives an app restart and carries the status dots — without a second machine or an sshd to set up.
 
 A WSL session is a **remote** in every way the app already understands.
 Its task carries a `remote:` line, a `tmux:` section and a mirrored pane, so every `remote() != null` branch — the pollers, the message queue, the attachment drop, the kill on suspend, `Show diff`, `Files` — is reached unchanged.
@@ -307,7 +308,7 @@ The trade-off is that buttons no longer reach the remote at all — a click cann
 JediTermFX 1.1.0 builds the xterm wheel report with Swing's sign convention (`FxMouseWheelEvent`: `deltaY > 0` → button 5), but a JavaFX `deltaY > 0` means wheel **up** — the reported direction was inverted.
 `TerminalPane.installWheelDirectionFix` (capture-phase filter on the outer pane) consumes a scroll that would be reported and re-fires it at the canvas with the Y deltas negated, so JediTermFX's own coordinate and protocol handling emits the correct button; local scrolling (`Shift`+wheel, no reporting) already negates correctly and is left alone. Remove once a jeditermfx release carries the upstream fix ([techsenger/jeditermfx#24](https://github.com/techsenger/jeditermfx/issues/24)).
 
-An **app-owned** local session (`dsn~terminal-owned-session~3`) takes the same wheel route as the mirror: the wheel is reported to the program, direction-corrected, and Claude Code scrolls its own view.
+An **app-owned** local session (`dsn~terminal-owned-session~4`) takes the same wheel route as the mirror: the wheel is reported to the program, direction-corrected, and Claude Code scrolls its own view.
 The pane has no local scrollback worth scrolling there — ConPTY repaints the viewport in place rather than scrolling lines into the terminal's history — so an attempt to make the plain wheel scroll the widget's own scrollbar instead (`~6`) left the wheel doing nothing at all, and was reverted.
 `TerminalSettings.sendArrowKeysInAlternativeMode()` is `false` for both session kinds: JediTermFX sends `Up`/`Down` keys for a wheel in the alternate buffer from a handler with no `Shift` guard and no `else` against the mouse-reporting branch beside it, so a program that asked for the wheel would get the report *and* the keys.
 The keys read the raw sign while the report is direction-corrected, which fits what was seen in an owned session — a wheel down scrolled Claude Code down and moved its prompt cursor **up**, then into the previous message; a mirror, a tmux client, is always in the alternate buffer and would double the same way.
@@ -359,7 +360,7 @@ Needs: impl, utest
 `Ctrl`+wheel over the terminal pane changes its font size by one point per notch, `Ctrl`+`0` puts it back to JediTermFX's 14 points — the gesture every browser and IDE has, and the only way to read the pane on a 4K screen without changing the whole app's font.
 `TerminalZoom` keeps the size (clamped to 6–40 points: below that a line is unreadable, above it a few columns fill the pane, and a mirror would reflow the remote window for nothing) in `Preferences`, one size for every terminal in the app — the size is how the user reads the pane, the same reasoning `dsn~task-sort-modes~2` persists the sort order by.
 `TerminalSettings.getTerminalFontSize` reads it back, so a changed size reaches a widget when it rebuilds its font; JediTermFX only does that on a resize, so `TerminalPane.PanePanel` (its own `TerminalPanel` subclass, which also carries the mirror's Markdown copy handler) exposes the `protected reinitFontAndResize`.
-`TerminalPane.refreshFonts` calls it on **every** widget the pane still holds (a weak registry), not only the one under the pointer: the sessions of other tasks stay alive off-screen (`dsn~terminal-owned-session~3`) and must not come back in the old size.
+`TerminalPane.refreshFonts` calls it on **every** widget the pane still holds (a weak registry), not only the one under the pointer: the sessions of other tasks stay alive off-screen (`dsn~terminal-owned-session~4`) and must not come back in the old size.
 A resize reaches the pty like any window resize, so a mirror's tmux reflows the remote window to the new geometry.
 Zooming in shrinks the grid in both directions at once, and in JediTermFX 1.1.0 (as in JetBrains' jediterm it ports) such a resize can throw: `ChangeWidthOperation` re-wraps the buffer for the new width and starts the new screen at `cursorY - newHeight + 1` to keep the cursor visible, but in Claude Code's alternate-buffer screen the cursor is tracked below the buffer's last non-blank line, so a big enough height cut puts that start past the end of the line list and `subList` throws `IndexOutOfBoundsException`.
 The resize runs as a task on JediTermFX's executor, which swallows the exception — the emulator and the pty kept the old size while the panel already painted the new one: the right and bottom edges were cut off, Claude Code's input box with them, and every later shrink failed the same way (growing never did).

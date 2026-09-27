@@ -11,10 +11,10 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 
 /// A read-only terminal window showing fixed ANSI text — "Show diff" for an
-/// app-owned session (`dsn~terminal-owned-session~3`). The mirror's own
+/// app-owned session (`dsn~terminal-owned-session~4`). The mirror's own
 /// emulator fed by a [StringTtyConnector], so git's colors render as in a
 /// terminal; the widget's scrollback holds everything beyond one screen.
-// [impl->dsn~terminal-owned-session~3]
+// [impl->dsn~terminal-owned-session~4]
 public final class AnsiTextWindow {
 
     private static final int COLUMNS = 140;

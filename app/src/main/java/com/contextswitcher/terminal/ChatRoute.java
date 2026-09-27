@@ -8,8 +8,8 @@ import org.jspecify.annotations.Nullable;
 /// A tmux window, on a remote or in this machine's own tmux server
 /// (`dsn~terminal-local-mirror~2`), is typed into over tmux; on Windows the
 /// session the app hosts in the terminal pane is typed into directly
-/// (`dsn~terminal-owned-session~3`); any other task has no chat to reach.
-// [impl->dsn~terminal-owned-session~3]
+/// (`dsn~terminal-owned-session~4`); any other task has no chat to reach.
+// [impl->dsn~terminal-owned-session~4]
 public sealed interface ChatRoute {
 
     /// A tmux window on `host`.

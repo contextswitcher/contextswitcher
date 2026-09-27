@@ -20,12 +20,12 @@ import javafx.scene.control.Button;
 import org.jspecify.annotations.Nullable;
 
 /// A Claude session the **app** owns, in a ConPTY on this machine — on
-/// Windows, where there is no tmux to mirror (`dsn~terminal-owned-session~3`).
+/// Windows, where there is no tmux to mirror (`dsn~terminal-owned-session~4`).
 /// No tmux is involved, so none of the mirror machinery is: no window to
 /// select, no mirror to repair, and no reconnect — closing the app ends the
 /// process, and the way back is a resume. The pane keeps one per task across
 /// selections: [#detach] only stops showing it, [#close] ends it.
-// [impl->dsn~terminal-owned-session~3]
+// [impl->dsn~terminal-owned-session~4]
 final class OwnedSession implements TerminalSession {
 
     /// The pause between a pasted message and its `Enter` — the tmux route's

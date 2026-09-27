@@ -137,7 +137,7 @@ class QueueComposeKeysUiTest {
     /// stayed behind. On Windows the app hosts such a task's chat itself, so
     /// the chord does reach the send — which, with no session started, names
     /// what is missing instead.
-    // [utest->dsn~terminal-owned-session~3]
+    // [utest->dsn~terminal-owned-session~4]
     @Test
     void withoutARemoteTheChordSaysItOnlyQueued() throws Exception {
         selectAlphaAndFocusAddBox();

@@ -472,7 +472,7 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
 - [ ] A long description renamed right away, before the title arrives, keeps your rename.
 - [ ] **Linux** with `claude` off `PATH` and out of `~/.local/bin`: the title becomes the description's first words.
 
-### Windows: the app owns the local Claude session (`dsn~terminal-owned-session~3`)
+### Windows: the app owns the local Claude session (`dsn~terminal-owned-session~4`)
 
 Windows only — ConPTY exists nowhere else, so none of this can be checked on Linux.
 

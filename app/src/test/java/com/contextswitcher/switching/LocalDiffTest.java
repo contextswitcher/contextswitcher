@@ -9,7 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-// [utest->dsn~terminal-owned-session~3]
+// [utest->dsn~terminal-owned-session~4]
 class LocalDiffTest {
 
     @Test
