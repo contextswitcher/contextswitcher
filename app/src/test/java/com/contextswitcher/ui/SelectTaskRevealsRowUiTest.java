@@ -29,13 +29,13 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// `MainWindow.selectTask` has to reveal a row the current view hides
-/// (`dsn~browser-tab-selects-task~5`). Field report 2026-09-05: activating a
+/// (`dsn~browser-tab-selects-task~6`). Field report 2026-09-05: activating a
 /// browser tab of a task in a collapsed category selected nothing at all — the
 /// selection scanned the visible rows only, so the id lingered as a pending
 /// selection and the user saw the app do nothing. Only a running list can show
 /// the reveal (collapse/find both go through a row rebuild), hence a TestFX
 /// test.
-// [utest->dsn~browser-tab-selects-task~5]
+// [utest->dsn~browser-tab-selects-task~6]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class SelectTaskRevealsRowUiTest {

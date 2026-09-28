@@ -12,7 +12,7 @@ The terminal pane mirrors a task's tmux window through one grouped session per *
 The client's current window is therefore shared state across all those tasks, and nothing on screen says which window it is on.
 
 Field report 2026-09-09: a browser tab of PR 17071 selected the *other* task that lists the same PR, the mirror followed, and the pane showed the tab-theme session while the list, the notes and the header showed "Fix stale status labels workflow".
-The wrong-task selection was a bug of its own (`dsn~browser-tab-selects-task~5`, fixed), but it exposed the structural half: **any** stray write to that client shows one task's Claude session under another task's name, and the pane reports success while doing it.
+The wrong-task selection was a bug of its own (`dsn~browser-tab-selects-task~6`, fixed), but it exposed the structural half: **any** stray write to that client shows one task's Claude session under another task's name, and the pane reports success while doing it.
 A pane that quietly shows the wrong session is worse than one that says it cannot show anything — the terminal is where messages are typed.
 
 ## Considered Options
@@ -43,4 +43,4 @@ Polling was rejected as machinery for what the select already answers: the pane 
 
 ## More Information
 
-`dsn~terminal-pane~14` (mirror, select fast path, stranded-mirror repair), `dsn~browser-tab-selects-task~5` (the tie-break that caused the field report), MADR 0007 (JediTermFX).
+`dsn~terminal-pane~14` (mirror, select fast path, stranded-mirror repair), `dsn~browser-tab-selects-task~6` (the tie-break that caused the field report), MADR 0007 (JediTermFX).

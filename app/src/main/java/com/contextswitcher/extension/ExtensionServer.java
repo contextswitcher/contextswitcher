@@ -140,7 +140,7 @@ public class ExtensionServer extends WebSocketServer implements TabCommands {
 
     /// Receives the URL of a tab the user activated in the browser; set by the
     /// app once its window exists.
-    // [impl->dsn~browser-tab-selects-task~5]
+    // [impl->dsn~browser-tab-selects-task~6]
     public void setTabActivatedHandler(Consumer<String> handler) {
         this.tabActivatedHandler = handler;
     }

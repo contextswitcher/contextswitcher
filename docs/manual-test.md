@@ -1277,7 +1277,7 @@ The pane is now sized to its content (`Alerts.withContent`) and the dialog is re
 - [ ] The same with a long working-directory path → the label wraps onto a second line and the dialog grows to show it.
 - [ ] Delete a category with tasks in it → both lines of its confirmation are readable.
 
-## Browser tab selects task (`dsn~browser-tab-selects-task~5`)
+## Browser tab selects task (`dsn~browser-tab-selects-task~6`)
 
 Needs a real Firefox with the extension loaded — the reporting side lives in the browser.
 

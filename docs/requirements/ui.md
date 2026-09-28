@@ -2464,7 +2464,7 @@ The task-list selection listener calls `recordHistory(id)` for every loaded task
 `navigateHistory(±1)` first drops every entry whose task no longer exists in `entries` (deleted or renamed since the visit), adjusting the cursor for each removal below it, then moves the cursor one step and hands the id to `selectTask` — which already reveals a row a collapsed group or a find query hides.
 Back is therefore never a no-op that looks like a dead button; `updateHistoryButtons` disables each arrow at its end of the trail.
 A visit replaced within `TRANSIENT_VISIT_NANOS` (1 s) of being appended is no visit: the next task takes its entry instead of being appended after it.
-A desktop switch re-selects that desktop's last task (`dsn~desktop-last-task-selection~4`) and the browser window it activates reports its tab a moment later (`dsn~browser-tab-selects-task~5`); Back then landed on the task that had only flashed, not on the one worked on before (field report 2026-09-13).
+A desktop switch re-selects that desktop's last task (`dsn~desktop-last-task-selection~4`) and the browser window it activates reports its tab a moment later (`dsn~browser-tab-selects-task~6`); Back then landed on the task that had only flashed, not on the one worked on before (field report 2026-09-13).
 Only an append stamps the time and `navigateHistory` clears it, so the replaced entry is always the newest one and a step taken with the arrows is never overwritten.
 
 The two icon buttons (`ARROW_LEFT`, `ARROW_RIGHT`) sit at the **left** end of the list toolbar (`dsn~task-list-toolbar~3`), before the add menu, where a browser puts them.
@@ -3016,7 +3016,7 @@ Needs: impl, utest
 ### A filter never costs a task its selection
 `dsn~selection-survives-a-filter~2`
 
-Every row rebuild replaces the list's items, which clears the `ListView` selection, so `MainWindow.rebuildRows` turns the task on screen into the pending selection first and re-applies it afterwards (`dsn~browser-tab-selects-task~5`).
+Every row rebuild replaces the list's items, which clears the `ListView` selection, so `MainWindow.rebuildRows` turns the task on screen into the pending selection first and re-applies it afterwards (`dsn~browser-tab-selects-task~6`).
 That preservation skipped a task the rebuilt rows do not contain, and the reason given was a **search**: a query that hides the selected task must not leave its id pending, or clearing the query would jump back to the pre-search task instead of the one the user just found.
 The guard, however, read `narrowed` — search *and* the tag, awaits-input, running and active-desktop filters.
 So a filter that hid the selected task for a moment dropped its selection for good: the row came back, the highlight did not, and no later rebuild had anything left to restore.

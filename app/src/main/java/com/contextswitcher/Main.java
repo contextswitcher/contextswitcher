@@ -946,7 +946,7 @@ public class Main extends Application {
                 () -> handleDeepLink(orchestrator, repository, files, stage, url)));
         // Clicking a task's tab in the browser selects that task: the
         // extension reports the activated tab, the app follows.
-        // [impl->dsn~browser-tab-selects-task~5]
+        // [impl->dsn~browser-tab-selects-task~6]
         extensionServer.setTabActivatedHandler(url -> Platform.runLater(() -> {
             // Closing a tab activates its neighbour: during a teardown that is
             // the app's own doing, not the user's, and would resume the task
@@ -2298,10 +2298,10 @@ public class Main extends Application {
     /// (or no window yet) does nothing — the user is working in the browser,
     /// and neither a status message nor a raise of the app is wanted there.
     /// A **suspended** match is resumed on top of the selection
-    /// (`dsn~browser-tab-selects-task~5`): its row alone shows nothing to work
+    /// (`dsn~browser-tab-selects-task~6`): its row alone shows nothing to work
     /// with, so the tab opens the same live context a running task's row
     /// already has.
-    // [impl->dsn~browser-tab-selects-task~5]
+    // [impl->dsn~browser-tab-selects-task~6]
     // [impl->dsn~browser-tab-context-count~2]
     private void selectTaskForTab(TaskRepository repository, String url, boolean resume) {
         MainWindow window = this.window;
@@ -4722,7 +4722,7 @@ public class Main extends Application {
     /// task won, so opening the PR tab of the task you just selected switched
     /// the app (and the terminal mirror) to the *other* one, which reads as
     /// the app switching tasks by itself (field report 2026-09-09).
-    // [impl->dsn~browser-tab-selects-task~5]
+    // [impl->dsn~browser-tab-selects-task~6]
     static java.util.List<Task> rankTabMatches(java.util.List<Task> matches, String url,
             @Nullable String selectedId) {
         return matches.stream()

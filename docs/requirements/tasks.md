@@ -261,7 +261,7 @@ That last condition is what paces the janitor: a pull request already known merg
 An **active** task whose window the status poll has not reported on is skipped whatever its pull requests say (`~1`→`~2`).
 The janitor judges a session by its screen, and a window the poll has never seen is one of two things: seconds old, created between two rounds, or gone — neither is a session that ended.
 Field report 2026-09-12: a task created from a prompt that merely *quoted* a long-merged pull request was archived, its window killed and its file deleted **three seconds after "Add task"** — the quoted URL was seeded as the task's own PR, and Claude was still booting in the new window, so its screen had nothing alarming on it yet.
-The selected-row condition should have caught that one and did not: a row that has only just appeared is selected through `pendingSelectionId`, and a list rebuild clears the `ListView` selection in between (`dsn~browser-tab-selects-task~5`), so the guard reads "nothing selected" exactly during the seconds a fresh task is most vulnerable.
+The selected-row condition should have caught that one and did not: a row that has only just appeared is selected through `pendingSelectionId`, and a list rebuild clears the `ListView` selection in between (`dsn~browser-tab-selects-task~6`), so the guard reads "nothing selected" exactly during the seconds a fresh task is most vulnerable.
 It is kept — it is the right rule for an established row — but it is no longer the only thing standing between a new task and the janitor.
 A **suspended** task has no window left for the poll to see and keeps its own route: an unremarkable stored snapshot, or the grace period below.
 

@@ -39,7 +39,7 @@ public final class ExtensionProtocol {
     /// The user activated a browser tab; the app selects the task owning the
     /// URL. Unsolicited (no correlation id) and only honoured on the already
     /// authenticated extension connection.
-    // [impl->dsn~browser-tab-selects-task~5]
+    // [impl->dsn~browser-tab-selects-task~6]
     public record TabActivated(String url) implements Incoming {
     }
 

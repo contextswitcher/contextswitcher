@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// one checking why a workflow of it fails. Activating that PR's tab switched
 /// the app away from the selected task to the other one, terminal mirror
 /// included.
-// [utest->dsn~browser-tab-selects-task~5]
+// [utest->dsn~browser-tab-selects-task~6]
 class RankTabMatchesTest {
 
     private static final String PR = "https://github.com/JabRef/jabref/pull/17071";

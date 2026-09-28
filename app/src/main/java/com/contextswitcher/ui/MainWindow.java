@@ -2744,7 +2744,7 @@ public class MainWindow {
         // at all, and only a click brought the highlight back (field report
         // 2026-09-10). The task still on screen keeps it instead; the id
         // stays pending and wins as soon as it has a row.
-        // [impl->dsn~browser-tab-selects-task~5]
+        // [impl->dsn~browser-tab-selects-task~6]
         if (onScreenId != null && list != null) {
             int row = rowOf(onScreenId);
             if (row >= 0) {
@@ -6850,7 +6850,7 @@ public class MainWindow {
     /// selection is a header, a corrupt file, or nothing. Survives the
     /// transient clear a row rebuild causes, so it answers "is this task
     /// already the one in view" even while a collapsed category hides its row.
-    // [impl->dsn~browser-tab-selects-task~5]
+    // [impl->dsn~browser-tab-selects-task~6]
     public @Nullable String selectedTaskId() {
         Task previewed = previewedTask;
         return previewed == null ? null : previewed.id();
@@ -6987,7 +6987,7 @@ public class MainWindow {
         // see is no selection, and the browser-tab reporter has no other way
         // to say "this task". `rebuildRows` applies the pending selection
         // itself, so each step only has to reveal.
-        // [impl->dsn~browser-tab-selects-task~5]
+        // [impl->dsn~browser-tab-selects-task~6]
         if (collapsedGroups.remove(groupOf(taskId))) {
             rebuildRows();
         }

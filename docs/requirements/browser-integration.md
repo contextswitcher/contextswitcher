@@ -386,10 +386,11 @@ Covers:
 Needs: impl, utest
 
 ### Browser tab selection
-`dsn~browser-tab-selects-task~5`
+`dsn~browser-tab-selects-task~6`
 
 The extension listens on `tabs.onActivated`, `tabs.onUpdated` (a URL change in the active tab) and `windows.onFocusChanged` (switching windows fires no `onActivated`) and sends an unsolicited `{"type":"tab-activated","url":…}` — no correlation id, no reply — deduplicated against the last reported URL, since `onUpdated` fires repeatedly per navigation.
 `ExtensionServer` honours the message only on the connection that passed `hello` and hands the URL to `Main.selectTaskForTab`, which picks the task with the best `Task.tabUrlMatch` (2 exact `browser.urls` hit, 1 page under one of them — same `/`, `#`, `?` boundary rule as the extension's `isSameOrSubUrl`, 0 no match) and selects its row.
+A fragment on a task's URL (a PR review comment, `…/pull/1#pullrequestreview-2`) only points into the page, so the page without it and its sub-pages score 1 as well (field report 2026-09-28: a task listing a review comment did not own the PR's `/changes` tab).
 No match, or no window yet, does nothing.
 A match whose status is `suspended` is additionally handed to `MainWindow.resumeTask` — the same `setStatus(task, ACTIVE)` the row's play button and the queue's send-into-a-suspended-chat run (`dsn~task-suspend~6`), so the status write and the resurrecting switch come for free and no confirmation appears.
 It is the status *on disk* that decides, and `resumeTask` re-reads it, so a second `tab-activated` for the same tab arriving while the resume is in flight finds the task already `active` and only rewrites the status it already has.

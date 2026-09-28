@@ -160,7 +160,7 @@ class ExtensionProtocolTest {
                 .isEqualTo(new ExtensionProtocol.Result("abc-1", false, ""));
     }
 
-    // [utest->dsn~browser-tab-selects-task~5]
+    // [utest->dsn~browser-tab-selects-task~6]
     @Test
     void tabActivatedParses() {
         assertThat(ExtensionProtocol.parse(

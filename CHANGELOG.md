@@ -14,6 +14,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Fixed
 
+- A browser tab on a pull request is matched to a task listing a link to a comment of that pull request.
 - The first-start setup wizard is drawn in the configured color theme.
 
 ## [2026-09-27] - 2026-09-27
