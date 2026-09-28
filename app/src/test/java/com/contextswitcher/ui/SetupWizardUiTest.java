@@ -197,6 +197,30 @@ class SetupWizardUiTest {
         clickButton("Cancel");
     }
 
+    /// With a task repository to clone, "Start right away" finishes on the
+    /// clone page, without a first project.
+    @Test
+    void startRightAwayFinishesOnTheClonePage() {
+        AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
+        Platform.runLater(() -> result.set(SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, true, SetupWizard.Prefill.EMPTY, EXTENSION)));
+        RadioButton local = awaitPresent(
+                () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
+        FX_ROBOT.mouse().moveTo(local).click();
+        clickButton("Next");
+        awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional(),
+                "tools page");
+        clickButton("Next");
+        field("#setup-ws-token");
+        clickButton("Next");
+        type(field("#setup-clone-url"), "git@github.com:me/tasks.git");
+        clickButtonById("setup-start-now");
+        awaitPresent(() -> Optional.ofNullable(result.get()), "wizard result");
+        assertThat(result.get()).hasValueSatisfying(r -> {
+            assertThat(r.taskRepoUrl()).isEqualTo("git@github.com:me/tasks.git");
+            assertThat(r.repoUrl()).isNull();
+        });
+    }
+
     /// The menu re-run: no clone page between the tools and the project.
     @Test
     void aRerunSkipsTheClonePage() {

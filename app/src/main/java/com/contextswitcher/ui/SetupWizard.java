@@ -225,7 +225,12 @@ public final class SetupWizard {
         ButtonType next = new ButtonType("Next", ButtonBar.ButtonData.NEXT_FORWARD);
         // OTHER sits between Next and Cancel in every platform's button order.
         ButtonType checkup = new ButtonType("Finish and check up", ButtonBar.ButtonData.OTHER);
-        dialog.getDialogPane().getButtonTypes().addAll(back, next, checkup, ButtonType.CANCEL);
+        // On the clone page: a cloned task repository already holds its
+        // projects, so the first-project page is rarely wanted after it.
+        ButtonType startNow = new ButtonType("Start right away", ButtonBar.ButtonData.OTHER);
+        dialog.getDialogPane().getButtonTypes().addAll(back, next, checkup, startNow, ButtonType.CANCEL);
+        Button startNowButton = (Button) dialog.getDialogPane().lookupButton(startNow);
+        startNowButton.setId("setup-start-now");
         Button backButton = (Button) dialog.getDialogPane().lookupButton(back);
         Button nextButton = (Button) dialog.getDialogPane().lookupButton(next);
         Button checkupButton = (Button) dialog.getDialogPane().lookupButton(checkup);
@@ -557,6 +562,8 @@ public final class SetupWizard {
             nextButton.setText(current[0] == last ? "Finish" : "Next");
             checkupButton.setVisible(current[0] == last);
             checkupButton.setManaged(current[0] == last);
+            startNowButton.setVisible(current[0] == 4);
+            startNowButton.setManaged(current[0] == 4);
             if (current[0] == 1) {
                 showTransport.run();
             }
@@ -630,11 +637,27 @@ public final class SetupWizard {
             forward.run();
         });
         render.run();
-        dialog.setResultConverter(button -> button != next && button != checkup ? null
-                : new Result(localChoice.isSelected() ? null : sessionHost.get(),
-                        blankToNull(cloneUrl.getText()), blankToNull(repoUrl.getText()),
-                        blankToNull(repoUrl.getText()) == null ? null : blankToNull(root.getText()),
-                        repoType.getValue(), rmHome[0], button == checkup));
+        dialog.setResultConverter(button -> {
+            if (button != next && button != checkup && button != startNow) {
+                return null;
+            }
+            @Nullable String project = button == startNow ? null : blankToNull(repoUrl.getText());
+            return new Result(localChoice.isSelected() ? null : sessionHost.get(),
+                    blankToNull(cloneUrl.getText()), project,
+                    project == null ? null : blankToNull(root.getText()),
+                    repoType.getValue(), rmHome[0], button == checkup);
+        });
+        // The first start shows the wizard before the main window, which is
+        // what otherwise installs `main.css` and forces the theme to take.
+        // [impl->dsn~theme-select~8]
+        java.net.URL css = SetupWizard.class.getResource("main.css");
+        if (css != null) {
+            dialog.getDialogPane().getStylesheets().add(css.toExternalForm());
+        }
+        dialog.setOnShown(event -> {
+            Themes.refresh();
+            Themes.verify("setup wizard shown");
+        });
         return dialog.showAndWait();
     }
 
