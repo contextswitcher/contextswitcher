@@ -253,7 +253,8 @@
     -cs-chip-text-on-dark: white;
 }
 
-/* The probe Themes.variablesResolve styles in a scene of its own: it gets a
+/* The probe Themes.variablesResolve styles in a scene of its own, and
+   Themes.watch inside the main window: it gets a
    background exactly when the theme in force defines its colour variables. */
 .theme-probe {
     -fx-background-color: -color-bg-default;
@@ -262,7 +263,7 @@
 /* Every SvgNode glyph's fill. SvgNode's own stylesheet points at modena's
    -fx-text-base-color, which AtlantaFX does not define — without this rule a
    glyph renders invisible. The classes after it narrow the fill where the
-   colour carries meaning. [impl->dsn~theme-select~8] */
+   colour carries meaning. [impl->dsn~theme-select~9] */
 .svg-node {
     -fx-color: -color-fg-muted;
 }

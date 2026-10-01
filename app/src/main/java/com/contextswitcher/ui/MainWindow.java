@@ -44,7 +44,6 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
-import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import com.dlsc.gemsfx.infocenter.Notification;
 import com.dlsc.gemsfx.infocenter.NotificationGroup;
@@ -1291,7 +1290,7 @@ public class MainWindow {
         // (`dsn~task-list-toolbar~3`), and every colour the UI sets.
         // On **every** window, not only this one: a dialog builds a scene of
         // its own, and a rule here — an icon's fill above all — would miss it.
-        // [impl->dsn~theme-select~8]
+        // [impl->dsn~theme-select~9]
         URL css = MainWindow.class.getResource("main.css");
         if (css != null) {
             String sheet = css.toExternalForm();
@@ -1308,25 +1307,24 @@ public class MainWindow {
         // The shell's scene is on screen now, and JavaFX will not restyle it
         // for a stylesheet it already holds: force the restyle a theme switch
         // in the settings dialog did (field report 2026-09-13).
-        // [impl->dsn~theme-select~8]
+        // [impl->dsn~theme-select~9]
         Themes.refresh();
         // If the user-agent stylesheet was taken at startup and lost since,
         // this is where it shows.
         // [impl->dsn~everforest-theme~2]
         Themes.checkApplied("window shown", stage.getScene());
         // What actually fails on an unthemed start is the theme's variables,
-        // not the URL: check those now and again once the start-up stalls are
-        // over, refreshing when they do not resolve.
-        // [impl->dsn~theme-select~8]
-        Themes.verify("window shown");
-        PauseTransition settled = new PauseTransition(Duration.seconds(THEME_RECHECK_SECONDS));
-        settled.setOnFinished(event -> Themes.verify(THEME_RECHECK_SECONDS + " s after start"));
-        settled.play();
+        // not the URL — and in this window, not in a probe scene of its own:
+        // checked after every pulse of the start-up, repaired on the first
+        // one they do not resolve in.
+        // [impl->dsn~theme-select~9]
+        Themes.watch(scene, bottomBar, Duration.seconds(THEME_WATCH_SECONDS));
     }
 
-    /// Seconds after the window is shown when the theme is checked again —
-    /// past the FX-thread stalls of a busy start (6–13 s on 2026-09-16).
-    private static final int THEME_RECHECK_SECONDS = 20;
+    /// Seconds after the window is shown during which every pulse checks the
+    /// theme — well past the FX-thread stalls of a busy start (6–13 s on
+    /// 2026-09-16, up to 20 s on 2026-09-30).
+    private static final int THEME_WATCH_SECONDS = 60;
 
     /// Puts the selected category in front of the app name, with the live
     /// counts of that category's tasks between them

@@ -17,7 +17,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// The theme check tells a themed start from an unthemed one, and repairs the
-/// latter (`dsn~theme-select~8`). Field report 2026-09-16: "theme not loaded",
+/// latter (`dsn~theme-select~9`). Field report 2026-09-16: "theme not loaded",
 /// then "second run worked" — both starts logged the same stylesheets and the
 /// user-agent URL "as requested", so the URL cannot be what is checked; the
 /// theme's colour variables are.
@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// JavaFX's own Modena stands in for the unthemed window: it defines none of
 /// AtlantaFX's `-color-*` variables, which is what the screenshot showed —
 /// dark text on white, glyphs without a fill.
-// [utest->dsn~theme-select~8]
+// [utest->dsn~theme-select~9]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class ThemeVariablesProbeUiTest {

@@ -29,7 +29,7 @@ import com.contextswitcher.tasks.TextFiles;
 /// bootstraps without permission prompts (`dsn~claude-auto-permissions~1`).
 /// `theme` (default `everforest`) picks the AtlantaFX color theme: `light`,
 /// `dark`, or `system` — follow the OS's light/dark preference — each also in an
-/// `everforest` recolouring (`dsn~theme-select~8`).
+/// `everforest` recolouring (`dsn~theme-select~9`).
 /// `showOnAllDesktops` (default false) pins the main window to every Windows
 /// virtual desktop at startup — the Task View pin is per window handle and
 /// lost on exit, so it is re-applied here (`dsn~window-desktop-pin~2`).
@@ -50,7 +50,7 @@ import com.contextswitcher.tasks.TextFiles;
 /// `autoCopyReplies` (default false) puts each finished Claude reply of the
 /// mirrored chat on the clipboard as Markdown (`dsn~terminal-markdown-copy~1`).
 // [impl->dsn~app-settings~5]
-// [impl->dsn~theme-select~8]
+// [impl->dsn~theme-select~9]
 // [impl->dsn~window-desktop-pin~2]
 // [impl->dsn~refactoring-web-view~1]
 // [impl->dsn~readline-keys~1]
@@ -80,7 +80,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
     /// The valid `theme` values: the Nord palette or its Everforest
     /// recolouring (`dsn~everforest-theme~2`), each forced light or dark or —
     /// as the bare name — following the operating system's setting.
-    // [impl->dsn~theme-select~8]
+    // [impl->dsn~theme-select~9]
     public static final List<String> THEMES =
             List.of("system", "light", "dark", "everforest", "everforest-light", "everforest-dark");
     /// The default theme — Everforest, following the OS's light/dark setting.
@@ -215,7 +215,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
 
     /// Normalizes a theme value to one of [#THEMES], falling back to the default
     /// for anything unknown (a hand-edited file, an older/newer value).
-    // [impl->dsn~theme-select~8]
+    // [impl->dsn~theme-select~9]
     private static String normalizeTheme(@org.jspecify.annotations.Nullable String theme) {
         if (theme == null) {
             return DEFAULT_THEME;

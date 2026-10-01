@@ -20,9 +20,11 @@ import javafx.application.Application;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Group;
 import javafx.scene.layout.Background;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.Scene;
 import javafx.stage.Window;
+import javafx.util.Duration;
 import org.jspecify.annotations.Nullable;
 import org.tinylog.Logger;
 
@@ -32,7 +34,7 @@ import org.tinylog.Logger;
 /// system for `system`. The app's own `main.css` (added to every window) layers over
 /// whichever theme is active, and its color variables (`-color-bg-subtle`, …)
 /// resolve against it, so the panels recolor with the theme.
-// [impl->dsn~theme-select~8]
+// [impl->dsn~theme-select~9]
 public final class Themes {
 
     /// The `theme` values that ask for the Everforest recolouring: the bare
@@ -64,7 +66,7 @@ public final class Themes {
     /// back forces the restyle; both happen before the next pulse, so nothing
     /// flickers. For a host that set its own stylesheet (ShellFX, while it
     /// initializes) and once the main window is on screen.
-    // [impl->dsn~theme-select~8]
+    // [impl->dsn~theme-select~9]
     public static void refresh() {
         String stylesheet = requested;
         if (stylesheet == null) {
@@ -96,7 +98,7 @@ public final class Themes {
         // window with no warning anywhere (field report 2026-09-12 — "on
         // startup, sometimes, the theme is not applied", with a terminal
         // ground that proved `dark` had been resolved correctly).
-        // [impl->dsn~theme-select~8]
+        // [impl->dsn~theme-select~9]
         Logger.info("Theme {} ({}): {}", name, dark ? "dark" : "light", stylesheet);
         Application.setUserAgentStylesheet(stylesheet);
         // What JavaFX *kept*. It replaces a stylesheet it cannot use with its
@@ -161,7 +163,7 @@ public final class Themes {
     /// so far logged the URL "as requested", and the root fill it also logged
     /// is transparent in a themed and an unthemed window alike (2026-09-16).
     /// FX thread.
-    // [impl->dsn~theme-select~8]
+    // [impl->dsn~theme-select~9]
     static boolean variablesResolve() {
         Region probe = new Region();
         probe.getStyleClass().add("theme-probe");
@@ -182,7 +184,7 @@ public final class Themes {
     /// repaired by a restart or a theme switch in the settings dialog, well
     /// after start-up. Returns whether the variables resolve afterwards.
     /// FX thread.
-    // [impl->dsn~theme-select~8]
+    // [impl->dsn~theme-select~9]
     public static boolean verify(String where) {
         if (requested == null || variablesResolve()) {
             Logger.debug("Theme variables resolve at {}", where);
@@ -198,6 +200,62 @@ public final class Themes {
             Logger.error("Theme refresh at {} did not repair the theme variables", where);
         }
         return repaired;
+    }
+
+    /// How many times [#watch] refreshes before it gives up and only logs.
+    private static final int WATCH_MAX_REFRESHES = 5;
+
+    /// Checks the theme's variables **in `scene` itself** after every pulse
+    /// for `span`, and on the first pulse they do not resolve forces the
+    /// restyle ([#refresh]) and re-applies CSS right away, before that pulse
+    /// is painted.
+    ///
+    /// [#verify]'s probe lives in a scene of its own, and that is not what
+    /// fails: on 2026-09-30 it passed at window-shown while the main scene's
+    /// very next pulse — the first after a 2 s start-up stall — resolved none
+    /// of the variables, and the window stayed unthemed until the check 20 s
+    /// later repaired it. So the probe here sits in the window (unmanaged,
+    /// zero-sized, in `host`) and is read where the CSS pass has just run.
+    /// FX thread.
+    // [impl->dsn~theme-select~9]
+    public static void watch(Scene scene, Pane host, Duration span) {
+        if (requested == null) {
+            return;
+        }
+        Region probe = new Region();
+        probe.getStyleClass().add("theme-probe");
+        probe.setManaged(false);
+        probe.setMouseTransparent(true);
+        probe.resize(0, 0);
+        host.getChildren().add(probe);
+        long deadline = System.nanoTime() + (long) (span.toMillis() * 1_000_000);
+        int[] refreshes = {0};
+        boolean[] resolvedOnce = {false};
+        Runnable[] listener = new Runnable[1];
+        listener[0] = () -> {
+            Background background = probe.getBackground();
+            boolean resolved = background != null && !background.getFills().isEmpty();
+            if (resolved && !resolvedOnce[0]) {
+                resolvedOnce[0] = true;
+                Logger.debug("Theme variables resolve in the window");
+            }
+            if (!resolved && refreshes[0] < WATCH_MAX_REFRESHES) {
+                refreshes[0]++;
+                resolvedOnce[0] = false;
+                Logger.warn("Theme variables do not resolve in the window although JavaFX holds {}"
+                        + " — refreshing ({}/{})", Application.getUserAgentStylesheet(),
+                        refreshes[0], WATCH_MAX_REFRESHES);
+                refresh();
+                scene.getRoot().applyCss();
+            }
+            if (System.nanoTime() - deadline > 0) {
+                scene.removePostLayoutPulseListener(listener[0]);
+                host.getChildren().remove(probe);
+                Logger.debug("Theme watch ended: variables {}, {} refresh(es)",
+                        resolved ? "resolve" : "DO NOT resolve", refreshes[0]);
+            }
+        };
+        scene.addPostLayoutPulseListener(listener[0]);
     }
 
     /// Re-checks [#apply]'s stylesheet at `where` — after the window is up, a
@@ -306,7 +364,7 @@ public final class Themes {
     /// Whether the OS is set to a dark appearance. Implemented for Windows (the
     /// primary target) via the registry `AppsUseLightTheme` value; every other
     /// OS falls back to light — a later port can add its own probe.
-    // [impl->dsn~theme-select~8]
+    // [impl->dsn~theme-select~9]
     private static boolean systemPrefersDark() {
         if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) {
             return false;
@@ -347,7 +405,7 @@ public final class Themes {
     /// future window, and again whenever a window gets a new scene: a dialog
     /// builds a scene of its own, and a rule it misses — an icon's fill above
     /// all — leaves a glyph invisible there. FX thread.
-    // [impl->dsn~theme-select~8]
+    // [impl->dsn~theme-select~9]
     static void addToEveryWindow(String sheet) {
         if (!ON_EVERY_WINDOW.add(sheet)) {
             return;

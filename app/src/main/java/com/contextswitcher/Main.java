@@ -364,7 +364,7 @@ public class Main extends Application {
         // Everything else JavaFX's CSS engine says goes into the log file, not
         // only onto the console of the run loop: a stylesheet it could not
         // load or a variable it could not resolve — the records that tell an
-        // unthemed start's cause apart (dsn~theme-select~8, 2026-09-16). At
+        // unthemed start's cause apart (dsn~theme-select~9, 2026-09-16). At
         // debug: a themed start produces about ninety of them (value
         // conversions in library stylesheets and Modena's), which belong in
         // the file, not on the console.
@@ -460,7 +460,7 @@ public class Main extends Application {
         AppSettings startupSettings = AppSettings.loadOrCreate(configDir());
         // The color theme from settings (light/dark/system) — sets the AtlantaFX
         // user-agent stylesheet the whole UI is drawn with.
-        // [impl->dsn~theme-select~8]
+        // [impl->dsn~theme-select~9]
         com.contextswitcher.ui.Themes.apply(startupSettings.theme());
         // The bash cursor chords in every text input, main window and dialogs
         // alike — installed unconditionally, switched by the setting.

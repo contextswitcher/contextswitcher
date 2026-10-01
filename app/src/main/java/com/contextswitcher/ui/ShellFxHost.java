@@ -103,7 +103,7 @@ public final class ShellFxHost {
     /// it matched none, and without those sheets `-color-bg-extra` was undefined —
     /// every context menu drew no background, and on Windows clicks fell through
     /// the popup to the window behind (field report 2026-09-14).
-    // [impl->dsn~theme-select~8]
+    // [impl->dsn~theme-select~9]
     private static final class AppTheme implements Theme {
         static final AppTheme INSTANCE = new AppTheme();
 
@@ -198,7 +198,7 @@ public final class ShellFxHost {
         // (or JavaFX's Modena where that URL did not load) with Everforest gone
         // (field reports 2026-09-13/14). So the theme it gets *is* ours: Nord of
         // the same lightness for the chrome it styles itself, our stylesheet URL
-        // for what it sets on JavaFX. [impl->dsn~theme-select~8]
+        // for what it sets on JavaFX. [impl->dsn~theme-select~9]
         appearance.setTheme(AppTheme.INSTANCE);
         appearance.setDensity(Density.S);
         ShellSettings settings = new ShellSettings() {

@@ -18,7 +18,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 /// add menu showed its items over the window behind, and on Windows clicks fell
 /// through it — ShellFX's `.window-box .context-menu` fill needs a colour only
 /// its per-theme sheet defines, which it did not add for the app's theme.
-// [utest->dsn~theme-select~8]
+// [utest->dsn~theme-select~9]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class ContextMenuBackgroundUiTest {

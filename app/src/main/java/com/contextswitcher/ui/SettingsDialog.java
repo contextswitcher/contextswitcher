@@ -207,7 +207,7 @@ final class SettingsDialog {
             // Apply the theme live too, so a light/dark switch takes effect at
             // once (the user-agent stylesheet swap restyles every open window,
             // icons included — their fill is CSS); only the terminal mirror
-            // needs its own (its palette is not CSS at all). [impl->dsn~theme-select~8]
+            // needs its own (its palette is not CSS at all). [impl->dsn~theme-select~9]
             try {
                 Themes.apply(AppSettings.parse(content).theme());
                 // [impl->dsn~terminal-theme~2]

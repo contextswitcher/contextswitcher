@@ -141,7 +141,7 @@ class AppSettingsTest {
 
     // Theme defaults to everforest, is case-normalized, and an unknown value
     // falls back to everforest.
-    // [utest->dsn~theme-select~8]
+    // [utest->dsn~theme-select~9]
     @Test
     void themeDefaultsToEverforestAndNormalizesUnknown(@TempDir Path configDir) throws Exception {
         assertThat(AppSettings.loadOrCreate(configDir).theme()).isEqualTo("everforest");

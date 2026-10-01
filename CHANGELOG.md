@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub once the day is over.
 The topmost section is the day in progress — its link points at `main` until that tag exists.
 
+## [2026-10-01] - 2026-10-01
+
+### Fixed
+
+- On a busy start the main window is drawn in the color theme from the first frames on, instead of in unthemed greys until about 20 seconds after start.
+
 ## [2026-09-28] - 2026-09-28
 
 ### Added
@@ -43,6 +49,7 @@ The topmost section is the day in progress — its link points at `main` until t
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
-[2026-09-28]: https://github.com/contextswitcher/contextswitcher/compare/v2026-09-27...main
+[2026-10-01]: https://github.com/contextswitcher/contextswitcher/compare/v2026-09-28...main
+[2026-09-28]: https://github.com/contextswitcher/contextswitcher/compare/v2026-09-27...v2026-09-28
 [2026-09-27]: https://github.com/contextswitcher/contextswitcher/compare/v2026-09-23...v2026-09-27
 [2026-09-23]: https://github.com/contextswitcher/contextswitcher/commits/v2026-09-23

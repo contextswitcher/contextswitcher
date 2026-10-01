@@ -649,7 +649,7 @@ public final class SetupWizard {
         });
         // The first start shows the wizard before the main window, which is
         // what otherwise installs `main.css` and forces the theme to take.
-        // [impl->dsn~theme-select~8]
+        // [impl->dsn~theme-select~9]
         java.net.URL css = SetupWizard.class.getResource("main.css");
         if (css != null) {
             dialog.getDialogPane().getStylesheets().add(css.toExternalForm());
