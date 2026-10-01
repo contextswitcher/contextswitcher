@@ -118,6 +118,7 @@ import javafx.scene.control.IndexedCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.ScrollBar;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -4065,13 +4066,22 @@ public class MainWindow {
         QueuePane.selectMode(modelBox, remembered.model());
         QueuePane.selectMode(effortBox, remembered.effort());
         String host = remote == null ? "the remote" : remote;
-        alert.getDialogPane().setContent(new VBox(8,
-                new Label(offerTmux
-                        ? "\"" + task.title() + "\" has a remote but no tmux window yet.\n"
-                                + "Open one on " + host + "?"
-                        : "Start a Claude session for \"" + task.title() + "\"\n"
-                                + "on " + host + "?"),
-                new HBox(6, modelBox, effortBox)));
+        Label message = new Label(offerTmux
+                ? "\"" + task.title() + "\" has a remote but no tmux window yet.\n"
+                        + "Open one on " + host + "?"
+                : "Start a Claude session for \"" + task.title() + "\"\n"
+                        + "on " + host + "?");
+        message.setWrapText(true);
+        // A title may be a whole pasted task description: wrap it at a fixed
+        // width and scroll past 40 % of the screen, so the pickers and the
+        // buttons stay on screen.
+        double width = 480;
+        ScrollPane messageScroll = new ScrollPane(message);
+        messageScroll.setFitToWidth(true);
+        messageScroll.setPrefViewportWidth(width);
+        messageScroll.setPrefViewportHeight(Math.min(message.prefHeight(width) + 4,
+                Screen.getPrimary().getVisualBounds().getHeight() * 0.4));
+        alert.getDialogPane().setContent(new VBox(8, messageScroll, new HBox(6, modelBox, effortBox)));
         ButtonType picked = alert.showAndWait().orElse(ButtonType.CANCEL);
         if (picked != tmux && picked != claude) {
             return null;

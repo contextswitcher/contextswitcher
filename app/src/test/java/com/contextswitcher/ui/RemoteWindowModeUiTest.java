@@ -15,7 +15,9 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.Pane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 import io.gitlab.fxlabs.testfx.junit.jupiter.TestFxApplication;
@@ -100,6 +102,21 @@ class RemoteWindowModeUiTest {
         clickDialogButton("Cancel");
     }
 
+    /// A task whose title is a whole pasted description still fits on screen:
+    /// the text scrolls, the pickers and buttons stay reachable.
+    @Test
+    void aLongTitleScrollsInsteadOfOutgrowingTheScreen() {
+        ask("devbox", false, "line of a long pasted task description\n".repeat(200));
+
+        DialogPane pane = findDialog().orElseThrow();
+        assertThat(FX_ROBOT.selectNodes(ScrollPane.class).from(pane).findFirst())
+                .as("the scrollable message").isPresent();
+        assertThat(pane.getScene().getWindow().getHeight())
+                .as("the dialog height")
+                .isLessThan(Screen.getPrimary().getVisualBounds().getHeight());
+        clickDialogButton("Cancel");
+    }
+
     /// Shows the dialog (blocking on the FX thread, hence `runLater`) and hands
     /// back the cell its outcome lands in — empty `Optional` for a cancel, and
     /// still null while the dialog is up.
@@ -112,7 +129,13 @@ class RemoteWindowModeUiTest {
     /// resolved host reaches the dialog as the parameter, not through the task.
     private static AtomicReference<Optional<MainWindow.RemoteWindowChoice>> ask(
             String remote, boolean offerTmux) {
-        Task task = new Task("t", "T", TaskStatus.ACTIVE, null,
+        return ask(remote, offerTmux, "T");
+    }
+
+    /// As [#ask], with the task's title.
+    private static AtomicReference<Optional<MainWindow.RemoteWindowChoice>> ask(
+            String remote, boolean offerTmux, String title) {
+        Task task = new Task("t", title, TaskStatus.ACTIVE, null,
                 null, null, null, null, null, null, "");
         AtomicReference<Optional<MainWindow.RemoteWindowChoice>> result = new AtomicReference<>();
         Platform.runLater(() -> result.set(
