@@ -69,6 +69,16 @@ class AppSettingsTest {
         assertThat(AppSettings.loadOrCreate(configDir).readlineKeys()).isTrue();
     }
 
+    // [utest->dsn~host-on-off~1]
+    @Test
+    void inactiveRemotesDefaultToNoneAndRoundTrip() throws Exception {
+        assertThat(AppSettings.parse("tasksDir: t\nwsPort: 1\nwsToken: x\n").inactiveRemotes()).isEmpty();
+        AppSettings parsed = AppSettings.parse(
+                "tasksDir: t\nwsPort: 1\nwsToken: x\ninactiveRemotes:\n- swkgpu1\n");
+        assertThat(parsed.inactiveRemotes()).containsExactly("swkgpu1");
+        assertThat(AppSettings.parse(parsed.dump()).inactiveRemotes()).containsExactly("swkgpu1");
+    }
+
     // [utest->dsn~terminal-markdown-copy~1]
     @Test
     void autoCopyRepliesIsOptInAndDefaultsToFalse(@TempDir Path configDir) throws Exception {

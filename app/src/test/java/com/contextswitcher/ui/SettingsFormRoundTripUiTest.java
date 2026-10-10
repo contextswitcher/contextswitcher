@@ -43,6 +43,8 @@ class SettingsFormRoundTripUiTest {
             refactoringMinerPort: 7000
             remotes:
             - devbox
+            inactiveRemotes:
+            - oldbox
             tags:
             - name: jabref
               color: '#2da44e'

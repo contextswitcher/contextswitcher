@@ -8,6 +8,10 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ## [2026-10-10] - 2026-10-10
 
+### Added
+
+- Hosts can be switched off from the filter menu (Hosts) or in the settings: a switched-off host is no longer contacted in the background, and its tasks and categories are hidden until it is switched on again.
+
 ### Changed
 
 - A remote that stops answering is no longer asked every few seconds: after three failed attempts the background checks pause for a minute, then for up to five minutes, while the other hosts keep updating.

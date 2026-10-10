@@ -223,6 +223,20 @@ Covers:
 
 Needs: dsn
 
+### Switch a host off
+`req~host-on-off~1`
+
+The user can switch a remote host off and on again, from the task list's filter menu and in the settings.
+A host that is off is left alone completely: the app does not contact it in the background, and its tasks and categories are hidden from the list, so a machine the user is not working on neither clutters the list nor costs a stream of failing connections.
+The choice is remembered across restarts, and switching the host back on brings everything back as it was.
+
+Tags: windows, linux
+
+Covers:
+- feat~remote-development-context~1
+
+Needs: dsn
+
 ## Design
 
 ### ssh command runner
@@ -257,6 +271,24 @@ Tags: windows, linux
 
 Covers:
 - req~unreachable-host-backoff~1
+
+Needs: impl, utest
+
+### Switched-off hosts
+`dsn~host-on-off~1`
+
+`settings.yaml` holds the switched-off hosts as `inactiveRemotes` (a list, default empty; `AppSettings.inactiveRemotes`), editable in the settings form as "Switched-off hosts" (one per line, section Remotes) and toggled from the filter menu's **Hosts** submenu.
+The submenu (`MainWindow.hostsMenu`) is filled each time it opens with a check item per known host — the configured `remotes`, every task's and every category's `remote:`, and the switched-off hosts themselves, so a host stays reachable after its last task went — ticked while the host is on.
+A tick goes to `Main.switchHost`, which patches `inactiveRemotes` into the raw file (`YamlPatch`, the rest of the file untouched) and applies it at once; a settings save applies it live as well (`applyInactiveHosts`), no restart.
+A switched-off host is never contacted in the background: `Main.pollable` — the same gate as the backoff (`dsn~ssh-host-backoff~1`) — leaves it out of the tmux status, PR and title polls, the footer-PR scrape, the workspace PR lookup, the RefactoringMiner poll and the periodic reconcile; the manual "Sync tmux windows…" skips it too.
+Switching a host back on polls the task statuses right away instead of on the next tick.
+`MainWindow.rebuildRows` hides a task whose own `remote:` is off, and any row of a category whose `CONTEXTSWITCHER.md` names a switched-off `remote:` — empty categories included; it applies during a search too, since switching a host off says "not now", not "until I search".
+A switched-off host counts as one active dimension on the filter button and makes the list "narrowed", so an empty list says that something is hidden.
+
+Tags: windows, linux
+
+Covers:
+- req~host-on-off~1
 
 Needs: impl, utest
 

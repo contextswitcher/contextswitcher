@@ -238,7 +238,11 @@ final class SettingsDialog {
                     box.setSelected((Boolean) seed.yamlValue(key));
                     yield box;
                 }
-                case STRING_LIST -> FieldForm.listArea(String.join("\n", seed.remotes()), 3);
+                case STRING_LIST -> {
+                    @SuppressWarnings("unchecked")
+                    List<String> lines = (List<String>) seed.yamlValue(key);
+                    yield FieldForm.listArea(String.join("\n", lines), 3);
+                }
                 case TAG_LIST -> new TagListEditor(seed.tags());
                 case ENUM -> {
                     ComboBox<String> combo = new ComboBox<>(
@@ -364,8 +368,9 @@ final class SettingsDialog {
         String wsToken = ((TextField) controls.get("wsToken")).getText();
         boolean hints = ((CheckBox) controls.get("hints")).isSelected();
         boolean claudeAuto = ((CheckBox) controls.get("claudeAuto")).isSelected();
-        List<String> remotes = ((TextArea) controls.get("remotes")).getText().lines()
-                .map(String::trim).filter(line -> !line.isEmpty()).toList();
+        List<String> remotes = lines((TextArea) controls.get("remotes"));
+        // [impl->dsn~host-on-off~1]
+        List<String> inactiveRemotes = lines((TextArea) controls.get("inactiveRemotes"));
         List<AppSettings.TagDef> tags = ((TagListEditor) controls.get("tags")).getTags();
         @SuppressWarnings("unchecked")
         String theme = ((ComboBox<String>) controls.get("theme")).getValue();
@@ -417,7 +422,13 @@ final class SettingsDialog {
         return new AppSettings(Path.of(tasksDir.trim()), wsPort, wsToken,
                 remotes, tags, hints, claudeAuto, theme, showOnAllDesktops,
                 refactoringMinerHome, refactoringMinerPort, readlineKeys,
-                fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies);
+                fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies,
+                inactiveRemotes);
+    }
+
+    /// A list field's entries: one per non-blank line, trimmed.
+    private static List<String> lines(TextArea area) {
+        return area.getText().lines().map(String::trim).filter(line -> !line.isEmpty()).toList();
     }
 
     /// The tag-palette editor: a row per tag pairing a name field with a color
