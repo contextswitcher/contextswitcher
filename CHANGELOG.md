@@ -11,6 +11,7 @@ The topmost section is the day in progress — its link points at `main` until t
 ### Fixed
 
 - Adding a remote Claude task whose description starts with a pasted image no longer fails: the tmux window is named after the first line of text instead.
+- Saving the settings dialog no longer resets "Remove merged tasks after (days)" and "Copy each finished Claude reply as Markdown" to their defaults.
 
 ## [2026-10-01] - 2026-10-01
 

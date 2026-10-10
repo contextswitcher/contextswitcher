@@ -226,7 +226,7 @@ final class SettingsDialog {
     /// booleans as a `CheckBox`, and the list options (remotes, tag palette) as a
     /// multi-line `TextArea`, one entry per line.
     // [impl->dsn~settings-editor~4]
-    private Map<String, Region> buildControls(AppSettings seed) {
+    Map<String, Region> buildControls(AppSettings seed) {
         Map<String, Region> controls = new LinkedHashMap<>();
         for (SettingsCatalog.Option option : SettingsCatalog.OPTIONS) {
             String key = option.key();
@@ -320,7 +320,7 @@ final class SettingsDialog {
     /// text stays the source of truth. Returns null (after an alert) when the
     /// form is invalid (blank tasks dir, non-numeric port).
     // [impl->dsn~settings-editor~4]
-    private @Nullable String mergeFormIntoRaw(String raw, Map<String, Region> controls) {
+    @Nullable String mergeFormIntoRaw(String raw, Map<String, Region> controls) {
         AppSettings edited = readForm(controls);
         if (edited == null) {
             return null;
@@ -399,10 +399,25 @@ final class SettingsDialog {
         }
         @SuppressWarnings("unchecked")
         Browser browser = Browser.of(((ComboBox<String>) controls.get("browser")).getValue());
+        // Same story for these two: the 15-argument constructor filled in their
+        // defaults, so every save reset them. Hence the canonical constructor —
+        // a field it lacks no longer compiles instead of silently defaulting.
+        // [impl->dsn~merged-task-cleanup~2]
+        int mergedCleanupDays;
+        try {
+            mergedCleanupDays = Integer.parseInt(
+                    ((TextField) controls.get("mergedCleanupDays")).getText().trim());
+        } catch (NumberFormatException e) {
+            new Alert(Alert.AlertType.ERROR,
+                    "The merged-task cleanup days must be a whole number.").show();
+            return null;
+        }
+        // [impl->dsn~terminal-markdown-copy~1]
+        boolean autoCopyReplies = ((CheckBox) controls.get("autoCopyReplies")).isSelected();
         return new AppSettings(Path.of(tasksDir.trim()), wsPort, wsToken,
                 remotes, tags, hints, claudeAuto, theme, showOnAllDesktops,
                 refactoringMinerHome, refactoringMinerPort, readlineKeys,
-                fallbackDesktop, autoSuspendMinutes, browser);
+                fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies);
     }
 
     /// The tag-palette editor: a row per tag pairing a name field with a color
