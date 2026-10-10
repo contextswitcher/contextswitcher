@@ -1072,6 +1072,9 @@ public class MainWindow {
         // ComboBox's value is a .list-cell too, and picked up the edge.
         list.getStyleClass().add("task-list");
         this.taskList = list;
+        // Double-clicking the divider beside the task list widens it until no
+        // category name is cut. [impl->dsn~divider-fit-content~1]
+        DividerFit.widthDeficit(list, () -> DividerFit.labelDeficit(list.lookupAll("#group-name-label")));
         list.setCellFactory(view -> new TaskListCell(this::switchTask, this::openInIntellij,
                 this::renameTask, this::deleteTask,
                 this::setStatus, this::addLinkToTask, this::openTaskNote, this::toggleGroup,

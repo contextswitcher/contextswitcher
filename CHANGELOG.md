@@ -11,6 +11,7 @@ The topmost section is the day in progress — its link points at `main` until t
 ### Added
 
 - Hosts can be switched off from the filter menu (Hosts) or in the settings: a switched-off host is no longer contacted in the background, and its tasks and categories are hidden until it is switched on again.
+- Double-clicking the divider beside the task list widens the list just enough that no category name is cut off with "…".
 
 ### Changed
 

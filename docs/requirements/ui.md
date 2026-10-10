@@ -2158,6 +2158,21 @@ Covers:
 
 Needs: impl
 
+### Double-clicking a divider fits the task list
+`dsn~divider-fit-content~1`
+
+Double-clicking the divider beside the **Tasks** pane widens the pane just enough that no category name on screen ends in "…" — the widest cut name decides, and the pane right of the divider gives up the width.
+A pane opts in by reporting how many pixels it lacks (`DividerFit.widthDeficit`); the task list reports the largest shortfall of its shown `#group-name-label` labels (preferred minus actual width), so only the cells on screen count.
+One mouse filter on the dock host (`DividerFit.install`) handles every horizontal divider, including the splits ShellFX creates when a tab is dropped, since they are all JavaFX `SplitPane`s: it moves the divider to the right when the pane sits left of it and to the left when the pane sits right of it.
+A double-click on a divider beside no opting-in pane, or when everything fits, changes nothing.
+
+Tags: windows, linux
+
+Covers:
+- req~task-list-window~1
+
+Needs: impl, utest
+
 ### The app has an icon
 `dsn~app-icon~4`
 
