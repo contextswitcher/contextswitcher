@@ -208,6 +208,21 @@ Covers:
 
 Needs: dsn
 
+### A host that does not answer is retried, not hammered
+`req~unreachable-host-backoff~1`
+
+A remote that stops answering — a VPN that is off, a machine that is down — is not asked again every few seconds.
+After a few failed attempts in a row, the background checks leave it alone for a while and then try again, waiting longer after each failed retry (up to a few minutes).
+The other hosts keep updating meanwhile.
+Anything the user does on that host still tries right away, and the first answer brings it back to normal.
+
+Tags: windows, linux
+
+Covers:
+- feat~remote-development-context~1
+
+Needs: dsn
+
 ## Design
 
 ### ssh command runner
@@ -224,6 +239,24 @@ Tags: windows, linux
 
 Covers:
 - req~focus-remote-tmux-window~1
+
+Needs: impl, utest
+
+### Back off from a host that does not answer
+`dsn~ssh-host-backoff~1`
+
+Every `ProcessSshRunner` call reports its result to the shared `HostBackoff`; a **host failure** is ssh's own exit 255 (connect timeout, unknown host, refused, host key, authentication) or the runner's timeout — a remote command's failure carries its own exit code and counts as an answer.
+After three host failures in a row the host is backed off for one minute; each failed retry doubles that, up to five minutes; any answer forgets the host.
+Failures arriving while the backoff runs — calls in flight when it began, or several pollers retrying at once — do not extend it.
+ssh gets `-o ConnectTimeout=5`, so an unreachable host gives up in five seconds instead of holding one of the six ssh slots (`dsn~ssh-command-runner~6`) for the full timeout.
+Only the background polls consult the backoff (`Main.pollable`): the tmux status, PR and title pollers (their host supplier), the footer-PR scrape, the workspace PR lookup, the RefactoringMiner poll and the periodic reconcile skip a backed-off host, and the first poll after the delay is the retry.
+The manual "Sync tmux windows…" and everything else the user triggers (switch, message, mirror) always tries.
+The backoff is in-memory only; a restart starts afresh.
+
+Tags: windows, linux
+
+Covers:
+- req~unreachable-host-backoff~1
 
 Needs: impl, utest
 

@@ -8,6 +8,10 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ## [2026-10-10] - 2026-10-10
 
+### Changed
+
+- A remote that stops answering is no longer asked every few seconds: after three failed attempts the background checks pause for a minute, then for up to five minutes, while the other hosts keep updating.
+
 ### Fixed
 
 - Adding a remote Claude task whose description starts with a pasted image no longer fails: the tmux window is named after the first line of text instead.

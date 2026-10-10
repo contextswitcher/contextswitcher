@@ -26,7 +26,7 @@ class ProcessSshRunnerTest {
                 "devbox", List.of("tmux", "select-window", "-t", "jabref:claude"));
 
         assertThat(command).containsExactly(
-                ProcessSshRunner.sshExecutable(), "-n", "-o", "BatchMode=yes", "devbox",
+                ProcessSshRunner.sshExecutable(), "-n", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "devbox",
                 "tmux", "select-window", "-t", "jabref:claude");
     }
 
@@ -36,7 +36,7 @@ class ProcessSshRunnerTest {
                 "devbox", List.of("tmux", "load-buffer", "-b", "cs-queue", "-"), true);
 
         assertThat(command).containsExactly(
-                ProcessSshRunner.sshExecutable(), "-o", "BatchMode=yes", "devbox",
+                ProcessSshRunner.sshExecutable(), "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "devbox",
                 "tmux", "load-buffer", "-b", "cs-queue", "-");
     }
 

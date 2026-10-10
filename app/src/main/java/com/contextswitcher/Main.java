@@ -80,6 +80,7 @@ import com.contextswitcher.queue.ClaudeMode;
 import com.contextswitcher.queue.MessageSender;
 import com.contextswitcher.queue.QodoImported;
 import com.contextswitcher.queue.QueueFile;
+import com.contextswitcher.ssh.HostBackoff;
 import com.contextswitcher.ssh.ProcessSshRunner;
 import com.contextswitcher.ssh.SshCommandRunner;
 import com.contextswitcher.switching.ActionResult;
@@ -314,6 +315,21 @@ public class Main extends Application {
     /// Hosts to poll for `@cs_status`; recomputed on the FX thread whenever the
     /// task list changes, read (volatile) from the poller thread.
     private volatile Set<String> statusHosts = Set.of();
+
+    /// Whether the background polls may contact `host` right now: not while
+    /// it is backed off after failing in a row ([HostBackoff]). A command the
+    /// user triggers does not ask — it always tries.
+    // [impl->dsn~ssh-host-backoff~1]
+    private static boolean pollable(@Nullable String host) {
+        return host != null && !HostBackoff.SHARED.backedOff(host);
+    }
+
+    /// [#statusHosts] without the ones [#pollable] skips — the host set the
+    /// tmux pollers ask for on every tick.
+    // [impl->dsn~ssh-host-backoff~1]
+    private Set<String> pollableStatusHosts() {
+        return statusHosts.stream().filter(Main::pollable).collect(Collectors.toUnmodifiableSet());
+    }
 
     /// PR URLs to poll for state (https://github.com/contextswitcher/contextswitcher-private/issues/49); recomputed on the FX thread on any task
     /// list change, read (volatile) from the poller thread.
@@ -976,7 +992,7 @@ public class Main extends Application {
         recomputeStatusHosts(repository);
         taskEntries.addListener(
                 (javafx.collections.ListChangeListener<TaskEntry>) change -> recomputeStatusHosts(repository));
-        TmuxStatusPoller poller = new TmuxStatusPoller(ssh, () -> statusHosts,
+        TmuxStatusPoller poller = new TmuxStatusPoller(ssh, this::pollableStatusHosts,
                 statuses -> {
                     // Stashed (volatile) before the FX hop: the refactoring
                     // poller's idle gate reads it from its own thread.
@@ -1057,7 +1073,7 @@ public class Main extends Application {
                             recomputeRefactoringTargets(repository, files));
             RefactoringMinerPoller rmPoller = new RefactoringMinerPoller(
                     new RefactoringLookup(new ProcessSshRunner(REFACTORING_SSH_TIMEOUT)),
-                    () -> refactoringTargets,
+                    () -> refactoringTargets.stream().filter(target -> pollable(target.remote())).toList(),
                     key -> liveStatuses.get(key),
                     rmHome,
                     summaries -> Platform.runLater(() -> window.updateRefactorings(summaries)),
@@ -1089,7 +1105,7 @@ public class Main extends Application {
 
         // [impl->dsn~claude-pr-refresh~5]
         SshCommandRunner workspacePrSsh = new ProcessSshRunner(WORKSPACE_PR_SSH_TIMEOUT);
-        TmuxPrPoller tmuxPrPoller = new TmuxPrPoller(ssh, () -> statusHosts,
+        TmuxPrPoller tmuxPrPoller = new TmuxPrPoller(ssh, this::pollableStatusHosts,
                 found -> Platform.runLater(() -> {
                     applyDiscoveredPrs(repository, files, found);
                     scrapeFooterPrs(repository, files, ssh);
@@ -1102,7 +1118,7 @@ public class Main extends Application {
         tmuxPrPoller.start();
 
         // [impl->dsn~claude-title-sync~3]
-        TmuxTitlePoller titlePoller = new TmuxTitlePoller(ssh, () -> statusHosts,
+        TmuxTitlePoller titlePoller = new TmuxTitlePoller(ssh, this::pollableStatusHosts,
                 found -> Platform.runLater(() -> adoptPublishedTitles(repository, files, ssh, found)),
                 PR_REFRESH_POLL_SECONDS);
         this.tmuxTitlePoller = titlePoller;
@@ -1571,7 +1587,7 @@ public class Main extends Application {
             // and stopping at the first one would never pick that up.
             // `writePrToTask` skips URLs the file already has.
             String taskHost = TmuxHost.of(task);
-            if (taskHost == null || task.tmux().window() == null
+            if (!pollable(taskHost) || task.tmux().window() == null
                     || task.claude() == null || task.status() == TaskStatus.SUSPENDED) {
                 continue;
             }
@@ -1617,7 +1633,7 @@ public class Main extends Application {
             }
             Task task = loaded.task();
             Task.ClaudeConfig claude = task.claude();
-            if (task.remote() == null || claude == null || task.status() == TaskStatus.SUSPENDED) {
+            if (!pollable(task.remote()) || claude == null || task.status() == TaskStatus.SUSPENDED) {
                 continue;
             }
             String workspace = claude.workspace() != null ? claude.workspace() : claude.cwd();
@@ -2489,9 +2505,13 @@ public class Main extends Application {
                 .filter(TaskEntry.Loaded.class::isInstance)
                 .map(entry -> ((TaskEntry.Loaded) entry).task())
                 .toList();
-        List<String> remotes = settings.remotes().isEmpty()
+        List<String> configured = settings.remotes().isEmpty()
                 ? tasks.stream().map(Task::remote).filter(java.util.Objects::nonNull).distinct().toList()
                 : settings.remotes();
+        // The manual sync is the user asking — it tries every host; the
+        // periodic one skips a backed-off host. [impl->dsn~ssh-host-backoff~1]
+        List<String> remotes = announce ? configured
+                : configured.stream().filter(Main::pollable).toList();
         if (remotes.isEmpty()) {
             // Only the manual sync explains this; the periodic/auto passes stay
             // silent so an alert does not pop up on every tick.
