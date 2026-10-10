@@ -20,6 +20,25 @@ class ClaudeWindowLauncherTest {
                 .noneMatch(part -> part.contains("\""));
     }
 
+    // A live task's title is its raw description: tmux rejected the
+    // multi-line one whose first line was a pasted image's marker
+    // ("invalid window name").
+    // [utest->dsn~task-create-live~8]
+    @Test
+    void windowNameIsOneLineWithoutAttachmentMarkers() {
+        assertThat(ClaudeWindowLauncher.windowName(
+                "[image: C:\\Users\\o\\.contextswitcher\\attachments\\img-1.png]\nFix the\tsplit  pane\nmore"))
+                .isEqualTo("Fix the split pane");
+        assertThat(ClaudeWindowLauncher.windowName("See [file: C:\\a.txt] now")).isEqualTo("See now");
+        assertThat(ClaudeWindowLauncher.windowName("[image: C:\\x.png]\n\n")).isEqualTo("claude");
+        assertThat(ClaudeWindowLauncher.windowName("a".repeat(60)))
+                .hasSize(ClaudeWindowLauncher.WINDOW_NAME_MAX);
+        assertThat(ClaudeWindowLauncher.newWindowCommand("0", null, "[image: C:\\x.png]\nFix it"))
+                .contains("'Fix it'");
+        assertThat(ClaudeWindowLauncher.newSessionCommand("0", null, "Fix it\nnow"))
+                .contains("'Fix it'");
+    }
+
     // [utest->dsn~claude-auto-permissions~1]
     @Test
     void autoModeStartsClaudeWithSkippedPermissions() {
