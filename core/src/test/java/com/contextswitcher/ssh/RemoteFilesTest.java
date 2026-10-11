@@ -49,7 +49,7 @@ class RemoteFilesTest {
 
     @Test
     void listCommandCarriesNoDoubleQuote() {
-        // Windows ssh.exe swallows double quotes (dsn~ssh-command-runner~6).
+        // Windows ssh.exe swallows double quotes (dsn~ssh-command-runner~7).
         assertTrue(RemoteFiles.listCommand().stream().noneMatch(part -> part.contains("\"")));
     }
 

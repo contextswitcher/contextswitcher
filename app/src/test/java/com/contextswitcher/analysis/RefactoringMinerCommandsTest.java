@@ -41,7 +41,7 @@ class RefactoringMinerCommandsTest {
     }
 
     // Windows ssh.exe swallows double quotes on the way to the remote shell
-    // (`dsn~ssh-command-runner~6`) — no command part may carry one.
+    // (`dsn~ssh-command-runner~7`) — no command part may carry one.
     @Test
     void noCommandCarriesADoubleQuote() {
         assertThat(RefactoringMinerCommands.viewCommand("h", RM, 6789, WT, "origin/main"))

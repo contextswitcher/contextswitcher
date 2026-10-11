@@ -36,7 +36,7 @@ Needs: dsn
 ### RefactoringMiner command lines
 `dsn~refactoring-miner-commands~1`
 
-`RefactoringMinerCommands` builds pure argv, quote-free per `dsn~ssh-command-runner~6` (no double quotes anywhere; shell grouping via single quotes, the cleanup handler a named function instead of a quoted `trap` argument).
+`RefactoringMinerCommands` builds pure argv, quote-free per `dsn~ssh-command-runner~7` (no double quotes anywhere; shell grouping via single quotes, the cleanup handler a named function instead of a quoted `trap` argument).
 The view command is one long-lived ssh that forwards `refactoringMinerPort` (`-L port:127.0.0.1:port`, `ExitOnForwardFailure`) **and** runs the blocking `bin/RefactoringMiner diff --src <temp base> --dst <worktree>` server, the temp base being a `git archive <baseBranch>` extraction; teardown is a **stdin watchdog** — the JVM runs in the background while the script blocks on `cat`, and the connection's end (process destroy, app crash, dead network) EOFs stdin, upon which the script kills the JVM and removes the temp base.
 Deliberately no `ssh -tt` + `EXIT` trap: without a local tty the forced pty proved unreliable and orphaned the JVM (verified live 2026-07-29).
 The badge runs as two commands: a cheap probe printing HEAD and `merge-base <baseBranch> HEAD`, and — only when needed — the count run `RefactoringMiner -bc <git-common-dir> <merge-base> <HEAD> -json <tmp>` with the JSON catted to stdout; the repository is addressed by its **absolute git common dir** because `-bc` reads it via JGit, which cannot resolve a linked worktree's `.git` file.

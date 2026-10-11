@@ -9,7 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~ssh-command-runner~6]
+// [utest->dsn~ssh-command-runner~7]
 class ProcessSshRunnerTest {
 
     /// sshd's default `MaxStartups` refuses the eleventh unauthenticated
@@ -27,7 +27,19 @@ class ProcessSshRunnerTest {
 
         assertThat(command).containsExactly(
                 ProcessSshRunner.sshExecutable(), "-n", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "devbox",
-                "tmux", "select-window", "-t", "jabref:claude");
+                "sh", "-c", "'tmux select-window -t jabref:claude'");
+    }
+
+    /// The login shell may be fish: the command reaches it as one quoted
+    /// word for `sh -c`, single quotes inside escaped the POSIX way, which
+    /// fish reads alike; a command that already runs `sh` stays unwrapped.
+    @Test
+    void remoteCommandRunsUnderShWhateverTheLoginShell() {
+        assertThat(ProcessSshRunner.posix(List.of("m=cs-mirror-0;", "tmux", "list-windows",
+                "-F", "'#{window_id}'")))
+                .containsExactly("sh", "-c", "'m=cs-mirror-0; tmux list-windows -F '\\''#{window_id}'\\'''");
+        assertThat(ProcessSshRunner.posix(List.of("sh", "-c", "'echo $HOME'")))
+                .containsExactly("sh", "-c", "'echo $HOME'");
     }
 
     @Test
@@ -37,7 +49,7 @@ class ProcessSshRunnerTest {
 
         assertThat(command).containsExactly(
                 ProcessSshRunner.sshExecutable(), "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "devbox",
-                "tmux", "load-buffer", "-b", "cs-queue", "-");
+                "sh", "-c", "'tmux load-buffer -b cs-queue -'");
     }
 
     // PATH-resolved ssh may be an MSYS build (Git for Windows, Cygwin) that

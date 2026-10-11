@@ -26,6 +26,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Fixed
 
+- A remote whose login shell is fish now works: task status, the terminal mirror's reattach and the pull request lookup no longer fail there with fish syntax errors.
 - Creating a task or category whose workspaces root cannot be created on the remote now stops with the remote's error, instead of starting the session in the home directory.
 
 ## [2026-10-10] - 2026-10-10

@@ -4984,7 +4984,7 @@ public class Main extends Application {
         // batch `dsn~claude-pr-capture~2` already built for the periodic
         // footer poll — not one connection per window, which is what made a
         // single reconcile cost eleven of them on a host with ten Claude
-        // windows, over the six global slots of `dsn~ssh-command-runner~6`.
+        // windows, over the six global slots of `dsn~ssh-command-runner~7`.
         // [impl->dsn~claude-pr-capture~2]
         Map<String, List<String>> footerPrs = prLookup.findPrUrls(host,
                 sessions.stream().flatMap(session -> session.windows().stream())

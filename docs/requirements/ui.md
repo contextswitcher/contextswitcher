@@ -988,7 +988,7 @@ Needs: impl, utest
 ### Recommended session tools
 `dsn~recommended-tools~2`
 
-`RecommendedTools` names what makes a session good rather than what the app needs — RefactoringMiner (the badge and the AST-diff view, `dsn~refactoring-miner-commands~1`), ast-grep and codegraph, the two search tools Claude reaches for with their skills — as pure `sh -c '<script>'` argv builders: a `probe` printing the version (non-zero exit when missing) and an `install` printing it last, both free of double quotes (`dsn~ssh-command-runner~6`).
+`RecommendedTools` names what makes a session good rather than what the app needs — RefactoringMiner (the badge and the AST-diff view, `dsn~refactoring-miner-commands~1`), ast-grep and codegraph, the two search tools Claude reaches for with their skills — as pure `sh -c '<script>'` argv builders: a `probe` printing the version (non-zero exit when missing) and an `install` printing it last, both free of double quotes (`dsn~ssh-command-runner~7`).
 The wizard's tools page runs them through an `SshCommandRunner` handed in by `Main`: a `HostCommandRunner` over a five-minute `ProcessSshRunner` for the remote and a `LocalTmuxRunner` for `TmuxHost.LOCAL`, so this machine (Linux/macOS) gets the same page minus RefactoringMiner, which the app only ever runs over ssh (`local()`).
 Every row is probed when the page is entered; *Install* — its tooltip says where it puts what (`Tool.installs`): RefactoringMiner under `~/.contextswitcher`, the other binaries in `~/.local/bin`, the skills under `~/.claude` — runs the installer, disabled for the round-trip, and the version it prints becomes the status — a failure shows the installer's first stderr line and leaves the button enabled.
 *Recheck* runs the probe again, for a tool installed outside the wizard (a package manager, another shell) while the page is open.
@@ -3009,7 +3009,7 @@ Needs: impl, utest
 
 Every periodic job in the app is scheduled with `scheduleWithFixedDelay`, never `scheduleAtFixedRate`.
 A fixed rate keeps a schedule: a run that could not happen is still owed, so `ScheduledThreadPoolExecutor` runs the whole backlog back to back as fast as the pool allows once the machine wakes.
-That is not a theoretical difference here — a laptop asleep from 03:35 to 08:36 (field report 2026-09-12) left the periodic reconcile (`dsn~tmux-sync~7`) owing 300 ticks, and each reconcile costs one `list-windows` plus one `capture-pane` per window over the six global ssh slots of `dsn~ssh-command-runner~6`.
+That is not a theoretical difference here — a laptop asleep from 03:35 to 08:36 (field report 2026-09-12) left the periodic reconcile (`dsn~tmux-sync~7`) owing 300 ticks, and each reconcile costs one `list-windows` plus one `capture-pane` per window over the six global ssh slots of `dsn~ssh-command-runner~7`.
 The app spent the next eleven minutes after wake running ~9 `ssh` processes a second, draining a backlog of work whose answers were all superseded by the next item in the same backlog.
 Everything else needing ssh queued behind it: the terminal mirror's attach for the task the user selected waited seventeen seconds for a slot and read "Connecting to koppor@devbox old-group …" the whole time, which is indistinguishable from a hung remote.
 A fixed delay measures from the *end* of the previous run, so a machine that was away simply resumes: one tick, then the interval.

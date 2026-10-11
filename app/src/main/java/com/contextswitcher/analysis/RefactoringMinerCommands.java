@@ -13,7 +13,7 @@ import com.contextswitcher.terminal.WslTmuxRunner;
 ///
 /// Same transport constraint as every remote command here: **no double quotes
 /// anywhere** — Java's Windows argv encoding plus ssh.exe's parser swallow
-/// them (`dsn~ssh-command-runner~6`) — so shell grouping uses single quotes
+/// them (`dsn~ssh-command-runner~7`) — so shell grouping uses single quotes
 /// and the cleanup handler is a named function instead of a quoted `trap`
 /// argument.
 // [impl->dsn~refactoring-miner-commands~1]
