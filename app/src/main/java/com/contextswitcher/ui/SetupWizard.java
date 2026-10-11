@@ -22,6 +22,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
@@ -229,7 +230,6 @@ public final class SetupWizard {
         dialog.setResizable(true);
         ButtonType back = new ButtonType("Back", ButtonBar.ButtonData.BACK_PREVIOUS);
         ButtonType next = new ButtonType("Next", ButtonBar.ButtonData.NEXT_FORWARD);
-        // OTHER sits between Next and Cancel in every platform's button order.
         ButtonType checkup = new ButtonType("Finish and check up", ButtonBar.ButtonData.OTHER);
         // On the clone page: a cloned task repository already holds its
         // projects, so the first-project page is rarely wanted after it.
@@ -243,6 +243,7 @@ public final class SetupWizard {
         checkupButton.setId("setup-checkup");
         checkupButton.setTooltip(new javafx.scene.control.Tooltip(
                 "Once the category is set up, its session is asked: " + CHECKUP_PROMPT));
+        followForward((ButtonBar) dialog.getDialogPane().lookup(".button-bar"));
         nextButton.setDefaultButton(true);
 
         // Page 1: where sessions run.
@@ -567,8 +568,10 @@ public final class SetupWizard {
 
         List<Node> pages = List.of(page1, page2, page3, page4, page5, page6);
         StackPane content = new StackPane(page1);
-        content.setPrefWidth(520);
+        // Wide enough for the last page's four buttons with their full labels.
+        content.setPrefWidth(600);
         dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
         int[] current = {0};
         // The remote page is skipped for local sessions; the tools page also
         // on Windows, where the installers (sh scripts) cannot run; the clone
@@ -608,6 +611,9 @@ public final class SetupWizard {
             // page would otherwise push its buttons out of the window.
             javafx.scene.Scene scene = dialog.getDialogPane().getScene();
             if (scene != null && scene.getWindow() != null) {
+                // The new page is not styled yet; measured unstyled, its
+                // wrapped text gets too few lines.
+                dialog.getDialogPane().applyCss();
                 scene.getWindow().sizeToScene();
             }
             Platform.runLater(() -> (current[0] == 1
@@ -705,9 +711,20 @@ public final class SetupWizard {
         return box;
     }
 
+    /// Moves the OTHER buttons (*Finish and check up*, *Start right away*)
+    /// from the far left of the Windows and macOS order to right after
+    /// Next/Finish: they are alternatives to it, not to Back.
+    private static void followForward(ButtonBar bar) {
+        String order = bar.getButtonOrder().replace("U", "");
+        int forward = Math.max(order.indexOf('X'), order.indexOf('I'));
+        bar.setButtonOrder(order.substring(0, forward + 1) + "U" + order.substring(forward + 1));
+    }
+
     private static Label muted(String text) {
         Label label = new Label(text);
         label.setWrapText(true);
+        // A VBox squeezed by the window would otherwise cut it to one line.
+        label.setMinHeight(Region.USE_PREF_SIZE);
         label.getStyleClass().add(Styles.TEXT_MUTED);
         return label;
     }
