@@ -83,14 +83,19 @@ public final class SetupWizard {
     /// `workspacesParent` a new root is proposed under — per session host,
     /// the parent of that host's existing roots, null for none (then the
     /// checked home) — the configured
-    /// `refactoringMinerHome` to probe, and whether `categoriesExist` — then
-    /// the last page adds one rather than creating the first. `EMPTY` on the
-    /// first start.
+    /// `refactoringMinerHome` to probe, whether `categoriesExist` — then
+    /// the last page adds one rather than creating the first — and the
+    /// `knownHosts`, the host table's ssh destinations the remote page offers
+    /// as choices next to typing a new one. `EMPTY` on the first start.
     public record Prefill(@Nullable String host,
             java.util.function.Function<String, @Nullable String> workspacesParent,
-            @Nullable String refactoringMinerHome, boolean categoriesExist) {
+            @Nullable String refactoringMinerHome, boolean categoriesExist, List<String> knownHosts) {
 
-        public static final Prefill EMPTY = new Prefill(null, sessionHost -> null, null, false);
+        public static final Prefill EMPTY = new Prefill(null, sessionHost -> null, null, false, List.of());
+
+        public Prefill {
+            knownHosts = List.copyOf(knownHosts);
+        }
     }
 
     /// The browser-extension page's facts: the app's WebSocket `port` and
@@ -394,12 +399,64 @@ public final class SetupWizard {
             });
         };
         test.setOnAction(event -> runTest.accept(() -> { }));
+        // A known host's workspaces directory is known without the check:
+        // shown as soon as the host is, until typed into. [impl->dsn~host-table~1]
+        java.util.function.Consumer<String> knownWorkspaces = target -> {
+            if (!workspacesEdited[0]) {
+                String known = target.isBlank() ? null : prefill.workspacesParent().apply(target);
+                workspaces.setText(known == null ? "" : known);
+            }
+        };
         host.textProperty().addListener((obs, old, text) -> {
             verified[0] = false;
             verdict.setText("");
+            knownWorkspaces.accept(text.strip());
         });
+        knownWorkspaces.accept(host.getText().strip());
+        // The configured hosts as choices, plus "Another machine" with the
+        // destination field — picking one fills the field (read-only then),
+        // so the check and the result keep reading the field.
+        // [impl->dsn~host-table~1]
+        VBox knownRows = new VBox(4);
+        List<String> known = prefill.knownHosts().stream()
+                .filter(destination -> !TmuxHost.isWsl(destination) && !TmuxHost.isLocal(destination))
+                .toList();
+        if (!known.isEmpty()) {
+            ToggleGroup hostChoice = new ToggleGroup();
+            RadioButton another = new RadioButton("Another machine:");
+            another.setId("setup-host-other");
+            another.setToggleGroup(hostChoice);
+            for (int i = 0; i < known.size(); i++) {
+                RadioButton choice = new RadioButton(known.get(i));
+                choice.setId("setup-known-host-" + i);
+                choice.setUserData(known.get(i));
+                choice.setToggleGroup(hostChoice);
+                knownRows.getChildren().add(choice);
+            }
+            knownRows.getChildren().add(another);
+            hostChoice.selectedToggleProperty().addListener((obs, old, picked) -> {
+                if (picked != null && picked.getUserData() instanceof String destination) {
+                    host.setText(destination);
+                    host.setDisable(true);
+                } else {
+                    if (known.stream().anyMatch(host.getText().strip()::equalsIgnoreCase)) {
+                        host.clear();
+                    }
+                    host.setDisable(false);
+                    Platform.runLater(host::requestFocus);
+                }
+            });
+            String start = host.getText().strip();
+            hostChoice.selectToggle(knownRows.getChildren().stream()
+                    .map(RadioButton.class::cast)
+                    .filter(choice -> choice.getUserData() instanceof String destination
+                            && destination.equalsIgnoreCase(start))
+                    .findFirst().orElse(start.isEmpty() ? (RadioButton) knownRows.getChildren().getFirst()
+                            : another));
+        }
         VBox sshRows = new VBox(8,
                 new Label("ssh destination (an alias from ~/.ssh/config, or user@host)"),
+                knownRows,
                 new HBox(6, host, test),
                 muted("Key-based access is required — the app never asks for a password. "
                         + "The check runs tmux -V and claude --version there."));
@@ -426,11 +483,13 @@ public final class SetupWizard {
         distro.getEditor().textProperty().addListener((obs, old2, text) -> {
             verified[0] = false;
             verdict.setText("");
+            knownWorkspaces.accept(TmuxHost.wslHost(text));
         });
         VBox workspacesRows = new VBox(8,
                 new Label("Workspaces directory there (new workspaces roots go under it)"),
                 workspaces,
-                muted("Filled in once the check has run; created on the first category."));
+                muted("Known for a configured host, otherwise filled in once the check has run; "
+                        + "created on the first category."));
         VBox page2 = page("Which machine?", sshRows, wslRows, verdict, workspacesRows);
 
         // Page 3: the recommended tools, one row each — probed when the page

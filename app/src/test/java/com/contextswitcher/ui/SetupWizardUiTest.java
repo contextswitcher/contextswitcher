@@ -260,9 +260,15 @@ class SetupWizardUiTest {
     void aRerunStartsFromTheConfiguredRemoteAndRoots() {
         AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
         Platform.runLater(() -> result.set(SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS,
-                "/home/local", false, false, new SetupWizard.Prefill("devbox", sessionHost -> "/data/me", null, true), EXTENSION)));
+                "/home/local", false, false, new SetupWizard.Prefill("devbox", sessionHost -> "/data/me", null, true,
+                java.util.List.of("other", "devbox")), EXTENSION)));
         clickButton("Next");
+        // The configured hosts are choices; the prefilled one is picked, and
+        // its workspaces directory is there before any check.
         assertThat(field("#setup-host").getText()).isEqualTo("devbox");
+        assertThat(awaitPresent(() -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-known-host-1")
+                .fetchOptional(), "known host choice").isSelected()).isTrue();
+        assertThat(field("#setup-workspaces").getText()).isEqualTo("/data/me");
         clickButton("Next");
         awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional(),
                 "tools page");
@@ -282,7 +288,7 @@ class SetupWizardUiTest {
                 com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
                 () -> com.contextswitcher.config.Browser.FIREFOX, () -> null);
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
-                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true), connected));
+                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of()), connected));
         RadioButton local = awaitPresent(
                 () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
         FX_ROBOT.mouse().moveTo(local).click();
@@ -306,7 +312,7 @@ class SetupWizardUiTest {
                 com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
                 () -> null, () -> com.contextswitcher.config.Browser.FIREFOX);
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
-                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true), installed));
+                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of()), installed));
         RadioButton local = awaitPresent(
                 () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
         FX_ROBOT.mouse().moveTo(local).click();

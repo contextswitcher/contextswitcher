@@ -3060,14 +3060,17 @@ public class Main extends Application {
         }
         try {
             AppSettings before = AppSettings.loadOrCreate(configDir());
-            // The fields start from what is configured: the first remote,
-            // the existing roots' parent, the RefactoringMiner directory,
+            // The fields start from what is configured: the first switched-on
+            // host (else the first one), every host as a choice, the
+            // workspaces directory per host, its RefactoringMiner directory,
             // and whether there are categories to add another one to.
-            SetupWizard.Prefill prefill = new SetupWizard.Prefill(
-                    before.remotes().isEmpty() ? null : before.remotes().getFirst(),
+            String first = before.hosts().stream().filter(HostSettings::active)
+                    .map(HostSettings::destination).findFirst()
+                    .orElse(before.remotes().isEmpty() ? null : before.remotes().getFirst());
+            SetupWizard.Prefill prefill = new SetupWizard.Prefill(first,
                     window::configuredWorkspacesParent,
-                    before.refactoringMinerHome(before.remotes().isEmpty() ? null : before.remotes().getFirst()),
-                    window.hasCategories());
+                    before.refactoringMinerHome(first),
+                    window.hasCategories(), before.remotes());
             SetupWizard.Result result = showSetupWizard(false, prefill, before).orElse(null);
             if (result == null) {
                 return;

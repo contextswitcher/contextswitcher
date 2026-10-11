@@ -12,6 +12,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 - The settings dialog shows the hosts as one table: ssh destination, whether it is switched on, its workspaces directory and its RefactoringMiner directory — each per host instead of one RefactoringMiner directory for all of them. An older settings file is rewritten in the new shape when the app starts.
 - Adding a host in the setup wizard asks for its workspaces directory, and so does the first category on a host that has none yet.
+- The setup wizard lists the configured hosts to pick from, next to "Another machine" for a new one, and fills in a known host's workspaces directory right away.
 - The setup wizard's recommended-tools page has a "Recheck" button next to "Install", so a tool installed some other way while the page is open shows as found.
 - Hovering "Install" on that page says what it does and where it puts it: RefactoringMiner under `~/.contextswitcher`, ast-grep and codegraph in `~/.local/bin` with their Claude Code skills.
 - When a category of that name already exists, the setup wizard and "Add category from URL" offer to rename the existing category (proposed as `<name>-<host>`, or `<name>-local`) instead of only reporting the clash; "Back" returns to the wizard.
