@@ -289,6 +289,7 @@ public final class ShellFxHost {
         // drop handling.
         dockHost.getNode().addEventFilter(MouseEvent.MOUSE_RELEASED,
                 event -> Platform.runLater(() -> tidyDocks(dockHost)));
+        DividerFit.install(dockHost.getNode());
         ToolBar mainToolBar = lanes.toolBar();
         // The app-wide controls MainWindow hands over (energy saver, browser
         // status, update, settings): right-aligned, left of the panes button.

@@ -34,6 +34,14 @@ public class ProcessSshRunner implements SshCommandRunner {
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(10);
 
+    /// How long ssh waits for the TCP connect: an unreachable host fails in
+    /// five seconds rather than holding one of the [#MAX_CONCURRENT] slots
+    /// for the full timeout. [impl->dsn~ssh-host-backoff~1]
+    static final int CONNECT_TIMEOUT_SECONDS = 5;
+
+    /// Start of the stderr of a result the runner timed out itself.
+    static final String TIMEOUT_PREFIX = "Timeout after ";
+
     /// Upper bound on `ssh` processes alive at once, across every runner
     /// instance. sshd's default `MaxStartups 10:30:100` starts refusing
     /// connections at ten unauthenticated ones, and a burst of local
@@ -103,6 +111,8 @@ public class ProcessSshRunner implements SshCommandRunner {
         }
         command.add("-o");
         command.add("BatchMode=yes");
+        command.add("-o");
+        command.add("ConnectTimeout=" + CONNECT_TIMEOUT_SECONDS);
         command.add(host);
         command.addAll(remoteCommand);
         return command;
@@ -110,7 +120,7 @@ public class ProcessSshRunner implements SshCommandRunner {
 
     @Override
     public SshResult run(String host, List<String> remoteCommand) {
-        return execute(buildCommand(host, remoteCommand, false), null);
+        return recorded(host, execute(buildCommand(host, remoteCommand, false), null));
     }
 
     /// Runs a remote command with `input` piped to its stdin — the channel
@@ -118,7 +128,14 @@ public class ProcessSshRunner implements SshCommandRunner {
     /// in an argv, where quoting rules would mangle them.
     @Override
     public SshResult runWithInput(String host, List<String> remoteCommand, byte[] input) {
-        return execute(buildCommand(host, remoteCommand, true), input);
+        return recorded(host, execute(buildCommand(host, remoteCommand, true), input));
+    }
+
+    /// Reports the outcome to [HostBackoff#SHARED], so the polls learn which
+    /// hosts do not answer. [impl->dsn~ssh-host-backoff~1]
+    private static SshResult recorded(String host, SshResult result) {
+        HostBackoff.SHARED.record(host, result);
+        return result;
     }
 
     private SshResult execute(List<String> command, byte @Nullable [] input) {
@@ -164,7 +181,7 @@ public class ProcessSshRunner implements SshCommandRunner {
             if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
                 process.destroyForcibly();
                 Logger.warn("Timeout after {} for: {}", timeout, String.join(" ", command));
-                return new SshResult(-1, "", "Timeout after %s".formatted(timeout));
+                return new SshResult(-1, "", TIMEOUT_PREFIX + timeout);
             }
             SshResult result = new SshResult(process.exitValue(), stdout.get(), stderr.get());
             if (result.ok()) {

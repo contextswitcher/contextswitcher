@@ -49,6 +49,9 @@ import com.contextswitcher.tasks.TextFiles;
 /// janitor; 0 turns it off (`dsn~merged-task-cleanup~2`).
 /// `autoCopyReplies` (default false) puts each finished Claude reply of the
 /// mirrored chat on the clipboard as Markdown (`dsn~terminal-markdown-copy~1`).
+/// `inactiveRemotes` (default empty) are hosts switched off: never contacted
+/// by the background polls, their tasks and categories hidden
+/// (`dsn~host-on-off~1`).
 // [impl->dsn~app-settings~5]
 // [impl->dsn~theme-select~9]
 // [impl->dsn~window-desktop-pin~2]
@@ -59,11 +62,13 @@ import com.contextswitcher.tasks.TextFiles;
 // [impl->dsn~browser-choice~2]
 // [impl->dsn~merged-task-cleanup~2]
 // [impl->dsn~terminal-markdown-copy~1]
+// [impl->dsn~host-on-off~1]
 public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
         List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
         boolean showOnAllDesktops, @org.jspecify.annotations.Nullable String refactoringMinerHome,
         int refactoringMinerPort, boolean readlineKeys, String fallbackDesktop,
-        int autoSuspendMinutes, Browser browser, int mergedCleanupDays, boolean autoCopyReplies) {
+        int autoSuspendMinutes, Browser browser, int mergedCleanupDays, boolean autoCopyReplies,
+        List<String> inactiveRemotes) {
 
     /// Default idle time after which an active Claude task is suspended on
     /// its own — two days, so a task left over the weekend is still live on
@@ -201,8 +206,20 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
                 fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, false);
     }
 
+    /// Back-compat constructor without switched-off hosts (none).
+    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
+            List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
+            boolean showOnAllDesktops, @org.jspecify.annotations.Nullable String refactoringMinerHome,
+            int refactoringMinerPort, boolean readlineKeys, String fallbackDesktop,
+            int autoSuspendMinutes, Browser browser, int mergedCleanupDays, boolean autoCopyReplies) {
+        this(tasksDir, wsPort, wsToken, remotes, tags, hints, claudeAuto, theme,
+                showOnAllDesktops, refactoringMinerHome, refactoringMinerPort, readlineKeys,
+                fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies, List.of());
+    }
+
     public AppSettings {
         remotes = List.copyOf(remotes);
+        inactiveRemotes = List.copyOf(inactiveRemotes);
         tags = List.copyOf(tags);
         theme = normalizeTheme(theme);
         // Blank means unset — the settings form's empty text field and an
@@ -304,12 +321,17 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
         // Overwriting the clipboard unasked is opt-in: only an explicit `true`
         // counts. [impl->dsn~terminal-markdown-copy~1]
         boolean autoCopyReplies = map.get("autoCopyReplies") instanceof Boolean copy && copy;
+        // [impl->dsn~host-on-off~1]
+        List<String> inactiveRemotes = List.of();
+        if (map.get("inactiveRemotes") instanceof List<?> list) {
+            inactiveRemotes = list.stream().map(Object::toString).toList();
+        }
         return new AppSettings(Path.of(tasksDir.toString()), port, wsToken.toString(), remotes,
                 parseTags(map.get("tags")), hints, claudeAuto,
                 theme == null ? DEFAULT_THEME : theme.toString(), showOnAllDesktops,
                 rmHome == null ? null : rmHome.toString(), rmPort, readlineKeys,
                 fallbackDesktop == null ? DEFAULT_FALLBACK_DESKTOP : fallbackDesktop.toString(),
-                autoSuspend, browser, mergedCleanup, autoCopyReplies);
+                autoSuspend, browser, mergedCleanup, autoCopyReplies, inactiveRemotes);
     }
 
     /// Reads the `tags` palette: a list of `{name, color}` maps. The `color`
@@ -359,6 +381,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
         data.put("refactoringMinerHome", refactoringMinerHome == null ? "" : refactoringMinerHome);
         data.put("refactoringMinerPort", refactoringMinerPort);
         data.put("remotes", remotes);
+        data.put("inactiveRemotes", inactiveRemotes);
         data.put("tags", tagMaps());
         return new Yaml().dumpAsMap(data);
     }
@@ -400,6 +423,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
             case "refactoringMinerHome" -> refactoringMinerHome == null ? "" : refactoringMinerHome;
             case "refactoringMinerPort" -> refactoringMinerPort;
             case "remotes" -> remotes;
+            case "inactiveRemotes" -> inactiveRemotes;
             case "tags" -> tagMaps();
             default -> throw new IllegalArgumentException("unknown settings key: " + key);
         };
@@ -429,6 +453,8 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
                 refactoringMinerPort: 6789   # loopback port the refactoring web view is served and tunnelled on
                 remotes:                     # ssh destinations the tmux sync scans
                   - devbox                   # empty list: sync falls back to remotes of existing tasks
+                inactiveRemotes:             # hosts switched off: never polled, their tasks and categories hidden
+                  - oldbox                   # also toggled from the filter menu's Hosts submenu
                 tags:                        # tag palette for the task-tag filter and row chips
                   - name: jabref             # tag name (spaces allowed), referenced from a task's `tags:` line
                     color: "#2da44e"         # optional CSS hex; omitted = muted gray chip

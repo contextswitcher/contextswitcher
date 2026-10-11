@@ -332,6 +332,8 @@ wsPort: 17872                # loopback WebSocket port the browser extension con
 wsToken: <generated>         # shared secret; keep the generated value
 remotes:                     # ssh destinations the tmux sync scans
   - devbox                   # empty list: falls back to the remotes of existing tasks
+inactiveRemotes:             # hosts switched off (also: filter menu > Hosts): never polled, their tasks and categories hidden
+  - oldbox
 refactoringMinerHome:        # unzipped RefactoringMiner release, path on the remotes; empty = off
 refactoringMinerPort: 6789   # loopback port the refactoring web view is served and tunnelled on
 tags:                        # tag palette for the filter and the row chips

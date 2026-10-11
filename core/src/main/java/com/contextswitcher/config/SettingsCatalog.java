@@ -19,7 +19,7 @@ public final class SettingsCatalog {
         INTEGER,
         /// A checkbox.
         BOOLEAN,
-        /// A multi-line field, one list entry per line (the ssh remotes).
+        /// A multi-line field, one list entry per line (the ssh remotes, the switched-off hosts).
         STRING_LIST,
         /// A multi-line field, one `name  #rrggbb` tag per line (color optional).
         TAG_LIST,
@@ -96,6 +96,10 @@ public final class SettingsCatalog {
                     "Shared secret with the extension — generated once; change only to re-pair."),
             new Option("remotes", "Remotes", "Remotes", Type.STRING_LIST,
                     "ssh destinations the tmux sync scans; one per line."),
+            // [impl->dsn~host-on-off~1]
+            new Option("inactiveRemotes", "Switched-off hosts", "Remotes", Type.STRING_LIST,
+                    "Hosts that are never polled; their tasks and categories are hidden. "
+                            + "One per line — also toggled from the filter menu's Hosts submenu."),
             // [impl->dsn~refactoring-web-view~1]
             new Option("refactoringMinerHome", "RefactoringMiner directory", "Refactoring insight",
                     Type.STRING,

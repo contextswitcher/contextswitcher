@@ -208,6 +208,35 @@ Covers:
 
 Needs: dsn
 
+### A host that does not answer is retried, not hammered
+`req~unreachable-host-backoff~1`
+
+A remote that stops answering — a VPN that is off, a machine that is down — is not asked again every few seconds.
+After a few failed attempts in a row, the background checks leave it alone for a while and then try again, waiting longer after each failed retry (up to a few minutes).
+The other hosts keep updating meanwhile.
+Anything the user does on that host still tries right away, and the first answer brings it back to normal.
+
+Tags: windows, linux
+
+Covers:
+- feat~remote-development-context~1
+
+Needs: dsn
+
+### Switch a host off
+`req~host-on-off~1`
+
+The user can switch a remote host off and on again, from the task list's filter menu and in the settings.
+A host that is off is left alone completely: the app does not contact it in the background, and its tasks and categories are hidden from the list, so a machine the user is not working on neither clutters the list nor costs a stream of failing connections.
+The choice is remembered across restarts, and switching the host back on brings everything back as it was.
+
+Tags: windows, linux
+
+Covers:
+- feat~remote-development-context~1
+
+Needs: dsn
+
 ## Design
 
 ### ssh command runner
@@ -224,6 +253,42 @@ Tags: windows, linux
 
 Covers:
 - req~focus-remote-tmux-window~1
+
+Needs: impl, utest
+
+### Back off from a host that does not answer
+`dsn~ssh-host-backoff~1`
+
+Every `ProcessSshRunner` call reports its result to the shared `HostBackoff`; a **host failure** is ssh's own exit 255 (connect timeout, unknown host, refused, host key, authentication) or the runner's timeout — a remote command's failure carries its own exit code and counts as an answer.
+After three host failures in a row the host is backed off for one minute; each failed retry doubles that, up to five minutes; any answer forgets the host.
+Failures arriving while the backoff runs — calls in flight when it began, or several pollers retrying at once — do not extend it.
+ssh gets `-o ConnectTimeout=5`, so an unreachable host gives up in five seconds instead of holding one of the six ssh slots (`dsn~ssh-command-runner~6`) for the full timeout.
+Only the background polls consult the backoff (`Main.pollable`): the tmux status, PR and title pollers (their host supplier), the footer-PR scrape, the workspace PR lookup, the RefactoringMiner poll and the periodic reconcile skip a backed-off host, and the first poll after the delay is the retry.
+The manual "Sync tmux windows…" and everything else the user triggers (switch, message, mirror) always tries.
+The backoff is in-memory only; a restart starts afresh.
+
+Tags: windows, linux
+
+Covers:
+- req~unreachable-host-backoff~1
+
+Needs: impl, utest
+
+### Switched-off hosts
+`dsn~host-on-off~1`
+
+`settings.yaml` holds the switched-off hosts as `inactiveRemotes` (a list, default empty; `AppSettings.inactiveRemotes`), editable in the settings form as "Switched-off hosts" (one per line, section Remotes) and toggled from the filter menu's **Hosts** submenu.
+The submenu (`MainWindow.hostsMenu`) is filled each time it opens with a check item per known host — the configured `remotes`, every task's and every category's `remote:`, and the switched-off hosts themselves, so a host stays reachable after its last task went — ticked while the host is on.
+A tick goes to `Main.switchHost`, which patches `inactiveRemotes` into the raw file (`YamlPatch`, the rest of the file untouched) and applies it at once; a settings save applies it live as well (`applyInactiveHosts`), no restart.
+A switched-off host is never contacted in the background: `Main.pollable` — the same gate as the backoff (`dsn~ssh-host-backoff~1`) — leaves it out of the tmux status, PR and title polls, the footer-PR scrape, the workspace PR lookup, the RefactoringMiner poll and the periodic reconcile; the manual "Sync tmux windows…" skips it too.
+Switching a host back on polls the task statuses right away instead of on the next tick.
+`MainWindow.rebuildRows` hides a task whose own `remote:` is off, and any row of a category whose `CONTEXTSWITCHER.md` names a switched-off `remote:` — empty categories included; it applies during a search too, since switching a host off says "not now", not "until I search".
+A switched-off host counts as one active dimension on the filter button and makes the list "narrowed", so an empty list says that something is hidden.
+
+Tags: windows, linux
+
+Covers:
+- req~host-on-off~1
 
 Needs: impl, utest
 

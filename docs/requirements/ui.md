@@ -1574,6 +1574,7 @@ When the group uses a shared `workspacesRoot` (`GroupConfig.bootstrapWorktree`),
 The instruction part is deliberately terse — conventions live in the workspace root's `CLAUDE.md` (auto-loaded) — so Claude starts on the task instead of a setup conversation.
 A caller may hand `liveTaskPrompt` an `appendix`: reference material appended after the description's closing fence, used by the category-from-URL flow for the workspace-root `CLAUDE.md` template (`dsn~claude-md-templates~1`).
 It is a separate parameter rather than part of the description because the description also becomes the task's `title:`, its file name and the tmux window name, all of which a multi-kilobyte multi-line value would wreck.
+The window name is therefore derived, not the description itself (`ClaudeWindowLauncher.windowName`): attachment markers dropped, the first non-blank line, whitespace collapsed, capped at 40 characters, `claude` when nothing is left — tmux refuses a name with a newline ("invalid window name"), so a description whose first line was a pasted image failed the whole creation.
 The task file carries `remote`, `claude.cwd`, the description as the initial `title:` **and** under `# Notes` (so nothing is lost when the title is replaced), de-duplicated like the plain flow; the `tmux` target is written back the moment the window exists, ahead of the Claude start.
 The new row **is** auto-selected — synchronously, right after the file is written, so the row is selected as it appears: a creation that runs for a quarter minute has to be visible while it runs, so the user sees the row's progress, the same step in the terminal lane (`dsn~task-create-progress~5`) and then the session coming up in the mirror, instead of an unselected row somewhere in the list.
 Through `MainWindow.selectTask`, **not** the PR flow's `selectCreatedTask`: that one steps aside for a queue box being typed in (`dsn~task-from-pr~6`), which is right for a creation landing minutes later but not for the dialog the user just submitted — whenever the closing dialog handed the focus back to a queue box, the guard dropped the selection and the new row stayed unselected.
@@ -2157,6 +2158,21 @@ Covers:
 
 Needs: impl
 
+### Double-clicking a divider fits the task list
+`dsn~divider-fit-content~1`
+
+Double-clicking the divider beside the **Tasks** pane widens the pane just enough that no category name on screen ends in "…" — the widest cut name decides, and the pane right of the divider gives up the width.
+A pane opts in by reporting how many pixels it lacks (`DividerFit.widthDeficit`); the task list reports the largest shortfall of its shown `#group-name-label` labels (preferred minus actual width), so only the cells on screen count.
+One mouse filter on the dock host (`DividerFit.install`) handles every horizontal divider, including the splits ShellFX creates when a tab is dropped, since they are all JavaFX `SplitPane`s: it moves the divider to the right when the pane sits left of it and to the left when the pane sits right of it.
+A double-click on a divider beside no opting-in pane, or when everything fits, changes nothing.
+
+Tags: windows, linux
+
+Covers:
+- req~task-list-window~1
+
+Needs: impl, utest
+
 ### The app has an icon
 `dsn~app-icon~4`
 
@@ -2302,7 +2318,7 @@ Needs: impl
 `dsn~task-list-toolbar~3`
 
 `MainWindow.toolBar` builds a `ToolBar` placed at the top of the left `VBox`, above the find bar and the list (it was previously the whole window's top bar) — so every list-wide action sits over the list it acts on.
-The controls, left to right: the back/forward history `Button`s (`ARROW_LEFT`/`ARROW_RIGHT`, `dsn~task-history-navigation~2`); an add `MenuButton` (`PLUS`) whose items open `Add task…`/`Add category…`; the filter `MenuButton` (`FILTER_VARIANT`) holding the three narrowing filters as `CheckMenuItem`s (`dsn~awaits-input-filter~1`, `dsn~active-desktop-filter~6`, `dsn~running-tasks-filter~1`) plus, after a separator, the tag filter as a `Tags` submenu (`Menu`, `dsn~task-tag-filter~2`); the sort `MenuButton` (`SORT_VARIANT`, `dsn~task-sort-modes~2`); the group `MenuButton` (`FORMAT_LIST_GROUP`, one `CheckMenuItem` per grouping, `dsn~task-label-grouping~3`, `dsn~pr-status-grouping~1`, `dsn~nested-grouping~1`); the energy-saver `ToggleButton` (`LEAF`, `dsn~energy-saver~1`); the restart-to-update `Button` (`UPDATE`, always shown, blue once an update exists, with a badge counting the pending changes, its tooltip listing the pending news of `dsn~whats-new-upstream~7`, `dsn~restart-to-update~11`); a "more" `MenuButton` (`DOTS_VERTICAL`) whose items — each a `CustomMenuItem` label carrying a tooltip that explains the action, since a plain `MenuItem` takes none — are open-tasks-directory, sync-tmux-windows (`dsn~tmux-sync~7`), restart-running-tasks (`dsn~tmux-restart-running~1`), and refresh-now (`dsn~energy-saver~1`); and the settings gear (`COG`, `settingsButton`, `dsn~settings-editor~4`) at the right end.
+The controls, left to right: the back/forward history `Button`s (`ARROW_LEFT`/`ARROW_RIGHT`, `dsn~task-history-navigation~2`); an add `MenuButton` (`PLUS`) whose items open `Add task…`/`Add category…`; the filter `MenuButton` (`FILTER_VARIANT`) holding the three narrowing filters as `CheckMenuItem`s (`dsn~awaits-input-filter~1`, `dsn~active-desktop-filter~6`, `dsn~running-tasks-filter~1`) plus, after a separator, the tag filter as a `Tags` submenu (`Menu`, `dsn~task-tag-filter~2`) and the `Hosts` submenu that switches hosts on and off (`dsn~host-on-off~1`); the sort `MenuButton` (`SORT_VARIANT`, `dsn~task-sort-modes~2`); the group `MenuButton` (`FORMAT_LIST_GROUP`, one `CheckMenuItem` per grouping, `dsn~task-label-grouping~3`, `dsn~pr-status-grouping~1`, `dsn~nested-grouping~1`); the energy-saver `ToggleButton` (`LEAF`, `dsn~energy-saver~1`); the restart-to-update `Button` (`UPDATE`, always shown, blue once an update exists, with a badge counting the pending changes, its tooltip listing the pending news of `dsn~whats-new-upstream~7`, `dsn~restart-to-update~11`); a "more" `MenuButton` (`DOTS_VERTICAL`) whose items — each a `CustomMenuItem` label carrying a tooltip that explains the action, since a plain `MenuItem` takes none — are open-tasks-directory, sync-tmux-windows (`dsn~tmux-sync~7`), restart-running-tasks (`dsn~tmux-restart-running~1`), and refresh-now (`dsn~energy-saver~1`); and the settings gear (`COG`, `settingsButton`, `dsn~settings-editor~4`) at the right end.
 The four occasional actions used to be icon buttons of their own; with a fifteenth control on the way the bar outgrew the narrow list pane, so they share one menu (a ribbon library was considered and dropped: unmaintained since 2018, and a tabbed band costs more list height than it saves width).
 Every control is icon-only via the shared `iconButton`/`iconMenuButton`/`iconToggle` helpers (`SvgNode`, MADR 0010 — `Styles.SMALL`/`BUTTON_ICON`/`FLAT`, muted fill, a tooltip naming it), so the whole bar stays narrow over a list that can be squeezed to `minWidth`.
 The filter button's text badges the count of active narrowing dimensions — each of the three toggles plus a non-empty tag selection — blank when none, since an icon alone cannot show that a filter is on.

@@ -583,6 +583,27 @@ public class MainWindow {
         this.onBrowserChoice = choose;
     }
 
+    /// Hosts switched off (`inactiveRemotes`): their tasks and categories are
+    /// left out of the list. Set by `Main` at start-up and on every change.
+    // [impl->dsn~host-on-off~1]
+    private Set<String> inactiveHosts = Set.of();
+    /// Switches a host on (true) or off (false) — the Hosts submenu; set by `Main`.
+    private BiConsumer<String, Boolean> onHostSwitch = (host, active) -> { };
+
+    /// The hosts switched off; rebuilds the list so their rows go or come back.
+    // [impl->dsn~host-on-off~1]
+    public void setInactiveHosts(Set<String> hosts) {
+        this.inactiveHosts = Set.copyOf(hosts);
+        updateFilterButton();
+        rebuildRows();
+    }
+
+    /// Installs what ticking a host in the Hosts submenu does (see [#onHostSwitch]).
+    // [impl->dsn~host-on-off~1]
+    public void setOnHostSwitch(BiConsumer<String, Boolean> handler) {
+        this.onHostSwitch = handler;
+    }
+
     /// Hands a task whose pull requests are all merged to the janitor; set by
     /// `Main`, a no-op until then. [impl->dsn~merged-task-cleanup~2]
     private Consumer<Task> onMergedCleanup = task -> { };
@@ -1051,6 +1072,9 @@ public class MainWindow {
         // ComboBox's value is a .list-cell too, and picked up the edge.
         list.getStyleClass().add("task-list");
         this.taskList = list;
+        // Double-clicking the divider beside the task list widens it until no
+        // category name is cut. [impl->dsn~divider-fit-content~1]
+        DividerFit.widthDeficit(list, () -> DividerFit.labelDeficit(list.lookupAll("#group-name-label")));
         list.setCellFactory(view -> new TaskListCell(this::switchTask, this::openInIntellij,
                 this::renameTask, this::deleteTask,
                 this::setStatus, this::addLinkToTask, this::openTaskNote, this::toggleGroup,
@@ -2415,7 +2439,7 @@ public class MainWindow {
         // [impl->dsn~category-search~3]
         String scope = scopeCategory;
         boolean narrowed = searching || filtering || awaiting || running
-                || activeDesktopFilter != null || scope != null;
+                || activeDesktopFilter != null || scope != null || !inactiveHosts.isEmpty();
         // Force-expanding every group belongs to a *find* — a query or a tag
         // selection, where the point is to see every match without extra
         // clicks. The three standing filters (awaits input, running tasks,
@@ -2463,6 +2487,12 @@ public class MainWindow {
             }
             // [impl->dsn~category-search~3]
             if (scope != null && !entry.group().equals(scope)) {
+                continue;
+            }
+            // A switched-off host's work is out of sight — a search included:
+            // switching it off says "not now", not "until I search".
+            // [impl->dsn~host-on-off~1]
+            if (onInactiveHost(entry)) {
                 continue;
             }
             if (filtering && !tagFilterMatches(entry)) {
@@ -2551,6 +2581,10 @@ public class MainWindow {
                 }
                 // [impl->dsn~category-search~3]
                 if (scope != null && !folder.equals(scope)) {
+                    continue;
+                }
+                // [impl->dsn~host-on-off~1]
+                if (categoryOnInactiveHost(folder)) {
                     continue;
                 }
                 grouped.computeIfAbsent(folder, ignored -> new ArrayList<>());
@@ -3490,6 +3524,85 @@ public class MainWindow {
     // [impl->dsn~task-create-retry-prefill~1]
     public void noteTaskCreationFailed() {
         lastSubmissionFailed = true;
+    }
+
+    /// Whether `entry` belongs to a switched-off host: its task's own
+    /// `remote:`, or its category's (a task that has no remote yet, or one
+    /// moved in from elsewhere, still goes with its category). Error rows
+    /// stay unless their category is off — a parse failure must be seen.
+    // [impl->dsn~host-on-off~1]
+    private boolean onInactiveHost(TaskEntry entry) {
+        if (inactiveHosts.isEmpty()) {
+            return false;
+        }
+        if (entry instanceof TaskEntry.Loaded loaded) {
+            String remote = loaded.task().remote();
+            if (remote != null && inactiveHosts.contains(remote)) {
+                return true;
+            }
+        }
+        return categoryOnInactiveHost(entry.group());
+    }
+
+    /// Whether the category's `CONTEXTSWITCHER.md` names a switched-off host.
+    // [impl->dsn~host-on-off~1]
+    private boolean categoryOnInactiveHost(String group) {
+        if (inactiveHosts.isEmpty() || group.isEmpty()) {
+            return false;
+        }
+        String remote = groupDefaults(group).remote();
+        return remote != null && inactiveHosts.contains(remote);
+    }
+
+    /// Every host the user deals with, for the Hosts submenu: the configured
+    /// remotes, the tasks' and the categories' `remote:`, and the switched-off
+    /// ones (so a host can be switched back on after its last task went).
+    // [impl->dsn~host-on-off~1]
+    private Set<String> knownHosts() {
+        Set<String> hosts = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        hosts.addAll(configuredRemotes.get());
+        for (TaskEntry entry : entries) {
+            if (entry instanceof TaskEntry.Loaded loaded && loaded.task().remote() != null) {
+                hosts.add(loaded.task().remote());
+            }
+        }
+        for (String folder : folders) {
+            String remote = groupDefaults(folder).remote();
+            if (remote != null) {
+                hosts.add(remote);
+            }
+        }
+        hosts.addAll(inactiveHosts);
+        return hosts;
+    }
+
+    /// The filter menu's Hosts submenu: a check item per known host, ticked
+    /// while it is on. Filled each time it opens, since hosts come and go with
+    /// the tasks. Unticking switches the host off — not a view filter only:
+    /// `Main` stops polling it too.
+    // [impl->dsn~host-on-off~1]
+    private Menu hostsMenu() {
+        Menu menu = new Menu("Hosts", new SvgNode(MDITechnology.SERVER.path(), 14));
+        menu.setId("hosts-menu");
+        // A placeholder child: a Menu without items never fires onShowing.
+        menu.getItems().add(new MenuItem("(no hosts)"));
+        menu.setOnShowing(event -> {
+            menu.getItems().clear();
+            Set<String> hosts = knownHosts();
+            if (hosts.isEmpty()) {
+                MenuItem none = new MenuItem("(no hosts)");
+                none.setDisable(true);
+                menu.getItems().add(none);
+                return;
+            }
+            for (String host : hosts) {
+                CheckMenuItem item = new CheckMenuItem(host);
+                item.setSelected(!inactiveHosts.contains(host));
+                item.setOnAction(click -> onHostSwitch.accept(host, item.isSelected()));
+                menu.getItems().add(item);
+            }
+        });
+        return menu;
     }
 
     /// The group's `CONTEXTSWITCHER.md` defaults, or [GroupConfig#EMPTY] for
@@ -6203,7 +6316,8 @@ public class MainWindow {
         this.filterButton = button;
         CheckMenuItem desktopItem = activeDesktopItem();
         button.getItems().addAll(awaitsInputItem(), runningTasksItem(), desktopItem,
-                noDesktopCategoriesItem(desktopItem), new SeparatorMenuItem(), tagFilterMenu());
+                noDesktopCategoriesItem(desktopItem), new SeparatorMenuItem(), tagFilterMenu(),
+                hostsMenu());
         updateFilterButton();
         return button;
     }
@@ -6217,8 +6331,11 @@ public class MainWindow {
         if (button == null) {
             return;
         }
+        // Switched-off hosts count too, so hidden categories are not forgotten.
+        // [impl->dsn~host-on-off~1]
         int active = (awaitsInputOnly ? 1 : 0) + (activeDesktopOnly ? 1 : 0)
-                + (runningTasksOnly ? 1 : 0) + (activeTags.isEmpty() ? 0 : 1);
+                + (runningTasksOnly ? 1 : 0) + (activeTags.isEmpty() ? 0 : 1)
+                + (inactiveHosts.isEmpty() ? 0 : 1);
         // A digit-wide figure space rather than "" keeps the button's width: a
         // width change re-flows an overflowing toolbar, and the re-flow
         // detaches the button and closes its open menu mid-tick.

@@ -278,15 +278,45 @@ public class ClaudeWindowLauncher {
     }
 
     /// `-P -F` prints the new window's immutable id; `-c` sets the start dir
-    /// (omitted when no cwd is recorded); `-n` names the window after the task.
+    /// (omitted when no cwd is recorded); `-n` names the window after the task
+    /// ([#windowName]).
     public static List<String> newWindowCommand(String session, @Nullable String cwd, String name) {
         List<String> command = new ArrayList<>(List.of("tmux", "new-window", "-t", "'" + session + ":'"));
         if (cwd != null) {
             command.add("-c");
             command.add("'" + cwd + "'");
         }
-        command.addAll(List.of("-n", SshCommandRunner.quote(name), "-P", "-F", "'#{window_id}'"));
+        command.addAll(List.of("-n", SshCommandRunner.quote(windowName(name)), "-P", "-F", "'#{window_id}'"));
         return command;
+    }
+
+    /// Attachment markers (`[image: …]`, `[file: …]`) — local paths, no title.
+    private static final Pattern ATTACHMENT_MARKER = Pattern.compile("\\[(?:image|file): [^\\]]*]");
+
+    /// Longest window name handed to tmux; Claude's `@cs_title` replaces it soon anyway.
+    static final int WINDOW_NAME_MAX = 40;
+
+    /// A one-line tmux window name from a task title, which for a live task
+    /// is the raw multi-line description: tmux rejects a name with a newline
+    /// ("invalid window name"), and a pasted image's marker made the first
+    /// line a local path. So: attachment markers dropped, the first non-blank
+    /// line, control characters and runs of whitespace collapsed, capped at
+    /// [#WINDOW_NAME_MAX]; `claude` when nothing is left.
+    // [impl->dsn~task-create-live~8]
+    static String windowName(String title) {
+        String name = ATTACHMENT_MARKER.matcher(title).replaceAll(" ").lines()
+                .map(line -> line.replaceAll("[\\p{Cntrl}\\s]+", " ").strip())
+                .filter(line -> !line.isEmpty())
+                .findFirst()
+                .orElse("claude");
+        if (name.length() > WINDOW_NAME_MAX) {
+            int end = WINDOW_NAME_MAX;
+            if (Character.isHighSurrogate(name.charAt(end - 1))) {
+                end--;
+            }
+            name = name.substring(0, end).strip();
+        }
+        return name;
     }
 
     /// Fallback when even the session is gone (fresh tmux server after reboot).
@@ -296,7 +326,7 @@ public class ClaudeWindowLauncher {
             command.add("-c");
             command.add("'" + cwd + "'");
         }
-        command.addAll(List.of("-n", SshCommandRunner.quote(name), "-P", "-F", "'#{window_id}'"));
+        command.addAll(List.of("-n", SshCommandRunner.quote(windowName(name)), "-P", "-F", "'#{window_id}'"));
         return command;
     }
 
