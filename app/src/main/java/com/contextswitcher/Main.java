@@ -2965,9 +2965,9 @@ public class Main extends Application {
     /// Patches the wizard's settings answers into `settings.yaml` — a remote
     /// not yet listed, and the RefactoringMiner directory the tools page
     /// found or installed (the setting the badge and the view are gated on,
-    /// `dsn~recommended-tools~1`) — and returns the re-read settings.
+    /// `dsn~recommended-tools~2`) — and returns the re-read settings.
     // [impl->dsn~setup-wizard~8]
-    // [impl->dsn~recommended-tools~1]
+    // [impl->dsn~recommended-tools~2]
     private static AppSettings applyWizardSettings(AppSettings settings, SetupWizard.Result result)
             throws IOException {
         AppSettings current = settings;

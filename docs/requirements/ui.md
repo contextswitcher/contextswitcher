@@ -923,7 +923,7 @@ For the ssh destination it takes: *Test connection*, and *Next* itself while no 
 `remoteVerdict` reads the answer: no output at all is ssh's failure (its first stderr line shown); otherwise the first line is the home and a missing `tmux …` or `… (Claude Code)` line names the tool to install (`toolsVerdict`, shared with the local check).
 A success shows both versions and moves on, a failure keeps the page — the verdict names what to fix, and the user can still cancel. The remote's `$HOME` is kept as the parent of the proposed workspaces root, since the app cannot know a remote home otherwise.
 Claude's authorization is deliberately not checked: Claude Code has no offline "logged in" query, and a credentials-file heuristic misreads an Enterprise or Bedrock setup; the first session's own login prompt is visible in the mirrored terminal.
-Page three recommends tools (`dsn~recommended-tools~1`), one row each with a live status and an *Install* button; nothing on it gates *Next*. It is skipped for a local choice on Windows, where the installers cannot run.
+Page three recommends tools (`dsn~recommended-tools~2`), one row each with a live status, an *Install* and a *Recheck* button; nothing on it gates *Next*. It is skipped for a local choice on Windows, where the installers cannot run.
 Page four is the browser extension, the one part the app cannot install: what it does, the WebSocket port and token its options page needs (the token in a read-only field with a *Copy* button, since retyping it from `settings.yaml` is where people stall), a button opening the configured browser's install notes on GitHub through the app's URL opener, and — on a re-run, when `ExtensionServer` is up — which browser's extension is connected right now (`SetupWizard.Extension`, filled by `Main` from the settings and the server).
 Page five is the old clone offer as a field: a task-repository URL, empty to start fresh.
 Next to *Next*, it offers *Start right away*, which finishes the wizard there without a first project: a cloned task repository already holds its projects.
@@ -951,12 +951,13 @@ Covers:
 Needs: impl, utest
 
 ### Recommended session tools
-`dsn~recommended-tools~1`
+`dsn~recommended-tools~2`
 
 `RecommendedTools` names what makes a session good rather than what the app needs — RefactoringMiner (the badge and the AST-diff view, `dsn~refactoring-miner-commands~1`), ast-grep and codegraph, the two search tools Claude reaches for with their skills — as pure `sh -c '<script>'` argv builders: a `probe` printing the version (non-zero exit when missing) and an `install` printing it last, both free of double quotes (`dsn~ssh-command-runner~6`).
 The wizard's tools page runs them through an `SshCommandRunner` handed in by `Main`: a `HostCommandRunner` over a five-minute `ProcessSshRunner` for the remote and a `LocalTmuxRunner` for `TmuxHost.LOCAL`, so this machine (Linux/macOS) gets the same page minus RefactoringMiner, which the app only ever runs over ssh (`local()`).
 Every row is probed when the page is entered; *Install* runs the installer, disabled for the round-trip, and the version it prints becomes the status — a failure shows the installer's first stderr line and leaves the button enabled.
-A row whose tool is found (probed or installed) hides *Install*: the installers do not update.
+*Recheck* runs the probe again, for a tool installed outside the wizard (a package manager, another shell) while the page is open.
+A row whose tool is found (probed or installed) hides *Install* and *Recheck*: the installers do not update.
 RefactoringMiner reuses `RefactoringMinerCommands.setupCommand` (the settings dialog's *Set up*, `dsn~refactoring-miner-setup~1`); found or installed, its directory — `REMOTE_HOME` with the checked home — travels in the `Result` and `Main` patches it into `refactoringMinerHome`, the setting the badge is gated on.
 ast-grep is the pinned release zip's `ast-grep` binary unzipped into `~/.local/bin` (`sg` deliberately left in the zip: it would shadow shadow-utils' `sg`), then `npx -y skills add ast-grep/agent-skill -g -a claude-code -s '*' -y` for its two skills — a missing `npx` only warns on stderr, the binary is still there.
 codegraph is its pinned `install.sh` (`CODEGRAPH_VERSION`), `codegraph install -y` registering the MCP server with the agents it detects, and the shipped `skills/codegraph-SKILL.md` written to `~/.claude/skills/codegraph/` first through the install's stdin (`runWithInput`), since the tool ships no skill of its own and the file is what tells a session to prefer it over grep.

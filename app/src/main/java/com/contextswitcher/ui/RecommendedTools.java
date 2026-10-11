@@ -21,7 +21,7 @@ import com.contextswitcher.analysis.RefactoringMinerCommands;
 /// `SshCommandRunner` on the remote or, via `HostCommandRunner`, on this
 /// machine. Same transport constraint as every remote command: no double
 /// quotes anywhere (`dsn~ssh-command-runner~6`).
-// [impl->dsn~recommended-tools~1]
+// [impl->dsn~recommended-tools~2]
 public final class RecommendedTools {
 
     /// One tool: its `label`, one line of `why`, the `probe` printing its

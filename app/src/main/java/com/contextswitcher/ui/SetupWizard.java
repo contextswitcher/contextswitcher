@@ -391,8 +391,8 @@ public final class SetupWizard {
         VBox page2 = page("Which machine?", sshRows, wslRows, verdict);
 
         // Page 3: the recommended tools, one row each — probed when the page
-        // is entered, installed on its button, re-probed after.
-        // [impl->dsn~recommended-tools~1]
+        // is entered and on Recheck, installed on its button, re-probed after.
+        // [impl->dsn~recommended-tools~2]
         VBox toolRows = new VBox(6);
         @Nullable String[] rmHome = {null};
         Runnable probeTools = () -> {
@@ -410,9 +410,15 @@ public final class SetupWizard {
                 install.setId("setup-install-" + tool.key());
                 install.getStyleClass().add(Styles.SMALL);
                 install.setDisable(true);
+                // For a tool installed outside the wizard while the page is open.
+                Button recheck = new Button("Recheck");
+                recheck.setId("setup-recheck-" + tool.key());
+                recheck.getStyleClass().add(Styles.SMALL);
+                recheck.setDisable(true);
                 // The probe, or the install followed by its own version print.
                 java.util.function.Consumer<Boolean> run = installing -> {
                     install.setDisable(true);
+                    recheck.setDisable(true);
                     status.setText(installing ? "Installing …" : "Checking …");
                     Thread.ofVirtual().start(() -> {
                         List<String> argv = installing ? tool.install() : tool.probe();
@@ -425,6 +431,9 @@ public final class SetupWizard {
                             install.setDisable(version != null);
                             install.setVisible(version == null);
                             install.setManaged(version == null);
+                            recheck.setDisable(version != null);
+                            recheck.setVisible(version == null);
+                            recheck.setManaged(version == null);
                             if (version != null) {
                                 status.setText("OK: " + version);
                                 if (tool.key().equals("refactoringminer")) {
@@ -443,10 +452,11 @@ public final class SetupWizard {
                     });
                 };
                 install.setOnAction(event -> run.accept(true));
+                recheck.setOnAction(event -> run.accept(false));
                 Label name = new Label(tool.label());
                 name.getStyleClass().add(Styles.TEXT_BOLD);
                 Label why = muted(tool.why());
-                HBox line = new HBox(8, name, status, install);
+                HBox line = new HBox(8, name, status, install, recheck);
                 line.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
                 toolRows.getChildren().addAll(line, why);
                 run.accept(false);
