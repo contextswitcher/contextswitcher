@@ -565,6 +565,19 @@ Covers:
 
 Needs: dsn
 
+### Category name clash
+`req~category-name-clash~1`
+
+When a new category from a repository URL would get the name of an existing category — typically the same repository set up a second time, on another machine — the user is offered to rename the existing category right there, with a name proposed after its machine, instead of only being told the name is taken.
+Declining in the setup wizard goes back to its last page.
+
+Tags: windows, linux
+
+Covers:
+- feat~tasks-as-markdown-files~1
+
+Needs: dsn
+
 ### Guided first start
 `req~setup-wizard~1`
 
@@ -878,12 +891,27 @@ OK creates the folder and writes `TaskFileParser.groupConfigForRepo` — the ske
 The type and the first message only shape that description: a `fork()` type's clone clause asks for a fork of the repository (`gh repo fork --clone`, which reuses an existing fork) with the original kept as `upstream`; a non-blank first message is appended as "After setting things up, please do the following: …", so the setup session runs straight into the actual work instead of idling.
 No extra queue entry and no second prompt — the initial prompt carries both, which is one round-trip and nothing to keep in sync.
 Model and effort are the `Add task…` dialog's boxes (`dsn~claude-mode-select~3`), pre-filled from and remembered as the last pick — nothing hardcoded, so the setup session runs at whatever model the user is currently working with.
-The setup task is an ordinary live task: Claude publishes its title, the row shows its progress, and it is completed like any other once the root is in shape. An existing folder of that name refuses.
+The setup task is an ordinary live task: Claude publishes its title, the row shows its progress, and it is completed like any other once the root is in shape. An existing folder of that name is never reused: the clash popup offers to rename it first (`dsn~category-name-clash~1`).
 
 Tags: windows, linux
 
 Covers:
 - req~category-from-url~3
+
+Needs: impl, utest
+
+### Rename the existing category on a name clash
+`dsn~category-name-clash~1`
+
+`MainWindow.freeCategoryName(name, dismiss)` is asked before a category from a repository URL is created — by `createCategoryFromRepo` (with *Cancel*) and by the setup wizard's *Finish* / *Finish and check up* on its last page (with *Back*; `SetupWizard.show`'s `freeCategoryName` predicate).
+When no category has the name it answers true at once; otherwise a popup *Category exists* shows "Rename the existing category to:" with a text field pre-filled by `MainWindow.clashRenameProposal`: `<name>-<host>`, the host taken from the existing category's `remote` with user (`me@`) and domain (`.example.org`, not for an IP address) dropped and a WSL host's `:` made a `-`, and `<name>-local` for a category without a remote — the usual clash is the same repository on a second machine.
+*Rename* (disabled while the slugged field is empty or names another existing category, which is shown under the field) runs the group rename (`dsn~group-rename~1`) and answers true, so the creation goes on under the freed name; the dismiss button answers false: the wizard stays on its last page, the dialog flow ends.
+On the very first start the main window is not up yet, so the wizard's predicate answers true and a category a cloned task repository brings is caught by `createCategoryFromRepo` instead.
+
+Tags: windows, linux
+
+Covers:
+- req~category-name-clash~1
 
 Needs: impl, utest
 

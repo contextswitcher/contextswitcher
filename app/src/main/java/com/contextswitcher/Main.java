@@ -2960,7 +2960,13 @@ public class Main extends Application {
                         this::openUrl, () -> {
                             ExtensionServer server = this.extensionServer;
                             return server == null ? null : server.connectedBrowser();
-                        }, InstalledExtension::find));
+                        }, InstalledExtension::find),
+                // On the first start the window is not up yet; a category a
+                // cloned task repository brings is caught at creation instead.
+                name -> {
+                    MainWindow window = this.window;
+                    return window == null || window.freeCategoryName(name, "Back");
+                });
     }
 
     /// Patches the wizard's settings answers into `settings.yaml` — a remote
