@@ -12,6 +12,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 - The setup wizard's recommended-tools page has a "Recheck" button next to "Install", so a tool installed some other way while the page is open shows as found.
 - Hovering "Install" on that page says what it does and where it puts it: RefactoringMiner under `~/.contextswitcher`, ast-grep and codegraph in `~/.local/bin` with their Claude Code skills.
+- When a category of that name already exists, the setup wizard and "Add category from URL" offer to rename the existing category (proposed as `<name>-<host>`, or `<name>-local`) instead of only reporting the clash; "Back" returns to the wizard.
 
 ### Changed
 

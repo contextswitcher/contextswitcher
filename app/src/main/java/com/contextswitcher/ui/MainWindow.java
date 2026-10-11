@@ -61,7 +61,6 @@ import com.contextswitcher.queue.QueueFile;
 import com.contextswitcher.tasks.AutoPrReconcile;
 import com.contextswitcher.tasks.Frontmatter;
 import com.contextswitcher.tasks.GroupConfig;
-import com.contextswitcher.terminal.TmuxHost;
 import com.contextswitcher.tasks.MergedCleanup;
 import com.contextswitcher.tasks.Task;
 import com.contextswitcher.tasks.TaskEntry;
@@ -83,6 +82,7 @@ import com.contextswitcher.tasks.TaskSearch;
 import com.contextswitcher.tasks.TaskStatus;
 import com.contextswitcher.tasks.TaskSync;
 import com.contextswitcher.tasks.TaskTags;
+import com.contextswitcher.terminal.TmuxHost;
 import com.contextswitcher.ui.TaskListCell.GroupHeader;
 import com.contextswitcher.ui.TaskListCell.LabelHeader;
 import javafx.collections.FXCollections;
@@ -4382,8 +4382,11 @@ public class MainWindow {
     public void createCategoryFromRepo(String url, String workspacesRoot, @Nullable String remote,
             RepoType type, ClaudeMode mode, @Nullable String firstMessage) {
         String name = TaskFileParser.repoName(url);
-        if (name == null || files.exists(name)) {
-            new Alert(Alert.AlertType.ERROR, "Category " + name + " already exists.").show();
+        if (name == null) {
+            new Alert(Alert.AlertType.ERROR, "Not a repository URL: " + url).show();
+            return;
+        }
+        if (!freeCategoryName(name, "Cancel")) {
             return;
         }
         String error = files.createFolder(name);
@@ -4454,6 +4457,68 @@ public class MainWindow {
         return destination.substring(destination.indexOf('@') + 1);
     }
 
+    /// Whether `name` can be taken by a new category: true when no category
+    /// has it, else the clash popup offers to rename the existing one out of
+    /// the way (`dsn~category-name-clash~1`) — true once that rename went
+    /// through, false on `dismiss` (*Back* in the wizard, which keeps its
+    /// page open; *Cancel* elsewhere) or a failed rename.
+    // [impl->dsn~category-name-clash~1]
+    public boolean freeCategoryName(String name, String dismiss) {
+        if (!files.exists(name)) {
+            return true;
+        }
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Category exists");
+        dialog.setHeaderText("A category named \"" + name + "\" already exists.");
+        TextField newName = new TextField(clashRenameProposal(name, groupDefaults(name).remote()));
+        newName.setId("clash-new-name");
+        newName.setPrefColumnCount(30);
+        Label taken = new Label();
+        taken.getStyleClass().add(Styles.DANGER);
+        Label note = new Label("Its tasks move along with it; the new category then gets the name "
+                + name + ".");
+        note.setWrapText(true);
+        note.getStyleClass().add(Styles.TEXT_MUTED);
+        VBox content = new VBox(8, new Label("Rename the existing category to:"), newName, taken, note);
+        content.setPadding(new Insets(8));
+        dialog.getDialogPane().setContent(content);
+        ButtonType back = new ButtonType(dismiss, ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType rename = new ButtonType("Rename", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(back, rename);
+        // The proposal can be taken too (a second clash on the same host).
+        dialog.getDialogPane().lookupButton(rename).disableProperty().bind(
+                Bindings.createBooleanBinding(() -> {
+                    String slug = TaskFileParser.slug(newName.getText());
+                    boolean exists = !slug.isEmpty() && files.exists(slug);
+                    taken.setText(exists ? slug + " exists as well." : "");
+                    return slug.isEmpty() || exists;
+                }, newName.textProperty()));
+        Platform.runLater(() -> {
+            newName.requestFocus();
+            newName.selectAll();
+        });
+        if (dialog.showAndWait().orElse(back) != rename) {
+            return false;
+        }
+        return renameGroupTo(name, TaskFileParser.slug(newName.getText()));
+    }
+
+    /// The proposed new name of an existing category whose name a new one
+    /// wants: `<name>-<host>`, the host of its `remote` without user and
+    /// domain — the same repository set up on a second machine is the usual
+    /// clash — and `local` for a category without one.
+    // [impl->dsn~category-name-clash~1]
+    static String clashRenameProposal(String name, @Nullable String remote) {
+        if (remote == null || remote.isBlank() || TmuxHost.isLocal(remote)) {
+            return name + "-local";
+        }
+        String host = remote.strip().replaceAll("^.*@", "").replace(':', '-');
+        if (!host.matches("[0-9.]+")) {
+            host = host.replaceAll("\\..*$", "");
+        }
+        return TaskFileParser.slug(name + "-" + host);
+    }
+
     /// Whether any category exists — the setup wizard's last page then
     /// adds one instead of creating the first.
     // [impl->dsn~setup-wizard~10]
@@ -4505,27 +4570,34 @@ public class MainWindow {
         dialog.setContentText("Name");
         dialog.showAndWait().map(TaskFileParser::slug)
                 .filter(name -> !name.isEmpty() && !name.equals(group))
-                .ifPresent(newName -> {
-                    if (files.exists(newName)) {
-                        new Alert(Alert.AlertType.ERROR,
-                                "Cannot rename %s: %s already exists.".formatted(group, newName)).show();
-                        return;
-                    }
-                    String error = files.renameFolder(group, newName);
-                    if (error != null) {
-                        new Alert(Alert.AlertType.ERROR,
-                                "Cannot rename %s: %s".formatted(group, error)).show();
-                        return;
-                    }
-                    if (collapsedGroups.remove(group)) {
-                        collapsedGroups.add(newName);
-                    }
-                    String edited = editedFileName;
-                    if (edited != null && edited.startsWith(group + "/")) {
-                        editedFileName = null;
-                        openInEditor(newName + edited.substring(group.length()));
-                    }
-                });
+                .ifPresent(newName -> renameGroupTo(group, newName));
+    }
+
+    /// The rename behind [#renameGroup] and the category-name clash popup;
+    /// false (after an error alert) when it did not happen.
+    // [impl->dsn~group-rename~1]
+    private boolean renameGroupTo(String group, String newName) {
+        if (files.exists(newName)) {
+            new Alert(Alert.AlertType.ERROR,
+                    "Cannot rename %s: %s already exists.".formatted(group, newName)).show();
+            return false;
+        }
+        String error = files.renameFolder(group, newName);
+        if (error != null) {
+            new Alert(Alert.AlertType.ERROR,
+                    "Cannot rename %s: %s".formatted(group, error)).show();
+            return false;
+        }
+        groupConfigCache.remove(group);
+        if (collapsedGroups.remove(group)) {
+            collapsedGroups.add(newName);
+        }
+        String edited = editedFileName;
+        if (edited != null && edited.startsWith(group + "/")) {
+            editedFileName = null;
+            openInEditor(newName + edited.substring(group.length()));
+        }
+        return true;
     }
 
     /// Deletes a project-group folder and everything in it from its header's
