@@ -24,11 +24,12 @@ import com.contextswitcher.analysis.RefactoringMinerCommands;
 // [impl->dsn~recommended-tools~2]
 public final class RecommendedTools {
 
-    /// One tool: its `label`, one line of `why`, the `probe` printing its
-    /// version (non-zero exit when missing), the `install` script — printing
-    /// the version last — and what the install reads on stdin (the codegraph
+    /// One tool: its `label`, one line of `why`, `installs` — where *Install*
+    /// puts what, for its tooltip —, the `probe` printing its version
+    /// (non-zero exit when missing), the `install` script — printing the
+    /// version last — and what the install reads on stdin (the codegraph
     /// skill file), or null.
-    public record Tool(String key, String label, String why, List<String> probe,
+    public record Tool(String key, String label, String why, String installs, List<String> probe,
             List<String> install, byte @Nullable [] installInput) {
     }
 
@@ -68,6 +69,10 @@ public final class RecommendedTools {
         return new Tool("refactoringminer", "RefactoringMiner",
                 "The refactoring badge on a task row and the AST-diff view of what a session "
                         + "restructured. Needs Java on the host.",
+                "Downloads RefactoringMiner " + RefactoringMinerCommands.VERSION + " from GitHub into "
+                        + "~/.contextswitcher/RefactoringMiner-" + RefactoringMinerCommands.VERSION
+                        + " and points the refactoring-badge setting at it. Only ContextSwitcher uses "
+                        + "this copy.",
                 script(probe), RefactoringMinerCommands.setupCommand(), null);
     }
 
@@ -86,6 +91,10 @@ public final class RecommendedTools {
         return new Tool("ast-grep", "ast-grep",
                 "Structural code search Claude reaches for instead of grep; installed with its "
                         + "two skills.",
+                "Downloads the ast-grep " + AST_GREP_VERSION + " binary from GitHub into "
+                        + "~/.local/bin (for this user only, no sudo) and adds its Claude Code skills "
+                        + "globally via npx. A system-wide install (package manager, cargo, npm) "
+                        + "works as well — install it there and press Recheck.",
                 script(PATH_FIX + "ast-grep --version"), script(install), null);
     }
 
@@ -98,6 +107,10 @@ public final class RecommendedTools {
         return new Tool("codegraph", "codegraph",
                 "A call-graph index of each checkout, so Claude reads the symbols it needs "
                         + "instead of grepping; installed with its MCP server and skill.",
+                "Runs codegraph's install script (" + CODEGRAPH_VERSION + ") into ~/.local/bin, "
+                        + "registers its MCP server with Claude Code (codegraph install) and writes "
+                        + "its skill to ~/.claude/skills/codegraph. Indexing a checkout "
+                        + "(codegraph init) stays your call.",
                 script(PATH_FIX + "codegraph --version"), script(install), codegraphSkill());
     }
 

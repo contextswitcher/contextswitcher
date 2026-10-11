@@ -410,11 +410,17 @@ public final class SetupWizard {
                 install.setId("setup-install-" + tool.key());
                 install.getStyleClass().add(Styles.SMALL);
                 install.setDisable(true);
+                javafx.scene.control.Tooltip installs = new javafx.scene.control.Tooltip(tool.installs());
+                installs.setWrapText(true);
+                installs.setMaxWidth(420);
+                install.setTooltip(installs);
                 // For a tool installed outside the wizard while the page is open.
                 Button recheck = new Button("Recheck");
                 recheck.setId("setup-recheck-" + tool.key());
                 recheck.getStyleClass().add(Styles.SMALL);
                 recheck.setDisable(true);
+                recheck.setTooltip(new javafx.scene.control.Tooltip(
+                        "Checks again, for a tool installed some other way meanwhile"));
                 // The probe, or the install followed by its own version print.
                 java.util.function.Consumer<Boolean> run = installing -> {
                     install.setDisable(true);
