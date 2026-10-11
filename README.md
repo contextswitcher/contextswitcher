@@ -360,7 +360,7 @@ Fix it on the remote by giving Claude Code a matching theme: copy the two files 
 For a semantic answer to "what did the session actually refactor", ContextSwitcher can drive [RefactoringMiner](https://github.com/tsantalis/RefactoringMiner) on the task's remote ([#50](https://github.com/contextswitcher/contextswitcher-private/issues/50), MADR 0022).
 **Set up RefactoringMiner** below the settings dialog's host table installs it on the selected host (Java 17+ required there, no Docker) and fills in that host's directory.
 To install by hand, unzip the release once on the remote and put its path into that host's *RefactoringMiner* cell (`refactoringMiner:` of its `hosts` entry).
-Settings files from before the host table (`remotes`, `inactiveRemotes`, `refactoringMinerHome`) are still read, and the next save writes `hosts` instead.
+A settings file from before the host table (`remotes`, `inactiveRemotes`, `refactoringMinerHome`) is rewritten as `hosts` when the app loads it.
 
 A remote task's row then offers a hover compare button opening the Monaco AST-diff web view of the task's worktree — uncommitted work included — against the category's `baseBranch:` (default `origin/main`), and once the session is idle the row shows a circled count of the refactorings its commits contain (click = same view).
 The view diffs against the base as last fetched on the remote — fetch there if it looks stale.

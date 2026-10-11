@@ -221,6 +221,27 @@ class AppSettingsTest {
                 .doesNotContain("inactiveRemotes:").doesNotContain("refactoringMinerHome:");
     }
 
+    /// Loading an older file rewrites it in the `hosts` shape, comments and
+    /// the other keys kept; a current file is left byte for byte.
+    // [utest->dsn~host-table~1]
+    @Test
+    void loadingAnOlderFileMovesItsRemotesIntoHosts(@TempDir Path configDir) throws Exception {
+        writeMinimalSettings(configDir, "# my hosts\nremotes:\n- koppor@nixos\n- koppor@swkgpu1\n"
+                + "inactiveRemotes:\n- koppor@swkgpu1\nrefactoringMinerHome: /rm\ntheme: dark");
+
+        AppSettings loaded = AppSettings.loadOrCreate(configDir);
+
+        String file = Files.readString(configDir.resolve("settings.yaml"));
+        assertThat(file).contains("# my hosts").contains("theme: dark").contains("- destination: koppor@nixos")
+                .doesNotContain("remotes:").doesNotContain("inactiveRemotes:")
+                .doesNotContain("refactoringMinerHome:");
+        assertThat(AppSettings.parse(file).hosts()).isEqualTo(loaded.hosts());
+        assertThat(loaded.inactiveRemotes()).containsExactly("koppor@swkgpu1");
+
+        AppSettings.loadOrCreate(configDir);
+        assertThat(Files.readString(configDir.resolve("settings.yaml"))).isEqualTo(file);
+    }
+
     /// One-host edits change that entry in place, or append a new one.
     // [utest->dsn~host-table~1]
     @Test

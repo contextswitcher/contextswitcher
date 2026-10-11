@@ -2032,6 +2032,7 @@ A **configure icon button** in the Notes pane header (left of *Revert*, `MDIInte
 The form is generated from `FrontmatterCatalog` — one control per key a user hand-edits, grouped into sections — the way the settings dialog is generated from `SettingsCatalog` (`dsn~settings-editor~4`); both render through the shared `FieldForm` (bold section header, label above a full-width control, hover highlight, the field's help as the row tooltip).
 A task file gets the `TASK` catalog, a category's `CONTEXTSWITCHER.md` the `CATEGORY` one.
 Text fields are strings, a checkbox is a flag, a drop-down the fixed sets (`status`), and a multi-line field a list, one entry per line (`tags`, `folders`, `browser.urls`).
+The `remote` field is labelled *Host* and is an **editable** drop-down offering the settings' host destinations (`dsn~host-table~1`) — any other destination typed in is kept, blank removes the key; the frontmatter key stays `remote:`, which every task file, the tmux sync and the Android app read.
 
 Every control is pre-filled from the open file (`Frontmatter.parse` of the editor buffer, so unsaved edits are kept), and **Apply** writes back only the keys that actually changed, each through `Frontmatter.set` — a `YamlPatch` on the frontmatter block alone.
 So comments, key order, machine-suffixed variants (`folders-windows`) and keys the catalog does not list survive a form edit, and the Markdown body is never touched.

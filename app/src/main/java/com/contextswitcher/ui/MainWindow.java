@@ -1276,7 +1276,9 @@ public class MainWindow {
                 () -> {
                     String name = editedFileName;
                     return name != null && isGroupConfig(name);
-                });
+                },
+                // [impl->dsn~host-table~1]
+                configuredRemotes);
         configFormPane = pane;
         selectOnClick.accept(pane.getRoot());
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(

@@ -43,15 +43,17 @@ final class ConfigForm {
     /// One control per catalog field, keyed by the field's key.
     private final Map<String, Region> controls;
 
-    /// The form for `fields`, its controls seeded from `content`'s frontmatter.
-    ConfigForm(List<Field> fields, String content) {
+    /// The form for `fields`, its controls seeded from `content`'s frontmatter;
+    /// `hosts` are the destinations a host field offers.
+    ConfigForm(List<Field> fields, String content, List<String> hosts) {
         this.fields = List.copyOf(fields);
-        this.controls = buildControls(this.fields, content);
+        this.controls = buildControls(this.fields, content, hosts);
     }
 
     /// One control per catalog field, seeded from the file's frontmatter and
     /// keyed by the field's key.
-    private static Map<String, Region> buildControls(List<Field> fields, String content) {
+    private static Map<String, Region> buildControls(List<Field> fields, String content,
+            List<String> hosts) {
         Map<String, Object> seeds = seeds(fields, content);
         Map<String, Region> controls = new LinkedHashMap<>();
         for (Field field : fields) {
@@ -72,6 +74,15 @@ final class ConfigForm {
                 }
                 case LIST -> FieldForm.listArea(
                         String.join("\n", asStringList(seed)), 3);
+                // [impl->dsn~host-table~1]
+                case HOST -> {
+                    ComboBox<String> combo = new ComboBox<>(FXCollections.observableArrayList(hosts));
+                    combo.setEditable(true);
+                    combo.getStyleClass().add(Styles.SMALL);
+                    combo.setMaxWidth(Double.MAX_VALUE);
+                    combo.getEditor().setText((String) seed);
+                    yield combo;
+                }
             };
             control.setId(field.controlId());
             controls.put(field.key(), control);
@@ -88,7 +99,7 @@ final class ConfigForm {
         Map<String, Object> seeds = new LinkedHashMap<>();
         for (Field field : fields) {
             seeds.put(field.key(), switch (field.type()) {
-                case STRING -> stringSeed(data, field.key());
+                case STRING, HOST -> stringSeed(data, field.key());
                 case BOOLEAN -> booleanSeed(data, field.key());
                 case ENUM -> {
                     String value = stringSeed(data, field.key());
@@ -330,6 +341,9 @@ final class ConfigForm {
             case BOOLEAN -> ((CheckBox) control).isSelected();
             case ENUM -> ((ComboBox<?>) control).getValue();
             case LIST -> ((TextArea) control).getText().lines().toList();
+            // The editor's text, not the value: a typed destination is the
+            // value only once committed, and Apply must not lose it.
+            case HOST -> ((ComboBox<?>) control).getEditor().getText();
         };
     }
 
@@ -341,7 +355,7 @@ final class ConfigForm {
             return null;
         }
         return switch (field.type()) {
-            case STRING, ENUM -> nullIfBlank(String.valueOf(value));
+            case STRING, ENUM, HOST -> nullIfBlank(String.valueOf(value));
             case BOOLEAN -> Boolean.TRUE.equals(value) ? Boolean.TRUE : null;
             case LIST -> {
                 List<String> lines = asStringList(value).stream()

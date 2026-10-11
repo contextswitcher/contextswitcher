@@ -52,8 +52,8 @@ import com.contextswitcher.tasks.TextFiles;
 /// mirrored chat on the clipboard as Markdown (`dsn~terminal-markdown-copy~1`).
 /// Files written before `hosts` existed carry `remotes`, `inactiveRemotes` and
 /// one global `refactoringMinerHome` instead; [#parse(String)] reads them into
-/// hosts (the global directory for every one of them), and the next save of
-/// the settings dialog writes `hosts` in their place (`dsn~host-table~1`).
+/// hosts (the global directory for every one of them), and [#loadOrCreate(Path)]
+/// rewrites the file with `hosts` in their place (`dsn~host-table~1`).
 // [impl->dsn~app-settings~5]
 // [impl->dsn~theme-select~9]
 // [impl->dsn~window-desktop-pin~2]
@@ -241,11 +241,33 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
             return defaults;
         }
         try {
-            return parse(TextFiles.read(file));
+            String raw = TextFiles.read(file);
+            AppSettings settings = parse(raw);
+            // An older file is rewritten in the `hosts` shape on load, so
+            // the file says what the app works with. [impl->dsn~host-table~1]
+            String migrated = migratedHosts(raw);
+            if (migrated != null) {
+                TextFiles.write(file, migrated);
+                org.tinylog.Logger.info("Moved remotes/inactiveRemotes/refactoringMinerHome of {} "
+                        + "into hosts", file);
+            }
+            return settings;
         } catch (IOException e) {
             // Prefix the source so a hand-broken file names itself in the error.
             throw new IOException("%s: %s".formatted(file, e.getMessage()), e);
         }
+    }
+
+    /// `raw` with the keys `hosts` replaced moved into it — the hosts
+    /// [#parse(String)] reads, the legacy keys removed, everything else
+    /// untouched — or null when `raw` has none of them (nothing to do).
+    // [impl->dsn~host-table~1]
+    static @org.jspecify.annotations.Nullable String migratedHosts(String raw) throws IOException {
+        Object loaded = new Yaml(new SafeConstructor(new LoaderOptions())).load(raw);
+        if (!(loaded instanceof Map<?, ?> map) || LEGACY_HOST_KEYS.stream().noneMatch(map::containsKey)) {
+            return null;
+        }
+        return patchHosts(raw, parse(raw).hosts());
     }
 
     /// Parses settings from a raw YAML string — the same field reading

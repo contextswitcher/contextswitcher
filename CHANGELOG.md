@@ -10,7 +10,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Added
 
-- The settings dialog shows the hosts as one table: ssh destination, whether it is switched on, its workspaces directory and its RefactoringMiner directory — each per host instead of one RefactoringMiner directory for all of them. Older settings files are read as before and saved in the new shape.
+- The settings dialog shows the hosts as one table: ssh destination, whether it is switched on, its workspaces directory and its RefactoringMiner directory — each per host instead of one RefactoringMiner directory for all of them. An older settings file is rewritten in the new shape when the app starts.
 - Adding a host in the setup wizard asks for its workspaces directory, and so does the first category on a host that has none yet.
 - The setup wizard's recommended-tools page has a "Recheck" button next to "Install", so a tool installed some other way while the page is open shows as found.
 - Hovering "Install" on that page says what it does and where it puts it: RefactoringMiner under `~/.contextswitcher`, ast-grep and codegraph in `~/.local/bin` with their Claude Code skills.
@@ -18,6 +18,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Changed
 
+- The task and category forms call the remote field "Host" and offer the configured hosts in a drop-down; any other ssh destination can still be typed in.
 - The setup wizard proposes a workspaces root next to the existing ones on the chosen host, no longer next to another machine's.
 - The setup wizard skips the browser-extension page when the extension is already installed in Firefox or Chrome, even with the browser closed or on the first start, not only when it is connected.
 - The setup wizard's last page is headed "First category", or "Add a category" when categories already exist, instead of "Your first project".
