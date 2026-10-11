@@ -87,7 +87,7 @@ class ReadlineKeysUiTest {
 
     @Test
     void chordsDeleteAroundTheCaret() {
-        seed("cd /data/koppor.dev now", 21);
+        seed("cd /data/koppor.dev now", 23);
         press(KeyCode.CONTROL, KeyCode.W);
         assertThat(text()).as("Ctrl+W: the whitespace word before the caret")
                 .isEqualTo("cd /data/koppor.dev ");
