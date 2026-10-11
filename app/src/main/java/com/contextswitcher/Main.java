@@ -495,7 +495,7 @@ public class Main extends Application {
         // where sessions run, the remote (checked), the task repo to clone
         // (moving to a new machine, MADR 0011), the first project. It writes
         // the remote into settings.yaml, so the settings are re-read after it.
-        // [impl->dsn~setup-wizard~8]
+        // [impl->dsn~setup-wizard~9]
         // [impl->dsn~task-git-clone-setup~2]
         AppSettings settings = runSetupWizard(startupSettings);
         // Same fresh-machine moment: say which command-line tools are missing
@@ -896,7 +896,7 @@ public class Main extends Application {
         // [impl->dsn~message-queue-ui~26]
         window.setOnTaskRenamed(queuePane::taskRenamed);
         // [impl->dsn~start-claude-button~2]
-        // [impl->dsn~setup-wizard~8]
+        // [impl->dsn~setup-wizard~9]
         window.setOnSetupWizard(this::rerunSetupWizard);
         window.setOnStartClaude((task, onSettled) ->
                 startClaude(ssh, settings.claudeAuto(), task, onSettled));
@@ -947,7 +947,7 @@ public class Main extends Application {
         // The wizard's first project, created once the window is up: the
         // category and its setup session need the repository and the live-task
         // machinery that did not exist while the wizard ran.
-        // [impl->dsn~setup-wizard~8]
+        // [impl->dsn~setup-wizard~9]
         SetupWizard.Result firstProject = this.firstProject;
         if (firstProject != null && firstProject.repoUrl() != null
                 && firstProject.workspacesRoot() != null) {
@@ -2904,7 +2904,7 @@ public class Main extends Application {
     }
 
     /// The wizard's answers kept for after the window is up — its first
-    /// project is created there. [impl->dsn~setup-wizard~8]
+    /// project is created there. [impl->dsn~setup-wizard~9]
     private SetupWizard.@Nullable Result firstProject;
 
     /// The first-start wizard, on a task directory that is missing or empty
@@ -2916,7 +2916,7 @@ public class Main extends Application {
     /// it right away); a task repository URL is cloned into the task
     /// directory; the first project waits in [#firstProject]. Cancel leaves
     /// everything as it was: an empty directory, seeded with `TEMPLATE.md`.
-    // [impl->dsn~setup-wizard~8]
+    // [impl->dsn~setup-wizard~9]
     // [impl->dsn~task-git-clone-setup~2]
     private AppSettings runSetupWizard(AppSettings settings) throws IOException {
         Path tasksDir = settings.tasksDir();
@@ -2940,7 +2940,7 @@ public class Main extends Application {
     /// ten-second default, since they download release zips; on the remote
     /// through ssh, locally through the same `sh -c` the local tmux runner
     /// uses. `offerClone` is the first-start flag (`SetupWizard.show`).
-    // [impl->dsn~setup-wizard~8]
+    // [impl->dsn~setup-wizard~9]
     private Optional<SetupWizard.Result> showSetupWizard(boolean offerClone,
             SetupWizard.Prefill prefill, AppSettings settings) {
         String home = System.getProperty("user.home");
@@ -2966,7 +2966,7 @@ public class Main extends Application {
     /// not yet listed, and the RefactoringMiner directory the tools page
     /// found or installed (the setting the badge and the view are gated on,
     /// `dsn~recommended-tools~2`) — and returns the re-read settings.
-    // [impl->dsn~setup-wizard~8]
+    // [impl->dsn~setup-wizard~9]
     // [impl->dsn~recommended-tools~2]
     private static AppSettings applyWizardSettings(AppSettings settings, SetupWizard.Result result)
             throws IOException {
@@ -2995,12 +2995,12 @@ public class Main extends Application {
     }
 
     /// The wizard from the menu, with the window up: the same pages minus
-    /// the clone one, the settings patched the same way, and the first
+    /// the clone one (and the extension one while an extension is connected), the settings patched the same way, and the first
     /// project created right away instead of after the window shows. The
     /// remotes are read fresh by every consumer, so a new one works at once;
     /// the refactoring badge's poller starts at startup only, so a newly
     /// installed RefactoringMiner is announced as needing a restart.
-    // [impl->dsn~setup-wizard~8]
+    // [impl->dsn~setup-wizard~9]
     private void rerunSetupWizard() {
         MainWindow window = this.window;
         if (window == null) {
@@ -3009,10 +3009,12 @@ public class Main extends Application {
         try {
             AppSettings before = AppSettings.loadOrCreate(configDir());
             // The fields start from what is configured: the first remote,
-            // the existing roots' parent, the RefactoringMiner directory.
+            // the existing roots' parent, the RefactoringMiner directory,
+            // and whether there are categories to add another one to.
             SetupWizard.Prefill prefill = new SetupWizard.Prefill(
                     before.remotes().isEmpty() ? null : before.remotes().getFirst(),
-                    window.configuredWorkspacesParent(), before.refactoringMinerHome());
+                    window.configuredWorkspacesParent(), before.refactoringMinerHome(),
+                    window.hasCategories());
             SetupWizard.Result result = showSetupWizard(false, prefill, before).orElse(null);
             if (result == null) {
                 return;

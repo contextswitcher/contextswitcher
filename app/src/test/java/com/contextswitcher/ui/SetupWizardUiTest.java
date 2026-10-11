@@ -25,7 +25,7 @@ import static com.contextswitcher.ui.UiTestSupport.clickButton;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The first-start wizard's page logic (`dsn~setup-wizard~8`): Next on the
+/// The first-start wizard's page logic (`dsn~setup-wizard~9`): Next on the
 /// remote page runs the connection check and only a success moves on, the
 /// checked remote's home becomes the proposed workspaces root, and the
 /// local choice skips the remote page and proposes a root under the local
@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// local check — no host is contacted, no tool run.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~setup-wizard~8]
+// [utest->dsn~setup-wizard~9]
 @Tag("ui")
 @TestFxApplication(SetupWizardUiTest.TestApp.class)
 class SetupWizardUiTest {
@@ -257,7 +257,7 @@ class SetupWizardUiTest {
     void aRerunStartsFromTheConfiguredRemoteAndRoots() {
         AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
         Platform.runLater(() -> result.set(SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS,
-                "/home/local", false, false, new SetupWizard.Prefill("devbox", "/data/me", null), EXTENSION)));
+                "/home/local", false, false, new SetupWizard.Prefill("devbox", "/data/me", null, true), EXTENSION)));
         clickButton("Next");
         assertThat(field("#setup-host").getText()).isEqualTo("devbox");
         clickButton("Next");
@@ -268,6 +268,30 @@ class SetupWizardUiTest {
         clickButton("Next");
         type(field("#setup-repo-url"), "https://github.com/org/proj");
         assertThat(field("#setup-root").getText()).isEqualTo("/data/me/proj-workspaces");
+        clickButton("Cancel");
+    }
+
+    /// A re-run where the extension already talks to the app skips its page,
+    /// and with categories in place the last page adds one.
+    @Test
+    void aRerunWithAConnectedExtensionSkipsItsPage() {
+        SetupWizard.Extension connected = new SetupWizard.Extension(17872, "t0k3n",
+                com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
+                () -> com.contextswitcher.config.Browser.FIREFOX);
+        Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
+                new SetupWizard.Prefill(null, "/data/me", null, true), connected));
+        RadioButton local = awaitPresent(
+                () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
+        FX_ROBOT.mouse().moveTo(local).click();
+        clickButton("Next");
+        awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional(),
+                "tools page");
+        clickButton("Next");
+        field("#setup-repo-url");
+        assertThat(FX_ROBOT.selectNodes(TextField.class, "#setup-ws-token").fetchOptional())
+                .as("extension page skipped").isEmpty();
+        assertThat(FX_ROBOT.selectNodes(Label.class, ".title-4").fetchOptional())
+                .hasValueSatisfying(title -> assertThat(title.getText()).isEqualTo("Add a category"));
         clickButton("Cancel");
     }
 

@@ -62,7 +62,7 @@ Clicking it quits the app with exit code 55, which `just run-loop` takes as "pul
 ## First steps
 
 1. Start the app. `~/.contextswitcher/` is created with `settings.yaml` (including a random WebSocket token) and a commented `TEMPLATE.md` in `tasks/`.
-   On the first start a wizard asks where your Claude sessions run (this machine, or a remote over ssh — either checked on the spot for `tmux` and `claude`), offers to install RefactoringMiner, ast-grep and codegraph with their skills on that host, asks whether to clone an existing task repository, and for a first project's repository URL; it writes the remote to the settings and sets the project up like **Add category from URL…** below.
+   On the first start a wizard asks where your Claude sessions run (this machine, or a remote over ssh — either checked on the spot for `tmux` and `claude`), offers to install RefactoringMiner, ast-grep and codegraph with their skills on that host, asks whether to clone an existing task repository, and for a first category's repository URL; it writes the remote to the settings and sets the category up like **Add category from URL…** below.
    A page of it shows the port and token the browser extension's options page needs, with the install notes one click away.
    **Setup wizard…** in the toolbar's add menu runs it again later, for another remote or host.
 2. Later remotes go into **Settings** (the gear at the top-right); everything else has a working default.

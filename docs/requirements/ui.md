@@ -909,7 +909,7 @@ Covers:
 Needs: impl, utest
 
 ### First-start wizard
-`dsn~setup-wizard~8`
+`dsn~setup-wizard~9`
 
 `Main.runSetupWizard` replaces the clone offer at the fresh-machine moment (`dsn~task-git-clone-setup~2`: the task directory missing or empty and not a git checkout — an existing directory is never re-prompted) with `SetupWizard.show`, one `Dialog` whose content is swapped between four pages by *Back*/*Next* (their `ACTION` consumed, so the dialog stays open; the last page's *Finish* closes it with a `Result`, *Cancel* with none).
 Page one asks where sessions run — *remote over ssh* (default), *in WSL on this machine* (Windows only, `dsn~wsl-sessions~1`) or *this machine*, worded per OS: on Windows a local session runs in the app's own terminal pane and cannot be detached (`dsn~task-create-local~4`).
@@ -925,11 +925,13 @@ A success shows both versions and moves on, a failure keeps the page — the ver
 Claude's authorization is deliberately not checked: Claude Code has no offline "logged in" query, and a credentials-file heuristic misreads an Enterprise or Bedrock setup; the first session's own login prompt is visible in the mirrored terminal.
 Page three recommends tools (`dsn~recommended-tools~2`), one row each with a live status, an *Install* and a *Recheck* button; nothing on it gates *Next*. It is skipped for a local choice on Windows, where the installers cannot run.
 Page four is the browser extension, the one part the app cannot install: what it does, the WebSocket port and token its options page needs (the token in a read-only field with a *Copy* button, since retyping it from `settings.yaml` is where people stall), a button opening the configured browser's install notes on GitHub through the app's URL opener, and — on a re-run, when `ExtensionServer` is up — which browser's extension is connected right now (`SetupWizard.Extension`, filled by `Main` from the settings and the server).
+When an extension is already connected as the wizard opens — a re-run on a machine where it is set up — the page is skipped: it has nothing left to help with.
+That is decided once, at open, so *Back* never loses a page the user just saw; on the first start the server is not up yet, so the page always shows.
 Page five is the old clone offer as a field: a task-repository URL, empty to start fresh.
 Next to *Next*, it offers *Start right away*, which finishes the wizard there without a first project: a cloned task repository already holds its projects.
-Page six is the first project — repository URL (clipboard-prefilled like `dsn~category-from-url~4`), the workspaces root following it as `<remote home or user.home>/<name>-workspaces` until edited, and the `RepoType` — all optional.
+Page six is a category from a repository — headed *First category*, or *Add a category* on a re-run when categories already exist (`Prefill.categoriesExist`, from `MainWindow.hasCategories`), the same wording as the toolbar's *Add category* — with the repository URL (clipboard-prefilled like `dsn~category-from-url~4`), the workspaces root following it as `<remote home or user.home>/<name>-workspaces` until edited, and the `RepoType` — all optional.
 Only a session on Windows itself gets Windows path separators there: a WSL root lives on the Linux side of the boundary and is proposed under the probed `$HOME` like a remote one.
-Back and Next step over the skipped pages (`skipped`: the remote page for a local choice, the tools page for local on Windows), so a skipped page stays skipped in both directions.
+Back and Next step over the skipped pages (`skipped`: the remote page for a local choice, the tools page for local on Windows, the extension page while an extension is connected), so a skipped page stays skipped in both directions.
 Each page swap calls `sizeToScene`: a `Dialog` sizes itself once at show, and a taller later page pushed *Finish* out of the window.
 On the first start the wizard is up before the main window, so it adds `main.css` to its own pane and runs `Themes.refresh` and `Themes.verify` once shown, as the main window does (`dsn~theme-select~9`).
 
@@ -2076,7 +2078,7 @@ Needs: impl, utest
 ### A fresh install says which tools are missing
 `dsn~startup-tool-check~1`
 
-On the fresh-machine path — the same empty or missing task directory the setup wizard keys on (`dsn~setup-wizard~8`, `dsn~task-git-clone-setup~2`) — `RequiredTools.missing` scans `PATH` for `tmux`, `ssh` and `git`, and a warning alert names those that are not there.
+On the fresh-machine path — the same empty or missing task directory the setup wizard keys on (`dsn~setup-wizard~9`, `dsn~task-git-clone-setup~2`) — `RequiredTools.missing` scans `PATH` for `tmux`, `ssh` and `git`, and a warning alert names those that are not there.
 `tmux` runs local and remote Claude sessions, `ssh` reaches every remote, `git` syncs the task files; a missing one would otherwise only surface at the first click that needs it, as a failure with no obvious cause.
 Once, not on every start: the tools are installed once, and a per-launch check would be a permanent nag for a one-time problem.
 Windows is skipped — `ssh` ships with it and local sessions there are hosted by the app itself (`dsn~terminal-owned-session~4`), so `tmux` is not part of that install.
