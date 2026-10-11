@@ -11,6 +11,9 @@ The topmost section is the day in progress — its link points at `main` until t
 ### Added
 
 - The setup wizard's recommended-tools page has a "Recheck" button next to "Install", so a tool installed some other way while the page is open shows as found.
+### Changed
+
+- Pressing *Restart to update* in the What's new window now greys out its buttons and reads "Closing …" while the app saves and leaves, instead of seeming to hang.
 
 ## [2026-10-10] - 2026-10-10
 
