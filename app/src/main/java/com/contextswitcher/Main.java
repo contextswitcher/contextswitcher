@@ -3611,7 +3611,7 @@ public class Main extends Application {
         // [impl->dsn~task-create-progress~5]
         // The description lives under # Notes from the start, so nothing
         // is lost when the title is later replaced by Claude's @cs_title.
-        String content = ClaudeWindowLauncher.liveTaskContent(title, remote, workdir)
+        String content = ClaudeWindowLauncher.liveTaskContent(title, remote, workdir, appendix)
                 + (hints ? "\nCreated on %s.\n".formatted(LocalDate.now()) : "");
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~1]

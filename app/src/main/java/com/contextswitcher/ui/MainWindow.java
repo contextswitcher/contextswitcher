@@ -3480,14 +3480,22 @@ public class MainWindow {
     // [impl->dsn~task-create-ui~15]
     // [impl->dsn~group-config-apply~2]
     private @Nullable String createTitleTask(String title, String group) {
+        return createTitleTask(title, group, null);
+    }
+
+    /// [#createTitleTask(String, String)] with `notes` appended to the file's
+    /// `# Notes`, the last section of a new task file.
+    private @Nullable String createTitleTask(String title, String group, @Nullable String notes) {
         String base = group.isEmpty() ? title : group + "/" + title;
         String fileName = uniqueFileName(TaskFileParser.newTaskFileName(base));
         GroupConfig defaults = groupDefaults(group);
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~1]
-        String content = TaskFileParser.addUrlsFrom(
-                TaskFileParser.newTaskContent(title, defaults.remote(), defaults.resolveWorkdir()),
-                title);
+        String created = TaskFileParser.newTaskContent(title, defaults.remote(), defaults.resolveWorkdir());
+        if (notes != null) {
+            created = created.stripTrailing() + "\n\n" + notes.strip() + "\n";
+        }
+        String content = TaskFileParser.addUrlsFrom(created, title);
         String error = files.save(fileName, content);
         if (error != null) {
             noteTaskCreationFailed();
@@ -4439,7 +4447,10 @@ public class MainWindow {
                     mode, type.template());
             return;
         }
-        String taskId = createTitleTask(description, name);
+        // The file keeps the whole prompt, template included, so a failed
+        // first launch can be redone from it. [impl->dsn~task-create-live~8]
+        String taskId = createTitleTask(description, name,
+                description + "\n\n" + type.template());
         if (taskId != null) {
             onStartLocalClaude.start(taskId, workspacesRoot,
                     description + "\n\n" + type.template(), mode);

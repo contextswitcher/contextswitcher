@@ -27,6 +27,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Fixed
 
+- A category's setup task keeps the CLAUDE.md template in its notes, so it can be started again from the task itself when the first launch went wrong.
 - A remote whose login shell is fish now works: task status, the terminal mirror's reattach and the pull request lookup no longer fail there with fish syntax errors.
 - Creating a task or category whose workspaces root cannot be created on the remote now stops with the remote's error, instead of starting the session in the home directory.
 
