@@ -1453,7 +1453,7 @@ Needs the debug APK on a phone, a synced task with a reachable `remote` and `tmu
 - [ ] Tap a draft's **Edit** → it leaves the list, its text is in the box and the keyboard is open; tap **Edit** on a message queued on the desktop → a copy is in the box, the desktop's message stays listed.
 - [ ] Force-stop the app and reopen the task → the drafts are still there.
 
-## Restart to update (`dsn~restart-to-update~11`)
+## Restart to update (`dsn~restart-to-update~12`)
 
 Needs a checkout whose upstream has a commit the local branch does not (push one from another clone, or reset the branch one commit back).
 

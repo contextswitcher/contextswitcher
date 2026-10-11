@@ -6001,7 +6001,7 @@ public class MainWindow {
         this.refreshNowItem = refreshNow;
         ToggleButton energySaver = energySaverButton();
 
-        // [impl->dsn~restart-to-update~11]
+        // [impl->dsn~restart-to-update~12]
         Button update = updateNews.button();
 
         MenuButton add = addButton();
