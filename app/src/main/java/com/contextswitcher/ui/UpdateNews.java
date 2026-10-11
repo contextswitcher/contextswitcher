@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import atlantafx.base.theme.Styles;
 import com.contextswitcher.local.AppUpdate;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.geometry.Insets;
@@ -34,7 +35,7 @@ import org.jspecify.annotations.Nullable;
 /// opens — with the fetch behind "Checking remote …" and *Restart to update*.
 /// `Main` owns the git calls and feeds the answers in; `MainWindow` only places
 /// the button.
-// [impl->dsn~restart-to-update~11]
+// [impl->dsn~restart-to-update~12]
 // [impl->dsn~whats-new-upstream~7]
 final class UpdateNews {
 
@@ -228,9 +229,16 @@ final class UpdateNews {
         restart.getStyleClass().addAll(Styles.SMALL, Styles.ACCENT);
         // The restart is what makes the listed changes old, not the look at
         // them: a dismissed window keeps them for the next click.
+        // Leaving blocks the FX thread for seconds (Main.stop's task git sync
+        // and push), so the window says so first and only then exits — after
+        // the frame showing "Closing …" is on its way to the screen.
         restart.setOnAction(event -> {
             announceShownNews();
-            AppUpdate.requestRestart();
+            restart.disableProperty().unbind();
+            restart.setDisable(true);
+            later.setDisable(true);
+            restart.setText("Closing …");
+            afterNextFrame(dialog.getScene(), AppUpdate::requestRestart);
         });
         ProgressBar spinner = new ProgressBar();
         spinner.setPrefWidth(120);
@@ -275,6 +283,19 @@ final class UpdateNews {
         if (fetch != null) {
             fetch.run();
         }
+    }
+
+    /// Runs `action` once the next pulse has laid out `scene` and handed it to
+    /// the render thread, which draws it even while `action` then blocks the
+    /// FX thread. FX thread.
+    private static void afterNextFrame(Scene scene, Runnable action) {
+        Runnable[] listener = new Runnable[1];
+        listener[0] = () -> {
+            scene.removePostLayoutPulseListener(listener[0]);
+            Platform.runLater(action);
+        };
+        scene.addPostLayoutPulseListener(listener[0]);
+        Platform.requestNextPulse();
     }
 
     /// The fetch behind "Checking remote …" has answered: the open window

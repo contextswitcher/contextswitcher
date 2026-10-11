@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// A fetch that never answers leaves "Checking remote …" spinning, yet
 /// *Restart to update* is pressable meanwhile — a hanging remote must not
 /// hold the restart hostage.
-// [utest->dsn~restart-to-update~11]
+// [utest->dsn~restart-to-update~12]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class RestartWhileCheckingUiTest {

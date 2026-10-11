@@ -1153,7 +1153,7 @@ public class Main extends Application {
         schedulePeriodicReconcile(repository, settings, files);
         // [impl->dsn~active-desktop-filter~6]
         scheduleActiveDesktopWatch();
-        // [impl->dsn~restart-to-update~11]
+        // [impl->dsn~restart-to-update~12]
         scheduleUpdateCheck(window);
         // [impl->dsn~task-sync-groups-ui~1]
         scheduleTaskSync(window, settings);
@@ -1171,7 +1171,7 @@ public class Main extends Application {
     /// The scheduler thread only dispatches: `git fetch` waits on the network,
     /// and this scheduler is the single thread the memory log, the reconcile
     /// and the desktop watch tick on.
-    // [impl->dsn~restart-to-update~11]
+    // [impl->dsn~restart-to-update~12]
     // [impl->dsn~whats-new-upstream~7]
     private void scheduleUpdateCheck(MainWindow window) {
         ScheduledExecutorService scheduler = this.scheduler;
@@ -1185,7 +1185,7 @@ public class Main extends Application {
         // [impl->dsn~running-commit~3]
         scheduler.execute(() -> {
             // The build that runs, recorded before any check can ask: the
-            // checkout's HEAD may move under it later. [impl->dsn~restart-to-update~11]
+            // checkout's HEAD may move under it later. [impl->dsn~restart-to-update~12]
             AppUpdate.rememberRunningCommit(repo);
             String commit = AppUpdate.headCommit(repo);
             if (commit != null) {
@@ -1258,7 +1258,7 @@ public class Main extends Application {
     /// decides what the restart will actually pull. Answers even when the
     /// fetch found nothing \u2014 an unattended bar is a hang. FX thread; the git
     /// work runs on the action pool.
-    // [impl->dsn~restart-to-update~11]
+    // [impl->dsn~restart-to-update~12]
     private void checkRemoteNow(MainWindow window, Path repo) {
         ExecutorService executor = this.actionExecutor;
         if (executor == null) {
@@ -2965,9 +2965,9 @@ public class Main extends Application {
     /// Patches the wizard's settings answers into `settings.yaml` — a remote
     /// not yet listed, and the RefactoringMiner directory the tools page
     /// found or installed (the setting the badge and the view are gated on,
-    /// `dsn~recommended-tools~1`) — and returns the re-read settings.
+    /// `dsn~recommended-tools~2`) — and returns the re-read settings.
     // [impl->dsn~setup-wizard~8]
-    // [impl->dsn~recommended-tools~1]
+    // [impl->dsn~recommended-tools~2]
     private static AppSettings applyWizardSettings(AppSettings settings, SetupWizard.Result result)
             throws IOException {
         AppSettings current = settings;

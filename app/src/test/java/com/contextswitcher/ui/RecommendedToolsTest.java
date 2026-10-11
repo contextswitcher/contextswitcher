@@ -6,8 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// The recommended tools' scripts obey the transport rule (no double quotes,
 /// `dsn~ssh-command-runner~6`), the local set leaves RefactoringMiner out,
-/// and a version is the command's last line (`dsn~recommended-tools~1`).
-// [utest->dsn~recommended-tools~1]
+/// and a version is the command's last line (`dsn~recommended-tools~2`).
+// [utest->dsn~recommended-tools~2]
 class RecommendedToolsTest {
 
     @Test

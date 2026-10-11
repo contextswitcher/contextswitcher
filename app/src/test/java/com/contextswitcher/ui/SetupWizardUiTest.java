@@ -122,6 +122,13 @@ class SetupWizardUiTest {
         // Installed, there is nothing left to install.
         assertThat(installCodegraph.isVisible()).isFalse();
         assertThat(INSTALLED).contains("devbox/codegraph").doesNotContain("devbox/ast-grep");
+        // ast-grep installed by other means: Recheck probes again and finds it.
+        Label astGrep = FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional().orElseThrow();
+        assertThat(astGrep.getText()).isEqualTo("Not installed");
+        INSTALLED.add("devbox/ast-grep");
+        clickButtonById("setup-recheck-ast-grep");
+        awaitPresent(() -> Optional.of(astGrep).filter(label -> label.getText().startsWith("OK: 1.0")),
+                "rechecked ast-grep");
         clickButton("Next");
         // The extension page: the token to paste, and the install notes for
         // the configured browser open through the app.
