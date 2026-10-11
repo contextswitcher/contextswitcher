@@ -19,8 +19,11 @@ public final class SettingsCatalog {
         INTEGER,
         /// A checkbox.
         BOOLEAN,
-        /// A multi-line field, one list entry per line (the ssh remotes, the switched-off hosts).
+        /// A multi-line field, one list entry per line.
         STRING_LIST,
+        /// The host table: one row per [HostSettings] — destination, on/off,
+        /// workspaces and RefactoringMiner directories.
+        HOSTS,
         /// A multi-line field, one `name  #rrggbb` tag per line (color optional).
         TAG_LIST,
         /// A fixed set of values, rendered as a drop-down (`Option#choices`).
@@ -94,17 +97,14 @@ public final class SettingsCatalog {
                     "Loopback port the browser extension connects to."),
             new Option("wsToken", "WebSocket token", "Browser bridge", Type.STRING,
                     "Shared secret with the extension — generated once; change only to re-pair."),
-            new Option("remotes", "Remotes", "Remotes", Type.STRING_LIST,
-                    "ssh destinations the tmux sync scans; one per line."),
-            // [impl->dsn~host-on-off~1]
-            new Option("inactiveRemotes", "Switched-off hosts", "Remotes", Type.STRING_LIST,
-                    "Hosts that are never polled; their tasks and categories are hidden. "
-                            + "One per line — also toggled from the filter menu's Hosts submenu."),
+            // [impl->dsn~host-table~1]
+            // [impl->dsn~host-on-off~2]
+            new Option("hosts", "Hosts", "Hosts", Type.HOSTS,
+                    "The machines sessions run on, by ssh destination (user@host). Untick Active "
+                            + "to stop polling one and hide its tasks and categories (also in the "
+                            + "filter menu). Workspaces is where new workspaces roots go there; "
+                            + "RefactoringMiner the unzipped release there, empty for none."),
             // [impl->dsn~refactoring-web-view~1]
-            new Option("refactoringMinerHome", "RefactoringMiner directory", "Refactoring insight",
-                    Type.STRING,
-                    "Unzipped RefactoringMiner release on the remotes; empty turns the "
-                            + "refactoring view and badge off."),
             new Option("refactoringMinerPort", "Refactoring view port", "Refactoring insight",
                     Type.INTEGER,
                     "Loopback port the AST-diff web view is served and tunnelled on."),

@@ -492,7 +492,7 @@ Needs: impl, utest
 `req~tmux-sync~1`
 
 One action reconciles the task list with the live tmux windows of the configured remotes: a task whose window is gone on the remote is marked suspended, a suspended task whose window is back is reactivated (status only — no kill or resurrect), and windows not yet covered by a task are imported.
-The remotes are configured once (a `remotes:` list in `settings.yaml`), so the action needs no per-run host prompt; with none configured it falls back to the distinct remotes of existing tasks.
+The remotes are configured once (the destinations of the `hosts:` table in `settings.yaml`, `dsn~host-table~1`), so the action needs no per-run host prompt; with none configured it falls back to the distinct remotes of existing tasks.
 
 Tags: windows, linux
 

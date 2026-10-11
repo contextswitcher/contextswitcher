@@ -42,6 +42,7 @@ import com.contextswitcher.analysis.RefactoringMinerCommands;
 import com.contextswitcher.analysis.RefactoringMinerPoller;
 import com.contextswitcher.analysis.RefactoringMinerView;
 import com.contextswitcher.config.AppSettings;
+import com.contextswitcher.config.HostSettings;
 import com.contextswitcher.config.InstalledExtension;
 import com.contextswitcher.config.EnergySaver;
 import com.contextswitcher.config.WindowPositions;
@@ -320,7 +321,7 @@ public class Main extends Application {
     /// Hosts switched off (`inactiveRemotes`): never polled, their rows
     /// hidden. Written on the FX thread (start-up, Hosts submenu, settings
     /// save), read (volatile) from the pollers.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private volatile Set<String> inactiveHosts = Set.of();
 
     /// Whether the background polls may contact `host` right now: not while
@@ -328,7 +329,7 @@ public class Main extends Application {
     /// ([HostBackoff]). A command the user triggers does not ask about the
     /// backoff — it always tries.
     // [impl->dsn~ssh-host-backoff~1]
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private boolean pollable(@Nullable String host) {
         return host != null && !inactiveHosts.contains(host) && !HostBackoff.SHARED.backedOff(host);
     }
@@ -856,7 +857,7 @@ public class Main extends Application {
                             if (this.terminalPane != null) {
                                 this.terminalPane.setAutoCopyReplies(saved.autoCopyReplies());
                             }
-                            // [impl->dsn~host-on-off~1]
+                            // [impl->dsn~host-on-off~2]
                             applyInactiveHosts(saved.inactiveRemotes());
                         } catch (IOException e) {
                             // Raw-mode saves may be unparseable; the pin then
@@ -869,7 +870,7 @@ public class Main extends Application {
                 () -> currentTagPalette(settings),
                 settings.hints(),
                 settings.fallbackDesktop());
-        // [impl->dsn~host-on-off~1]
+        // [impl->dsn~host-on-off~2]
         inactiveHosts = Set.copyOf(settings.inactiveRemotes());
         window.setInactiveHosts(inactiveHosts);
         window.setOnHostSwitch(this::switchHost);
@@ -899,6 +900,22 @@ public class Main extends Application {
         // [impl->dsn~start-claude-button~2]
         // [impl->dsn~setup-wizard~10]
         window.setOnSetupWizard(this::rerunSetupWizard);
+        // [impl->dsn~host-table~1]
+        window.setHostWorkspaces(host -> {
+            try {
+                HostSettings entry = AppSettings.loadOrCreate(configDir()).host(host);
+                return entry == null ? null : entry.workspaces();
+            } catch (IOException e) {
+                Logger.warn("Cannot read settings.yaml for the workspaces of {}: {}", host, e.getMessage());
+                return null;
+            }
+        });
+        window.setOnHostWorkspaces((host, dir) -> {
+            String error = updateHost(host, entry -> entry.withWorkspaces(dir));
+            if (error != null) {
+                window.statusBar().message("Cannot save the workspaces directory: " + error);
+            }
+        });
         window.setOnStartClaude((task, onSettled) ->
                 startClaude(ssh, settings.claudeAuto(), task, onSettled));
         // The same window choice play makes, from the terminal placeholder.
@@ -1077,11 +1094,11 @@ public class Main extends Application {
                     prPoller.refreshMissing();
                 });
 
-        // The refactoring badge (https://github.com/contextswitcher/contextswitcher-private/issues/50), only when a RefactoringMiner install is
-        // configured; a home added later needs a restart, like `remotes`.
+        // The refactoring badge (https://github.com/contextswitcher/contextswitcher-private/issues/50), only when some host has a RefactoringMiner
+        // install; the first one added later needs a restart. Each host's
+        // directory is read fresh per poll, so further hosts need none.
         // [impl->dsn~refactoring-analysis-poller~1]
-        String rmHome = settings.refactoringMinerHome();
-        if (rmHome != null) {
+        if (settings.anyRefactoringMiner()) {
             recomputeRefactoringTargets(repository, files);
             taskEntries.addListener(
                     (javafx.collections.ListChangeListener<TaskEntry>) change ->
@@ -1090,7 +1107,7 @@ public class Main extends Application {
                     new RefactoringLookup(new ProcessSshRunner(REFACTORING_SSH_TIMEOUT)),
                     () -> refactoringTargets.stream().filter(target -> pollable(target.remote())).toList(),
                     key -> liveStatuses.get(key),
-                    rmHome,
+                    this::refactoringMinerHome,
                     summaries -> Platform.runLater(() -> window.updateRefactorings(summaries)),
                     REFACTORING_POLL_SECONDS);
             this.refactoringPoller = rmPoller;
@@ -1838,15 +1855,14 @@ public class Main extends Application {
     /// `inactiveRemotes` (patched into `settings.yaml`, so it lasts and the
     /// rest of the file stays as written) and applies it right away. A host
     /// switched back on is polled at once rather than on the next tick.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private void switchHost(String host, boolean active) {
-        List<String> off = new ArrayList<>(inactiveHosts.stream().sorted().toList());
-        off.remove(host);
+        String error = updateHost(host, entry -> entry.withActive(active));
+        List<String> off = new ArrayList<>(inactiveHosts);
+        off.removeIf(host::equalsIgnoreCase);
         if (!active) {
             off.add(host);
         }
-        String error = writeSettingsFile(configDir(),
-                YamlPatch.set(readSettingsFile(configDir()), "inactiveRemotes", List.copyOf(off)));
         applyInactiveHosts(off);
         MainWindow window = this.window;
         if (window != null) {
@@ -1860,9 +1876,38 @@ public class Main extends Application {
         }
     }
 
+    /// The RefactoringMiner directory on `remote`, read fresh from the host
+    /// table — so one set in the settings needs no restart once the poller
+    /// runs — or null when that host has none (its tasks are then skipped).
+    // [impl->dsn~refactoring-analysis-poller~1]
+    private @Nullable String refactoringMinerHome(String remote) {
+        try {
+            return AppSettings.loadOrCreate(configDir()).refactoringMinerHome(remote);
+        } catch (IOException e) {
+            Logger.warn("Cannot read settings.yaml for RefactoringMiner on {}: {}", remote, e.getMessage());
+            return null;
+        }
+    }
+
+    /// Passes `destination`'s entry of the host table through `change` (a new
+    /// entry when it has none) and writes the table back — the one-host edit
+    /// behind the Hosts submenu, the wizard and the asked workspaces
+    /// directory. Returns null, or the error that kept it from being saved.
+    // [impl->dsn~host-table~1]
+    static @Nullable String updateHost(String destination,
+            java.util.function.UnaryOperator<HostSettings> change) {
+        String raw = readSettingsFile(configDir());
+        try {
+            List<HostSettings> hosts = AppSettings.parse(raw).hostsWith(destination, change);
+            return writeSettingsFile(configDir(), AppSettings.patchHosts(raw, hosts));
+        } catch (IOException e) {
+            return e.getMessage();
+        }
+    }
+
     /// Takes over the switched-off hosts — from the Hosts submenu or a
     /// settings save — for the polls and the list.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private void applyInactiveHosts(List<String> hosts) {
         inactiveHosts = Set.copyOf(hosts);
         MainWindow window = this.window;
@@ -2563,7 +2608,7 @@ public class Main extends Application {
         // The manual sync is the user asking — it tries every host that is
         // on; the periodic one also skips a backed-off host.
         // [impl->dsn~ssh-host-backoff~1]
-        // [impl->dsn~host-on-off~1]
+        // [impl->dsn~host-on-off~2]
         Set<String> off = inactiveHosts;
         List<String> remotes = configured.stream()
                 .filter(remote -> announce ? !off.contains(remote) : pollable(remote))
@@ -2977,28 +3022,28 @@ public class Main extends Application {
     // [impl->dsn~recommended-tools~2]
     private static AppSettings applyWizardSettings(AppSettings settings, SetupWizard.Result result)
             throws IOException {
-        AppSettings current = settings;
-        if (result.remote() != null && !settings.remotes().contains(result.remote())) {
-            List<String> remotes = new java.util.ArrayList<>(settings.remotes());
-            remotes.add(result.remote());
-            String error = writeSettingsFile(configDir(),
-                    YamlPatch.set(readSettingsFile(configDir()), "remotes", remotes));
-            if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot write the remote to settings.yaml: "
-                        + error).showAndWait();
-            }
-            current = AppSettings.loadOrCreate(configDir());
+        // The session host becomes (or updates) its row of the host table:
+        // the workspaces directory asked on the remote page, and the
+        // RefactoringMiner directory the tools page found or installed there.
+        String remote = result.remote();
+        if (remote == null) {
+            return settings;
         }
-        if (result.refactoringMinerHome() != null) {
-            String error = writeSettingsFile(configDir(), YamlPatch.set(readSettingsFile(configDir()),
-                    "refactoringMinerHome", result.refactoringMinerHome()));
-            if (error != null) {
-                new Alert(Alert.AlertType.ERROR,
-                        "Cannot write refactoringMinerHome to settings.yaml: " + error).showAndWait();
+        String error = updateHost(remote, host -> {
+            HostSettings updated = host;
+            if (result.workspaces() != null) {
+                updated = updated.withWorkspaces(result.workspaces());
             }
-            current = AppSettings.loadOrCreate(configDir());
+            if (result.refactoringMinerHome() != null) {
+                updated = updated.withRefactoringMiner(result.refactoringMinerHome());
+            }
+            return updated;
+        });
+        if (error != null) {
+            new Alert(Alert.AlertType.ERROR, "Cannot write the host to settings.yaml: "
+                    + error).showAndWait();
         }
-        return current;
+        return AppSettings.loadOrCreate(configDir());
     }
 
     /// The wizard from the menu, with the window up: the same pages minus
@@ -3020,7 +3065,8 @@ public class Main extends Application {
             // and whether there are categories to add another one to.
             SetupWizard.Prefill prefill = new SetupWizard.Prefill(
                     before.remotes().isEmpty() ? null : before.remotes().getFirst(),
-                    window::configuredWorkspacesParent, before.refactoringMinerHome(),
+                    window::configuredWorkspacesParent,
+                    before.refactoringMinerHome(before.remotes().isEmpty() ? null : before.remotes().getFirst()),
                     window.hasCategories());
             SetupWizard.Result result = showSetupWizard(false, prefill, before).orElse(null);
             if (result == null) {
@@ -3028,7 +3074,7 @@ public class Main extends Application {
             }
             AppSettings after = applyWizardSettings(before, result);
             String message = "Setup saved.";
-            if (after.refactoringMinerHome() != null && this.refactoringPoller == null) {
+            if (after.anyRefactoringMiner() && this.refactoringPoller == null) {
                 message = "Setup saved — restart for the refactoring badge.";
             }
             window.statusBar().message(message);
@@ -4052,17 +4098,17 @@ public class Main extends Application {
         } catch (IOException e) {
             Logger.warn("Cannot re-read settings, using startup values: {}", e.getMessage());
         }
-        String rmHome = settings.refactoringMinerHome();
-        if (rmHome == null) {
-            window.statusBar().message(
-                    "Set refactoringMinerHome in the settings to enable the refactoring view.");
-            onSettled.run();
-            return;
-        }
         Task.ClaudeConfig claude = task.claude();
         String remote = task.remote();
         if (claude == null || remote == null) {
             window.statusBar().message("No remote workspace known for this task.");
+            onSettled.run();
+            return;
+        }
+        String rmHome = settings.refactoringMinerHome(remote);
+        if (rmHome == null) {
+            window.statusBar().message("Set the RefactoringMiner directory of " + remote
+                    + " in the settings' host table to enable the refactoring view.");
             onSettled.run();
             return;
         }

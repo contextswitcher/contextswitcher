@@ -586,13 +586,13 @@ public class MainWindow {
 
     /// Hosts switched off (`inactiveRemotes`): their tasks and categories are
     /// left out of the list. Set by `Main` at start-up and on every change.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private Set<String> inactiveHosts = Set.of();
     /// Switches a host on (true) or off (false) — the Hosts submenu; set by `Main`.
     private BiConsumer<String, Boolean> onHostSwitch = (host, active) -> { };
 
     /// The hosts switched off; rebuilds the list so their rows go or come back.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     public void setInactiveHosts(Set<String> hosts) {
         this.inactiveHosts = Set.copyOf(hosts);
         updateFilterButton();
@@ -600,7 +600,7 @@ public class MainWindow {
     }
 
     /// Installs what ticking a host in the Hosts submenu does (see [#onHostSwitch]).
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     public void setOnHostSwitch(BiConsumer<String, Boolean> handler) {
         this.onHostSwitch = handler;
     }
@@ -832,6 +832,27 @@ public class MainWindow {
     /// Re-runs the first-start wizard (remote, tools, first project); set by
     /// `Main`, a no-op until then. [impl->dsn~setup-wizard~10]
     private Runnable onSetupWizard = () -> { };
+
+    /// The host table's workspaces directory per ssh destination (null: none
+    /// set); set by `Main`, which reads the settings fresh.
+    // [impl->dsn~host-table~1]
+    private Function<String, @Nullable String> hostWorkspaces = host -> null;
+
+    /// Saves an asked workspaces directory into the host table; set by `Main`.
+    // [impl->dsn~host-table~1]
+    private BiConsumer<String, String> onHostWorkspaces = (host, dir) -> { };
+
+    /// Installs the host table's workspaces lookup (see [#hostWorkspaces]).
+    // [impl->dsn~host-table~1]
+    public void setHostWorkspaces(Function<String, @Nullable String> lookup) {
+        this.hostWorkspaces = lookup;
+    }
+
+    /// Installs the save of an asked workspaces directory.
+    // [impl->dsn~host-table~1]
+    public void setOnHostWorkspaces(BiConsumer<String, String> handler) {
+        this.onHostWorkspaces = handler;
+    }
 
     /// Installs the setup-wizard handler (see [#onSetupWizard]).
     // [impl->dsn~setup-wizard~10]
@@ -2492,7 +2513,7 @@ public class MainWindow {
             }
             // A switched-off host's work is out of sight — a search included:
             // switching it off says "not now", not "until I search".
-            // [impl->dsn~host-on-off~1]
+            // [impl->dsn~host-on-off~2]
             if (onInactiveHost(entry)) {
                 continue;
             }
@@ -2584,7 +2605,7 @@ public class MainWindow {
                 if (scope != null && !folder.equals(scope)) {
                     continue;
                 }
-                // [impl->dsn~host-on-off~1]
+                // [impl->dsn~host-on-off~2]
                 if (categoryOnInactiveHost(folder)) {
                     continue;
                 }
@@ -3531,7 +3552,7 @@ public class MainWindow {
     /// `remote:`, or its category's (a task that has no remote yet, or one
     /// moved in from elsewhere, still goes with its category). Error rows
     /// stay unless their category is off — a parse failure must be seen.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private boolean onInactiveHost(TaskEntry entry) {
         if (inactiveHosts.isEmpty()) {
             return false;
@@ -3546,7 +3567,7 @@ public class MainWindow {
     }
 
     /// Whether the category's `CONTEXTSWITCHER.md` names a switched-off host.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private boolean categoryOnInactiveHost(String group) {
         if (inactiveHosts.isEmpty() || group.isEmpty()) {
             return false;
@@ -3558,7 +3579,7 @@ public class MainWindow {
     /// Every host the user deals with, for the Hosts submenu: the configured
     /// remotes, the tasks' and the categories' `remote:`, and the switched-off
     /// ones (so a host can be switched back on after its last task went).
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private Set<String> knownHosts() {
         Set<String> hosts = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         hosts.addAll(configuredRemotes.get());
@@ -3581,7 +3602,7 @@ public class MainWindow {
     /// while it is on. Filled each time it opens, since hosts come and go with
     /// the tasks. Unticking switches the host off — not a view filter only:
     /// `Main` stops polling it too.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private Menu hostsMenu() {
         Menu menu = new Menu("Hosts", new SvgNode(MDITechnology.SERVER.path(), 14));
         menu.setId("hosts-menu");
@@ -4298,7 +4319,16 @@ public class MainWindow {
                     "Add category from URL needs a remote — set one in settings.yaml.").show();
             return;
         }
-        String parent = workspacesParent(remote);
+        // A host's first category asks where its workspaces go, unless the
+        // host table already says. [impl->dsn~host-table~1]
+        String parent = hostWorkspaces.apply(remote);
+        if (parent == null) {
+            parent = askHostWorkspaces(remote);
+            if (parent == null) {
+                return;
+            }
+        }
+        String rootParent = parent;
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Add category from URL");
         dialog.setHeaderText("Creates a category named after the repository, with a CS config,\n"
@@ -4314,7 +4344,7 @@ public class MainWindow {
         Runnable followUrl = () -> {
             String name = TaskFileParser.repoName(url.getText());
             if (!rootEdited[0]) {
-                root.setText(name == null ? "" : parent + "/" + name + "-workspaces");
+                root.setText(name == null ? "" : rootParent + "/" + name + "-workspaces");
             }
         };
         url.textProperty().addListener((obs, old, text) -> followUrl.run());
@@ -4414,24 +4444,52 @@ public class MainWindow {
         }
     }
 
-    /// The directory the sibling workspaces roots on `host` live in — the
-    /// parent of the first such category's `workspacesRoot`, else
-    /// `/data/koppor` (the skeleton's example) — so a new root lands next to
-    /// the others on that machine.
-    // [impl->dsn~category-from-url~4]
-    private String workspacesParent(String host) {
-        String configured = configuredWorkspacesParent(host);
-        return configured == null ? "/data/koppor" : configured;
+    /// Asks where the workspaces of `host` go — its first category, with no
+    /// workspaces directory in the host table yet — and saves the answer
+    /// there. Proposes the parent of that host's existing roots, else
+    /// `/home/<user>/workspaces` from the destination's user part (the
+    /// remote's real home is a round-trip away; the proposal is only a
+    /// start). Null when cancelled or left empty.
+    // [impl->dsn~host-table~1]
+    private @Nullable String askHostWorkspaces(String host) {
+        String proposal = categoriesWorkspacesParent(host);
+        if (proposal == null) {
+            String user = host.contains("@") ? host.substring(0, host.indexOf('@'))
+                    : System.getProperty("user.name");
+            proposal = "/home/" + user + "/workspaces";
+        }
+        TextInputDialog ask = new TextInputDialog(proposal);
+        ask.setTitle("Workspaces directory");
+        ask.setHeaderText("The first category on " + host
+                + ".\nWhere should its workspaces go? New workspaces roots are created under it.");
+        ask.setContentText("Directory on " + host + ":");
+        ask.getEditor().setPrefColumnCount(36);
+        String dir = ask.showAndWait().map(String::strip).filter(text -> !text.isEmpty())
+                .map(text -> text.replaceAll("/+$", "")).orElse(null);
+        if (dir != null) {
+            onHostWorkspaces.accept(host, dir);
+        }
+        return dir;
+    }
+
+    /// Where new workspaces roots on `host` go: the host table's workspaces
+    /// directory, else the parent of that host's existing roots
+    /// ([#categoriesWorkspacesParent]), else null — the setup wizard then
+    /// proposes one under the checked home.
+    // [impl->dsn~setup-wizard~10]
+    // [impl->dsn~host-table~1]
+    public @Nullable String configuredWorkspacesParent(String host) {
+        String table = hostWorkspaces.apply(host);
+        return table != null ? table : categoriesWorkspacesParent(host);
     }
 
     /// The parent of the first `workspacesRoot` of a category whose session
-    /// host is `host`, or null when none configures one — the setup wizard's
-    /// re-run proposes a root there and otherwise under the checked home.
-    /// Only that host's categories count: another machine's `/data/kopp`
-    /// does not exist on this one, and `tmux new-window -c` on a missing
-    /// directory silently starts in the home directory instead.
+    /// host is `host`, or null when none configures one. Only that host's
+    /// categories count: another machine's `/data/kopp` does not exist on
+    /// this one, and `tmux new-window -c` on a missing directory silently
+    /// starts in the home directory instead.
     // [impl->dsn~setup-wizard~10]
-    public @Nullable String configuredWorkspacesParent(String host) {
+    private @Nullable String categoriesWorkspacesParent(String host) {
         return folders.stream().sorted()
                 .map(this::groupDefaults)
                 .filter(defaults -> sameHost(effectiveRemote(defaults), host))
@@ -6432,7 +6490,7 @@ public class MainWindow {
             return;
         }
         // Switched-off hosts count too, so hidden categories are not forgotten.
-        // [impl->dsn~host-on-off~1]
+        // [impl->dsn~host-on-off~2]
         int active = (awaitsInputOnly ? 1 : 0) + (activeDesktopOnly ? 1 : 0)
                 + (runningTasksOnly ? 1 : 0) + (activeTags.isEmpty() ? 0 : 1)
                 + (inactiveHosts.isEmpty() ? 0 : 1);

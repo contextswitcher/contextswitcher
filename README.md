@@ -330,12 +330,12 @@ autoCopyReplies: false       # true = each finished reply of the mirrored Claude
 browser: firefox             # browser to start when no extension is connected (a connected one wins): firefox or chrome
 wsPort: 17872                # loopback WebSocket port the browser extension connects to
 wsToken: <generated>         # shared secret; keep the generated value
-remotes:                     # ssh destinations the tmux sync scans
-  - devbox                   # empty list: falls back to the remotes of existing tasks
-inactiveRemotes:             # hosts switched off (also: filter menu > Hosts): never polled, their tasks and categories hidden
-  - oldbox
-refactoringMinerHome:        # unzipped RefactoringMiner release, path on the remotes; empty = off
 refactoringMinerPort: 6789   # loopback port the refactoring web view is served and tunnelled on
+hosts:                       # the machines sessions run on (settings dialog: one table); none = the sync falls back to the remotes of existing tasks
+  - destination: koppor@devbox             # ssh destination, user part included (or an alias, or wsl:<distro>)
+    active: true                           # false = switched off (also: filter menu > Hosts): never polled, its tasks and categories hidden
+    workspaces: /home/koppor/workspaces    # where new workspaces roots go there; asked when the host is added and on its first category
+    refactoringMiner: /home/koppor/.contextswitcher/RefactoringMiner-3.1.4   # unzipped RefactoringMiner there; omitted = off for that host
 tags:                        # tag palette for the filter and the row chips
   - name: jabref             # tag name (spaces allowed), referenced from a task's `tags:`
     color: "#2da44e"         # optional CSS hex; omitted = stable auto color from the name
@@ -358,8 +358,9 @@ Fix it on the remote by giving Claude Code a matching theme: copy the two files 
 ### RefactoringMiner (optional)
 
 For a semantic answer to "what did the session actually refactor", ContextSwitcher can drive [RefactoringMiner](https://github.com/tsantalis/RefactoringMiner) on the task's remote ([#50](https://github.com/contextswitcher/contextswitcher-private/issues/50), MADR 0022).
-**Set up** next to the `refactoringMinerHome` field in the settings dialog installs it on every configured remote (Java 17+ required there, no Docker) and fills the directory in.
-To install by hand, unzip the release once on the remote and point `refactoringMinerHome:` at it.
+**Set up RefactoringMiner** below the settings dialog's host table installs it on the selected host (Java 17+ required there, no Docker) and fills in that host's directory.
+To install by hand, unzip the release once on the remote and put its path into that host's *RefactoringMiner* cell (`refactoringMiner:` of its `hosts` entry).
+Settings files from before the host table (`remotes`, `inactiveRemotes`, `refactoringMinerHome`) are still read, and the next save writes `hosts` instead.
 
 A remote task's row then offers a hover compare button opening the Monaco AST-diff web view of the task's worktree — uncommitted work included — against the category's `baseBranch:` (default `origin/main`), and once the session is idle the row shows a circled count of the refactorings its commits contain (click = same view).
 The view diffs against the base as last fetched on the remote — fetch there if it looks stale.

@@ -69,12 +69,12 @@ class AppSettingsTest {
         assertThat(AppSettings.loadOrCreate(configDir).readlineKeys()).isTrue();
     }
 
-    // [utest->dsn~host-on-off~1]
+    // [utest->dsn~host-on-off~2]
     @Test
     void inactiveRemotesDefaultToNoneAndRoundTrip() throws Exception {
         assertThat(AppSettings.parse("tasksDir: t\nwsPort: 1\nwsToken: x\n").inactiveRemotes()).isEmpty();
         AppSettings parsed = AppSettings.parse(
-                "tasksDir: t\nwsPort: 1\nwsToken: x\ninactiveRemotes:\n- swkgpu1\n");
+                "tasksDir: t\nwsPort: 1\nwsToken: x\nhosts:\n- destination: swkgpu1\n  active: false\n");
         assertThat(parsed.inactiveRemotes()).containsExactly("swkgpu1");
         assertThat(AppSettings.parse(parsed.dump()).inactiveRemotes()).containsExactly("swkgpu1");
     }
@@ -163,26 +163,75 @@ class AppSettingsTest {
         assertThat(AppSettings.loadOrCreate(configDir).theme()).isEqualTo("everforest");
     }
 
-    // The RefactoringMiner integration (https://github.com/contextswitcher/contextswitcher-private/issues/50) is off until a home is set;
-    // blank normalizes to unset, the port defaults to RM's own 6789.
+    // The RefactoringMiner integration (https://github.com/contextswitcher/contextswitcher-private/issues/50) is off until a host names its
+    // directory; blank normalizes to unset, the port defaults to RM's own 6789.
     // [utest->dsn~refactoring-web-view~1]
     @Test
     void refactoringMinerDefaultsToOffWithDefaultPort(@TempDir Path configDir) throws Exception {
         AppSettings settings = AppSettings.loadOrCreate(configDir);
-        assertThat(settings.refactoringMinerHome()).isNull();
+        assertThat(settings.anyRefactoringMiner()).isFalse();
         assertThat(settings.refactoringMinerPort())
                 .isEqualTo(AppSettings.DEFAULT_REFACTORING_MINER_PORT);
 
-        writeMinimalSettings(configDir, "refactoringMinerHome: ''");
-        assertThat(AppSettings.loadOrCreate(configDir).refactoringMinerHome()).isNull();
+        writeMinimalSettings(configDir, "hosts:\n- destination: devbox\n  refactoringMiner: ''");
+        assertThat(AppSettings.loadOrCreate(configDir).refactoringMinerHome("devbox")).isNull();
 
-        writeMinimalSettings(configDir,
-                "refactoringMinerHome: /data/koppor/RefactoringMiner-3.1.4\n"
-                        + "refactoringMinerPort: 7000");
+        writeMinimalSettings(configDir, "hosts:\n- destination: devbox\n"
+                + "  refactoringMiner: /data/koppor/RefactoringMiner-3.1.4\n- destination: other\n"
+                + "refactoringMinerPort: 7000");
         AppSettings configured = AppSettings.loadOrCreate(configDir);
-        assertThat(configured.refactoringMinerHome())
+        assertThat(configured.refactoringMinerHome("devbox"))
                 .isEqualTo("/data/koppor/RefactoringMiner-3.1.4");
+        assertThat(configured.refactoringMinerHome("other")).isNull();
         assertThat(configured.refactoringMinerPort()).isEqualTo(7000);
+    }
+
+    /// The `hosts` list round-trips with every field, a bare string is an
+    /// active host, and a nameless entry is skipped.
+    // [utest->dsn~host-table~1]
+    @Test
+    void hostsRoundTripAndTolerateShorthand() throws Exception {
+        AppSettings parsed = AppSettings.parse("tasksDir: t\nwsPort: 1\nwsToken: x\nhosts:\n"
+                + "- destination: koppor@nixos\n  active: true\n  workspaces: /home/koppor/workspaces\n"
+                + "- destination: koppor@swkgpu1\n  active: false\n  refactoringMiner: /data/rm\n"
+                + "- plainbox\n- active: true\n");
+        assertThat(parsed.hosts()).containsExactly(
+                new HostSettings("koppor@nixos", true, "/home/koppor/workspaces", null),
+                new HostSettings("koppor@swkgpu1", false, null, "/data/rm"),
+                HostSettings.of("plainbox"));
+        assertThat(parsed.remotes()).containsExactly("koppor@nixos", "koppor@swkgpu1", "plainbox");
+        assertThat(parsed.inactiveRemotes()).containsExactly("koppor@swkgpu1");
+        assertThat(AppSettings.parse(parsed.dump()).hosts()).isEqualTo(parsed.hosts());
+    }
+
+    /// A file from before `hosts`: the remotes become hosts, switched off as
+    /// `inactiveRemotes` says — including one only that list names — each
+    /// with the one global RefactoringMiner directory.
+    // [utest->dsn~host-table~1]
+    @Test
+    void legacyRemotesAreReadAsHosts() throws Exception {
+        AppSettings parsed = AppSettings.parse("tasksDir: t\nwsPort: 1\nwsToken: x\n"
+                + "remotes:\n- koppor@swkgpu1\n- koppor@nixos\ninactiveRemotes:\n- koppor@swkgpu1\n- oldbox\n"
+                + "refactoringMinerHome: /rm\n");
+        assertThat(parsed.hosts()).containsExactly(
+                new HostSettings("koppor@swkgpu1", false, null, "/rm"),
+                new HostSettings("koppor@nixos", true, null, "/rm"),
+                new HostSettings("oldbox", false, null, "/rm"));
+        assertThat(parsed.dump()).contains("hosts:").doesNotContain("remotes:")
+                .doesNotContain("inactiveRemotes:").doesNotContain("refactoringMinerHome:");
+    }
+
+    /// One-host edits change that entry in place, or append a new one.
+    // [utest->dsn~host-table~1]
+    @Test
+    void hostsWithEditsOrAppends() throws Exception {
+        AppSettings settings = AppSettings.parse(
+                "tasksDir: t\nwsPort: 1\nwsToken: x\nhosts:\n- destination: a\n- destination: b\n");
+        assertThat(settings.hostsWith("A", host -> host.withActive(false)))
+                .containsExactly(new HostSettings("a", false, null, null), HostSettings.of("b"));
+        assertThat(settings.hostsWith("c", host -> host.withWorkspaces("/w")))
+                .containsExactly(HostSettings.of("a"), HostSettings.of("b"),
+                        new HostSettings("c", true, "/w", null));
     }
 
     private static void writeMinimalSettings(Path configDir, String extraLine) throws Exception {

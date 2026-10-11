@@ -68,7 +68,7 @@ final class UiTestSupport {
                     tasksDir: %s
                     wsPort: %d
                     wsToken: uitest
-                    remotes: []
+                    hosts: []
                     """.formatted(tasksDir, freePort()));
             System.setProperty("contextswitcher.configDir", configDir.toString());
             app = this;

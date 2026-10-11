@@ -113,6 +113,8 @@ dependencies {
     // on Windows
     implementation("tools.maran:svgnode:2.0.0")
     implementation("tools.maran:svg-materialdesign:1.0.0")
+    // Editable per-host settings table (MADR 0038); MIT.
+    implementation("tools.maran:extended-table:1.0.1")
     implementation("org.jspecify:jspecify:1.0.1")
     implementation("org.yaml:snakeyaml:2.7")
     implementation("org.java-websocket:Java-WebSocket:1.6.0")

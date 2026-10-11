@@ -12,6 +12,7 @@ import java.util.function.Supplier;
 
 import atlantafx.base.theme.Styles;
 import com.contextswitcher.config.AppSettings;
+import com.contextswitcher.config.HostSettings;
 import com.contextswitcher.config.Browser;
 import com.contextswitcher.config.SettingsCatalog;
 import com.contextswitcher.config.YamlPatch;
@@ -32,7 +33,6 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -223,8 +223,8 @@ final class SettingsDialog {
 
     /// One control per [SettingsCatalog] option, seeded from `seed` and keyed by
     /// its settings key. Text and integer options render as a `TextField`, the
-    /// booleans as a `CheckBox`, and the list options (remotes, tag palette) as a
-    /// multi-line `TextArea`, one entry per line.
+    /// booleans as a `CheckBox`, the hosts as the [HostTable], and the tag
+    /// palette as its own editor.
     // [impl->dsn~settings-editor~4]
     Map<String, Region> buildControls(AppSettings seed) {
         Map<String, Region> controls = new LinkedHashMap<>();
@@ -244,6 +244,8 @@ final class SettingsDialog {
                     yield FieldForm.listArea(String.join("\n", lines), 3);
                 }
                 case TAG_LIST -> new TagListEditor(seed.tags());
+                // [impl->dsn~host-table~1]
+                case HOSTS -> new HostTable(seed.hosts(), onSetupRefactoringMiner);
                 case ENUM -> {
                     ComboBox<String> combo = new ComboBox<>(
                             FXCollections.observableArrayList(option.choices()));
@@ -276,47 +278,10 @@ final class SettingsDialog {
         return root;
     }
 
-    /// One settings form row — the shared [FieldForm] row, plus the one action
-    /// beside a field: the RefactoringMiner path is otherwise a manual unzip on
-    /// every remote. [impl->dsn~refactoring-miner-setup~1]
+    /// One settings form row — the shared [FieldForm] row.
     // [impl->dsn~settings-editor~4]
     private Node fieldRow(SettingsCatalog.Option option, Map<String, Region> controls) {
-        Region control = controls.get(option.key());
-        return option.key().equals("refactoringMinerHome")
-                ? FieldForm.row(option.label(), option.help(), control,
-                        setupRefactoringMinerButton(controls))
-                : FieldForm.row(option.label(), option.help(), control);
-    }
-
-    /// The **Set up** button beside the RefactoringMiner directory: installs the
-    /// release on every remote the form lists and fills the field with the
-    /// directory it landed in — one click instead of a manual unzip per remote.
-    /// Disabled for the round-trip, status bar carrying the outcome (the async
-    /// single-shot convention); the value still needs a **Save**.
-    // [impl->dsn~refactoring-miner-setup~1]
-    private Button setupRefactoringMinerButton(Map<String, Region> controls) {
-        Button setup = new Button("Set up");
-        setup.getStyleClass().add(Styles.SMALL);
-        setup.setTooltip(new Tooltip("Download and unzip RefactoringMiner on the configured "
-                + "remotes, then fill in the directory."));
-        setup.setOnAction(event -> {
-            List<String> remotes = ((TextArea) controls.get("remotes")).getText().lines()
-                    .map(String::trim).filter(line -> !line.isEmpty()).toList();
-            if (remotes.isEmpty()) {
-                new Alert(Alert.AlertType.INFORMATION,
-                        "RefactoringMiner runs on the remotes — configure a remote first.").show();
-                return;
-            }
-            TextField home = (TextField) controls.get("refactoringMinerHome");
-            setup.setDisable(true);
-            onSetupRefactoringMiner.install(remotes, installed -> {
-                setup.setDisable(false);
-                if (installed != null) {
-                    home.setText(installed);
-                }
-            });
-        });
-        return setup;
+        return FieldForm.row(option.label(), option.help(), controls.get(option.key()));
     }
 
     /// Patches every changed catalog key from the form back into `raw`, leaving
@@ -342,7 +307,10 @@ final class SettingsDialog {
             Object newValue = edited.yamlValue(option.key());
             Object oldValue = current == null ? null : current.yamlValue(option.key());
             if (!newValue.equals(oldValue)) {
-                out = YamlPatch.set(out, option.key(), newValue);
+                // The host table also takes the keys it replaced out of an
+                // older file. [impl->dsn~host-table~1]
+                out = option.key().equals("hosts") ? AppSettings.patchHosts(out, edited.hosts())
+                        : YamlPatch.set(out, option.key(), newValue);
             }
         }
         return out;
@@ -368,9 +336,9 @@ final class SettingsDialog {
         String wsToken = ((TextField) controls.get("wsToken")).getText();
         boolean hints = ((CheckBox) controls.get("hints")).isSelected();
         boolean claudeAuto = ((CheckBox) controls.get("claudeAuto")).isSelected();
-        List<String> remotes = lines((TextArea) controls.get("remotes"));
-        // [impl->dsn~host-on-off~1]
-        List<String> inactiveRemotes = lines((TextArea) controls.get("inactiveRemotes"));
+        // [impl->dsn~host-table~1]
+        // [impl->dsn~host-on-off~2]
+        List<HostSettings> hosts = ((HostTable) controls.get("hosts")).hosts();
         List<AppSettings.TagDef> tags = ((TagListEditor) controls.get("tags")).getTags();
         @SuppressWarnings("unchecked")
         String theme = ((ComboBox<String>) controls.get("theme")).getValue();
@@ -378,8 +346,6 @@ final class SettingsDialog {
         // [impl->dsn~readline-keys~1]
         boolean readlineKeys = ((CheckBox) controls.get("readlineKeys")).isSelected();
         // [impl->dsn~refactoring-web-view~1]
-        String refactoringMinerHome =
-                ((TextField) controls.get("refactoringMinerHome")).getText().trim();
         int refactoringMinerPort;
         try {
             refactoringMinerPort = Integer.parseInt(
@@ -420,15 +386,9 @@ final class SettingsDialog {
         // [impl->dsn~terminal-markdown-copy~1]
         boolean autoCopyReplies = ((CheckBox) controls.get("autoCopyReplies")).isSelected();
         return new AppSettings(Path.of(tasksDir.trim()), wsPort, wsToken,
-                remotes, tags, hints, claudeAuto, theme, showOnAllDesktops,
-                refactoringMinerHome, refactoringMinerPort, readlineKeys,
-                fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies,
-                inactiveRemotes);
-    }
-
-    /// A list field's entries: one per non-blank line, trimmed.
-    private static List<String> lines(TextArea area) {
-        return area.getText().lines().map(String::trim).filter(line -> !line.isEmpty()).toList();
+                hosts, tags, hints, claudeAuto, theme, showOnAllDesktops,
+                refactoringMinerPort, readlineKeys,
+                fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies);
     }
 
     /// The tag-palette editor: a row per tag pairing a name field with a color

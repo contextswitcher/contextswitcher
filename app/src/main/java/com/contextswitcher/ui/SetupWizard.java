@@ -58,9 +58,11 @@ public final class SetupWizard {
     /// other field is null when the page was left empty. `checkup` is true
     /// when the wizard was left through *Finish and check up*: the first
     /// project's setup session then goes on to [#CHECKUP_PROMPT].
+    /// `workspaces` is the directory new workspaces roots go under on the
+    /// remote, asked on its page (`dsn~host-table~1`).
     public record Result(@Nullable String remote, @Nullable String taskRepoUrl,
             @Nullable String repoUrl, @Nullable String workspacesRoot, RepoType repoType,
-            @Nullable String refactoringMinerHome, boolean checkup) {
+            @Nullable String refactoringMinerHome, boolean checkup, @Nullable String workspaces) {
 
         public boolean local() {
             return remote == null;
@@ -345,6 +347,16 @@ public final class SetupWizard {
         }
         @Nullable String[] remoteHome = {null};
         boolean[] verified = {false};
+        // The host's workspaces directory, asked here once the check knows
+        // the home: the host table's value or the existing roots' parent
+        // when there is one, else <home>/workspaces — until edited by hand.
+        // [impl->dsn~host-table~1]
+        TextField workspaces = new TextField();
+        workspaces.setId("setup-workspaces");
+        workspaces.setPromptText("/home/me/workspaces");
+        workspaces.setPrefColumnCount(30);
+        boolean[] workspacesEdited = {false};
+        workspaces.setOnKeyTyped(event -> workspacesEdited[0] = true);
         // The host the answers are about: the pseudo-host for this machine, a
         // `wsl:<distro>` one for WSL, the typed ssh destination otherwise.
         // [impl->dsn~wsl-sessions~1]
@@ -364,6 +376,11 @@ public final class SetupWizard {
                     test.setDisable(false);
                     verified[0] = outcome.ok();
                     remoteHome[0] = outcome.ok() ? outcome.probe().home() : null;
+                    if (outcome.ok() && !workspacesEdited[0]) {
+                        String known = prefill.workspacesParent().apply(target);
+                        workspaces.setText(known != null ? known
+                                : outcome.probe().home().replaceAll("/+$", "") + "/workspaces");
+                    }
                     verdict.setText(outcome.ok() ? outcome.message() : outcome.message()
                             + (wslChoice.isSelected()
                                     ? "\nNext tries again; check `wsl -l -v` in a terminal if the "
@@ -410,7 +427,11 @@ public final class SetupWizard {
             verified[0] = false;
             verdict.setText("");
         });
-        VBox page2 = page("Which machine?", sshRows, wslRows, verdict);
+        VBox workspacesRows = new VBox(8,
+                new Label("Workspaces directory there (new workspaces roots go under it)"),
+                workspaces,
+                muted("Filled in once the check has run; created on the first category."));
+        VBox page2 = page("Which machine?", sshRows, wslRows, verdict, workspacesRows);
 
         // Page 3: the recommended tools, one row each — probed when the page
         // is entered and on Recheck, installed on its button, re-probed after.
@@ -558,7 +579,9 @@ public final class SetupWizard {
         Runnable followUrl = () -> {
             String name = TaskFileParser.repoName(repoUrl.getText());
             if (!rootEdited[0]) {
-                String hostParent = prefill.workspacesParent().apply(sessionHost.get());
+                String asked = localChoice.isSelected() ? null : blankToNull(workspaces.getText());
+                String hostParent = asked != null ? asked
+                        : prefill.workspacesParent().apply(sessionHost.get());
                 String parent = hostParent != null ? hostParent
                         : localChoice.isSelected() ? localParent
                                 : remoteHome[0] == null ? "~" : remoteHome[0];
@@ -704,7 +727,8 @@ public final class SetupWizard {
             return new Result(localChoice.isSelected() ? null : sessionHost.get(),
                     blankToNull(cloneUrl.getText()), project,
                     project == null ? null : blankToNull(root.getText()),
-                    repoType.getValue(), rmHome[0], button == checkup);
+                    repoType.getValue(), rmHome[0], button == checkup,
+                    localChoice.isSelected() ? null : blankToNull(workspaces.getText()));
         });
         // The first start shows the wizard before the main window, which is
         // what otherwise installs `main.css` and forces the theme to take.

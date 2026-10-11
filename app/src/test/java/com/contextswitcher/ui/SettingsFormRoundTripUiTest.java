@@ -39,12 +39,14 @@ class SettingsFormRoundTripUiTest {
             mergedCleanupDays: 3
             autoCopyReplies: true
             browser: chrome
-            refactoringMinerHome: /opt/rm
             refactoringMinerPort: 7000
-            remotes:
-            - devbox
-            inactiveRemotes:
-            - oldbox
+            hosts:
+            - destination: koppor@devbox
+              active: true
+              workspaces: /home/koppor/workspaces
+              refactoringMiner: /opt/rm
+            - destination: oldbox
+              active: false
             tags:
             - name: jabref
               color: '#2da44e'

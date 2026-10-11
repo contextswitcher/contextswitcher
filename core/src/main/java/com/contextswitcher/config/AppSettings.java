@@ -17,9 +17,11 @@ import com.contextswitcher.tasks.TextFiles;
 
 /// Application settings in `<configDir>/settings.yaml` (default config dir:
 /// `%USERPROFILE%\.contextswitcher`). Created with defaults — including a
-/// randomly generated WebSocket token — on first run. `remotes` is the ssh
-/// destinations the tmux sync scans (empty by default; the sync then falls
-/// back to the distinct remotes of existing tasks). `tags` is the tag palette
+/// randomly generated WebSocket token — on first run. `hosts` is the machines
+/// sessions run on ([HostSettings]: the ssh destination, whether it is switched
+/// on, its workspaces and RefactoringMiner directories); their destinations are
+/// what the tmux sync scans (none by default; the sync then falls back to the
+/// distinct remotes of existing tasks). `tags` is the tag palette
 /// (name + display color) the task-tag filter offers and colors rows by.
 /// `hints` (default true) picks the intro flavor of generated task files —
 /// commented example sections and a provenance note under `# Notes` — for
@@ -33,10 +35,9 @@ import com.contextswitcher.tasks.TextFiles;
 /// `showOnAllDesktops` (default false) pins the main window to every Windows
 /// virtual desktop at startup — the Task View pin is per window handle and
 /// lost on exit, so it is re-applied here (`dsn~window-desktop-pin~2`).
-/// `refactoringMinerHome` is the directory of the unzipped RefactoringMiner
-/// release on the remotes (null/blank = the refactoring view and badge are
-/// off, https://github.com/contextswitcher/contextswitcher-private/issues/50) and `refactoringMinerPort` the loopback port its web view is
-/// served and tunnelled on (`dsn~refactoring-web-view~1`).
+/// `refactoringMinerPort` is the loopback port the RefactoringMiner web view is
+/// served and tunnelled on (`dsn~refactoring-web-view~1`); the directory of the
+/// release is per host (`HostSettings.refactoringMiner`).
 /// `readlineKeys` (default false) turns the bash/emacs cursor chords — Ctrl+A,
 /// Ctrl+E, Alt+B, … — on in every text input (`dsn~readline-keys~1`).
 /// `fallbackDesktop` (default `misc`) is the virtual desktop a category falls
@@ -49,9 +50,10 @@ import com.contextswitcher.tasks.TextFiles;
 /// janitor; 0 turns it off (`dsn~merged-task-cleanup~2`).
 /// `autoCopyReplies` (default false) puts each finished Claude reply of the
 /// mirrored chat on the clipboard as Markdown (`dsn~terminal-markdown-copy~1`).
-/// `inactiveRemotes` (default empty) are hosts switched off: never contacted
-/// by the background polls, their tasks and categories hidden
-/// (`dsn~host-on-off~1`).
+/// Files written before `hosts` existed carry `remotes`, `inactiveRemotes` and
+/// one global `refactoringMinerHome` instead; [#parse(String)] reads them into
+/// hosts (the global directory for every one of them), and the next save of
+/// the settings dialog writes `hosts` in their place (`dsn~host-table~1`).
 // [impl->dsn~app-settings~5]
 // [impl->dsn~theme-select~9]
 // [impl->dsn~window-desktop-pin~2]
@@ -62,13 +64,18 @@ import com.contextswitcher.tasks.TextFiles;
 // [impl->dsn~browser-choice~2]
 // [impl->dsn~merged-task-cleanup~2]
 // [impl->dsn~terminal-markdown-copy~1]
-// [impl->dsn~host-on-off~1]
-public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
+// [impl->dsn~host-on-off~2]
+// [impl->dsn~host-table~1]
+public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSettings> hosts,
         List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
-        boolean showOnAllDesktops, @org.jspecify.annotations.Nullable String refactoringMinerHome,
-        int refactoringMinerPort, boolean readlineKeys, String fallbackDesktop,
-        int autoSuspendMinutes, Browser browser, int mergedCleanupDays, boolean autoCopyReplies,
-        List<String> inactiveRemotes) {
+        boolean showOnAllDesktops, int refactoringMinerPort, boolean readlineKeys,
+        String fallbackDesktop, int autoSuspendMinutes, Browser browser, int mergedCleanupDays,
+        boolean autoCopyReplies) {
+
+    /// The settings keys `hosts` replaced — read from an older file, removed
+    /// from it when the settings dialog writes `hosts`.
+    public static final List<String> LEGACY_HOST_KEYS =
+            List.of("remotes", "inactiveRemotes", "refactoringMinerHome");
 
     /// Default idle time after which an active Claude task is suspended on
     /// its own — two days, so a task left over the weekend is still live on
@@ -106,128 +113,107 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
     public static final String DEFAULT_FALLBACK_DESKTOP = "misc";
     private static final String FILE_NAME = "settings.yaml";
 
-    /// Back-compat constructor without a tag palette (defaults to empty).
+    /// Settings with `remotes` as active hosts and defaults for the rest —
+    /// the first-run file and tests.
     public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes) {
-        this(tasksDir, wsPort, wsToken, remotes, List.of(), true, false);
+        this(tasksDir, wsPort, wsToken, remotes, List.of());
     }
 
-    /// Back-compat constructor without the hints flag (defaults to true).
+    /// [#AppSettings(Path, int, String, List)] with a tag palette.
     public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
             List<TagDef> tags) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, true, false);
-    }
-
-    /// Back-compat constructor without the claudeAuto flag (defaults to false).
-    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
-            List<TagDef> tags, boolean hints) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, hints, false);
-    }
-
-    /// Back-compat constructor without the theme (defaults to `system`).
-    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
-            List<TagDef> tags, boolean hints, boolean claudeAuto) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, hints, claudeAuto, DEFAULT_THEME);
-    }
-
-    /// Back-compat constructor without the all-desktops pin (defaults to false).
-    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
-            List<TagDef> tags, boolean hints, boolean claudeAuto, String theme) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, hints, claudeAuto, theme, false);
-    }
-
-    /// Back-compat constructor without the RefactoringMiner keys (feature off,
-    /// default port).
-    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
-            List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
-            boolean showOnAllDesktops) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, hints, claudeAuto, theme,
-                showOnAllDesktops, null, DEFAULT_REFACTORING_MINER_PORT);
-    }
-
-    /// Back-compat constructor without the readline chords (off).
-    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
-            List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
-            boolean showOnAllDesktops, @org.jspecify.annotations.Nullable String refactoringMinerHome,
-            int refactoringMinerPort) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, hints, claudeAuto, theme,
-                showOnAllDesktops, refactoringMinerHome, refactoringMinerPort, false);
-    }
-
-    /// Back-compat constructor without the fallback desktop (defaults to `misc`).
-    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
-            List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
-            boolean showOnAllDesktops, @org.jspecify.annotations.Nullable String refactoringMinerHome,
-            int refactoringMinerPort, boolean readlineKeys) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, hints, claudeAuto, theme,
-                showOnAllDesktops, refactoringMinerHome, refactoringMinerPort, readlineKeys,
-                DEFAULT_FALLBACK_DESKTOP);
-    }
-
-    /// Back-compat constructor without the auto-suspend (default 60 min).
-    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
-            List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
-            boolean showOnAllDesktops, @org.jspecify.annotations.Nullable String refactoringMinerHome,
-            int refactoringMinerPort, boolean readlineKeys, String fallbackDesktop) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, hints, claudeAuto, theme,
-                showOnAllDesktops, refactoringMinerHome, refactoringMinerPort, readlineKeys,
-                fallbackDesktop, DEFAULT_AUTO_SUSPEND_MINUTES);
-    }
-
-    /// Back-compat constructor without the browser choice (defaults to Firefox).
-    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
-            List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
-            boolean showOnAllDesktops, @org.jspecify.annotations.Nullable String refactoringMinerHome,
-            int refactoringMinerPort, boolean readlineKeys, String fallbackDesktop,
-            int autoSuspendMinutes) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, hints, claudeAuto, theme,
-                showOnAllDesktops, refactoringMinerHome, refactoringMinerPort, readlineKeys,
-                fallbackDesktop, autoSuspendMinutes, Browser.DEFAULT);
-    }
-
-    /// Back-compat constructor without the merged-task janitor (default 7 days).
-    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
-            List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
-            boolean showOnAllDesktops, @org.jspecify.annotations.Nullable String refactoringMinerHome,
-            int refactoringMinerPort, boolean readlineKeys, String fallbackDesktop,
-            int autoSuspendMinutes, Browser browser) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, hints, claudeAuto, theme,
-                showOnAllDesktops, refactoringMinerHome, refactoringMinerPort, readlineKeys,
-                fallbackDesktop, autoSuspendMinutes, browser, DEFAULT_MERGED_CLEANUP_DAYS);
-    }
-
-    /// Back-compat constructor without the reply auto-copy (off).
-    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
-            List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
-            boolean showOnAllDesktops, @org.jspecify.annotations.Nullable String refactoringMinerHome,
-            int refactoringMinerPort, boolean readlineKeys, String fallbackDesktop,
-            int autoSuspendMinutes, Browser browser, int mergedCleanupDays) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, hints, claudeAuto, theme,
-                showOnAllDesktops, refactoringMinerHome, refactoringMinerPort, readlineKeys,
-                fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, false);
-    }
-
-    /// Back-compat constructor without switched-off hosts (none).
-    public AppSettings(Path tasksDir, int wsPort, String wsToken, List<String> remotes,
-            List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
-            boolean showOnAllDesktops, @org.jspecify.annotations.Nullable String refactoringMinerHome,
-            int refactoringMinerPort, boolean readlineKeys, String fallbackDesktop,
-            int autoSuspendMinutes, Browser browser, int mergedCleanupDays, boolean autoCopyReplies) {
-        this(tasksDir, wsPort, wsToken, remotes, tags, hints, claudeAuto, theme,
-                showOnAllDesktops, refactoringMinerHome, refactoringMinerPort, readlineKeys,
-                fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies, List.of());
+        this(tasksDir, wsPort, wsToken, remotes.stream().map(HostSettings::of).toList(), tags,
+                true, false, DEFAULT_THEME, false, DEFAULT_REFACTORING_MINER_PORT, false,
+                DEFAULT_FALLBACK_DESKTOP, DEFAULT_AUTO_SUSPEND_MINUTES, Browser.DEFAULT,
+                DEFAULT_MERGED_CLEANUP_DAYS, false);
     }
 
     public AppSettings {
-        remotes = List.copyOf(remotes);
-        inactiveRemotes = List.copyOf(inactiveRemotes);
+        // One entry per destination — the first wins, as when reading the
+        // file top to bottom.
+        List<HostSettings> unique = new java.util.ArrayList<>();
+        for (HostSettings host : hosts) {
+            if (!host.destination().isEmpty()
+                    && unique.stream().noneMatch(known -> known.is(host.destination()))) {
+                unique.add(host);
+            }
+        }
+        hosts = List.copyOf(unique);
         tags = List.copyOf(tags);
         theme = normalizeTheme(theme);
-        // Blank means unset — the settings form's empty text field and an
-        // absent key are the same "feature off".
-        if (refactoringMinerHome != null && refactoringMinerHome.isBlank()) {
-            refactoringMinerHome = null;
-        }
         fallbackDesktop = fallbackDesktop.strip();
+    }
+
+    /// Every host's ssh destination, in the file's order — what the tmux sync
+    /// scans and the task dialogs offer, switched-off ones included.
+    public List<String> remotes() {
+        return hosts.stream().map(HostSettings::destination).toList();
+    }
+
+    /// The destinations of the switched-off hosts. [impl->dsn~host-on-off~2]
+    public List<String> inactiveRemotes() {
+        return hosts.stream().filter(host -> !host.active()).map(HostSettings::destination).toList();
+    }
+
+    /// The entry for `destination`, or null when no host has it.
+    public @org.jspecify.annotations.Nullable HostSettings host(
+            @org.jspecify.annotations.Nullable String destination) {
+        return hosts.stream().filter(host -> host.is(destination)).findFirst().orElse(null);
+    }
+
+    /// The RefactoringMiner directory on `destination`, or null when that host
+    /// has none (the refactoring view and badge are off there).
+    // [impl->dsn~refactoring-web-view~1]
+    public @org.jspecify.annotations.Nullable String refactoringMinerHome(
+            @org.jspecify.annotations.Nullable String destination) {
+        HostSettings host = host(destination);
+        return host == null ? null : host.refactoringMiner();
+    }
+
+    /// Whether any host has a RefactoringMiner directory — the refactoring
+    /// badge's poller runs only then.
+    public boolean anyRefactoringMiner() {
+        return hosts.stream().anyMatch(host -> host.refactoringMiner() != null);
+    }
+
+    /// A copy whose hosts are `replaced`.
+    public AppSettings withHosts(List<HostSettings> replaced) {
+        return new AppSettings(tasksDir, wsPort, wsToken, replaced, tags, hints, claudeAuto, theme,
+                showOnAllDesktops, refactoringMinerPort, readlineKeys, fallbackDesktop,
+                autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies);
+    }
+
+    /// `hosts` with `destination`'s entry passed through `change` — or, when
+    /// there is none yet, a new active entry for it passed through `change`
+    /// and appended. The building block of every one-host edit (the filter
+    /// menu's switch, the wizard, the asked workspaces directory).
+    public List<HostSettings> hostsWith(String destination,
+            java.util.function.UnaryOperator<HostSettings> change) {
+        List<HostSettings> out = new java.util.ArrayList<>(hosts);
+        for (int i = 0; i < out.size(); i++) {
+            if (out.get(i).is(destination)) {
+                out.set(i, change.apply(out.get(i)));
+                return out;
+            }
+        }
+        out.add(change.apply(HostSettings.of(destination)));
+        return out;
+    }
+
+    /// `raw` settings text with `hosts` written in and the legacy keys it
+    /// replaces taken out — everything else, comments included, untouched.
+    // [impl->dsn~host-table~1]
+    public static String patchHosts(String raw, List<HostSettings> hosts) {
+        String out = raw;
+        for (String key : LEGACY_HOST_KEYS) {
+            out = YamlPatch.remove(out, key);
+        }
+        return YamlPatch.set(out, "hosts", hosts.stream().map(HostSettings::toYaml).toList());
+    }
+
+    /// `hosts` as the list-of-maps shape the YAML carries.
+    public List<Map<String, Object>> hostMaps() {
+        return hosts.stream().map(HostSettings::toYaml).toList();
     }
 
     /// Normalizes a theme value to one of [#THEMES], falling back to the default
@@ -281,10 +267,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
         if (!(wsPort instanceof Integer port)) {
             throw new IOException("wsPort must be an integer");
         }
-        List<String> remotes = List.of();
-        if (map.get("remotes") instanceof List<?> list) {
-            remotes = list.stream().map(Object::toString).toList();
-        }
+        List<HostSettings> hosts = parseHosts(map);
         // An absent or non-boolean `hints` means intro mode — the safe
         // default for a hand-edited file.
         boolean hints = !(map.get("hints") instanceof Boolean flag) || flag;
@@ -296,9 +279,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
         // The all-desktops pin is opt-in: only an explicit `true` counts.
         // [impl->dsn~window-desktop-pin~2]
         boolean showOnAllDesktops = map.get("showOnAllDesktops") instanceof Boolean pin && pin;
-        // Absent/blank home = the RefactoringMiner integration is off; the
-        // constructor normalizes blank to null. [impl->dsn~refactoring-web-view~1]
-        Object rmHome = map.get("refactoringMinerHome");
+        // [impl->dsn~refactoring-web-view~1]
         int rmPort = map.get("refactoringMinerPort") instanceof Integer p
                 ? p : DEFAULT_REFACTORING_MINER_PORT;
         // The readline chords take Ctrl+A away from select-all, so they are
@@ -321,17 +302,46 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
         // Overwriting the clipboard unasked is opt-in: only an explicit `true`
         // counts. [impl->dsn~terminal-markdown-copy~1]
         boolean autoCopyReplies = map.get("autoCopyReplies") instanceof Boolean copy && copy;
-        // [impl->dsn~host-on-off~1]
-        List<String> inactiveRemotes = List.of();
-        if (map.get("inactiveRemotes") instanceof List<?> list) {
-            inactiveRemotes = list.stream().map(Object::toString).toList();
-        }
-        return new AppSettings(Path.of(tasksDir.toString()), port, wsToken.toString(), remotes,
+        return new AppSettings(Path.of(tasksDir.toString()), port, wsToken.toString(), hosts,
                 parseTags(map.get("tags")), hints, claudeAuto,
                 theme == null ? DEFAULT_THEME : theme.toString(), showOnAllDesktops,
-                rmHome == null ? null : rmHome.toString(), rmPort, readlineKeys,
+                rmPort, readlineKeys,
                 fallbackDesktop == null ? DEFAULT_FALLBACK_DESKTOP : fallbackDesktop.toString(),
-                autoSuspend, browser, mergedCleanup, autoCopyReplies, inactiveRemotes);
+                autoSuspend, browser, mergedCleanup, autoCopyReplies);
+    }
+
+    /// The `hosts` list — or, in a file from before it, the hosts the legacy
+    /// keys describe: every `remotes` entry, switched off when
+    /// `inactiveRemotes` names it, then the switched-off hosts `remotes` did
+    /// not list (a task's remote can be switched off without being
+    /// configured), each with the one global `refactoringMinerHome`, which
+    /// used to name the directory on all of them.
+    // [impl->dsn~host-table~1]
+    // [impl->dsn~host-on-off~2]
+    private static List<HostSettings> parseHosts(Map<?, ?> map) {
+        if (map.get("hosts") instanceof List<?> list) {
+            return list.stream().map(HostSettings::fromYaml)
+                    .filter(java.util.Objects::nonNull).toList();
+        }
+        List<String> remotes = strings(map.get("remotes"));
+        List<String> inactive = strings(map.get("inactiveRemotes"));
+        Object rmHome = map.get("refactoringMinerHome");
+        String home = rmHome == null ? null : rmHome.toString();
+        List<HostSettings> hosts = new java.util.ArrayList<>();
+        for (String remote : remotes) {
+            boolean off = inactive.stream().anyMatch(remote::equalsIgnoreCase);
+            hosts.add(new HostSettings(remote, !off, null, home));
+        }
+        for (String remote : inactive) {
+            if (remotes.stream().noneMatch(remote::equalsIgnoreCase)) {
+                hosts.add(new HostSettings(remote, false, null, home));
+            }
+        }
+        return hosts;
+    }
+
+    private static List<String> strings(Object value) {
+        return value instanceof List<?> list ? list.stream().map(Object::toString).toList() : List.of();
     }
 
     /// Reads the `tags` palette: a list of `{name, color}` maps. The `color`
@@ -378,10 +388,8 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
         data.put("mergedCleanupDays", mergedCleanupDays);
         data.put("autoCopyReplies", autoCopyReplies);
         data.put("browser", browser.key());
-        data.put("refactoringMinerHome", refactoringMinerHome == null ? "" : refactoringMinerHome);
         data.put("refactoringMinerPort", refactoringMinerPort);
-        data.put("remotes", remotes);
-        data.put("inactiveRemotes", inactiveRemotes);
+        data.put("hosts", hostMaps());
         data.put("tags", tagMaps());
         return new Yaml().dumpAsMap(data);
     }
@@ -420,10 +428,8 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
             case "mergedCleanupDays" -> mergedCleanupDays;
             case "autoCopyReplies" -> autoCopyReplies;
             case "browser" -> browser.key();
-            case "refactoringMinerHome" -> refactoringMinerHome == null ? "" : refactoringMinerHome;
             case "refactoringMinerPort" -> refactoringMinerPort;
-            case "remotes" -> remotes;
-            case "inactiveRemotes" -> inactiveRemotes;
+            case "hosts" -> hostMaps();
             case "tags" -> tagMaps();
             default -> throw new IllegalArgumentException("unknown settings key: " + key);
         };
@@ -449,12 +455,12 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<String
                 autoSuspendMinutes: 2880     # suspend an active Claude task whose chat has been idle this long (48 h) (its window is ended, resume recreates it); 0 = never
                 mergedCleanupDays: 7         # a task whose PRs are all merged is cleaned up (window, transcript, worktree, file) — right away when its last screen needs no human, else once paused this long; 0 = never
                 autoCopyReplies: false       # true = each finished reply of the mirrored Claude chat is put on the clipboard as Markdown
-                refactoringMinerHome: ''     # unzipped RefactoringMiner directory on the remotes; empty = refactoring view/badge off
                 refactoringMinerPort: 6789   # loopback port the refactoring web view is served and tunnelled on
-                remotes:                     # ssh destinations the tmux sync scans
-                  - devbox                   # empty list: sync falls back to remotes of existing tasks
-                inactiveRemotes:             # hosts switched off: never polled, their tasks and categories hidden
-                  - oldbox                   # also toggled from the filter menu's Hosts submenu
+                hosts:                       # machines sessions run on; their destinations are what the tmux sync scans (none: it falls back to remotes of existing tasks)
+                  - destination: koppor@devbox             # ssh destination, user part included (or an alias, or wsl:<distro>)
+                    active: true                           # false = switched off: never polled, its tasks and categories hidden (also the filter menu's Hosts submenu)
+                    workspaces: /home/koppor/workspaces    # where new workspaces roots go on that host; asked when the host is added and on its first category
+                    refactoringMiner: /home/koppor/.contextswitcher/RefactoringMiner-3.1.4   # unzipped RefactoringMiner there; omitted = refactoring view/badge off for that host
                 tags:                        # tag palette for the task-tag filter and row chips
                   - name: jabref             # tag name (spaces allowed), referenced from a task's `tags:` line
                     color: "#2da44e"         # optional CSS hex; omitted = muted gray chip
