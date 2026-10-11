@@ -139,14 +139,17 @@ class SetupWizardUiTest {
         field("#setup-clone-url");
         clickButton("Next");
         type(field("#setup-repo-url"), "https://github.com/org/proj");
-        assertThat(field("#setup-root").getText()).isEqualTo("/home/dev/proj-workspaces");
+        // New roots go under the host's workspaces directory, proposed as
+        // <home>/workspaces on the remote page (dsn~host-table~1).
+        assertThat(field("#setup-root").getText()).isEqualTo("/home/dev/workspaces/proj-workspaces");
         clickButton("Finish");
         awaitPresent(() -> Optional.ofNullable(result.get()), "wizard result");
         assertThat(result.get()).hasValueSatisfying(r -> {
             assertThat(r.remote()).isEqualTo("devbox");
             assertThat(r.taskRepoUrl()).isNull();
             assertThat(r.repoUrl()).isEqualTo("https://github.com/org/proj");
-            assertThat(r.workspacesRoot()).isEqualTo("/home/dev/proj-workspaces");
+            assertThat(r.workspacesRoot()).isEqualTo("/home/dev/workspaces/proj-workspaces");
+            assertThat(r.workspaces()).isEqualTo("/home/dev/workspaces");
             assertThat(r.firstMessage()).isNull();
         });
     }
