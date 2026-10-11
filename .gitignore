@@ -24,3 +24,7 @@ hs_err_pid*.log
 replay_pid*.log
 
 .claude/worktrees/
+
+# codegraph's per-checkout index; its own .codegraph/.gitignore leaves
+# itself untracked (colbymchenry/codegraph#910).
+.codegraph/
