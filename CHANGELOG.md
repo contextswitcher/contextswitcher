@@ -17,6 +17,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 - Re-running the setup wizard skips the browser-extension page when the extension is already connected.
 - The setup wizard's last page is headed "First category", or "Add a category" when categories already exist, instead of "Your first project".
+- The setup wizard's "Finish and check up" button sits right after "Finish", and the wizard is wider, so the button labels and the last page's explanation are no longer cut off.
 - Pressing *Restart to update* in the What's new window now greys out its buttons and reads "Closing …" while the app saves and leaves, instead of seeming to hang.
 
 ## [2026-10-10] - 2026-10-10
