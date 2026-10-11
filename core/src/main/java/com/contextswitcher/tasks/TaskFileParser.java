@@ -829,7 +829,7 @@ public class TaskFileParser {
     /// null `remote` writes no `remote:` line — a local category
     /// (`dsn~task-create-local~4`), the setup wizard's local choice.
     // [impl->dsn~category-from-url~4]
-    // [impl->dsn~setup-wizard~8]
+    // [impl->dsn~setup-wizard~9]
     public static String groupConfigForRepo(String group, String url, @Nullable String remote,
             String workspacesRoot, @Nullable String desktop) {
         return """

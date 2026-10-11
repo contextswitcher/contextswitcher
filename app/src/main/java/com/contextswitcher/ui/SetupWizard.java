@@ -42,14 +42,14 @@ import com.contextswitcher.tasks.TaskFileParser;
 /// run (this machine, a distribution in WSL, or a remote over ssh — each
 /// checked live for `tmux` and `claude`, the remote for its ssh connection
 /// first), whether an existing task
-/// repository is to be cloned, and the first project's repository URL. The
+/// repository is to be cloned, and a category's repository URL. The
 /// answers come back as a [Result]; `Main` writes the remote into the
 /// settings, clones, and hands the project to the same category-from-URL
 /// flow the toolbar menu runs (`dsn~category-from-url~4`).
 ///
 /// One `Dialog` with swapped pages rather than six dialogs: Back works, and
 /// Cancel on any page leaves everything as it was.
-// [impl->dsn~setup-wizard~8]
+// [impl->dsn~setup-wizard~9]
 public final class SetupWizard {
 
     /// The wizard's answers. `remote` is null for local sessions; every
@@ -77,19 +77,22 @@ public final class SetupWizard {
     /// What an existing configuration pre-fills on a re-run: the `host`
     /// (the first configured remote; null selects the local choice), the
     /// `workspacesParent` a new root is proposed under (the existing roots'
-    /// parent, else the checked home), and the configured
-    /// `refactoringMinerHome` to probe. `EMPTY` on the first start.
+    /// parent, else the checked home), the configured
+    /// `refactoringMinerHome` to probe, and whether `categoriesExist` — then
+    /// the last page adds one rather than creating the first. `EMPTY` on the
+    /// first start.
     public record Prefill(@Nullable String host, @Nullable String workspacesParent,
-            @Nullable String refactoringMinerHome) {
+            @Nullable String refactoringMinerHome, boolean categoriesExist) {
 
-        public static final Prefill EMPTY = new Prefill(null, null, null);
+        public static final Prefill EMPTY = new Prefill(null, null, null, false);
     }
 
     /// The browser-extension page's facts: the app's WebSocket `port` and
     /// `token` the extension's options page needs, the configured `browser`
     /// (whose install notes the button opens through `openUrl`), and
     /// `connected` — the browser whose extension is talking to the app right
-    /// now, null when none is or (first start) the server is not up yet.
+    /// now, null when none is or (first start) the server is not up yet. A
+    /// connected extension when the wizard opens skips the page.
     public record Extension(int port, String token, Browser browser, Consumer<String> openUrl,
             Supplier<@Nullable Browser> connected) {
     }
@@ -236,7 +239,7 @@ public final class SetupWizard {
         Button checkupButton = (Button) dialog.getDialogPane().lookupButton(checkup);
         checkupButton.setId("setup-checkup");
         checkupButton.setTooltip(new javafx.scene.control.Tooltip(
-                "Once the first project is set up, its session is asked: " + CHECKUP_PROMPT));
+                "Once the category is set up, its session is asked: " + CHECKUP_PROMPT));
         nextButton.setDefaultButton(true);
 
         // Page 1: where sessions run.
@@ -473,7 +476,6 @@ public final class SetupWizard {
                         + "of the session host with one click; Next continues either way."),
                 toolRows);
 
-        // Page 4: an existing task repository.
         // Page 4: the browser extension — the one part the app cannot
         // install itself; the port and token are what its options page needs.
         String browserName = extension.browser() == Browser.CHROME ? "Chrome" : "Firefox";
@@ -519,7 +521,8 @@ public final class SetupWizard {
                 muted("The tasks directory is cloned from it, so your categories and tasks come "
                         + "along. Leave it empty on a first install."));
 
-        // Page 6: the first project.
+        // Page 6: a category from a repository — the first one, or another
+        // when the machine already has some.
         TextField repoUrl = new TextField();
         repoUrl.setId("setup-repo-url");
         repoUrl.setPromptText("https://github.com/org/project  (optional)");
@@ -550,7 +553,7 @@ public final class SetupWizard {
         repoType.getItems().setAll(RepoType.values());
         repoType.setValue(RepoType.WRITE_ACCESS);
         repoType.getStyleClass().add(Styles.SMALL);
-        VBox page6 = page("Your first project",
+        VBox page6 = page(prefill.categoriesExist() ? "Add a category" : "First category",
                 new Label("Repository URL"), repoUrl,
                 new Label("Workspaces root (the primary clone and per-task worktrees go under it)"),
                 root,
@@ -566,10 +569,14 @@ public final class SetupWizard {
         int[] current = {0};
         // The remote page is skipped for local sessions; the tools page also
         // on Windows, where the installers (sh scripts) cannot run; the clone
-        // page on a re-run, when the task directory is no longer empty.
+        // page on a re-run, when the task directory is no longer empty; the
+        // extension page when an extension is already talking to the app —
+        // decided once, so Back does not lose a page the user just saw.
+        boolean extensionConnected = extension.connected().get() != null;
         java.util.function.IntPredicate skipped = index ->
                 index == 1 && localChoice.isSelected()
                         || index == 2 && localChoice.isSelected() && onWindows
+                        || index == 3 && extensionConnected
                         || index == 4 && !offerClone;
         int last = pages.size() - 1;
         Runnable render = () -> {
@@ -609,7 +616,7 @@ public final class SetupWizard {
                                         || root.getText().isBlank()),
                 host.textProperty(), repoUrl.textProperty(), root.textProperty(),
                 content.getChildren()));
-        // The checkup runs in the first project's setup session, so it needs one.
+        // The checkup runs in the new category's setup session, so it needs one.
         checkupButton.disableProperty().bind(Bindings.createBooleanBinding(
                 () -> TaskFileParser.repoName(repoUrl.getText()) == null || root.getText().isBlank(),
                 repoUrl.textProperty(), root.textProperty()));

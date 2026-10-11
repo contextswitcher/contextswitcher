@@ -76,7 +76,10 @@ class PaneClickSelectsTaskUiTest {
     @Test
     void clickingTheEditorKeepsAVisibleRowInPlaceAndLandsAnOffscreenOneAThirdDown() throws Exception {
         Path dir = UiTestSupport.tasksDir;
-        for (int i = 0; i < 60; i++) {
+        // Enough rows below the target that it can be scrolled to the top even
+        // on CI's 1920x1200 screen, where the list shows about forty at once:
+        // with 60 the flow clamped at the list's end and never settled.
+        for (int i = 0; i < 200; i++) {
             Files.writeString(dir.resolve("task-%02d.md".formatted(i)), taskFile("task-" + i));
         }
 
