@@ -25,7 +25,7 @@ import static com.contextswitcher.ui.UiTestSupport.clickButton;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The first-start wizard's page logic (`dsn~setup-wizard~9`): Next on the
+/// The first-start wizard's page logic (`dsn~setup-wizard~10`): Next on the
 /// remote page runs the connection check and only a success moves on, the
 /// checked remote's home becomes the proposed workspaces root, and the
 /// local choice skips the remote page and proposes a root under the local
@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// local check — no host is contacted, no tool run.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~setup-wizard~9]
+// [utest->dsn~setup-wizard~10]
 @Tag("ui")
 @TestFxApplication(SetupWizardUiTest.TestApp.class)
 class SetupWizardUiTest {
@@ -91,7 +91,7 @@ class SetupWizardUiTest {
 
     private static final java.util.List<String> OPENED = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static final SetupWizard.Extension EXTENSION = new SetupWizard.Extension(17872, "t0k3n",
-            com.contextswitcher.config.Browser.FIREFOX, OPENED::add, () -> null);
+            com.contextswitcher.config.Browser.FIREFOX, OPENED::add, () -> null, () -> null);
 
     private static final java.util.function.Supplier<SetupWizard.Verdict> LOCAL_OK =
             () -> SetupWizard.toolsVerdict("/home/local", "tmux 3.4", "2.0.5 (Claude Code)", true,
@@ -277,7 +277,7 @@ class SetupWizardUiTest {
     void aRerunWithAConnectedExtensionSkipsItsPage() {
         SetupWizard.Extension connected = new SetupWizard.Extension(17872, "t0k3n",
                 com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
-                () -> com.contextswitcher.config.Browser.FIREFOX);
+                () -> com.contextswitcher.config.Browser.FIREFOX, () -> null);
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
                 new SetupWizard.Prefill(null, "/data/me", null, true), connected));
         RadioButton local = awaitPresent(
@@ -292,6 +292,28 @@ class SetupWizardUiTest {
                 .as("extension page skipped").isEmpty();
         assertThat(FX_ROBOT.selectNodes(Label.class, ".title-4").fetchOptional())
                 .hasValueSatisfying(title -> assertThat(title.getText()).isEqualTo("Add a category"));
+        clickButton("Cancel");
+    }
+
+    /// The extension listed in a browser profile skips its page even with no
+    /// browser connected — the first start, or a browser that is closed.
+    @Test
+    void anInstalledButUnconnectedExtensionSkipsItsPage() {
+        SetupWizard.Extension installed = new SetupWizard.Extension(17872, "t0k3n",
+                com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
+                () -> null, () -> com.contextswitcher.config.Browser.FIREFOX);
+        Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
+                new SetupWizard.Prefill(null, "/data/me", null, true), installed));
+        RadioButton local = awaitPresent(
+                () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
+        FX_ROBOT.mouse().moveTo(local).click();
+        clickButton("Next");
+        awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional(),
+                "tools page");
+        clickButton("Next");
+        field("#setup-repo-url");
+        assertThat(FX_ROBOT.selectNodes(TextField.class, "#setup-ws-token").fetchOptional())
+                .as("extension page skipped").isEmpty();
         clickButton("Cancel");
     }
 

@@ -777,7 +777,7 @@ Needs: impl
 ### Clone the task repository on a fresh machine
 `dsn~task-git-clone-setup~2`
 
-The clone offer is a page of the first-start wizard (`dsn~setup-wizard~9`), shown by `Main.runSetupWizard` during `start()` (on the FX thread), before the repository is scanned or seeded: when the task directory is missing or empty (`isEmptyOrMissing`) and not already a git repo.
+The clone offer is a page of the first-start wizard (`dsn~setup-wizard~10`), shown by `Main.runSetupWizard` during `start()` (on the FX thread), before the repository is scanned or seeded: when the task directory is missing or empty (`isEmptyOrMissing`) and not already a git repo.
 A non-blank clone URL runs `git clone <url> <tasksDir>` via `LocalCommandRunner` (`Main.cloneTaskRepo`: system git, MADR 0011; a network-tolerant timeout); a failure is logged and shown, and startup continues with an empty directory. An empty field (or a cancelled wizard) starts fresh — the normal empty-directory path then seeds a `TEMPLATE.md`.
 The offer is deliberately limited to the missing/empty case: that is where a `git clone` is safe (it refuses a non-empty target) and where the fresh-machine recovery applies; an existing local-only task directory is left untouched (and is never re-prompted, since it is no longer empty).
 

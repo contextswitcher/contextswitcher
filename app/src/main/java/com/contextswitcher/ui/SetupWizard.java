@@ -49,7 +49,7 @@ import com.contextswitcher.tasks.TaskFileParser;
 ///
 /// One `Dialog` with swapped pages rather than six dialogs: Back works, and
 /// Cancel on any page leaves everything as it was.
-// [impl->dsn~setup-wizard~9]
+// [impl->dsn~setup-wizard~10]
 public final class SetupWizard {
 
     /// The wizard's answers. `remote` is null for local sessions; every
@@ -91,10 +91,13 @@ public final class SetupWizard {
     /// `token` the extension's options page needs, the configured `browser`
     /// (whose install notes the button opens through `openUrl`), and
     /// `connected` — the browser whose extension is talking to the app right
-    /// now, null when none is or (first start) the server is not up yet. A
-    /// connected extension when the wizard opens skips the page.
+    /// now, null when none is or (first start) the server is not up yet — and
+    /// `installed`, the browser whose profile files list the extension
+    /// (`InstalledExtension`), null when none does. Either one when the wizard
+    /// opens skips the page: a connection needs that browser running, while
+    /// the profile files answer with it closed and on the first start too.
     public record Extension(int port, String token, Browser browser, Consumer<String> openUrl,
-            Supplier<@Nullable Browser> connected) {
+            Supplier<@Nullable Browser> connected, Supplier<@Nullable Browser> installed) {
     }
 
     /// The install notes per browser, on the repository's main branch.
@@ -570,13 +573,15 @@ public final class SetupWizard {
         // The remote page is skipped for local sessions; the tools page also
         // on Windows, where the installers (sh scripts) cannot run; the clone
         // page on a re-run, when the task directory is no longer empty; the
-        // extension page when an extension is already talking to the app —
-        // decided once, so Back does not lose a page the user just saw.
-        boolean extensionConnected = extension.connected().get() != null;
+        // extension page when an extension is already talking to the app or
+        // a browser profile lists it — decided once, so Back does not lose a
+        // page the user just saw.
+        boolean extensionSetUp = extension.connected().get() != null
+                || extension.installed().get() != null;
         java.util.function.IntPredicate skipped = index ->
                 index == 1 && localChoice.isSelected()
                         || index == 2 && localChoice.isSelected() && onWindows
-                        || index == 3 && extensionConnected
+                        || index == 3 && extensionSetUp
                         || index == 4 && !offerClone;
         int last = pages.size() - 1;
         Runnable render = () -> {

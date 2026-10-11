@@ -54,7 +54,7 @@ class CategoryFromUrlTest {
 
     /// The setup wizard's local choice: no `remote:` line, so the category
     /// is a local one (`Add local Claude`), the rest as for a remote.
-    // [utest->dsn~setup-wizard~9]
+    // [utest->dsn~setup-wizard~10]
     @Test
     void withoutARemoteTheConfigIsALocalCategory() {
         String content = TaskFileParser.groupConfigForRepo("sailor", "https://github.com/Gram21/SaiLoR",

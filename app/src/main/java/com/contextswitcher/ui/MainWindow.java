@@ -829,11 +829,11 @@ public class MainWindow {
     }
 
     /// Re-runs the first-start wizard (remote, tools, first project); set by
-    /// `Main`, a no-op until then. [impl->dsn~setup-wizard~9]
+    /// `Main`, a no-op until then. [impl->dsn~setup-wizard~10]
     private Runnable onSetupWizard = () -> { };
 
     /// Installs the setup-wizard handler (see [#onSetupWizard]).
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     public void setOnSetupWizard(Runnable handler) {
         this.onSetupWizard = handler;
     }
@@ -4371,13 +4371,13 @@ public class MainWindow {
     }
 
     /// The category-from-URL flow behind [#addCategoryFromUrl]'s dialog, also
-    /// the setup wizard's last page (`dsn~setup-wizard~9`): creates the folder
+    /// the setup wizard's last page (`dsn~setup-wizard~10`): creates the folder
     /// and its config, then starts the setup session. With a `remote` that is
     /// a live task there; with none (a local category) the same description is
     /// handed to a local Claude in the workspaces root, the template appended
     /// to the prompt, since the local launcher carries no appendix of its own.
     // [impl->dsn~category-from-url~4]
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     public void createCategoryFromRepo(String url, String workspacesRoot, @Nullable String remote,
             RepoType type, ClaudeMode mode, @Nullable String firstMessage) {
         String name = TaskFileParser.repoName(url);
@@ -4422,7 +4422,7 @@ public class MainWindow {
     /// The parent of the first configured category's `workspacesRoot`, or
     /// null when no category configures one — the setup wizard's re-run
     /// proposes a root there and otherwise under the checked home.
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     public @Nullable String configuredWorkspacesParent() {
         return folders.stream().sorted()
                 .map(group -> groupDefaults(group).workspacesRoot())
@@ -4435,7 +4435,7 @@ public class MainWindow {
 
     /// Whether any category exists — the setup wizard's last page then
     /// adds one instead of creating the first.
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     public boolean hasCategories() {
         return !folders.isEmpty();
     }
@@ -6708,7 +6708,7 @@ public class MainWindow {
     /// The wizard's re-entry, next to the other creation actions in the add
     /// menu and the list's context menu: a second remote, the tools on a new
     /// host, another first project — the same pages as on the first start.
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     private MenuItem setupWizardItem() {
         MenuItem item = new MenuItem("Setup wizard…");
         item.setId("setup-wizard");
@@ -7150,7 +7150,7 @@ public class MainWindow {
         openDir.setOnAction(event -> onOpenTasksDir.run());
 
         // The wizard from the empty state too: a newcomer who cancelled it
-        // is looking right here. [impl->dsn~setup-wizard~9]
+        // is looking right here. [impl->dsn~setup-wizard~10]
         Hyperlink wizard = new Hyperlink("Run the setup wizard…");
         wizard.setOnAction(event -> onSetupWizard.run());
         VBox placeholder = new VBox(4,
