@@ -257,7 +257,7 @@ class SetupWizardUiTest {
     void aRerunStartsFromTheConfiguredRemoteAndRoots() {
         AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
         Platform.runLater(() -> result.set(SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS,
-                "/home/local", false, false, new SetupWizard.Prefill("devbox", "/data/me", null, true), EXTENSION)));
+                "/home/local", false, false, new SetupWizard.Prefill("devbox", sessionHost -> "/data/me", null, true), EXTENSION)));
         clickButton("Next");
         assertThat(field("#setup-host").getText()).isEqualTo("devbox");
         clickButton("Next");
@@ -279,7 +279,7 @@ class SetupWizardUiTest {
                 com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
                 () -> com.contextswitcher.config.Browser.FIREFOX, () -> null);
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
-                new SetupWizard.Prefill(null, "/data/me", null, true), connected));
+                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true), connected));
         RadioButton local = awaitPresent(
                 () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
         FX_ROBOT.mouse().moveTo(local).click();
@@ -303,7 +303,7 @@ class SetupWizardUiTest {
                 com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
                 () -> null, () -> com.contextswitcher.config.Browser.FIREFOX);
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
-                new SetupWizard.Prefill(null, "/data/me", null, true), installed));
+                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true), installed));
         RadioButton local = awaitPresent(
                 () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
         FX_ROBOT.mouse().moveTo(local).click();

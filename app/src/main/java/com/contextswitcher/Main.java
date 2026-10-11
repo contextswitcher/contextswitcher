@@ -3014,7 +3014,7 @@ public class Main extends Application {
             // and whether there are categories to add another one to.
             SetupWizard.Prefill prefill = new SetupWizard.Prefill(
                     before.remotes().isEmpty() ? null : before.remotes().getFirst(),
-                    window.configuredWorkspacesParent(), before.refactoringMinerHome(),
+                    window::configuredWorkspacesParent, before.refactoringMinerHome(),
                     window.hasCategories());
             SetupWizard.Result result = showSetupWizard(false, prefill, before).orElse(null);
             if (result == null) {
@@ -3446,17 +3446,40 @@ public class Main extends Application {
     // [impl->dsn~task-create-progress~5]
     private void finishCreation(MainWindow window, String taskId, @Nullable String windowId,
             String remote) {
+        finishCreation(window, taskId, windowId, remote, null);
+    }
+
+    /// [#finishCreation(MainWindow, String, String, String)] with the
+    /// `reason` a failed creation shows instead of the generic one.
+    private void finishCreation(MainWindow window, String taskId, @Nullable String windowId,
+            String remote, @Nullable String reason) {
         creationSteps.remove(taskId);
         windowedCreations.remove(taskId);
         window.creationDone(taskId);
         if (windowId == null) {
             creationFinished(window, "Task creation failed.");
             window.noteTaskCreationFailed();
-            new Alert(Alert.AlertType.ERROR,
-                    "Cannot create a tmux window on " + remote + " (see log).").show();
+            new Alert(Alert.AlertType.ERROR, reason != null ? reason
+                    : "Cannot create a tmux window on " + remote + " (see log).").show();
             return;
         }
         creationFinished(window, "Task created.");
+    }
+
+    /// `mkdir -p`s `dir` on `remote` so `tmux new-window -c` can start there,
+    /// and returns null — or, when that fails, the message to show. The
+    /// failure stops the creation: tmux silently starts a window whose `-c`
+    /// directory is missing in the home directory instead, and the session
+    /// then sets up a workspace in the wrong place (field report 2026-10-11,
+    /// another machine's `/data/kopp` proposed on one without `/data`).
+    // [impl->dsn~task-create-live~8]
+    private static @Nullable String makeDirectory(SshCommandRunner ssh, String remote, String dir) {
+        SshCommandRunner.SshResult made = ssh.run(remote, List.of("mkdir", "-p", "'" + dir + "'"));
+        if (made.ok()) {
+            return null;
+        }
+        String why = made.stderr().strip();
+        return "Cannot create " + dir + " on " + remote + (why.isEmpty() ? "." : ": " + why);
     }
 
     /// Announces a started async task creation in the status bar. Creations
@@ -3573,8 +3596,10 @@ public class Main extends Application {
         executor.execute(() -> {
             // Ensure the workspace root exists so `tmux new-window -c` succeeds
             // (Claude then creates the per-task worktree under it).
-            if (workdir != null) {
-                ssh.run(remote, List.of("mkdir", "-p", "'" + workdir + "'"));
+            String unmade = workdir == null ? null : makeDirectory(ssh, remote, workdir);
+            if (unmade != null) {
+                Platform.runLater(() -> finishCreation(window, taskId, null, remote, unmade));
+                return;
             }
             String windowId = new ClaudeWindowLauncher(ssh, sender, claudeAuto)
                     .launch(remote, session, title, prompt, workdir, mode,
@@ -3775,8 +3800,10 @@ public class Main extends Application {
         creationStarted(window);
         creationStep(window, task.id(), "Creating the tmux window …");
         executor.execute(() -> {
-            if (cwd != null) {
-                ssh.run(remote, List.of("mkdir", "-p", "'" + cwd + "'"));
+            String unmade = cwd == null ? null : makeDirectory(ssh, remote, cwd);
+            if (unmade != null) {
+                Platform.runLater(() -> finishCreation(window, task.id(), null, remote, unmade));
+                return;
             }
             String windowId;
             if (withClaude) {
@@ -3864,8 +3891,14 @@ public class Main extends Application {
         }
         String session = usualSession(repository, remote);
         executor.execute(() -> {
-            if (cwd != null) {
-                ssh.run(remote, List.of("mkdir", "-p", "'" + cwd + "'"));
+            String unmade = cwd == null ? null : makeDirectory(ssh, remote, cwd);
+            if (unmade != null) {
+                Platform.runLater(() -> {
+                    if (currentWindow != null) {
+                        currentWindow.statusBar().message(unmade);
+                    }
+                });
+                return;
             }
             String windowId = new TmuxResurrect(ssh).createWindow(remote, session, cwd, "scratch");
             if (windowId == null) {

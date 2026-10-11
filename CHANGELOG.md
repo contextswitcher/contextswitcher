@@ -15,10 +15,15 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Changed
 
+- The setup wizard proposes a workspaces root next to the existing ones on the chosen host, no longer next to another machine's.
 - The setup wizard skips the browser-extension page when the extension is already installed in Firefox or Chrome, even with the browser closed or on the first start, not only when it is connected.
 - The setup wizard's last page is headed "First category", or "Add a category" when categories already exist, instead of "Your first project".
 - The setup wizard's "Finish and check up" button sits right after "Finish", and the wizard is wider, so the button labels and the last page's explanation are no longer cut off.
 - Pressing *Restart to update* in the What's new window now greys out its buttons and reads "Closing …" while the app saves and leaves, instead of seeming to hang.
+
+### Fixed
+
+- Creating a task or category whose workspaces root cannot be created on the remote now stops with the remote's error, instead of starting the session in the home directory.
 
 ## [2026-10-10] - 2026-10-10
 

@@ -61,6 +61,7 @@ import com.contextswitcher.queue.QueueFile;
 import com.contextswitcher.tasks.AutoPrReconcile;
 import com.contextswitcher.tasks.Frontmatter;
 import com.contextswitcher.tasks.GroupConfig;
+import com.contextswitcher.terminal.TmuxHost;
 import com.contextswitcher.tasks.MergedCleanup;
 import com.contextswitcher.tasks.Task;
 import com.contextswitcher.tasks.TaskEntry;
@@ -4297,7 +4298,7 @@ public class MainWindow {
                     "Add category from URL needs a remote — set one in settings.yaml.").show();
             return;
         }
-        String parent = workspacesParent();
+        String parent = workspacesParent(remote);
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Add category from URL");
         dialog.setHeaderText("Creates a category named after the repository, with a CS config,\n"
@@ -4410,27 +4411,47 @@ public class MainWindow {
         }
     }
 
-    /// The directory the sibling workspaces roots live in — the parent of
-    /// the first configured category's `workspacesRoot`, else `/data/koppor`
-    /// (the skeleton's example) — so a new root lands next to the others.
+    /// The directory the sibling workspaces roots on `host` live in — the
+    /// parent of the first such category's `workspacesRoot`, else
+    /// `/data/koppor` (the skeleton's example) — so a new root lands next to
+    /// the others on that machine.
     // [impl->dsn~category-from-url~4]
-    private String workspacesParent() {
-        String configured = configuredWorkspacesParent();
+    private String workspacesParent(String host) {
+        String configured = configuredWorkspacesParent(host);
         return configured == null ? "/data/koppor" : configured;
     }
 
-    /// The parent of the first configured category's `workspacesRoot`, or
-    /// null when no category configures one — the setup wizard's re-run
-    /// proposes a root there and otherwise under the checked home.
+    /// The parent of the first `workspacesRoot` of a category whose session
+    /// host is `host`, or null when none configures one — the setup wizard's
+    /// re-run proposes a root there and otherwise under the checked home.
+    /// Only that host's categories count: another machine's `/data/kopp`
+    /// does not exist on this one, and `tmux new-window -c` on a missing
+    /// directory silently starts in the home directory instead.
     // [impl->dsn~setup-wizard~10]
-    public @Nullable String configuredWorkspacesParent() {
+    public @Nullable String configuredWorkspacesParent(String host) {
         return folders.stream().sorted()
-                .map(group -> groupDefaults(group).workspacesRoot())
+                .map(this::groupDefaults)
+                .filter(defaults -> sameHost(effectiveRemote(defaults), host))
+                .map(GroupConfig::workspacesRoot)
                 .filter(root -> root != null && root.contains("/"))
                 .map(root -> root.replaceAll("/+$", "").replaceAll("/[^/]*$", ""))
                 .filter(parent -> !parent.isEmpty())
                 .findFirst()
                 .orElse(null);
+    }
+
+    /// Whether a category whose session runs on `remote` (null: this machine)
+    /// runs on `host`, compared without the `user@` part and case — the same
+    /// machine is `nixos` in one category and `koppor@nixos` in the settings.
+    static boolean sameHost(@Nullable String remote, String host) {
+        if (remote == null || TmuxHost.isLocal(remote)) {
+            return TmuxHost.isLocal(host);
+        }
+        return machine(remote).equalsIgnoreCase(machine(host));
+    }
+
+    private static String machine(String destination) {
+        return destination.substring(destination.indexOf('@') + 1);
     }
 
     /// Whether any category exists — the setup wizard's last page then

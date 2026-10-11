@@ -77,15 +77,17 @@ public final class SetupWizard {
 
     /// What an existing configuration pre-fills on a re-run: the `host`
     /// (the first configured remote; null selects the local choice), the
-    /// `workspacesParent` a new root is proposed under (the existing roots'
-    /// parent, else the checked home), the configured
+    /// `workspacesParent` a new root is proposed under — per session host,
+    /// the parent of that host's existing roots, null for none (then the
+    /// checked home) — the configured
     /// `refactoringMinerHome` to probe, and whether `categoriesExist` — then
     /// the last page adds one rather than creating the first. `EMPTY` on the
     /// first start.
-    public record Prefill(@Nullable String host, @Nullable String workspacesParent,
+    public record Prefill(@Nullable String host,
+            java.util.function.Function<String, @Nullable String> workspacesParent,
             @Nullable String refactoringMinerHome, boolean categoriesExist) {
 
-        public static final Prefill EMPTY = new Prefill(null, null, null, false);
+        public static final Prefill EMPTY = new Prefill(null, sessionHost -> null, null, false);
     }
 
     /// The browser-extension page's facts: the app's WebSocket `port` and
@@ -543,7 +545,8 @@ public final class SetupWizard {
         Runnable followUrl = () -> {
             String name = TaskFileParser.repoName(repoUrl.getText());
             if (!rootEdited[0]) {
-                String parent = prefill.workspacesParent() != null ? prefill.workspacesParent()
+                String hostParent = prefill.workspacesParent().apply(sessionHost.get());
+                String parent = hostParent != null ? hostParent
                         : localChoice.isSelected() ? localParent
                                 : remoteHome[0] == null ? "~" : remoteHome[0];
                 // Only a session on Windows itself has Windows paths; a WSL
