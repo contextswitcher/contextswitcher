@@ -123,6 +123,7 @@ class AddTaskDialogUiTest {
     /// full — "Add remote Cl…" used to be all of a button (CLAUDE.md, "No
     /// truncated text"). The test config has no remote, so the remote hint
     /// is its longest variant.
+    // [utest->dsn~full-labels~1]
     @Test
     void openingSizeShowsAllLabelsInFull() {
         openAddTask();

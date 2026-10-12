@@ -35,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
 // [utest->dsn~setup-wizard~10]
+// [utest->dsn~full-labels~1]
 @Tag("ui")
 @TestFxApplication(SetupWizardUiTest.TestApp.class)
 class SetupWizardUiTest {
@@ -185,6 +186,9 @@ class SetupWizardUiTest {
         clickButton("Next");
         type(field("#setup-repo-url"), "https://github.com/org/proj");
         assertThat(field("#setup-root").getText()).isEqualTo("/home/local/proj-workspaces");
+        // The last page's four buttons, "Finish and check up" among them,
+        // show their full labels (field report 2026-10-12: "Finish and che…").
+        assertThat(UiTestSupport.truncatedTexts(field("#setup-root"))).isEmpty();
         // The second way out: Finish, plus the checkup question for the setup session.
         clickButtonById("setup-checkup");
         awaitPresent(() -> Optional.ofNullable(result.get()), "wizard result");
