@@ -25,7 +25,7 @@ import static com.contextswitcher.ui.UiTestSupport.clickButton;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The first-start wizard's page logic (`dsn~setup-wizard~9`): Next on the
+/// The first-start wizard's page logic (`dsn~setup-wizard~10`): Next on the
 /// remote page runs the connection check and only a success moves on, the
 /// checked remote's home becomes the proposed workspaces root, and the
 /// local choice skips the remote page and proposes a root under the local
@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// local check — no host is contacted, no tool run.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~setup-wizard~9]
+// [utest->dsn~setup-wizard~10]
 @Tag("ui")
 @TestFxApplication(SetupWizardUiTest.TestApp.class)
 class SetupWizardUiTest {
@@ -91,7 +91,7 @@ class SetupWizardUiTest {
 
     private static final java.util.List<String> OPENED = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static final SetupWizard.Extension EXTENSION = new SetupWizard.Extension(17872, "t0k3n",
-            com.contextswitcher.config.Browser.FIREFOX, OPENED::add, () -> null);
+            com.contextswitcher.config.Browser.FIREFOX, OPENED::add, () -> null, () -> null);
 
     private static final java.util.function.Supplier<SetupWizard.Verdict> LOCAL_OK =
             () -> SetupWizard.toolsVerdict("/home/local", "tmux 3.4", "2.0.5 (Claude Code)", true,
@@ -139,14 +139,17 @@ class SetupWizardUiTest {
         field("#setup-clone-url");
         clickButton("Next");
         type(field("#setup-repo-url"), "https://github.com/org/proj");
-        assertThat(field("#setup-root").getText()).isEqualTo("/home/dev/proj-workspaces");
+        // New roots go under the host's workspaces directory, proposed as
+        // <home>/workspaces on the remote page (dsn~host-table~1).
+        assertThat(field("#setup-root").getText()).isEqualTo("/home/dev/workspaces/proj-workspaces");
         clickButton("Finish");
         awaitPresent(() -> Optional.ofNullable(result.get()), "wizard result");
         assertThat(result.get()).hasValueSatisfying(r -> {
             assertThat(r.remote()).isEqualTo("devbox");
             assertThat(r.taskRepoUrl()).isNull();
             assertThat(r.repoUrl()).isEqualTo("https://github.com/org/proj");
-            assertThat(r.workspacesRoot()).isEqualTo("/home/dev/proj-workspaces");
+            assertThat(r.workspacesRoot()).isEqualTo("/home/dev/workspaces/proj-workspaces");
+            assertThat(r.workspaces()).isEqualTo("/home/dev/workspaces");
             assertThat(r.firstMessage()).isNull();
         });
     }
@@ -257,9 +260,15 @@ class SetupWizardUiTest {
     void aRerunStartsFromTheConfiguredRemoteAndRoots() {
         AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
         Platform.runLater(() -> result.set(SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS,
-                "/home/local", false, false, new SetupWizard.Prefill("devbox", "/data/me", null, true), EXTENSION)));
+                "/home/local", false, false, new SetupWizard.Prefill("devbox", sessionHost -> "/data/me", null, true,
+                java.util.List.of("other", "devbox")), EXTENSION)));
         clickButton("Next");
+        // The configured hosts are choices; the prefilled one is picked, and
+        // its workspaces directory is there before any check.
         assertThat(field("#setup-host").getText()).isEqualTo("devbox");
+        assertThat(awaitPresent(() -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-known-host-1")
+                .fetchOptional(), "known host choice").isSelected()).isTrue();
+        assertThat(field("#setup-workspaces").getText()).isEqualTo("/data/me");
         clickButton("Next");
         awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional(),
                 "tools page");
@@ -277,9 +286,9 @@ class SetupWizardUiTest {
     void aRerunWithAConnectedExtensionSkipsItsPage() {
         SetupWizard.Extension connected = new SetupWizard.Extension(17872, "t0k3n",
                 com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
-                () -> com.contextswitcher.config.Browser.FIREFOX);
+                () -> com.contextswitcher.config.Browser.FIREFOX, () -> null);
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
-                new SetupWizard.Prefill(null, "/data/me", null, true), connected));
+                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of()), connected));
         RadioButton local = awaitPresent(
                 () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
         FX_ROBOT.mouse().moveTo(local).click();
@@ -292,6 +301,28 @@ class SetupWizardUiTest {
                 .as("extension page skipped").isEmpty();
         assertThat(FX_ROBOT.selectNodes(Label.class, ".title-4").fetchOptional())
                 .hasValueSatisfying(title -> assertThat(title.getText()).isEqualTo("Add a category"));
+        clickButton("Cancel");
+    }
+
+    /// The extension listed in a browser profile skips its page even with no
+    /// browser connected — the first start, or a browser that is closed.
+    @Test
+    void anInstalledButUnconnectedExtensionSkipsItsPage() {
+        SetupWizard.Extension installed = new SetupWizard.Extension(17872, "t0k3n",
+                com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
+                () -> null, () -> com.contextswitcher.config.Browser.FIREFOX);
+        Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
+                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of()), installed));
+        RadioButton local = awaitPresent(
+                () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
+        FX_ROBOT.mouse().moveTo(local).click();
+        clickButton("Next");
+        awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional(),
+                "tools page");
+        clickButton("Next");
+        field("#setup-repo-url");
+        assertThat(FX_ROBOT.selectNodes(TextField.class, "#setup-ws-token").fetchOptional())
+                .as("extension page skipped").isEmpty();
         clickButton("Cancel");
     }
 

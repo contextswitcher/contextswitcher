@@ -82,6 +82,7 @@ import com.contextswitcher.tasks.TaskSearch;
 import com.contextswitcher.tasks.TaskStatus;
 import com.contextswitcher.tasks.TaskSync;
 import com.contextswitcher.tasks.TaskTags;
+import com.contextswitcher.terminal.TmuxHost;
 import com.contextswitcher.ui.TaskListCell.GroupHeader;
 import com.contextswitcher.ui.TaskListCell.LabelHeader;
 import javafx.collections.FXCollections;
@@ -585,13 +586,13 @@ public class MainWindow {
 
     /// Hosts switched off (`inactiveRemotes`): their tasks and categories are
     /// left out of the list. Set by `Main` at start-up and on every change.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private Set<String> inactiveHosts = Set.of();
     /// Switches a host on (true) or off (false) — the Hosts submenu; set by `Main`.
     private BiConsumer<String, Boolean> onHostSwitch = (host, active) -> { };
 
     /// The hosts switched off; rebuilds the list so their rows go or come back.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     public void setInactiveHosts(Set<String> hosts) {
         this.inactiveHosts = Set.copyOf(hosts);
         updateFilterButton();
@@ -599,7 +600,7 @@ public class MainWindow {
     }
 
     /// Installs what ticking a host in the Hosts submenu does (see [#onHostSwitch]).
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     public void setOnHostSwitch(BiConsumer<String, Boolean> handler) {
         this.onHostSwitch = handler;
     }
@@ -829,11 +830,32 @@ public class MainWindow {
     }
 
     /// Re-runs the first-start wizard (remote, tools, first project); set by
-    /// `Main`, a no-op until then. [impl->dsn~setup-wizard~9]
+    /// `Main`, a no-op until then. [impl->dsn~setup-wizard~10]
     private Runnable onSetupWizard = () -> { };
 
+    /// The host table's workspaces directory per ssh destination (null: none
+    /// set); set by `Main`, which reads the settings fresh.
+    // [impl->dsn~host-table~1]
+    private Function<String, @Nullable String> hostWorkspaces = host -> null;
+
+    /// Saves an asked workspaces directory into the host table; set by `Main`.
+    // [impl->dsn~host-table~1]
+    private BiConsumer<String, String> onHostWorkspaces = (host, dir) -> { };
+
+    /// Installs the host table's workspaces lookup (see [#hostWorkspaces]).
+    // [impl->dsn~host-table~1]
+    public void setHostWorkspaces(Function<String, @Nullable String> lookup) {
+        this.hostWorkspaces = lookup;
+    }
+
+    /// Installs the save of an asked workspaces directory.
+    // [impl->dsn~host-table~1]
+    public void setOnHostWorkspaces(BiConsumer<String, String> handler) {
+        this.onHostWorkspaces = handler;
+    }
+
     /// Installs the setup-wizard handler (see [#onSetupWizard]).
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     public void setOnSetupWizard(Runnable handler) {
         this.onSetupWizard = handler;
     }
@@ -1254,7 +1276,9 @@ public class MainWindow {
                 () -> {
                     String name = editedFileName;
                     return name != null && isGroupConfig(name);
-                });
+                },
+                // [impl->dsn~host-table~1]
+                configuredRemotes);
         configFormPane = pane;
         selectOnClick.accept(pane.getRoot());
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(
@@ -2491,7 +2515,7 @@ public class MainWindow {
             }
             // A switched-off host's work is out of sight — a search included:
             // switching it off says "not now", not "until I search".
-            // [impl->dsn~host-on-off~1]
+            // [impl->dsn~host-on-off~2]
             if (onInactiveHost(entry)) {
                 continue;
             }
@@ -2583,7 +2607,7 @@ public class MainWindow {
                 if (scope != null && !folder.equals(scope)) {
                     continue;
                 }
-                // [impl->dsn~host-on-off~1]
+                // [impl->dsn~host-on-off~2]
                 if (categoryOnInactiveHost(folder)) {
                     continue;
                 }
@@ -3456,14 +3480,22 @@ public class MainWindow {
     // [impl->dsn~task-create-ui~15]
     // [impl->dsn~group-config-apply~2]
     private @Nullable String createTitleTask(String title, String group) {
+        return createTitleTask(title, group, null);
+    }
+
+    /// [#createTitleTask(String, String)] with `notes` appended to the file's
+    /// `# Notes`, the last section of a new task file.
+    private @Nullable String createTitleTask(String title, String group, @Nullable String notes) {
         String base = group.isEmpty() ? title : group + "/" + title;
         String fileName = uniqueFileName(TaskFileParser.newTaskFileName(base));
         GroupConfig defaults = groupDefaults(group);
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~1]
-        String content = TaskFileParser.addUrlsFrom(
-                TaskFileParser.newTaskContent(title, defaults.remote(), defaults.resolveWorkdir()),
-                title);
+        String created = TaskFileParser.newTaskContent(title, defaults.remote(), defaults.resolveWorkdir());
+        if (notes != null) {
+            created = created.stripTrailing() + "\n\n" + notes.strip() + "\n";
+        }
+        String content = TaskFileParser.addUrlsFrom(created, title);
         String error = files.save(fileName, content);
         if (error != null) {
             noteTaskCreationFailed();
@@ -3530,7 +3562,7 @@ public class MainWindow {
     /// `remote:`, or its category's (a task that has no remote yet, or one
     /// moved in from elsewhere, still goes with its category). Error rows
     /// stay unless their category is off — a parse failure must be seen.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private boolean onInactiveHost(TaskEntry entry) {
         if (inactiveHosts.isEmpty()) {
             return false;
@@ -3545,7 +3577,7 @@ public class MainWindow {
     }
 
     /// Whether the category's `CONTEXTSWITCHER.md` names a switched-off host.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private boolean categoryOnInactiveHost(String group) {
         if (inactiveHosts.isEmpty() || group.isEmpty()) {
             return false;
@@ -3557,7 +3589,7 @@ public class MainWindow {
     /// Every host the user deals with, for the Hosts submenu: the configured
     /// remotes, the tasks' and the categories' `remote:`, and the switched-off
     /// ones (so a host can be switched back on after its last task went).
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private Set<String> knownHosts() {
         Set<String> hosts = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         hosts.addAll(configuredRemotes.get());
@@ -3580,7 +3612,7 @@ public class MainWindow {
     /// while it is on. Filled each time it opens, since hosts come and go with
     /// the tasks. Unticking switches the host off — not a view filter only:
     /// `Main` stops polling it too.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private Menu hostsMenu() {
         Menu menu = new Menu("Hosts", new SvgNode(MDITechnology.SERVER.path(), 14));
         menu.setId("hosts-menu");
@@ -4297,7 +4329,16 @@ public class MainWindow {
                     "Add category from URL needs a remote — set one in settings.yaml.").show();
             return;
         }
-        String parent = workspacesParent();
+        // A host's first category asks where its workspaces go, unless the
+        // host table already says. [impl->dsn~host-table~1]
+        String parent = hostWorkspaces.apply(remote);
+        if (parent == null) {
+            parent = askHostWorkspaces(remote);
+            if (parent == null) {
+                return;
+            }
+        }
+        String rootParent = parent;
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Add category from URL");
         dialog.setHeaderText("Creates a category named after the repository, with a CS config,\n"
@@ -4313,7 +4354,7 @@ public class MainWindow {
         Runnable followUrl = () -> {
             String name = TaskFileParser.repoName(url.getText());
             if (!rootEdited[0]) {
-                root.setText(name == null ? "" : parent + "/" + name + "-workspaces");
+                root.setText(name == null ? "" : rootParent + "/" + name + "-workspaces");
             }
         };
         url.textProperty().addListener((obs, old, text) -> followUrl.run());
@@ -4371,18 +4412,21 @@ public class MainWindow {
     }
 
     /// The category-from-URL flow behind [#addCategoryFromUrl]'s dialog, also
-    /// the setup wizard's last page (`dsn~setup-wizard~9`): creates the folder
+    /// the setup wizard's last page (`dsn~setup-wizard~10`): creates the folder
     /// and its config, then starts the setup session. With a `remote` that is
     /// a live task there; with none (a local category) the same description is
     /// handed to a local Claude in the workspaces root, the template appended
     /// to the prompt, since the local launcher carries no appendix of its own.
     // [impl->dsn~category-from-url~4]
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     public void createCategoryFromRepo(String url, String workspacesRoot, @Nullable String remote,
             RepoType type, ClaudeMode mode, @Nullable String firstMessage) {
         String name = TaskFileParser.repoName(url);
-        if (name == null || files.exists(name)) {
-            new Alert(Alert.AlertType.ERROR, "Category " + name + " already exists.").show();
+        if (name == null) {
+            new Alert(Alert.AlertType.ERROR, "Not a repository URL: " + url).show();
+            return;
+        }
+        if (!freeCategoryName(name, "Cancel")) {
             return;
         }
         String error = files.createFolder(name);
@@ -4403,29 +4447,66 @@ public class MainWindow {
                     mode, type.template());
             return;
         }
-        String taskId = createTitleTask(description, name);
+        // The file keeps the whole prompt, template included, so a failed
+        // first launch can be redone from it. [impl->dsn~task-create-live~8]
+        String taskId = createTitleTask(description, name,
+                description + "\n\n" + type.template());
         if (taskId != null) {
             onStartLocalClaude.start(taskId, workspacesRoot,
                     description + "\n\n" + type.template(), mode);
         }
     }
 
-    /// The directory the sibling workspaces roots live in — the parent of
-    /// the first configured category's `workspacesRoot`, else `/data/koppor`
-    /// (the skeleton's example) — so a new root lands next to the others.
-    // [impl->dsn~category-from-url~4]
-    private String workspacesParent() {
-        String configured = configuredWorkspacesParent();
-        return configured == null ? "/data/koppor" : configured;
+    /// Asks where the workspaces of `host` go — its first category, with no
+    /// workspaces directory in the host table yet — and saves the answer
+    /// there. Proposes the parent of that host's existing roots, else
+    /// `/home/<user>/workspaces` from the destination's user part (the
+    /// remote's real home is a round-trip away; the proposal is only a
+    /// start). Null when cancelled or left empty.
+    // [impl->dsn~host-table~1]
+    private @Nullable String askHostWorkspaces(String host) {
+        String proposal = categoriesWorkspacesParent(host);
+        if (proposal == null) {
+            String user = host.contains("@") ? host.substring(0, host.indexOf('@'))
+                    : System.getProperty("user.name");
+            proposal = "/home/" + user + "/workspaces";
+        }
+        TextInputDialog ask = new TextInputDialog(proposal);
+        ask.setTitle("Workspaces directory");
+        ask.setHeaderText("The first category on " + host
+                + ".\nWhere should its workspaces go? New workspaces roots are created under it.");
+        ask.setContentText("Directory on " + host + ":");
+        ask.getEditor().setPrefColumnCount(36);
+        String dir = ask.showAndWait().map(String::strip).filter(text -> !text.isEmpty())
+                .map(text -> text.replaceAll("/+$", "")).orElse(null);
+        if (dir != null) {
+            onHostWorkspaces.accept(host, dir);
+        }
+        return dir;
     }
 
-    /// The parent of the first configured category's `workspacesRoot`, or
-    /// null when no category configures one — the setup wizard's re-run
-    /// proposes a root there and otherwise under the checked home.
-    // [impl->dsn~setup-wizard~9]
-    public @Nullable String configuredWorkspacesParent() {
+    /// Where new workspaces roots on `host` go: the host table's workspaces
+    /// directory, else the parent of that host's existing roots
+    /// ([#categoriesWorkspacesParent]), else null — the setup wizard then
+    /// proposes one under the checked home.
+    // [impl->dsn~setup-wizard~10]
+    // [impl->dsn~host-table~1]
+    public @Nullable String configuredWorkspacesParent(String host) {
+        String table = hostWorkspaces.apply(host);
+        return table != null ? table : categoriesWorkspacesParent(host);
+    }
+
+    /// The parent of the first `workspacesRoot` of a category whose session
+    /// host is `host`, or null when none configures one. Only that host's
+    /// categories count: another machine's `/data/kopp` does not exist on
+    /// this one, and `tmux new-window -c` on a missing directory silently
+    /// starts in the home directory instead.
+    // [impl->dsn~setup-wizard~10]
+    private @Nullable String categoriesWorkspacesParent(String host) {
         return folders.stream().sorted()
-                .map(group -> groupDefaults(group).workspacesRoot())
+                .map(this::groupDefaults)
+                .filter(defaults -> sameHost(effectiveRemote(defaults), host))
+                .map(GroupConfig::workspacesRoot)
                 .filter(root -> root != null && root.contains("/"))
                 .map(root -> root.replaceAll("/+$", "").replaceAll("/[^/]*$", ""))
                 .filter(parent -> !parent.isEmpty())
@@ -4433,9 +4514,85 @@ public class MainWindow {
                 .orElse(null);
     }
 
+    /// Whether a category whose session runs on `remote` (null: this machine)
+    /// runs on `host`, compared without the `user@` part and case — the same
+    /// machine is `nixos` in one category and `koppor@nixos` in the settings.
+    static boolean sameHost(@Nullable String remote, String host) {
+        if (remote == null || TmuxHost.isLocal(remote)) {
+            return TmuxHost.isLocal(host);
+        }
+        return machine(remote).equalsIgnoreCase(machine(host));
+    }
+
+    private static String machine(String destination) {
+        return destination.substring(destination.indexOf('@') + 1);
+    }
+
+    /// Whether `name` can be taken by a new category: true when no category
+    /// has it, else the clash popup offers to rename the existing one out of
+    /// the way (`dsn~category-name-clash~1`) — true once that rename went
+    /// through, false on `dismiss` (*Back* in the wizard, which keeps its
+    /// page open; *Cancel* elsewhere) or a failed rename.
+    // [impl->dsn~category-name-clash~1]
+    public boolean freeCategoryName(String name, String dismiss) {
+        if (!files.exists(name)) {
+            return true;
+        }
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Category exists");
+        dialog.setHeaderText("A category named \"" + name + "\" already exists.");
+        TextField newName = new TextField(clashRenameProposal(name, groupDefaults(name).remote()));
+        newName.setId("clash-new-name");
+        newName.setPrefColumnCount(30);
+        Label taken = new Label();
+        taken.getStyleClass().add(Styles.DANGER);
+        Label note = new Label("Its tasks move along with it; the new category then gets the name "
+                + name + ".");
+        note.setWrapText(true);
+        note.getStyleClass().add(Styles.TEXT_MUTED);
+        VBox content = new VBox(8, new Label("Rename the existing category to:"), newName, taken, note);
+        content.setPadding(new Insets(8));
+        dialog.getDialogPane().setContent(content);
+        ButtonType back = new ButtonType(dismiss, ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType rename = new ButtonType("Rename", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(back, rename);
+        // The proposal can be taken too (a second clash on the same host).
+        dialog.getDialogPane().lookupButton(rename).disableProperty().bind(
+                Bindings.createBooleanBinding(() -> {
+                    String slug = TaskFileParser.slug(newName.getText());
+                    boolean exists = !slug.isEmpty() && files.exists(slug);
+                    taken.setText(exists ? slug + " exists as well." : "");
+                    return slug.isEmpty() || exists;
+                }, newName.textProperty()));
+        Platform.runLater(() -> {
+            newName.requestFocus();
+            newName.selectAll();
+        });
+        if (dialog.showAndWait().orElse(back) != rename) {
+            return false;
+        }
+        return renameGroupTo(name, TaskFileParser.slug(newName.getText()));
+    }
+
+    /// The proposed new name of an existing category whose name a new one
+    /// wants: `<name>-<host>`, the host of its `remote` without user and
+    /// domain — the same repository set up on a second machine is the usual
+    /// clash — and `local` for a category without one.
+    // [impl->dsn~category-name-clash~1]
+    static String clashRenameProposal(String name, @Nullable String remote) {
+        if (remote == null || remote.isBlank() || TmuxHost.isLocal(remote)) {
+            return name + "-local";
+        }
+        String host = remote.strip().replaceAll("^.*@", "").replace(':', '-');
+        if (!host.matches("[0-9.]+")) {
+            host = host.replaceAll("\\..*$", "");
+        }
+        return TaskFileParser.slug(name + "-" + host);
+    }
+
     /// Whether any category exists — the setup wizard's last page then
     /// adds one instead of creating the first.
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     public boolean hasCategories() {
         return !folders.isEmpty();
     }
@@ -4484,27 +4641,34 @@ public class MainWindow {
         dialog.setContentText("Name");
         dialog.showAndWait().map(TaskFileParser::slug)
                 .filter(name -> !name.isEmpty() && !name.equals(group))
-                .ifPresent(newName -> {
-                    if (files.exists(newName)) {
-                        new Alert(Alert.AlertType.ERROR,
-                                "Cannot rename %s: %s already exists.".formatted(group, newName)).show();
-                        return;
-                    }
-                    String error = files.renameFolder(group, newName);
-                    if (error != null) {
-                        new Alert(Alert.AlertType.ERROR,
-                                "Cannot rename %s: %s".formatted(group, error)).show();
-                        return;
-                    }
-                    if (collapsedGroups.remove(group)) {
-                        collapsedGroups.add(newName);
-                    }
-                    String edited = editedFileName;
-                    if (edited != null && edited.startsWith(group + "/")) {
-                        editedFileName = null;
-                        openInEditor(newName + edited.substring(group.length()));
-                    }
-                });
+                .ifPresent(newName -> renameGroupTo(group, newName));
+    }
+
+    /// The rename behind [#renameGroup] and the category-name clash popup;
+    /// false (after an error alert) when it did not happen.
+    // [impl->dsn~group-rename~1]
+    private boolean renameGroupTo(String group, String newName) {
+        if (files.exists(newName)) {
+            new Alert(Alert.AlertType.ERROR,
+                    "Cannot rename %s: %s already exists.".formatted(group, newName)).show();
+            return false;
+        }
+        String error = files.renameFolder(group, newName);
+        if (error != null) {
+            new Alert(Alert.AlertType.ERROR,
+                    "Cannot rename %s: %s".formatted(group, error)).show();
+            return false;
+        }
+        groupConfigCache.remove(group);
+        if (collapsedGroups.remove(group)) {
+            collapsedGroups.add(newName);
+        }
+        String edited = editedFileName;
+        if (edited != null && edited.startsWith(group + "/")) {
+            editedFileName = null;
+            openInEditor(newName + edited.substring(group.length()));
+        }
+        return true;
     }
 
     /// Deletes a project-group folder and everything in it from its header's
@@ -6339,7 +6503,7 @@ public class MainWindow {
             return;
         }
         // Switched-off hosts count too, so hidden categories are not forgotten.
-        // [impl->dsn~host-on-off~1]
+        // [impl->dsn~host-on-off~2]
         int active = (awaitsInputOnly ? 1 : 0) + (activeDesktopOnly ? 1 : 0)
                 + (runningTasksOnly ? 1 : 0) + (activeTags.isEmpty() ? 0 : 1)
                 + (inactiveHosts.isEmpty() ? 0 : 1);
@@ -6708,7 +6872,7 @@ public class MainWindow {
     /// The wizard's re-entry, next to the other creation actions in the add
     /// menu and the list's context menu: a second remote, the tools on a new
     /// host, another first project — the same pages as on the first start.
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     private MenuItem setupWizardItem() {
         MenuItem item = new MenuItem("Setup wizard…");
         item.setId("setup-wizard");
@@ -7150,7 +7314,7 @@ public class MainWindow {
         openDir.setOnAction(event -> onOpenTasksDir.run());
 
         // The wizard from the empty state too: a newcomer who cancelled it
-        // is looking right here. [impl->dsn~setup-wizard~9]
+        // is looking right here. [impl->dsn~setup-wizard~10]
         Hyperlink wizard = new Hyperlink("Run the setup wizard…");
         wizard.setOnAction(event -> onSetupWizard.run());
         VBox placeholder = new VBox(4,

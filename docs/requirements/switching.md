@@ -237,10 +237,23 @@ Covers:
 
 Needs: dsn
 
+`req~host-table~1`
+
+The user sees and edits everything the app knows about a remote host in one place, one row per host: how to reach it, whether it is switched on, where new workspaces go on it, and where its RefactoringMiner is installed.
+Two machines rarely share a directory layout, so none of these is one setting for all hosts.
+When a host is added — and again on its first category, if it is still unknown then — the app asks where its workspaces go, instead of guessing a directory that may not exist there.
+
+Tags: windows, linux
+
+Covers:
+- feat~remote-development-context~1
+
+Needs: dsn
+
 ## Design
 
 ### ssh command runner
-`dsn~ssh-command-runner~6`
+`dsn~ssh-command-runner~7`
 
 `SshCommandRunner` invokes the system `ssh` executable via `ProcessBuilder` with the task's host alias and remote command, applies a timeout, captures exit code and stderr, and logs every invocation with full argv, exit code, and stderr.
 On Windows, the built-in OpenSSH client (`%SystemRoot%\System32\OpenSSH\ssh.exe`) is addressed by absolute path when installed: a PATH-resolved `ssh` may be an MSYS build (Git for Windows, Cygwin) whose runtime re-parses the argv with POSIX quoting rules and strips the single quotes protecting remote arguments — a `tmux -F '#{…}'` format then reaches the remote shell unquoted and `#` comments it away (exit 0, default-format output).
@@ -248,6 +261,9 @@ The resolved executable is exposed (`sshExecutable()`) and used by every locally
 `runWithInput` additionally pipes a payload to the remote command's stdin (dropping ssh's `-n`), written on a worker thread so a payload larger than the pipe buffer cannot deadlock against the undrained output streams — the channel for message text and base64 image data that must not appear in an argv.
 At most six `ssh` processes run at once across all runner instances (a static fair semaphore around the process, `MAX_CONCURRENT`): sshd's default `MaxStartups 10:30:100` refuses connections from the tenth unauthenticated one on, and a burst of local `ssh.exe` starts — each a key exchange — starves the FX thread; the bound is the safety net, callers needing many answers batch them into one call (`dsn~claude-pr-refresh~5`).
 A runner with a long timeout still holds its slot for that long, so a caller with long-running commands keeps its own concurrency to one: attachment uploads run serially (`dsn~message-queue-send~5`), holding at most one slot however many files a message carries.
+The remote command is sent as `sh -c '<command>'` (`ProcessSshRunner.posix`, `~6`→`~7`): sshd hands it to the user's **login shell**, and the commands are written for sh — assignments, `$(…)`, `if …; then`, `[ … ]` — so under fish every such command failed (koppor@nixos, field report 2026-10-11: the status poll some 5,600 times a day, the mirror reattach, the workspace PR lookup).
+The login shell now sees one single-quoted word (inner quotes escaped the POSIX way, `'\''`, which fish reads alike), and `sh` inherits the environment it set up, PATH included; a command that already starts with `sh` is sent as it is.
+The interactive mirror attach keeps its plain tmux words — `\;` and single quotes mean the same to fish.
 
 Tags: windows, linux
 
@@ -262,7 +278,7 @@ Needs: impl, utest
 Every `ProcessSshRunner` call reports its result to the shared `HostBackoff`; a **host failure** is ssh's own exit 255 (connect timeout, unknown host, refused, host key, authentication) or the runner's timeout — a remote command's failure carries its own exit code and counts as an answer.
 After three host failures in a row the host is backed off for one minute; each failed retry doubles that, up to five minutes; any answer forgets the host.
 Failures arriving while the backoff runs — calls in flight when it began, or several pollers retrying at once — do not extend it.
-ssh gets `-o ConnectTimeout=5`, so an unreachable host gives up in five seconds instead of holding one of the six ssh slots (`dsn~ssh-command-runner~6`) for the full timeout.
+ssh gets `-o ConnectTimeout=5`, so an unreachable host gives up in five seconds instead of holding one of the six ssh slots (`dsn~ssh-command-runner~7`) for the full timeout.
 Only the background polls consult the backoff (`Main.pollable`): the tmux status, PR and title pollers (their host supplier), the footer-PR scrape, the workspace PR lookup, the RefactoringMiner poll and the periodic reconcile skip a backed-off host, and the first poll after the delay is the retry.
 The manual "Sync tmux windows…" and everything else the user triggers (switch, message, mirror) always tries.
 The backoff is in-memory only; a restart starts afresh.
@@ -275,11 +291,12 @@ Covers:
 Needs: impl, utest
 
 ### Switched-off hosts
-`dsn~host-on-off~1`
+`dsn~host-on-off~2`
 
-`settings.yaml` holds the switched-off hosts as `inactiveRemotes` (a list, default empty; `AppSettings.inactiveRemotes`), editable in the settings form as "Switched-off hosts" (one per line, section Remotes) and toggled from the filter menu's **Hosts** submenu.
+A host is switched off by `active: false` on its entry of the host table (`dsn~host-table~1`; `AppSettings.inactiveRemotes` lists them), unticked there in the settings form's *Active* column or from the filter menu's **Hosts** submenu.
+Through `~1` it was a separate `inactiveRemotes` list beside `remotes`; a file that still has one is read into the table.
 The submenu (`MainWindow.hostsMenu`) is filled each time it opens with a check item per known host — the configured `remotes`, every task's and every category's `remote:`, and the switched-off hosts themselves, so a host stays reachable after its last task went — ticked while the host is on.
-A tick goes to `Main.switchHost`, which patches `inactiveRemotes` into the raw file (`YamlPatch`, the rest of the file untouched) and applies it at once; a settings save applies it live as well (`applyInactiveHosts`), no restart.
+A tick goes to `Main.switchHost`, which flips that entry's `active` through `Main.updateHost` (a host not in the table yet gets an entry) — the raw file patched by `AppSettings.patchHosts`, the rest of it untouched — and applies it at once; a settings save applies it live as well (`applyInactiveHosts`), no restart.
 A switched-off host is never contacted in the background: `Main.pollable` — the same gate as the backoff (`dsn~ssh-host-backoff~1`) — leaves it out of the tmux status, PR and title polls, the footer-PR scrape, the workspace PR lookup, the RefactoringMiner poll and the periodic reconcile; the manual "Sync tmux windows…" skips it too.
 Switching a host back on polls the task statuses right away instead of on the next tick.
 `MainWindow.rebuildRows` hides a task whose own `remote:` is off, and any row of a category whose `CONTEXTSWITCHER.md` names a switched-off `remote:` — empty categories included; it applies during a search too, since switching a host off says "not now", not "until I search".
@@ -288,6 +305,35 @@ A switched-off host counts as one active dimension on the filter button and make
 Tags: windows, linux
 
 Covers:
+- req~host-on-off~1
+
+Needs: impl, utest
+
+### Host table
+`dsn~host-table~1`
+
+`settings.yaml` holds the hosts as `hosts:`, a list of `HostSettings` maps: `destination` (the ssh destination as ssh names it — `user@host`, an alias, or `wsl:<distro>`; the user part is not split off), `active` (default true, `dsn~host-on-off~2`), `workspaces` and `refactoringMiner` (directories on that host, omitted when unset).
+A bare string item is an active host with nothing else known; an item without a destination is skipped, and a destination's first entry wins over a later duplicate (compared ignoring case).
+`AppSettings.remotes()` is every destination in file order — what the tmux sync scans and the task dialogs offer — so the consumers of the former `remotes` list read the table unchanged.
+A file from before `hosts` (`remotes`, `inactiveRemotes`, one global `refactoringMinerHome`) is read into it by `AppSettings.parse`: each remote an entry, switched off when `inactiveRemotes` names it, the switched-off hosts `remotes` did not list appended as off, and the global directory copied to every entry, since it used to name the directory on all of them.
+Writing the table (`AppSettings.patchHosts`) removes those three keys from the raw file and sets `hosts`, everything else left untouched — the settings form's save when the table changed, and every one-host edit (`Main.updateHost`: the Hosts submenu, the setup wizard, an asked workspaces directory).
+Loading such a file rewrites it that way at once (`AppSettings.loadOrCreate` → `migratedHosts`, logged), so the file says what the app works with from the first start of the new version on; a file without the legacy keys is not touched.
+
+The settings form renders it as one `HostTable` (option `hosts`, type `HOSTS`, section Hosts): an ExtendedTable (MADR 0038) with the columns *Destination* (required, validated non-blank), *Active* (check box), *Workspaces* and *RefactoringMiner*, edited in place, and *Add* (an empty row, its destination cell in edit), *Remove* and *Set up RefactoringMiner* below — the last installs the release on the selected host (`dsn~refactoring-miner-setup~1`) and fills its cell, replacing the one global field's **Set up**.
+A row left without a destination is dropped on save.
+
+The RefactoringMiner directory is per host: `RefactoringMinerPoller` asks `Main.refactoringMinerHome(remote)` per target, read fresh from the table, and skips a host without one; the poller itself starts when any host has one (the first needs a restart, further ones none).
+The refactoring view takes the directory of the task's own remote and says which host to configure when it has none; the port stays one global setting.
+
+The workspaces directory is where new workspaces roots go on that host: `MainWindow.configuredWorkspacesParent(host)` is the table's value first, then the parent of that host's existing categories' roots (`dsn~setup-wizard~10`).
+It is asked twice over.
+The setup wizard's remote page offers the table's ssh destinations as radio choices plus *Another machine:* with the destination field (`Prefill.knownHosts`; a choice fills the field, read-only, so the check and the result read it as before; a re-run picks the first switched-on host), and has a *Workspaces directory there* field — for a known host filled as soon as the host is picked, from the table or that host's existing roots, otherwise once the connection check knows the remote's home (`<home>/workspaces`) — until typed into; the wizard writes it into the host's entry, and the last page proposes the first category's root under it.
+The toolbar's Add-category dialog, on a host whose entry has none, first asks (`MainWindow.askHostWorkspaces`, proposing that host's existing roots' parent, else `/home/<user>/workspaces` from the destination's user part — the real home is an ssh round-trip away) and saves the answer; *Cancel* abandons the category.
+
+Tags: windows, linux
+
+Covers:
+- req~host-table~1
 - req~host-on-off~1
 
 Needs: impl, utest

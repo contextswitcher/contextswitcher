@@ -113,4 +113,19 @@ class ClaudeWindowLauncherTest {
                 .isEqualTo(new ClaudeMode("opus", null));
         assertThat(ClaudeWindowLauncher.withoutConfigured(picked, "", "")).isEqualTo(picked);
     }
+
+    /// A category setup's description refers to "the template at the end",
+    /// so the task file keeps that template under its notes — a failed first
+    /// launch can be redone from the file alone.
+    // [utest->dsn~task-create-live~8]
+    @Test
+    void liveTaskFileKeepsThePromptsAppendix() {
+        String content = ClaudeWindowLauncher.liveTaskContent("Set up the root", "koppor@nixos",
+                "/home/koppor/workspaces/x", "# CLAUDE.md\n<placeholder>");
+
+        assertThat(content).contains("title: Set up the root")
+                .endsWith("# Notes\n\nSet up the root\n\n# CLAUDE.md\n<placeholder>\n");
+        assertThat(ClaudeWindowLauncher.liveTaskContent("Plain", "devbox", null))
+                .endsWith("# Notes\n\nPlain\n");
+    }
 }

@@ -42,7 +42,8 @@ public class RefactoringMinerPoller implements AutoCloseable {
     private final RefactoringLookup lookup;
     private final Supplier<List<Target>> targets;
     private final Function<String, @Nullable String> statusByKey;
-    private final String rmHome;
+    /// The RefactoringMiner directory per host; null skips that host's tasks.
+    private final Function<String, @Nullable String> rmHome;
     private final Consumer<Map<String, RefactoringSummary>> onUpdate;
     private final long intervalSeconds;
     private final Map<String, RefactoringSummary> cache = new ConcurrentHashMap<>();
@@ -53,7 +54,7 @@ public class RefactoringMinerPoller implements AutoCloseable {
     });
 
     public RefactoringMinerPoller(RefactoringLookup lookup, Supplier<List<Target>> targets,
-            Function<String, @Nullable String> statusByKey, String rmHome,
+            Function<String, @Nullable String> statusByKey, Function<String, @Nullable String> rmHome,
             Consumer<Map<String, RefactoringSummary>> onUpdate, long intervalSeconds) {
         this.lookup = lookup;
         this.targets = targets;
@@ -91,8 +92,12 @@ public class RefactoringMinerPoller implements AutoCloseable {
             if (status == null || !IDLE_STATUSES.contains(status)) {
                 continue;
             }
+            String home = rmHome.apply(target.remote());
+            if (home == null) {
+                continue;
+            }
             RefactoringSummary cached = cache.get(target.taskId());
-            RefactoringSummary summary = lookup.summary(target.remote(), rmHome,
+            RefactoringSummary summary = lookup.summary(target.remote(), home,
                     target.worktree(), target.baseBranch(), cached);
             // Emit per task as results arrive (a full RM run can take a
             // while); an unchanged summary emits nothing.

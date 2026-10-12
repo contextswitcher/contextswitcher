@@ -29,7 +29,7 @@ import org.tinylog.Logger;
 /// arguments — a `tmux -F '#{…}'` format then reaches the remote shell
 /// unquoted, `#` starts a comment there, and tmux answers in its default
 /// format (exit 0, silently useless).
-// [impl->dsn~ssh-command-runner~6]
+// [impl->dsn~ssh-command-runner~7]
 public class ProcessSshRunner implements SshCommandRunner {
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(10);
@@ -100,6 +100,28 @@ public class ProcessSshRunner implements SshCommandRunner {
     /// As [#buildCommand(String, List)], but without `-n` when the remote
     /// command reads stdin (`tmux load-buffer -`, `base64 -d`).
     static List<String> buildCommand(String host, List<String> remoteCommand,
+            boolean withStdin) {
+        return buildArgv(host, posix(remoteCommand), withStdin);
+    }
+
+    /// The remote command as `sh -c '<command>'`, so a POSIX shell parses it
+    /// whatever the login shell is: sshd hands the command to the user's
+    /// login shell, and the commands here are written for sh — variable
+    /// assignments, `$(…)`, `if …; then`, `[ … ]`. Under fish (koppor@nixos,
+    /// field report 2026-10-11) every such command failed — the status poll
+    /// some 5,600 times a day, the mirror reattach and the workspace PR
+    /// lookup too. The login shell now sees one single-quoted word, which
+    /// fish, bash and zsh all read alike; `sh` inherits the environment the
+    /// login shell set up (PATH included). A command that already starts
+    /// with `sh` is left as it is.
+    static List<String> posix(List<String> remoteCommand) {
+        if (remoteCommand.isEmpty() || remoteCommand.getFirst().equals("sh")) {
+            return remoteCommand;
+        }
+        return List.of("sh", "-c", SshCommandRunner.quote(String.join(" ", remoteCommand)));
+    }
+
+    private static List<String> buildArgv(String host, List<String> remoteCommand,
             boolean withStdin) {
         remoteCommand.stream().filter(part -> part.contains("\"")).forEach(part ->
                 Logger.warn("Remote command part contains a double quote, "

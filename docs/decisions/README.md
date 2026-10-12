@@ -42,3 +42,4 @@ Decisions follow [MADR](https://adr.github.io/madr/). New records: copy the curr
 | [0035](0035-task-title-summary-via-claude-cli.md) | Task title summary via the local Claude CLI | accepted |
 | [0036](0036-android-app-state-stays-on-the-device.md) | Android app state stays on the device | accepted |
 | [0037](0037-message-provenance-records.md) | Message provenance records | accepted |
+| [0038](0038-extendedtable-for-the-host-settings-table.md) | ExtendedTable for the host settings table | accepted |

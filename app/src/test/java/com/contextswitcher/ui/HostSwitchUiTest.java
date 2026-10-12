@@ -25,9 +25,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// Unticking a host in the filter menu's Hosts submenu hides its work — the
 /// tasks whose `remote:` it is, and the categories whose `CONTEXTSWITCHER.md`
-/// names it, empty ones included — and saves it as `inactiveRemotes`;
-/// ticking it again brings everything back (`dsn~host-on-off~1`).
-// [utest->dsn~host-on-off~1]
+/// names it, empty ones included — and saves it as `active: false` in `hosts`;
+/// ticking it again brings everything back (`dsn~host-on-off~2`).
+// [utest->dsn~host-on-off~2]
 @Tag("ui")
 @TestFxApplication(HostSwitchUiTest.App.class)
 class HostSwitchUiTest {
@@ -52,7 +52,7 @@ class HostSwitchUiTest {
         Platform.runLater(() -> click(hostItem("offbox")));
         awaitRows(list, List.of("here"), false);
         assertThat(Files.readString(UiTestSupport.tasksDir.resolveSibling("settings.yaml")))
-                .containsPattern("(?m)^inactiveRemotes:\\s*\\n\\s*- offbox");
+                .containsPattern("(?m)^- destination: offbox\\s*\\n\\s*active: false");
 
         Platform.runLater(() -> click(hostItem("offbox")));
         awaitRows(list, List.of("away", "here"), true);

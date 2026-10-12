@@ -751,7 +751,7 @@ Setup (one-time, in `%USERPROFILE%\.contextswitcher\tasks`):
       host without them each says "Not installed"; *Install* on codegraph →
       "OK: 1.6.0", `codegraph --version` works in a fresh login shell there and
       `~/.claude/skills/codegraph/SKILL.md` exists; *Install* on RefactoringMiner
-      → after Finish, `refactoringMinerHome` is in settings.yaml.
+      → after Finish, the host's `hosts` entry in settings.yaml has `refactoringMiner`.
 - [ ] **Wizard, tools page (this machine, Linux):** two rows, no
       RefactoringMiner; on Windows the page is skipped.
 - [ ] **Wizard, extension page:** the token matches settings.yaml, *Copy*
@@ -1203,7 +1203,7 @@ Needs an imported plain-shell task — a tmux window that carried no Claude when
 
 ## Refactoring view and badge ([#50](https://github.com/contextswitcher/contextswitcher-private/issues/50) | `dsn~refactoring-web-view~1` / `dsn~refactoring-analysis-poller~1` | MADR 0022)
 
-Precondition: RefactoringMiner unzipped on the remote (`/data/koppor/RefactoringMiner-3.1.4`), `refactoringMinerHome` set in settings, a live remote-Claude task with a published `@cs_workspace` whose branch has at least one commit with a refactoring (an extract/rename/move).
+Precondition: RefactoringMiner unzipped on the remote (`/data/koppor/RefactoringMiner-3.1.4`), the host's *RefactoringMiner* cell set in the settings' host table, a live remote-Claude task with a published `@cs_workspace` whose branch has at least one commit with a refactoring (an extract/rename/move).
 
 - [ ] Settings → **Set up** next to *RefactoringMiner directory* on a machine without an install → the button grays out, the status bar reports the install, and the field ends up at `~/.contextswitcher/RefactoringMiner-<version>` on the remote; **Save**, then the view below works. A second click is a fast no-op.
 - [ ] Hover the task row → a compare icon shows next to the other hover actions; click it → the button grays out, the status bar reports "Opening refactoring view …", and within ~30 s the browser opens `http://127.0.0.1:6789/list` showing the Monaco AST diff (worktree vs `origin/main`).
@@ -1212,7 +1212,7 @@ Precondition: RefactoringMiner unzipped on the remote (`/data/koppor/Refactoring
 - [ ] Close the app while a view is open → on the remote, no `RefactoringMiner` java process is left and port 6789 is free (`ss -ltn | grep 6789`), no `/tmp/cs-rm-*`/`tmp.*` base directory remains.
 - [ ] After Claude finishes a task (row dot turns green/waiting), the row shows a circled refactoring count within ~2 poll minutes when its commits contain refactorings; clicking the count opens the same view.
 - [ ] A task whose commits contain no refactorings shows no badge (not a `⓪`).
-- [ ] With `refactoringMinerHome` empty, the hover button answers with the status-bar hint naming the setting, and no badge ever appears.
+- [ ] With the host's *RefactoringMiner* cell empty, the hover button answers with the status-bar hint naming that host, and no badge ever appears for its tasks.
 - [ ] Category with `baseBranch: <other>` in its `CONTEXTSWITCHER.md` → the view diffs against that branch.
 
 ## Bash cursor keys in text fields (`dsn~readline-keys~1`)

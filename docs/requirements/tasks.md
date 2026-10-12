@@ -492,7 +492,7 @@ Needs: impl, utest
 `req~tmux-sync~1`
 
 One action reconciles the task list with the live tmux windows of the configured remotes: a task whose window is gone on the remote is marked suspended, a suspended task whose window is back is reactivated (status only — no kill or resurrect), and windows not yet covered by a task are imported.
-The remotes are configured once (a `remotes:` list in `settings.yaml`), so the action needs no per-run host prompt; with none configured it falls back to the distinct remotes of existing tasks.
+The remotes are configured once (the destinations of the `hosts:` table in `settings.yaml`, `dsn~host-table~1`), so the action needs no per-run host prompt; with none configured it falls back to the distinct remotes of existing tasks.
 
 Tags: windows, linux
 
@@ -572,7 +572,7 @@ Every distinct match is returned in order of appearance: one session can open se
 At import the first URL makes the skeleton's `browser:` section real (single `urls` entry) and `dsn~claude-pr-refresh~5` appends the rest on its next tick; without any the commented example stays.
 
 Both callers scrape through `ClaudePrLookup.batchCommand` — **one** ssh round-trip for every window that needs one, never one per window.
-The periodic footer poll of `dsn~claude-pr-refresh~5` was batched from the start; `Main.enrichClaudeSessions`, which runs for every window of every session on each import *and each periodic reconcile* (`dsn~tmux-sync~7`), was not, so a host with ten Claude windows cost eleven connections per reconcile through the six global slots of `dsn~ssh-command-runner~6`.
+The periodic footer poll of `dsn~claude-pr-refresh~5` was batched from the start; `Main.enrichClaudeSessions`, which runs for every window of every session on each import *and each periodic reconcile* (`dsn~tmux-sync~7`), was not, so a host with ten Claude windows cost eleven connections per reconcile through the six global slots of `dsn~ssh-command-runner~7`.
 Invisible at one reconcile a minute, and eleven minutes of saturation once a woken laptop replayed a backlog of them (`dsn~poll-no-wake-backlog~1`, field report 2026-09-12) — with the terminal mirror's attach queued behind.
 The window ids to ask about are collected first, in one pass over the sessions: a window that already published `@cs_pr`, and one not running `claude`, stay out of the batch, and a round with nothing to scrape opens no connection at all.
 The transcript-id heuristic of `dsn~claude-session-capture~3` in the same method keeps its own call per window — it is already bounded to windows that published no `@cs_session_id`, which the hook makes the exception.
@@ -777,7 +777,7 @@ Needs: impl
 ### Clone the task repository on a fresh machine
 `dsn~task-git-clone-setup~2`
 
-The clone offer is a page of the first-start wizard (`dsn~setup-wizard~9`), shown by `Main.runSetupWizard` during `start()` (on the FX thread), before the repository is scanned or seeded: when the task directory is missing or empty (`isEmptyOrMissing`) and not already a git repo.
+The clone offer is a page of the first-start wizard (`dsn~setup-wizard~10`), shown by `Main.runSetupWizard` during `start()` (on the FX thread), before the repository is scanned or seeded: when the task directory is missing or empty (`isEmptyOrMissing`) and not already a git repo.
 A non-blank clone URL runs `git clone <url> <tasksDir>` via `LocalCommandRunner` (`Main.cloneTaskRepo`: system git, MADR 0011; a network-tolerant timeout); a failure is logged and shown, and startup continues with an empty directory. An empty field (or a cancelled wizard) starts fresh — the normal empty-directory path then seeds a `TEMPLATE.md`.
 The offer is deliberately limited to the missing/empty case: that is where a `git clone` is safe (it refuses a non-empty target) and where the fresh-machine recovery applies; an existing local-only task directory is left untouched (and is never re-prompted, since it is no longer empty).
 

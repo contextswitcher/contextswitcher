@@ -42,6 +42,8 @@ import com.contextswitcher.analysis.RefactoringMinerCommands;
 import com.contextswitcher.analysis.RefactoringMinerPoller;
 import com.contextswitcher.analysis.RefactoringMinerView;
 import com.contextswitcher.config.AppSettings;
+import com.contextswitcher.config.HostSettings;
+import com.contextswitcher.config.InstalledExtension;
 import com.contextswitcher.config.EnergySaver;
 import com.contextswitcher.config.WindowPositions;
 import com.contextswitcher.config.YamlPatch;
@@ -319,7 +321,7 @@ public class Main extends Application {
     /// Hosts switched off (`inactiveRemotes`): never polled, their rows
     /// hidden. Written on the FX thread (start-up, Hosts submenu, settings
     /// save), read (volatile) from the pollers.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private volatile Set<String> inactiveHosts = Set.of();
 
     /// Whether the background polls may contact `host` right now: not while
@@ -327,7 +329,7 @@ public class Main extends Application {
     /// ([HostBackoff]). A command the user triggers does not ask about the
     /// backoff — it always tries.
     // [impl->dsn~ssh-host-backoff~1]
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private boolean pollable(@Nullable String host) {
         return host != null && !inactiveHosts.contains(host) && !HostBackoff.SHARED.backedOff(host);
     }
@@ -495,7 +497,7 @@ public class Main extends Application {
         // where sessions run, the remote (checked), the task repo to clone
         // (moving to a new machine, MADR 0011), the first project. It writes
         // the remote into settings.yaml, so the settings are re-read after it.
-        // [impl->dsn~setup-wizard~9]
+        // [impl->dsn~setup-wizard~10]
         // [impl->dsn~task-git-clone-setup~2]
         AppSettings settings = runSetupWizard(startupSettings);
         // Same fresh-machine moment: say which command-line tools are missing
@@ -855,7 +857,7 @@ public class Main extends Application {
                             if (this.terminalPane != null) {
                                 this.terminalPane.setAutoCopyReplies(saved.autoCopyReplies());
                             }
-                            // [impl->dsn~host-on-off~1]
+                            // [impl->dsn~host-on-off~2]
                             applyInactiveHosts(saved.inactiveRemotes());
                         } catch (IOException e) {
                             // Raw-mode saves may be unparseable; the pin then
@@ -868,7 +870,7 @@ public class Main extends Application {
                 () -> currentTagPalette(settings),
                 settings.hints(),
                 settings.fallbackDesktop());
-        // [impl->dsn~host-on-off~1]
+        // [impl->dsn~host-on-off~2]
         inactiveHosts = Set.copyOf(settings.inactiveRemotes());
         window.setInactiveHosts(inactiveHosts);
         window.setOnHostSwitch(this::switchHost);
@@ -896,8 +898,24 @@ public class Main extends Application {
         // [impl->dsn~message-queue-ui~26]
         window.setOnTaskRenamed(queuePane::taskRenamed);
         // [impl->dsn~start-claude-button~2]
-        // [impl->dsn~setup-wizard~9]
+        // [impl->dsn~setup-wizard~10]
         window.setOnSetupWizard(this::rerunSetupWizard);
+        // [impl->dsn~host-table~1]
+        window.setHostWorkspaces(host -> {
+            try {
+                HostSettings entry = AppSettings.loadOrCreate(configDir()).host(host);
+                return entry == null ? null : entry.workspaces();
+            } catch (IOException e) {
+                Logger.warn("Cannot read settings.yaml for the workspaces of {}: {}", host, e.getMessage());
+                return null;
+            }
+        });
+        window.setOnHostWorkspaces((host, dir) -> {
+            String error = updateHost(host, entry -> entry.withWorkspaces(dir));
+            if (error != null) {
+                window.statusBar().message("Cannot save the workspaces directory: " + error);
+            }
+        });
         window.setOnStartClaude((task, onSettled) ->
                 startClaude(ssh, settings.claudeAuto(), task, onSettled));
         // The same window choice play makes, from the terminal placeholder.
@@ -947,7 +965,7 @@ public class Main extends Application {
         // The wizard's first project, created once the window is up: the
         // category and its setup session need the repository and the live-task
         // machinery that did not exist while the wizard ran.
-        // [impl->dsn~setup-wizard~9]
+        // [impl->dsn~setup-wizard~10]
         SetupWizard.Result firstProject = this.firstProject;
         if (firstProject != null && firstProject.repoUrl() != null
                 && firstProject.workspacesRoot() != null) {
@@ -1076,11 +1094,11 @@ public class Main extends Application {
                     prPoller.refreshMissing();
                 });
 
-        // The refactoring badge (https://github.com/contextswitcher/contextswitcher-private/issues/50), only when a RefactoringMiner install is
-        // configured; a home added later needs a restart, like `remotes`.
+        // The refactoring badge (https://github.com/contextswitcher/contextswitcher-private/issues/50), only when some host has a RefactoringMiner
+        // install; the first one added later needs a restart. Each host's
+        // directory is read fresh per poll, so further hosts need none.
         // [impl->dsn~refactoring-analysis-poller~1]
-        String rmHome = settings.refactoringMinerHome();
-        if (rmHome != null) {
+        if (settings.anyRefactoringMiner()) {
             recomputeRefactoringTargets(repository, files);
             taskEntries.addListener(
                     (javafx.collections.ListChangeListener<TaskEntry>) change ->
@@ -1089,7 +1107,7 @@ public class Main extends Application {
                     new RefactoringLookup(new ProcessSshRunner(REFACTORING_SSH_TIMEOUT)),
                     () -> refactoringTargets.stream().filter(target -> pollable(target.remote())).toList(),
                     key -> liveStatuses.get(key),
-                    rmHome,
+                    this::refactoringMinerHome,
                     summaries -> Platform.runLater(() -> window.updateRefactorings(summaries)),
                     REFACTORING_POLL_SECONDS);
             this.refactoringPoller = rmPoller;
@@ -1837,15 +1855,14 @@ public class Main extends Application {
     /// `inactiveRemotes` (patched into `settings.yaml`, so it lasts and the
     /// rest of the file stays as written) and applies it right away. A host
     /// switched back on is polled at once rather than on the next tick.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private void switchHost(String host, boolean active) {
-        List<String> off = new ArrayList<>(inactiveHosts.stream().sorted().toList());
-        off.remove(host);
+        String error = updateHost(host, entry -> entry.withActive(active));
+        List<String> off = new ArrayList<>(inactiveHosts);
+        off.removeIf(host::equalsIgnoreCase);
         if (!active) {
             off.add(host);
         }
-        String error = writeSettingsFile(configDir(),
-                YamlPatch.set(readSettingsFile(configDir()), "inactiveRemotes", List.copyOf(off)));
         applyInactiveHosts(off);
         MainWindow window = this.window;
         if (window != null) {
@@ -1859,9 +1876,38 @@ public class Main extends Application {
         }
     }
 
+    /// The RefactoringMiner directory on `remote`, read fresh from the host
+    /// table — so one set in the settings needs no restart once the poller
+    /// runs — or null when that host has none (its tasks are then skipped).
+    // [impl->dsn~refactoring-analysis-poller~1]
+    private @Nullable String refactoringMinerHome(String remote) {
+        try {
+            return AppSettings.loadOrCreate(configDir()).refactoringMinerHome(remote);
+        } catch (IOException e) {
+            Logger.warn("Cannot read settings.yaml for RefactoringMiner on {}: {}", remote, e.getMessage());
+            return null;
+        }
+    }
+
+    /// Passes `destination`'s entry of the host table through `change` (a new
+    /// entry when it has none) and writes the table back — the one-host edit
+    /// behind the Hosts submenu, the wizard and the asked workspaces
+    /// directory. Returns null, or the error that kept it from being saved.
+    // [impl->dsn~host-table~1]
+    static @Nullable String updateHost(String destination,
+            java.util.function.UnaryOperator<HostSettings> change) {
+        String raw = readSettingsFile(configDir());
+        try {
+            List<HostSettings> hosts = AppSettings.parse(raw).hostsWith(destination, change);
+            return writeSettingsFile(configDir(), AppSettings.patchHosts(raw, hosts));
+        } catch (IOException e) {
+            return e.getMessage();
+        }
+    }
+
     /// Takes over the switched-off hosts — from the Hosts submenu or a
     /// settings save — for the polls and the list.
-    // [impl->dsn~host-on-off~1]
+    // [impl->dsn~host-on-off~2]
     private void applyInactiveHosts(List<String> hosts) {
         inactiveHosts = Set.copyOf(hosts);
         MainWindow window = this.window;
@@ -2562,7 +2608,7 @@ public class Main extends Application {
         // The manual sync is the user asking — it tries every host that is
         // on; the periodic one also skips a backed-off host.
         // [impl->dsn~ssh-host-backoff~1]
-        // [impl->dsn~host-on-off~1]
+        // [impl->dsn~host-on-off~2]
         Set<String> off = inactiveHosts;
         List<String> remotes = configured.stream()
                 .filter(remote -> announce ? !off.contains(remote) : pollable(remote))
@@ -2904,7 +2950,7 @@ public class Main extends Application {
     }
 
     /// The wizard's answers kept for after the window is up — its first
-    /// project is created there. [impl->dsn~setup-wizard~9]
+    /// project is created there. [impl->dsn~setup-wizard~10]
     private SetupWizard.@Nullable Result firstProject;
 
     /// The first-start wizard, on a task directory that is missing or empty
@@ -2916,7 +2962,7 @@ public class Main extends Application {
     /// it right away); a task repository URL is cloned into the task
     /// directory; the first project waits in [#firstProject]. Cancel leaves
     /// everything as it was: an empty directory, seeded with `TEMPLATE.md`.
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     // [impl->dsn~task-git-clone-setup~2]
     private AppSettings runSetupWizard(AppSettings settings) throws IOException {
         Path tasksDir = settings.tasksDir();
@@ -2940,7 +2986,7 @@ public class Main extends Application {
     /// ten-second default, since they download release zips; on the remote
     /// through ssh, locally through the same `sh -c` the local tmux runner
     /// uses. `offerClone` is the first-start flag (`SetupWizard.show`).
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     private Optional<SetupWizard.Result> showSetupWizard(boolean offerClone,
             SetupWizard.Prefill prefill, AppSettings settings) {
         String home = System.getProperty("user.home");
@@ -2959,39 +3005,45 @@ public class Main extends Application {
                         this::openUrl, () -> {
                             ExtensionServer server = this.extensionServer;
                             return server == null ? null : server.connectedBrowser();
-                        }));
+                        }, InstalledExtension::find),
+                // On the first start the window is not up yet; a category a
+                // cloned task repository brings is caught at creation instead.
+                name -> {
+                    MainWindow window = this.window;
+                    return window == null || window.freeCategoryName(name, "Back");
+                });
     }
 
     /// Patches the wizard's settings answers into `settings.yaml` — a remote
     /// not yet listed, and the RefactoringMiner directory the tools page
     /// found or installed (the setting the badge and the view are gated on,
     /// `dsn~recommended-tools~2`) — and returns the re-read settings.
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     // [impl->dsn~recommended-tools~2]
     private static AppSettings applyWizardSettings(AppSettings settings, SetupWizard.Result result)
             throws IOException {
-        AppSettings current = settings;
-        if (result.remote() != null && !settings.remotes().contains(result.remote())) {
-            List<String> remotes = new java.util.ArrayList<>(settings.remotes());
-            remotes.add(result.remote());
-            String error = writeSettingsFile(configDir(),
-                    YamlPatch.set(readSettingsFile(configDir()), "remotes", remotes));
-            if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot write the remote to settings.yaml: "
-                        + error).showAndWait();
-            }
-            current = AppSettings.loadOrCreate(configDir());
+        // The session host becomes (or updates) its row of the host table:
+        // the workspaces directory asked on the remote page, and the
+        // RefactoringMiner directory the tools page found or installed there.
+        String remote = result.remote();
+        if (remote == null) {
+            return settings;
         }
-        if (result.refactoringMinerHome() != null) {
-            String error = writeSettingsFile(configDir(), YamlPatch.set(readSettingsFile(configDir()),
-                    "refactoringMinerHome", result.refactoringMinerHome()));
-            if (error != null) {
-                new Alert(Alert.AlertType.ERROR,
-                        "Cannot write refactoringMinerHome to settings.yaml: " + error).showAndWait();
+        String error = updateHost(remote, host -> {
+            HostSettings updated = host;
+            if (result.workspaces() != null) {
+                updated = updated.withWorkspaces(result.workspaces());
             }
-            current = AppSettings.loadOrCreate(configDir());
+            if (result.refactoringMinerHome() != null) {
+                updated = updated.withRefactoringMiner(result.refactoringMinerHome());
+            }
+            return updated;
+        });
+        if (error != null) {
+            new Alert(Alert.AlertType.ERROR, "Cannot write the host to settings.yaml: "
+                    + error).showAndWait();
         }
-        return current;
+        return AppSettings.loadOrCreate(configDir());
     }
 
     /// The wizard from the menu, with the window up: the same pages minus
@@ -3000,7 +3052,7 @@ public class Main extends Application {
     /// remotes are read fresh by every consumer, so a new one works at once;
     /// the refactoring badge's poller starts at startup only, so a newly
     /// installed RefactoringMiner is announced as needing a restart.
-    // [impl->dsn~setup-wizard~9]
+    // [impl->dsn~setup-wizard~10]
     private void rerunSetupWizard() {
         MainWindow window = this.window;
         if (window == null) {
@@ -3008,20 +3060,24 @@ public class Main extends Application {
         }
         try {
             AppSettings before = AppSettings.loadOrCreate(configDir());
-            // The fields start from what is configured: the first remote,
-            // the existing roots' parent, the RefactoringMiner directory,
+            // The fields start from what is configured: the first switched-on
+            // host (else the first one), every host as a choice, the
+            // workspaces directory per host, its RefactoringMiner directory,
             // and whether there are categories to add another one to.
-            SetupWizard.Prefill prefill = new SetupWizard.Prefill(
-                    before.remotes().isEmpty() ? null : before.remotes().getFirst(),
-                    window.configuredWorkspacesParent(), before.refactoringMinerHome(),
-                    window.hasCategories());
+            String first = before.hosts().stream().filter(HostSettings::active)
+                    .map(HostSettings::destination).findFirst()
+                    .orElse(before.remotes().isEmpty() ? null : before.remotes().getFirst());
+            SetupWizard.Prefill prefill = new SetupWizard.Prefill(first,
+                    window::configuredWorkspacesParent,
+                    before.refactoringMinerHome(first),
+                    window.hasCategories(), before.remotes());
             SetupWizard.Result result = showSetupWizard(false, prefill, before).orElse(null);
             if (result == null) {
                 return;
             }
             AppSettings after = applyWizardSettings(before, result);
             String message = "Setup saved.";
-            if (after.refactoringMinerHome() != null && this.refactoringPoller == null) {
+            if (after.anyRefactoringMiner() && this.refactoringPoller == null) {
                 message = "Setup saved — restart for the refactoring badge.";
             }
             window.statusBar().message(message);
@@ -3445,17 +3501,40 @@ public class Main extends Application {
     // [impl->dsn~task-create-progress~5]
     private void finishCreation(MainWindow window, String taskId, @Nullable String windowId,
             String remote) {
+        finishCreation(window, taskId, windowId, remote, null);
+    }
+
+    /// [#finishCreation(MainWindow, String, String, String)] with the
+    /// `reason` a failed creation shows instead of the generic one.
+    private void finishCreation(MainWindow window, String taskId, @Nullable String windowId,
+            String remote, @Nullable String reason) {
         creationSteps.remove(taskId);
         windowedCreations.remove(taskId);
         window.creationDone(taskId);
         if (windowId == null) {
             creationFinished(window, "Task creation failed.");
             window.noteTaskCreationFailed();
-            new Alert(Alert.AlertType.ERROR,
-                    "Cannot create a tmux window on " + remote + " (see log).").show();
+            new Alert(Alert.AlertType.ERROR, reason != null ? reason
+                    : "Cannot create a tmux window on " + remote + " (see log).").show();
             return;
         }
         creationFinished(window, "Task created.");
+    }
+
+    /// `mkdir -p`s `dir` on `remote` so `tmux new-window -c` can start there,
+    /// and returns null — or, when that fails, the message to show. The
+    /// failure stops the creation: tmux silently starts a window whose `-c`
+    /// directory is missing in the home directory instead, and the session
+    /// then sets up a workspace in the wrong place (field report 2026-10-11,
+    /// another machine's `/data/kopp` proposed on one without `/data`).
+    // [impl->dsn~task-create-live~8]
+    private static @Nullable String makeDirectory(SshCommandRunner ssh, String remote, String dir) {
+        SshCommandRunner.SshResult made = ssh.run(remote, List.of("mkdir", "-p", "'" + dir + "'"));
+        if (made.ok()) {
+            return null;
+        }
+        String why = made.stderr().strip();
+        return "Cannot create " + dir + " on " + remote + (why.isEmpty() ? "." : ": " + why);
     }
 
     /// Announces a started async task creation in the status bar. Creations
@@ -3535,7 +3614,7 @@ public class Main extends Application {
         // [impl->dsn~task-create-progress~5]
         // The description lives under # Notes from the start, so nothing
         // is lost when the title is later replaced by Claude's @cs_title.
-        String content = ClaudeWindowLauncher.liveTaskContent(title, remote, workdir)
+        String content = ClaudeWindowLauncher.liveTaskContent(title, remote, workdir, appendix)
                 + (hints ? "\nCreated on %s.\n".formatted(LocalDate.now()) : "");
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~1]
@@ -3572,8 +3651,10 @@ public class Main extends Application {
         executor.execute(() -> {
             // Ensure the workspace root exists so `tmux new-window -c` succeeds
             // (Claude then creates the per-task worktree under it).
-            if (workdir != null) {
-                ssh.run(remote, List.of("mkdir", "-p", "'" + workdir + "'"));
+            String unmade = workdir == null ? null : makeDirectory(ssh, remote, workdir);
+            if (unmade != null) {
+                Platform.runLater(() -> finishCreation(window, taskId, null, remote, unmade));
+                return;
             }
             String windowId = new ClaudeWindowLauncher(ssh, sender, claudeAuto)
                     .launch(remote, session, title, prompt, workdir, mode,
@@ -3774,8 +3855,10 @@ public class Main extends Application {
         creationStarted(window);
         creationStep(window, task.id(), "Creating the tmux window …");
         executor.execute(() -> {
-            if (cwd != null) {
-                ssh.run(remote, List.of("mkdir", "-p", "'" + cwd + "'"));
+            String unmade = cwd == null ? null : makeDirectory(ssh, remote, cwd);
+            if (unmade != null) {
+                Platform.runLater(() -> finishCreation(window, task.id(), null, remote, unmade));
+                return;
             }
             String windowId;
             if (withClaude) {
@@ -3863,8 +3946,14 @@ public class Main extends Application {
         }
         String session = usualSession(repository, remote);
         executor.execute(() -> {
-            if (cwd != null) {
-                ssh.run(remote, List.of("mkdir", "-p", "'" + cwd + "'"));
+            String unmade = cwd == null ? null : makeDirectory(ssh, remote, cwd);
+            if (unmade != null) {
+                Platform.runLater(() -> {
+                    if (currentWindow != null) {
+                        currentWindow.statusBar().message(unmade);
+                    }
+                });
+                return;
             }
             String windowId = new TmuxResurrect(ssh).createWindow(remote, session, cwd, "scratch");
             if (windowId == null) {
@@ -4012,17 +4101,17 @@ public class Main extends Application {
         } catch (IOException e) {
             Logger.warn("Cannot re-read settings, using startup values: {}", e.getMessage());
         }
-        String rmHome = settings.refactoringMinerHome();
-        if (rmHome == null) {
-            window.statusBar().message(
-                    "Set refactoringMinerHome in the settings to enable the refactoring view.");
-            onSettled.run();
-            return;
-        }
         Task.ClaudeConfig claude = task.claude();
         String remote = task.remote();
         if (claude == null || remote == null) {
             window.statusBar().message("No remote workspace known for this task.");
+            onSettled.run();
+            return;
+        }
+        String rmHome = settings.refactoringMinerHome(remote);
+        if (rmHome == null) {
+            window.statusBar().message("Set the RefactoringMiner directory of " + remote
+                    + " in the settings' host table to enable the refactoring view.");
             onSettled.run();
             return;
         }
@@ -4898,7 +4987,7 @@ public class Main extends Application {
         // batch `dsn~claude-pr-capture~2` already built for the periodic
         // footer poll — not one connection per window, which is what made a
         // single reconcile cost eleven of them on a host with ten Claude
-        // windows, over the six global slots of `dsn~ssh-command-runner~6`.
+        // windows, over the six global slots of `dsn~ssh-command-runner~7`.
         // [impl->dsn~claude-pr-capture~2]
         Map<String, List<String>> footerPrs = prLookup.findPrUrls(host,
                 sessions.stream().flatMap(session -> session.windows().stream())

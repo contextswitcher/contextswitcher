@@ -10,14 +10,27 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Added
 
+- The settings dialog shows the hosts as one table: ssh destination, whether it is switched on, its workspaces directory and its RefactoringMiner directory — each per host instead of one RefactoringMiner directory for all of them. An older settings file is rewritten in the new shape when the app starts.
+- Adding a host in the setup wizard asks for its workspaces directory, and so does the first category on a host that has none yet.
+- The setup wizard lists the configured hosts to pick from, next to "Another machine" for a new one, and fills in a known host's workspaces directory right away.
 - The setup wizard's recommended-tools page has a "Recheck" button next to "Install", so a tool installed some other way while the page is open shows as found.
 - Hovering "Install" on that page says what it does and where it puts it: RefactoringMiner under `~/.contextswitcher`, ast-grep and codegraph in `~/.local/bin` with their Claude Code skills.
+- When a category of that name already exists, the setup wizard and "Add category from URL" offer to rename the existing category (proposed as `<name>-<host>`, or `<name>-local`) instead of only reporting the clash; "Back" returns to the wizard.
 
 ### Changed
 
-- Re-running the setup wizard skips the browser-extension page when the extension is already connected.
+- The task and category forms call the remote field "Host" and offer the configured hosts in a drop-down; any other ssh destination can still be typed in.
+- The setup wizard proposes a workspaces root next to the existing ones on the chosen host, no longer next to another machine's.
+- The setup wizard skips the browser-extension page when the extension is already installed in Firefox or Chrome, even with the browser closed or on the first start, not only when it is connected.
 - The setup wizard's last page is headed "First category", or "Add a category" when categories already exist, instead of "Your first project".
+- The setup wizard's "Finish and check up" button sits right after "Finish", and the wizard is wider, so the button labels and the last page's explanation are no longer cut off.
 - Pressing *Restart to update* in the What's new window now greys out its buttons and reads "Closing …" while the app saves and leaves, instead of seeming to hang.
+
+### Fixed
+
+- A category's setup task keeps the CLAUDE.md template in its notes, so it can be started again from the task itself when the first launch went wrong.
+- A remote whose login shell is fish now works: task status, the terminal mirror's reattach and the pull request lookup no longer fail there with fish syntax errors.
+- Creating a task or category whose workspaces root cannot be created on the remote now stops with the remote's error, instead of starting the session in the home directory.
 
 ## [2026-10-10] - 2026-10-10
 
@@ -79,7 +92,7 @@ The topmost section is the day in progress — its link points at `main` until t
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
-[2026-10-11]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-10...main
+[2026-10-11]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-10...v2026-10-11
 [2026-10-10]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-01...v2026-10-10
 [2026-10-01]: https://github.com/contextswitcher/contextswitcher/compare/v2026-09-28...v2026-10-01
 [2026-09-28]: https://github.com/contextswitcher/contextswitcher/compare/v2026-09-27...v2026-09-28

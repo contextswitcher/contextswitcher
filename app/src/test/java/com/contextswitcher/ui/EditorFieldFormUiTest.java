@@ -15,6 +15,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -88,7 +89,9 @@ class EditorFieldFormUiTest {
         openTaskInEditor();
         openForm();
 
-        TextField remote = awaitControl(TextField.class, "field-remote");
+        // The host field is an editable drop-down of the settings' hosts
+        // (dsn~host-table~1); its editor holds the value.
+        TextField remote = awaitControl(ComboBox.class, "field-remote").getEditor();
         // Pre-filled with what the file configures; untouched fields stay empty.
         assertThat(text(remote)).isEqualTo("devbox");
         assertThat(text(awaitControl(TextField.class, "field-chat"))).isEmpty();
@@ -121,7 +124,7 @@ class EditorFieldFormUiTest {
         // removes its key — the form edits the file, it does not only add to it.
         assertThat(text(awaitControl(TextArea.class, "field-browser-urls")))
                 .isEqualTo("https://example.org/pr/1 — The PR");
-        set(awaitControl(TextField.class, "field-remote"), "");
+        set(awaitControl(ComboBox.class, "field-remote").getEditor(), "");
         clickById("config-apply-button");
 
         String cleared = awaitAbsent("remote:");

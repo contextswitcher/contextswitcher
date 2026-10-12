@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // [utest->dsn~terminal-mouse-scroll~9]
 // [utest->dsn~terminal-jump-to-bottom~1]
 // [utest->dsn~terminal-clear-input~3]
-// [utest->dsn~ssh-command-runner~6]
+// [utest->dsn~ssh-command-runner~7]
 // [utest->dsn~terminal-local-mirror~2]
 // [utest->dsn~terminal-mirrored-task~1]
 class TmuxMirrorCommandsTest {

@@ -391,6 +391,19 @@ public class ClaudeWindowLauncher {
     /// window id is added afterwards (`TaskFileParser.withTmuxSection`).
     // [impl->dsn~task-create-live~8]
     public static String liveTaskContent(String description, String remote, @Nullable String workdir) {
+        return liveTaskContent(description, remote, workdir, null);
+    }
+
+    /// [#liveTaskContent(String, String, String)] with the `appendix` the
+    /// prompt carries after the description (a category setup's CLAUDE.md
+    /// template) under `# Notes` as well: the description refers to it ("the
+    /// template at the end"), so a task whose first launch failed must still
+    /// hold it to be done again from its own file.
+    // [impl->dsn~task-create-live~8]
+    public static String liveTaskContent(String description, String remote, @Nullable String workdir,
+            @Nullable String appendix) {
+        String notes = appendix == null || appendix.isBlank()
+                ? description.strip() : description.strip() + "\n\n" + appendix.strip();
         String claudeSection = workdir == null ? ""
                 : "claude:\n  cwd: " + TaskFileParser.yamlScalar(workdir) + "\n";
         return """
@@ -404,6 +417,6 @@ public class ClaudeWindowLauncher {
 
                 %s
                 """.formatted(TaskFileParser.yamlScalar(description), TaskFileParser.yamlScalar(remote),
-                claudeSection, description.strip());
+                claudeSection, notes);
     }
 }

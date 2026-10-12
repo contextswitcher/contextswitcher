@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import javafx.application.Platform;
@@ -22,6 +23,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
@@ -49,16 +51,18 @@ import com.contextswitcher.tasks.TaskFileParser;
 ///
 /// One `Dialog` with swapped pages rather than six dialogs: Back works, and
 /// Cancel on any page leaves everything as it was.
-// [impl->dsn~setup-wizard~9]
+// [impl->dsn~setup-wizard~10]
 public final class SetupWizard {
 
     /// The wizard's answers. `remote` is null for local sessions; every
     /// other field is null when the page was left empty. `checkup` is true
     /// when the wizard was left through *Finish and check up*: the first
     /// project's setup session then goes on to [#CHECKUP_PROMPT].
+    /// `workspaces` is the directory new workspaces roots go under on the
+    /// remote, asked on its page (`dsn~host-table~1`).
     public record Result(@Nullable String remote, @Nullable String taskRepoUrl,
             @Nullable String repoUrl, @Nullable String workspacesRoot, RepoType repoType,
-            @Nullable String refactoringMinerHome, boolean checkup) {
+            @Nullable String refactoringMinerHome, boolean checkup, @Nullable String workspaces) {
 
         public boolean local() {
             return remote == null;
@@ -76,25 +80,35 @@ public final class SetupWizard {
 
     /// What an existing configuration pre-fills on a re-run: the `host`
     /// (the first configured remote; null selects the local choice), the
-    /// `workspacesParent` a new root is proposed under (the existing roots'
-    /// parent, else the checked home), the configured
-    /// `refactoringMinerHome` to probe, and whether `categoriesExist` — then
-    /// the last page adds one rather than creating the first. `EMPTY` on the
-    /// first start.
-    public record Prefill(@Nullable String host, @Nullable String workspacesParent,
-            @Nullable String refactoringMinerHome, boolean categoriesExist) {
+    /// `workspacesParent` a new root is proposed under — per session host,
+    /// the parent of that host's existing roots, null for none (then the
+    /// checked home) — the configured
+    /// `refactoringMinerHome` to probe, whether `categoriesExist` — then
+    /// the last page adds one rather than creating the first — and the
+    /// `knownHosts`, the host table's ssh destinations the remote page offers
+    /// as choices next to typing a new one. `EMPTY` on the first start.
+    public record Prefill(@Nullable String host,
+            java.util.function.Function<String, @Nullable String> workspacesParent,
+            @Nullable String refactoringMinerHome, boolean categoriesExist, List<String> knownHosts) {
 
-        public static final Prefill EMPTY = new Prefill(null, null, null, false);
+        public static final Prefill EMPTY = new Prefill(null, sessionHost -> null, null, false, List.of());
+
+        public Prefill {
+            knownHosts = List.copyOf(knownHosts);
+        }
     }
 
     /// The browser-extension page's facts: the app's WebSocket `port` and
     /// `token` the extension's options page needs, the configured `browser`
     /// (whose install notes the button opens through `openUrl`), and
     /// `connected` — the browser whose extension is talking to the app right
-    /// now, null when none is or (first start) the server is not up yet. A
-    /// connected extension when the wizard opens skips the page.
+    /// now, null when none is or (first start) the server is not up yet — and
+    /// `installed`, the browser whose profile files list the extension
+    /// (`InstalledExtension`), null when none does. Either one when the wizard
+    /// opens skips the page: a connection needs that browser running, while
+    /// the profile files answer with it closed and on the first start too.
     public record Extension(int port, String token, Browser browser, Consumer<String> openUrl,
-            Supplier<@Nullable Browser> connected) {
+            Supplier<@Nullable Browser> connected, Supplier<@Nullable Browser> installed) {
     }
 
     /// The install notes per browser, on the repository's main branch.
@@ -220,13 +234,24 @@ public final class SetupWizard {
     public static Optional<Result> show(SshCommandRunner ssh, Supplier<Verdict> localCheck,
             SshCommandRunner tools, String localParent, boolean onWindows, boolean offerClone,
             Prefill prefill, Extension extension) {
+        return show(ssh, localCheck, tools, localParent, onWindows, offerClone, prefill, extension,
+                name -> true);
+    }
+
+    /// As above; `freeCategoryName` is asked on Finish whether the project's
+    /// category name can be taken — on a clash it offers to rename the
+    /// existing category (`MainWindow.freeCategoryName`), and false keeps the
+    /// wizard on its last page.
+    // [impl->dsn~category-name-clash~1]
+    public static Optional<Result> show(SshCommandRunner ssh, Supplier<Verdict> localCheck,
+            SshCommandRunner tools, String localParent, boolean onWindows, boolean offerClone,
+            Prefill prefill, Extension extension, Predicate<String> freeCategoryName) {
         Dialog<Result> dialog = new Dialog<>();
         dialog.setTitle(offerClone ? "Welcome to ContextSwitcher" : "ContextSwitcher setup");
         dialog.setGraphic(new ImageView(AppIcon.image(48)));
         dialog.setResizable(true);
         ButtonType back = new ButtonType("Back", ButtonBar.ButtonData.BACK_PREVIOUS);
         ButtonType next = new ButtonType("Next", ButtonBar.ButtonData.NEXT_FORWARD);
-        // OTHER sits between Next and Cancel in every platform's button order.
         ButtonType checkup = new ButtonType("Finish and check up", ButtonBar.ButtonData.OTHER);
         // On the clone page: a cloned task repository already holds its
         // projects, so the first-project page is rarely wanted after it.
@@ -240,6 +265,7 @@ public final class SetupWizard {
         checkupButton.setId("setup-checkup");
         checkupButton.setTooltip(new javafx.scene.control.Tooltip(
                 "Once the category is set up, its session is asked: " + CHECKUP_PROMPT));
+        followForward((ButtonBar) dialog.getDialogPane().lookup(".button-bar"));
         nextButton.setDefaultButton(true);
 
         // Page 1: where sessions run.
@@ -326,6 +352,16 @@ public final class SetupWizard {
         }
         @Nullable String[] remoteHome = {null};
         boolean[] verified = {false};
+        // The host's workspaces directory, asked here once the check knows
+        // the home: the host table's value or the existing roots' parent
+        // when there is one, else <home>/workspaces — until edited by hand.
+        // [impl->dsn~host-table~1]
+        TextField workspaces = new TextField();
+        workspaces.setId("setup-workspaces");
+        workspaces.setPromptText("/home/me/workspaces");
+        workspaces.setPrefColumnCount(30);
+        boolean[] workspacesEdited = {false};
+        workspaces.setOnKeyTyped(event -> workspacesEdited[0] = true);
         // The host the answers are about: the pseudo-host for this machine, a
         // `wsl:<distro>` one for WSL, the typed ssh destination otherwise.
         // [impl->dsn~wsl-sessions~1]
@@ -345,6 +381,11 @@ public final class SetupWizard {
                     test.setDisable(false);
                     verified[0] = outcome.ok();
                     remoteHome[0] = outcome.ok() ? outcome.probe().home() : null;
+                    if (outcome.ok() && !workspacesEdited[0]) {
+                        String known = prefill.workspacesParent().apply(target);
+                        workspaces.setText(known != null ? known
+                                : outcome.probe().home().replaceAll("/+$", "") + "/workspaces");
+                    }
                     verdict.setText(outcome.ok() ? outcome.message() : outcome.message()
                             + (wslChoice.isSelected()
                                     ? "\nNext tries again; check `wsl -l -v` in a terminal if the "
@@ -358,12 +399,64 @@ public final class SetupWizard {
             });
         };
         test.setOnAction(event -> runTest.accept(() -> { }));
+        // A known host's workspaces directory is known without the check:
+        // shown as soon as the host is, until typed into. [impl->dsn~host-table~1]
+        java.util.function.Consumer<String> knownWorkspaces = target -> {
+            if (!workspacesEdited[0]) {
+                String known = target.isBlank() ? null : prefill.workspacesParent().apply(target);
+                workspaces.setText(known == null ? "" : known);
+            }
+        };
         host.textProperty().addListener((obs, old, text) -> {
             verified[0] = false;
             verdict.setText("");
+            knownWorkspaces.accept(text.strip());
         });
+        knownWorkspaces.accept(host.getText().strip());
+        // The configured hosts as choices, plus "Another machine" with the
+        // destination field — picking one fills the field (read-only then),
+        // so the check and the result keep reading the field.
+        // [impl->dsn~host-table~1]
+        VBox knownRows = new VBox(4);
+        List<String> known = prefill.knownHosts().stream()
+                .filter(destination -> !TmuxHost.isWsl(destination) && !TmuxHost.isLocal(destination))
+                .toList();
+        if (!known.isEmpty()) {
+            ToggleGroup hostChoice = new ToggleGroup();
+            RadioButton another = new RadioButton("Another machine:");
+            another.setId("setup-host-other");
+            another.setToggleGroup(hostChoice);
+            for (int i = 0; i < known.size(); i++) {
+                RadioButton choice = new RadioButton(known.get(i));
+                choice.setId("setup-known-host-" + i);
+                choice.setUserData(known.get(i));
+                choice.setToggleGroup(hostChoice);
+                knownRows.getChildren().add(choice);
+            }
+            knownRows.getChildren().add(another);
+            hostChoice.selectedToggleProperty().addListener((obs, old, picked) -> {
+                if (picked != null && picked.getUserData() instanceof String destination) {
+                    host.setText(destination);
+                    host.setDisable(true);
+                } else {
+                    if (known.stream().anyMatch(host.getText().strip()::equalsIgnoreCase)) {
+                        host.clear();
+                    }
+                    host.setDisable(false);
+                    Platform.runLater(host::requestFocus);
+                }
+            });
+            String start = host.getText().strip();
+            hostChoice.selectToggle(knownRows.getChildren().stream()
+                    .map(RadioButton.class::cast)
+                    .filter(choice -> choice.getUserData() instanceof String destination
+                            && destination.equalsIgnoreCase(start))
+                    .findFirst().orElse(start.isEmpty() ? (RadioButton) knownRows.getChildren().getFirst()
+                            : another));
+        }
         VBox sshRows = new VBox(8,
                 new Label("ssh destination (an alias from ~/.ssh/config, or user@host)"),
+                knownRows,
                 new HBox(6, host, test),
                 muted("Key-based access is required — the app never asks for a password. "
                         + "The check runs tmux -V and claude --version there."));
@@ -390,8 +483,14 @@ public final class SetupWizard {
         distro.getEditor().textProperty().addListener((obs, old2, text) -> {
             verified[0] = false;
             verdict.setText("");
+            knownWorkspaces.accept(TmuxHost.wslHost(text));
         });
-        VBox page2 = page("Which machine?", sshRows, wslRows, verdict);
+        VBox workspacesRows = new VBox(8,
+                new Label("Workspaces directory there (new workspaces roots go under it)"),
+                workspaces,
+                muted("Known for a configured host, otherwise filled in once the check has run; "
+                        + "created on the first category."));
+        VBox page2 = page("Which machine?", sshRows, wslRows, verdict, workspacesRows);
 
         // Page 3: the recommended tools, one row each — probed when the page
         // is entered and on Recheck, installed on its button, re-probed after.
@@ -539,7 +638,10 @@ public final class SetupWizard {
         Runnable followUrl = () -> {
             String name = TaskFileParser.repoName(repoUrl.getText());
             if (!rootEdited[0]) {
-                String parent = prefill.workspacesParent() != null ? prefill.workspacesParent()
+                String asked = localChoice.isSelected() ? null : blankToNull(workspaces.getText());
+                String hostParent = asked != null ? asked
+                        : prefill.workspacesParent().apply(sessionHost.get());
+                String parent = hostParent != null ? hostParent
                         : localChoice.isSelected() ? localParent
                                 : remoteHome[0] == null ? "~" : remoteHome[0];
                 // Only a session on Windows itself has Windows paths; a WSL
@@ -564,19 +666,23 @@ public final class SetupWizard {
 
         List<Node> pages = List.of(page1, page2, page3, page4, page5, page6);
         StackPane content = new StackPane(page1);
-        content.setPrefWidth(520);
+        // Wide enough for the last page's four buttons with their full labels.
+        content.setPrefWidth(600);
         dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
         int[] current = {0};
         // The remote page is skipped for local sessions; the tools page also
         // on Windows, where the installers (sh scripts) cannot run; the clone
         // page on a re-run, when the task directory is no longer empty; the
-        // extension page when an extension is already talking to the app —
-        // decided once, so Back does not lose a page the user just saw.
-        boolean extensionConnected = extension.connected().get() != null;
+        // extension page when an extension is already talking to the app or
+        // a browser profile lists it — decided once, so Back does not lose a
+        // page the user just saw.
+        boolean extensionSetUp = extension.connected().get() != null
+                || extension.installed().get() != null;
         java.util.function.IntPredicate skipped = index ->
                 index == 1 && localChoice.isSelected()
                         || index == 2 && localChoice.isSelected() && onWindows
-                        || index == 3 && extensionConnected
+                        || index == 3 && extensionSetUp
                         || index == 4 && !offerClone;
         int last = pages.size() - 1;
         Runnable render = () -> {
@@ -603,6 +709,9 @@ public final class SetupWizard {
             // page would otherwise push its buttons out of the window.
             javafx.scene.Scene scene = dialog.getDialogPane().getScene();
             if (scene != null && scene.getWindow() != null) {
+                // The new page is not styled yet; measured unstyled, its
+                // wrapped text gets too few lines.
+                dialog.getDialogPane().applyCss();
                 scene.getWindow().sizeToScene();
             }
             Platform.runLater(() -> (current[0] == 1
@@ -639,6 +748,15 @@ public final class SetupWizard {
             current[0] = index;
             render.run();
         });
+        // Registered ahead of Next's own filter, so it sees Finish first.
+        javafx.event.EventHandler<ActionEvent> clashCheck = event -> {
+            String name = TaskFileParser.repoName(repoUrl.getText());
+            if (current[0] == last && name != null && !freeCategoryName.test(name)) {
+                event.consume();
+            }
+        };
+        nextButton.addEventFilter(ActionEvent.ACTION, clashCheck);
+        checkupButton.addEventFilter(ActionEvent.ACTION, clashCheck);
         nextButton.addEventFilter(ActionEvent.ACTION, event -> {
             if (current[0] == last) {
                 return;
@@ -668,7 +786,8 @@ public final class SetupWizard {
             return new Result(localChoice.isSelected() ? null : sessionHost.get(),
                     blankToNull(cloneUrl.getText()), project,
                     project == null ? null : blankToNull(root.getText()),
-                    repoType.getValue(), rmHome[0], button == checkup);
+                    repoType.getValue(), rmHome[0], button == checkup,
+                    localChoice.isSelected() ? null : blankToNull(workspaces.getText()));
         });
         // The first start shows the wizard before the main window, which is
         // what otherwise installs `main.css` and forces the theme to take.
@@ -700,9 +819,20 @@ public final class SetupWizard {
         return box;
     }
 
+    /// Moves the OTHER buttons (*Finish and check up*, *Start right away*)
+    /// from the far left of the Windows and macOS order to right after
+    /// Next/Finish: they are alternatives to it, not to Back.
+    private static void followForward(ButtonBar bar) {
+        String order = bar.getButtonOrder().replace("U", "");
+        int forward = Math.max(order.indexOf('X'), order.indexOf('I'));
+        bar.setButtonOrder(order.substring(0, forward + 1) + "U" + order.substring(forward + 1));
+    }
+
     private static Label muted(String text) {
         Label label = new Label(text);
         label.setWrapText(true);
+        // A VBox squeezed by the window would otherwise cut it to one line.
+        label.setMinHeight(Region.USE_PREF_SIZE);
         label.getStyleClass().add(Styles.TEXT_MUTED);
         return label;
     }

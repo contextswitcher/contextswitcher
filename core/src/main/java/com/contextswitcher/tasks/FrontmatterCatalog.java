@@ -29,7 +29,11 @@ public final class FrontmatterCatalog {
         /// A fixed set of values, rendered as a drop-down ([Field#choices]).
         ENUM,
         /// A multi-line field, one list entry per line; empty removes the key.
-        LIST
+        LIST,
+        /// An ssh destination: an editable drop-down offering the settings'
+        /// hosts (`dsn~host-table~1`), any other value typed in kept; blank
+        /// means the key is not set.
+        HOST
     }
 
     /// One catalog entry: the frontmatter `key` — top-level, or one level of
@@ -80,8 +84,10 @@ public final class FrontmatterCatalog {
             // [impl->dsn~task-tag-model~2]
             new Field("tags", "Tags", "Task", Type.LIST,
                     "One tag per line; the palette and its colors are configured in settings."),
-            new Field("remote", "Remote", "Session", Type.STRING,
-                    "ssh alias or user@host — used by every remote action of the task."),
+            // [impl->dsn~host-table~1]
+            new Field("remote", "Host", "Session", Type.HOST,
+                    "ssh destination (user@host or an alias) — one of the settings' hosts or any "
+                            + "other; used by every remote action of the task."),
             new Field("tmux.session", "tmux session", "Session", Type.STRING,
                     "Session holding the task's window, e.g. 0."),
             new Field("tmux.window", "tmux window", "Session", Type.STRING,
@@ -168,8 +174,10 @@ public final class FrontmatterCatalog {
                     "How long a task is kept after its PR left the search, if the category "
                             + "deletes automatically; 0 = kept. "
                             + "Empty means " + GroupConfig.AutoPr.DEFAULT_DELETE_HOURS + "."),
-            new Field("remote", "Remote", "Defaults for its tasks", Type.STRING,
-                    "ssh alias or user@host a new task in the category inherits."),
+            // [impl->dsn~host-table~1]
+            new Field("remote", "Host", "Defaults for its tasks", Type.HOST,
+                    "ssh destination (user@host or an alias) a new task in the category "
+                            + "inherits — one of the settings' hosts or any other."),
             // [impl->dsn~category-action-defaults~1]
             new Field("intellij", "Open in IntelliJ", "Defaults for its tasks", Type.BOOLEAN,
                     "Used by every task of the category that configures no intellij section."),

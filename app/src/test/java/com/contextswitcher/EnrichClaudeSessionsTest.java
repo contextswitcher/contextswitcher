@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// Field report 2026-09-12: the periodic reconcile opened one ssh connection
 /// per Claude window to scrape the PR footer. With ten windows that is eleven
 /// connections a tick through the six global slots of
-/// `dsn~ssh-command-runner~6` — invisible at one tick a minute, and eleven
+/// `dsn~ssh-command-runner~7` — invisible at one tick a minute, and eleven
 /// minutes of saturation once a woken laptop replayed a backlog of ticks
 /// (`dsn~poll-no-wake-backlog~1`). The batch was already there for the footer
 /// poll; this pins that the reconcile takes it.

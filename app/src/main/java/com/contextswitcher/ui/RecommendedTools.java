@@ -20,7 +20,7 @@ import com.contextswitcher.analysis.RefactoringMinerCommands;
 /// Pure argv builders (`sh -c '<script>'`), run through an
 /// `SshCommandRunner` on the remote or, via `HostCommandRunner`, on this
 /// machine. Same transport constraint as every remote command: no double
-/// quotes anywhere (`dsn~ssh-command-runner~6`).
+/// quotes anywhere (`dsn~ssh-command-runner~7`).
 // [impl->dsn~recommended-tools~2]
 public final class RecommendedTools {
 
