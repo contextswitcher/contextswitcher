@@ -60,16 +60,19 @@ final class ConfigFormPane {
     private boolean revertingToggle;
     /// The settings' host destinations a host field offers, read per build.
     private final Supplier<List<String>> hosts;
+    /// The desktop names a desktop field suggests, read per build.
+    private final Supplier<List<String>> desktops;
 
     /// `rawEditor` is the editor lane's frontmatter editor (it auto-saves on
     /// focus loss); `text` and `apply` read and replace-and-save the whole buffer.
     ConfigFormPane(Node rawEditor, Supplier<String> text, Consumer<String> apply, BooleanSupplier category,
-            Supplier<List<String>> hosts) {
+            Supplier<List<String>> hosts, Supplier<List<String>> desktops) {
         this.rawEditor = rawEditor;
         this.text = text;
         this.apply = apply;
         this.category = category;
         this.hosts = hosts;
+        this.desktops = desktops;
         // Icon-only like every pane toolbar's controls; the tooltip names each.
         // [impl->dsn~task-field-form~4]
         rawToggle.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
@@ -134,7 +137,7 @@ final class ConfigFormPane {
             return;
         }
         List<Field> fields = category.getAsBoolean() ? FrontmatterCatalog.CATEGORY : FrontmatterCatalog.TASK;
-        ConfigForm built = new ConfigForm(fields, content, hosts.get());
+        ConfigForm built = new ConfigForm(fields, content, hosts.get(), desktops.get());
         form = built;
         ScrollPane scroll = new ScrollPane(built.render());
         scroll.setFitToWidth(true);

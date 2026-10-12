@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -1278,7 +1279,7 @@ public class MainWindow {
                     return name != null && isGroupConfig(name);
                 },
                 // [impl->dsn~host-table~1]
-                configuredRemotes);
+                configuredRemotes, this::knownDesktops);
         configFormPane = pane;
         selectOnClick.accept(pane.getRoot());
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(
@@ -4806,6 +4807,27 @@ public class MainWindow {
             return desktop;
         }
         return fallbackDesktop.isBlank() ? null : fallbackDesktop;
+    }
+
+    /// The virtual desktop names the app knows — those the categories name,
+    /// the active one and the fallback — for the configuration form to
+    /// suggest, sorted ignoring case.
+    // [impl->dsn~task-field-form~4]
+    private List<String> knownDesktops() {
+        Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        folders.forEach(group -> {
+            String desktop = groupDefaults(group).desktop();
+            if (desktop != null && !desktop.isBlank()) {
+                names.add(desktop);
+            }
+        });
+        if (activeDesktop != null) {
+            names.add(activeDesktop);
+        }
+        if (!fallbackDesktop.isBlank()) {
+            names.add(fallbackDesktop);
+        }
+        return List.copyOf(names);
     }
 
     /// Opens a throwaway tmux window on the category's remote (its config's

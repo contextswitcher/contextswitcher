@@ -10,6 +10,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Added
 
+- The "Virtual desktop" field of a category's configuration suggests desktop names while typing: the desktops the other categories use, the active desktop and the fallback desktop. Press Down to see them all.
 - The setup wizard installs Claude Code's status reporting hooks on the session host, keeping the hooks and settings already there. With them, a session reports its status, its id and the directory it works in, so tasks get their status dot and deleting a task offers to remove its worktree and transcript. Before, a host set up through the wizard reported none of this.
 
 ### Fixed
