@@ -21,6 +21,7 @@ import javafx.geometry.Point2D;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Labeled;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextArea;
@@ -233,6 +234,50 @@ final class UiTestSupport {
         } catch (Exception e) {
             throw new AssertionError(e);
         }
+    }
+
+    /// The texts of all showing labels and buttons in `node`'s window that
+    /// JavaFX cut off with an ellipsis — what CLAUDE.md's "No truncated text"
+    /// rule forbids.
+    static List<String> truncatedTexts(Node node) {
+        // A pulse for the layout to settle once the window is shown.
+        sleep();
+        return onFxThread(() -> node.getScene().getRoot().lookupAll("*").stream()
+                .filter(Labeled.class::isInstance).map(Labeled.class::cast)
+                .filter(labeled -> shown(labeled)
+                        && !drawn(labeled).equals(java.util.Objects.toString(labeled.getText(), "")))
+                .map(Labeled::getText)
+                .toList());
+    }
+
+    private static <T> T onFxThread(java.util.concurrent.Callable<T> callable) {
+        FutureTask<T> task = new FutureTask<>(callable);
+        Platform.runLater(task);
+        try {
+            return task.get();
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    /// The text `labeled` actually draws — its skin's text node, which holds
+    /// the ellipsis when the text did not fit.
+    private static String drawn(Labeled labeled) {
+        return labeled.getChildrenUnmodifiable().stream()
+                .filter(javafx.scene.text.Text.class::isInstance)
+                .map(text -> ((javafx.scene.text.Text) text).getText())
+                .findFirst().orElse("");
+    }
+
+    /// Whether `node` and every parent are visible — a page or field group
+    /// the wizard has hidden lays out at zero width and "truncates" all of it.
+    private static boolean shown(Node node) {
+        for (Node at = node; at != null; at = at.getParent()) {
+            if (!at.isVisible()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static void sleep() {

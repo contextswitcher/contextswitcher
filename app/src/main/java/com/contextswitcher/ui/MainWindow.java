@@ -3148,12 +3148,15 @@ public class MainWindow {
         field.textProperty().addListener((obs, old, text) -> updateMode.accept(text));
         modeLabel.getStyleClass().add(Styles.TEXT_MUTED);
         Label remoteHint = new Label();
-        remoteHint.getStyleClass().add(Styles.TEXT_MUTED);
         Label localHint = new Label();
-        localHint.getStyleClass().add(Styles.TEXT_MUTED);
         Label keysHint = new Label("Enter starts a new line; three Enters or three"
                 + " Ctrl+Enters in a row create the task. Drop files to attach them.");
-        keysHint.getStyleClass().add(Styles.TEXT_MUTED);
+        for (Label hint : List.of(remoteHint, localHint, keysHint)) {
+            hint.getStyleClass().add(Styles.TEXT_MUTED);
+            hint.setWrapText(true);
+            // The VBox gives the field what it can; a hint keeps all its lines.
+            hint.setMinHeight(Region.USE_PREF_SIZE);
+        }
         // Model and effort for the new session, sent as `/model`/`/effort`
         // ahead of the context prompt; ignored by `Add plain task` (no chat).
         // [impl->dsn~claude-mode-select~3]
@@ -3172,7 +3175,13 @@ public class MainWindow {
         // Enlarging the dialog grows the description field, not the hints.
         VBox.setVgrow(field, Priority.ALWAYS);
         content.setPadding(new Insets(8));
+        // A fixed width, so the hints wrap and the quick message strip pages
+        // instead of either one setting the dialog's width.
+        content.setPrefWidth(620);
         dialog.getDialogPane().setContent(content);
+        // Out from under AtlantaFX's 600px cap (main.css): the four buttons
+        // need more with a wider font (Windows), and the cap cut their labels.
+        dialog.getDialogPane().getStyleClass().add("uncapped");
 
         Button remoteButton = (Button) dialog.getDialogPane().lookupButton(remoteType);
         Button plainButton = (Button) dialog.getDialogPane().lookupButton(plainType);

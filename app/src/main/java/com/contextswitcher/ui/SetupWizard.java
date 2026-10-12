@@ -23,6 +23,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -455,9 +456,9 @@ public final class SetupWizard {
                             : another));
         }
         VBox sshRows = new VBox(8,
-                new Label("ssh destination (an alias from ~/.ssh/config, or user@host)"),
+                caption("ssh destination (an alias from ~/.ssh/config, or user@host)"),
                 knownRows,
-                new HBox(6, host, test),
+                withButton(host, test),
                 muted("Key-based access is required — the app never asks for a password. "
                         + "The check runs tmux -V and claude --version there."));
         Button testWsl = new Button("Test");
@@ -465,8 +466,8 @@ public final class SetupWizard {
         testWsl.getStyleClass().add(Styles.SMALL);
         testWsl.setOnAction(event -> runTest.accept(() -> { }));
         VBox wslRows = new VBox(8,
-                new Label("WSL distribution"),
-                new HBox(6, distro, testWsl),
+                caption("WSL distribution"),
+                withButton(distro, testWsl),
                 muted("Leave it empty for the default distribution. The check runs tmux -V and "
                         + "claude --version inside it, through wsl.exe — no ssh, no password."));
         // One page, two field groups: which questions belong to the chosen
@@ -486,7 +487,7 @@ public final class SetupWizard {
             knownWorkspaces.accept(TmuxHost.wslHost(text));
         });
         VBox workspacesRows = new VBox(8,
-                new Label("Workspaces directory there (new workspaces roots go under it)"),
+                caption("Workspaces directory there (new workspaces roots go under it)"),
                 workspaces,
                 muted("Known for a configured host, otherwise filled in once the check has run; "
                         + "created on the first category."));
@@ -564,6 +565,12 @@ public final class SetupWizard {
                 Label name = new Label(tool.label());
                 name.getStyleClass().add(Styles.TEXT_BOLD);
                 Label why = muted(tool.why());
+                // The status takes what the buttons leave, wrapping a long
+                // failure instead of cutting the buttons' labels.
+                status.setWrapText(true);
+                HBox.setHgrow(status, Priority.ALWAYS);
+                install.setMinWidth(Region.USE_PREF_SIZE);
+                recheck.setMinWidth(Region.USE_PREF_SIZE);
                 HBox line = new HBox(8, name, status, install, recheck);
                 line.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
                 toolRows.getChildren().addAll(line, why);
@@ -606,7 +613,7 @@ public final class SetupWizard {
                         + "for Chrome; the browser has to load it itself, so this page only helps."),
                 muted("On its options page enter the port " + extension.port()
                         + " and this token:"),
-                new HBox(6, token, copyToken),
+                withButton(token, copyToken),
                 installNotes,
                 connected);
 
@@ -616,7 +623,7 @@ public final class SetupWizard {
         cloneUrl.setPromptText("git@github.com:me/my-tasks.git  or  https://…  (leave empty to start fresh)");
         cloneUrl.setPrefColumnCount(40);
         VBox page5 = page("Already using ContextSwitcher on another machine?",
-                new Label("Clone URL of your task repository"), cloneUrl,
+                caption("Clone URL of your task repository"), cloneUrl,
                 muted("The tasks directory is cloned from it, so your categories and tasks come "
                         + "along. Leave it empty on a first install."));
 
@@ -656,10 +663,10 @@ public final class SetupWizard {
         repoType.setValue(RepoType.WRITE_ACCESS);
         repoType.getStyleClass().add(Styles.SMALL);
         VBox page6 = page(prefill.categoriesExist() ? "Add a category" : "First category",
-                new Label("Repository URL"), repoUrl,
-                new Label("Workspaces root (the primary clone and per-task worktrees go under it)"),
+                caption("Repository URL"), repoUrl,
+                caption("Workspaces root (the primary clone and per-task worktrees go under it)"),
                 root,
-                new Label("How you work with the repository"), repoType,
+                caption("How you work with the repository"), repoType,
                 muted("A category is created for it and a Claude session sets the root up: "
                         + "clones the repository and writes its CLAUDE.md. Leave the URL empty "
                         + "to add categories later from the toolbar."));
@@ -826,6 +833,22 @@ public final class SetupWizard {
         String order = bar.getButtonOrder().replace("U", "");
         int forward = Math.max(order.indexOf('X'), order.indexOf('I'));
         bar.setButtonOrder(order.substring(0, forward + 1) + "U" + order.substring(forward + 1));
+    }
+
+    /// A field and its button on one line: the field gives way when the page
+    /// is narrow, so the button's label is never cut off.
+    private static HBox withButton(Region field, Button button) {
+        button.setMinWidth(Region.USE_PREF_SIZE);
+        HBox.setHgrow(field, Priority.ALWAYS);
+        return new HBox(6, field, button);
+    }
+
+    /// A field's caption, wrapping like [#muted] rather than being cut off.
+    private static Label caption(String text) {
+        Label label = new Label(text);
+        label.setWrapText(true);
+        label.setMinHeight(Region.USE_PREF_SIZE);
+        return label;
     }
 
     private static Label muted(String text) {

@@ -12,6 +12,11 @@ The topmost section is the day in progress — its link points at `main` until t
 
 - The setup wizard installs Claude Code's status reporting hooks on the session host, keeping the hooks and settings already there. With them, a session reports its status, its id and the directory it works in, so tasks get their status dot and deleting a task offers to remove its worktree and transcript. Before, a host set up through the wizard reported none of this.
 
+### Fixed
+
+- The Add-task dialog shows its buttons ("Add remote Claude", "Add local Claude", "Add plain task") and hints in full instead of cutting them off with "…"; the hints wrap and the dialog is as wide as its buttons need.
+- The setup wizard's "Test connection" button, the tools page's "Install" and "Recheck", and the field captions are no longer cut off on a narrow page: the field next to a button gives way and long captions wrap.
+
 ## [2026-10-11] - 2026-10-11
 
 ### Added
