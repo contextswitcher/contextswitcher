@@ -4430,8 +4430,9 @@ public class MainWindow {
     // [impl->dsn~setup-wizard~10]
     public void createCategoryFromRepo(String url, String workspacesRoot, @Nullable String remote,
             RepoType type, ClaudeMode mode, @Nullable String firstMessage) {
+        String web = TaskFileParser.repoWebUrl(url);
         String name = TaskFileParser.repoName(url);
-        if (name == null) {
+        if (web == null || name == null) {
             new Alert(Alert.AlertType.ERROR, "Not a repository URL: " + url).show();
             return;
         }
@@ -4441,7 +4442,7 @@ public class MainWindow {
         String error = files.createFolder(name);
         if (error == null) {
             error = files.save(groupConfigFileName(name),
-                    TaskFileParser.groupConfigForRepo(name, url, remote, workspacesRoot,
+                    TaskFileParser.groupConfigForRepo(name, web, remote, workspacesRoot,
                             filterDesktop()));
         }
         if (error != null) {
@@ -4450,9 +4451,12 @@ public class MainWindow {
             return;
         }
         groupConfigCache.remove(name);
-        String description = categorySetupDescription(url, name, workspacesRoot, type, firstMessage);
+        // An ssh URL is what the session clones with; an https one may be a
+        // deep link, which only the web URL cuts back to the repository.
+        String clone = url.strip().startsWith("http") ? web : url;
+        String description = categorySetupDescription(clone, name, workspacesRoot, type, firstMessage);
         if (remote != null) {
-            onCreateLiveTask.create(description, remote, workspacesRoot, url.strip(), false, name,
+            onCreateLiveTask.create(description, remote, workspacesRoot, web, false, name,
                     mode, type.template());
             return;
         }

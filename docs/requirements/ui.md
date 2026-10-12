@@ -539,6 +539,18 @@ Covers:
 
 Needs: dsn
 
+### Dialogs open over the window
+`req~dialog-placement~1`
+
+Every dialog the app opens — add task, confirmations, error messages — appears over the main window, on the monitor the window is on, not on the primary monitor.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Add a category from the app
 `req~category-create~1`
 
@@ -885,9 +897,9 @@ Needs: impl, utest
 `dsn~category-from-url~4`
 
 `MainWindow.addCategoryFromUrl` (next to `Add category…` in the toolbar add menu and the empty-area context menu) asks for the repository URL — pre-filled from the clipboard when that holds one — and the workspaces root, plus a `Repository type` combo (`RepoType`, `dsn~claude-md-templates~1`, defaulting to write access) and an optional first message.
-The root follows the URL as `<parent>/<name>-workspaces` until edited by hand; `name` is `TaskFileParser.repoName` (the URL's last path segment, `.git` dropped, slugged like a folder name; non-URLs disable OK), `parent` is the parent directory of the first configured category's `workspacesRoot` (`MainWindow.workspacesParent`), else the skeleton's `/data/koppor`, so the new root lands next to the existing ones.
+The root follows the URL as `<parent>/<name>-workspaces` until edited by hand; `name` is `TaskFileParser.repoName` (the last path segment of that web URL, `.git` dropped, slugged like a folder name; non-URLs disable OK) — an ssh clone URL (`git@host:owner/name.git`, `ssh://…`) counts as well, `parent` is the parent directory of the first configured category's `workspacesRoot` (`MainWindow.workspacesParent`), else the skeleton's `/data/koppor`, so the new root lands next to the existing ones.
 The remote is the `Add remote Claude` fallback (`effectiveRemote` on an empty config: the first configured remote); without one the dialog does not open.
-OK creates the folder and writes `TaskFileParser.groupConfigForRepo` — the skeleton's example lines as real values: `remote`, `workspacesRoot`, `mainCheckout: <root>/<name>`, `repo` (no `tags:` line since `~4` — a category is not a tag), plus `desktop:` when the desktop filter is on (`dsn~category-create-ui~2`) — then starts a live task in the new group (`dsn~task-create-live~8`, whose `mkdir -p` of the workspaces root is the remote-side setup step; no worktree clause, since there is no clone yet) with `MainWindow.categorySetupDescription` as the description and the picked type's template as the prompt's appendix: clone the repository into the `<name>` subdirectory (the `mainCheckout`), then write the root's `CLAUDE.md` from that template — placeholders replaced, the build/test and pull-request sections filled from the clone's README, build files and CI workflows, inapplicable sections deleted, the rest kept.
+OK creates the folder and writes `TaskFileParser.groupConfigForRepo` — the skeleton's example lines as real values: `remote`, `workspacesRoot`, `mainCheckout: <root>/<name>`, `repo` (`TaskFileParser.repoWebUrl`: the `https://host/owner/name` page — of an ssh URL too, and cut back from a deep link: on GitHub after `owner/name`, on GitLab before `/-/` — since `repo` is opened in the browser and drives the issue links, `dsn~terminal-issue-links~2`; the setup description keeps an ssh URL as typed, so the session clones over ssh) (no `tags:` line since `~4` — a category is not a tag), plus `desktop:` when the desktop filter is on (`dsn~category-create-ui~2`) — then starts a live task in the new group (`dsn~task-create-live~8`, whose `mkdir -p` of the workspaces root is the remote-side setup step; no worktree clause, since there is no clone yet) with `MainWindow.categorySetupDescription` as the description and the picked type's template as the prompt's appendix: clone the repository into the `<name>` subdirectory (the `mainCheckout`), then write the root's `CLAUDE.md` from that template — placeholders replaced, the build/test and pull-request sections filled from the clone's README, build files and CI workflows, inapplicable sections deleted, the rest kept.
 The type and the first message only shape that description: a `fork()` type's clone clause asks for a fork of the repository (`gh repo fork --clone`, which reuses an existing fork) with the original kept as `upstream`; a non-blank first message is appended as "After setting things up, please do the following: …", so the setup session runs straight into the actual work instead of idling.
 No extra queue entry and no second prompt — the initial prompt carries both, which is one round-trip and nothing to keep in sync.
 Model and effort are the `Add task…` dialog's boxes (`dsn~claude-mode-select~3`), pre-filled from and remembered as the last pick — nothing hardcoded, so the setup session runs at whatever model the user is currently working with.
@@ -1938,6 +1950,22 @@ Tags: windows, linux
 Covers:
 - req~window-position-per-desktop~1
 - req~window-geometry-restore~1
+
+Needs: impl, utest
+
+### Ownerless dialogs placed over the main window
+`dsn~dialog-placement~1`
+
+A JavaFX `Dialog`/`Alert` without `initOwner` centers itself on the primary screen, so with the app on a second monitor *Add task* and every error alert opened on the other one (field report 2026-10-12, PowerToys not involved).
+Most of the app's dialogs set no owner, and a new one easily forgets it, so `DialogPlacement.installEverywhere(stage)` — installed by `Main.start` next to `ReadlineKeys.installEverywhere` — listens on `Window.getWindows()` and moves each window whose scene root is a `DialogPane` and that has no owner as it is shown: centered horizontally over the main window, its top a third of the leftover height down (where JavaFX puts an owned dialog), then clamped to the visual bounds of the main window's screen.
+JavaFX adds a window to that list before sizing it, so the pane's preferred size stands in for a size not known yet; the decorations it leaves out shift the dialog by a few pixels at most.
+Owned dialogs keep JavaFX's own placement, and windows that are no dialog (detached panes, the sync-groups window) keep their own geometry; while the main window is not showing yet (the first-start wizard) nothing is moved.
+Setting the owner instead would also give modality to the window and a single taskbar entry, but has to be done before `show` at each of the ~70 call sites; the listener covers them and every future one.
+
+Tags: windows, linux
+
+Covers:
+- req~dialog-placement~1
 
 Needs: impl, utest
 

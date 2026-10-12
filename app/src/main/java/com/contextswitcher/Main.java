@@ -500,6 +500,9 @@ public class Main extends Application {
         // [impl->dsn~readline-keys~1]
         com.contextswitcher.ui.ReadlineKeys.setEnabled(startupSettings.readlineKeys());
         com.contextswitcher.ui.ReadlineKeys.installEverywhere();
+        // Ownerless dialogs open over the main window, not on the primary
+        // screen. [impl->dsn~dialog-placement~1]
+        com.contextswitcher.ui.DialogPlacement.installEverywhere(stage);
         // Before seeding an empty task directory: the first-start wizard —
         // where sessions run, the remote (checked), the task repo to clone
         // (moving to a new machine, MADR 0011), the first project. It writes
