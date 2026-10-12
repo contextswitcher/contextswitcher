@@ -114,7 +114,7 @@ final class HostTable extends VBox {
         setup.setOnAction(event -> {
             Row row = table.getSelectionModel().getSelectedItem();
             if (row == null || row.destination.isBlank()) {
-                new Alert(Alert.AlertType.INFORMATION, "Select a host with a destination first.").show();
+                Alerts.plain(Alerts.windowOf(this), Alert.AlertType.INFORMATION, "Select a host with a destination first.").show();
                 return;
             }
             // Disabled for the round-trip (the async single-shot convention);

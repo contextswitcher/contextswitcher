@@ -552,7 +552,7 @@ final class TmuxSession implements TerminalSession {
                     // Deliberately not falling back to the requested window:
                     // that is the claim under suspicion, and dressing it as an
                     // answer would confirm the very mismatch being checked.
-                    Alerts.wrapping(Alert.AlertType.INFORMATION,
+                    Alerts.wrapping(view.dialogOwner(), Alert.AlertType.INFORMATION,
                             "Cannot ask %s which window the mirror shows:%n%s"
                                     .formatted(remote, result.stderr().strip())).show();
                     return;

@@ -154,7 +154,7 @@ final class SettingsDialog {
                 try {
                     parsed = AppSettings.parse(rawArea.getText());
                 } catch (IOException e) {
-                    new Alert(Alert.AlertType.ERROR,
+                    Alerts.plain(owner.get(), Alert.AlertType.ERROR,
                             "Cannot switch to form view: " + e.getMessage()).show();
                     return;
                 }
@@ -197,7 +197,7 @@ final class SettingsDialog {
             }
             String error = saveSettings.apply(content);
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot save settings: " + error).show();
+                Alerts.plain(owner.get(), Alert.AlertType.ERROR, "Cannot save settings: " + error).show();
                 event.consume();
                 return;
             }
@@ -323,14 +323,14 @@ final class SettingsDialog {
     private @Nullable AppSettings readForm(Map<String, Region> controls) {
         String tasksDir = ((TextField) controls.get("tasksDir")).getText();
         if (tasksDir.isBlank()) {
-            new Alert(Alert.AlertType.ERROR, "The tasks directory cannot be empty.").show();
+            Alerts.plain(owner.get(), Alert.AlertType.ERROR, "The tasks directory cannot be empty.").show();
             return null;
         }
         int wsPort;
         try {
             wsPort = Integer.parseInt(((TextField) controls.get("wsPort")).getText().trim());
         } catch (NumberFormatException e) {
-            new Alert(Alert.AlertType.ERROR, "The WebSocket port must be a whole number.").show();
+            Alerts.plain(owner.get(), Alert.AlertType.ERROR, "The WebSocket port must be a whole number.").show();
             return null;
         }
         String wsToken = ((TextField) controls.get("wsToken")).getText();
@@ -351,7 +351,7 @@ final class SettingsDialog {
             refactoringMinerPort = Integer.parseInt(
                     ((TextField) controls.get("refactoringMinerPort")).getText().trim());
         } catch (NumberFormatException e) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(owner.get(), Alert.AlertType.ERROR,
                     "The refactoring view port must be a whole number.").show();
             return null;
         }
@@ -364,7 +364,7 @@ final class SettingsDialog {
             autoSuspendMinutes = Integer.parseInt(
                     ((TextField) controls.get("autoSuspendMinutes")).getText().trim());
         } catch (NumberFormatException e) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(owner.get(), Alert.AlertType.ERROR,
                     "The auto-suspend minutes must be a whole number.").show();
             return null;
         }
@@ -379,7 +379,7 @@ final class SettingsDialog {
             mergedCleanupDays = Integer.parseInt(
                     ((TextField) controls.get("mergedCleanupDays")).getText().trim());
         } catch (NumberFormatException e) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(owner.get(), Alert.AlertType.ERROR,
                     "The merged-task cleanup days must be a whole number.").show();
             return null;
         }
@@ -499,7 +499,7 @@ final class SettingsDialog {
         dialog.showAndWait().ifPresent(content -> {
             String error = saveSettings.apply(content);
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot save settings: " + error).show();
+                Alerts.plain(owner.get(), Alert.AlertType.ERROR, "Cannot save settings: " + error).show();
                 return;
             }
             onPaletteChanged.run();

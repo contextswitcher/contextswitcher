@@ -139,7 +139,7 @@ class RemoteWindowModeUiTest {
                 null, null, null, null, null, null, "");
         AtomicReference<Optional<MainWindow.RemoteWindowChoice>> result = new AtomicReference<>();
         Platform.runLater(() -> result.set(
-                Optional.ofNullable(MainWindow.askRemoteWindow(task, remote, offerTmux))));
+                Optional.ofNullable(MainWindow.askRemoteWindow(null, task, remote, offerTmux))));
         awaitPresent(RemoteWindowModeUiTest::findDialog, "the remote-window dialog");
         return result;
     }

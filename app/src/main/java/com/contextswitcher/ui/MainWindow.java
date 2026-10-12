@@ -3031,7 +3031,7 @@ public class MainWindow {
     /// rename listener then brings the task's tmux window name along.
     // [impl->dsn~task-rename-title~2]
     private void renameTask(Task task) {
-        TextInputDialog dialog = new TextInputDialog(task.title());
+        TextInputDialog dialog = Alerts.owned(dialogOwner(), new TextInputDialog(task.title()));
         dialog.setTitle("Rename task");
         dialog.setHeaderText("New title for " + task.id() + ".md");
         dialog.setContentText("Title");
@@ -3039,7 +3039,7 @@ public class MainWindow {
             String fileName = task.id() + ".md";
             String content = files.read(fileName);
             if (content == null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot rename " + fileName + ": file unreadable").show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot rename " + fileName + ": file unreadable").show();
                 return;
             }
             files.save(fileName, TaskFileParser.withTitle(content, title));
@@ -3087,7 +3087,7 @@ public class MainWindow {
         // flush it so the button reflects the current, not the on-disk, state.
         saveEditorIfDirty();
 
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
         dialog.setTitle("Add task");
         dialog.setResizable(true);
         dialog.setHeaderText("Enter a title or description, or paste a GitHub PR or GitLab MR URL.");
@@ -3361,7 +3361,7 @@ public class MainWindow {
         TextField titleField = new TextField();
         titleField.setPromptText("optional, e.g. Probeklausur in moodle");
 
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
         dialog.setTitle("Add link");
         dialog.setHeaderText("Adds a link to \"" + task.title() + "\":\n"
                 + "an onenote: link becomes the note, an http(s) URL a browser tab.\n"
@@ -3408,7 +3408,7 @@ public class MainWindow {
         saveEditorIfDirty();
         String loaded = files.read(fileName);
         if (loaded == null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot add link: " + fileName + " unreadable").show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot add link: " + fileName + " unreadable").show();
             return;
         }
         String updated = note != null
@@ -3416,7 +3416,7 @@ public class MainWindow {
                 : TaskFileParser.addBrowserUrl(loaded, link, title);
         String error = files.save(fileName, updated);
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot add link: " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot add link: " + error).show();
             return;
         }
         if (fileName.equals(editedFileName)) {
@@ -3432,7 +3432,7 @@ public class MainWindow {
     /// reloaded when it shows the file.
     // [impl->dsn~task-remove-link~2]
     private void removeTaskUrl(Task staleTask, Task.UrlEntry entry) {
-        Alert confirm = Alerts.wrapping(Alert.AlertType.CONFIRMATION,
+        Alert confirm = Alerts.wrapping(dialogOwner(), Alert.AlertType.CONFIRMATION,
                 "Remove " + entry.url() + " from the task?", ButtonType.OK, ButtonType.CANCEL);
         confirm.setTitle("Remove link");
         confirm.setHeaderText("Remove link");
@@ -3443,12 +3443,12 @@ public class MainWindow {
         String fileName = task.id() + ".md";
         String loaded = files.read(fileName);
         if (loaded == null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot remove link: " + fileName + " unreadable").show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot remove link: " + fileName + " unreadable").show();
             return;
         }
         String error = files.save(fileName, TaskFileParser.removeBrowserUrl(loaded, entry.url()));
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot remove link: " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot remove link: " + error).show();
             return;
         }
         statusBar().message("Removed " + entry.url());
@@ -3508,7 +3508,7 @@ public class MainWindow {
         String error = files.save(fileName, content);
         if (error != null) {
             noteTaskCreationFailed();
-            new Alert(Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
             return null;
         }
         // [impl->dsn~task-create-progress~6]
@@ -3739,7 +3739,7 @@ public class MainWindow {
             onChosen.accept(remotes.getFirst());
             return;
         }
-        Dialog<String> dialog = new Dialog<>();
+        Dialog<String> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
         dialog.setTitle("Add task from PR");
         dialog.setHeaderText("No task carries this PR yet — pick or type the ssh host for the new task.");
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -3858,7 +3858,7 @@ public class MainWindow {
         String error = files.save(fileName,
                 TaskFileParser.groupConfigSkeleton(group, remote, desktop, hints));
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
             return false;
         }
         // Nothing observable changes (the config is not a task), so repaint
@@ -3882,7 +3882,7 @@ public class MainWindow {
         String fileName = groupConfigFileName(group);
         String content = files.read(fileName);
         if (content == null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot tag group " + group + ": config unreadable").show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot tag group " + group + ": config unreadable").show();
             return;
         }
         List<String> tags = new ArrayList<>(parser.parseGroupConfig(content).tags());
@@ -3892,7 +3892,7 @@ public class MainWindow {
         }
         String error = files.save(fileName, TaskFileParser.withTags(content, tags));
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot tag group " + group + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot tag group " + group + ": " + error).show();
             return;
         }
         if (fileName.equals(editedFileName)) {
@@ -3919,14 +3919,14 @@ public class MainWindow {
         String fileName = groupConfigFileName(group);
         String content = files.read(fileName);
         if (content == null) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                     "Cannot pin category " + group + ": config unreadable").show();
             return;
         }
         boolean pinned = parser.parseGroupConfig(content).pinned();
         String error = files.save(fileName, TaskFileParser.withPinned(content, !pinned));
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot pin category " + group + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot pin category " + group + ": " + error).show();
             return;
         }
         if (fileName.equals(editedFileName)) {
@@ -4092,7 +4092,7 @@ public class MainWindow {
             }
             String content = files.read(fileName);
             if (content == null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot add intellij section: " + fileName + " unreadable").show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot add intellij section: " + fileName + " unreadable").show();
                 return;
             }
             updated = TaskFileParser.withIntellijProjectPath(content, projectPath);
@@ -4100,7 +4100,7 @@ public class MainWindow {
             // Path resolves (a claude: session) but no `intellij:` section yet.
             String content = files.read(fileName);
             if (content == null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot add intellij section: " + fileName + " unreadable").show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot add intellij section: " + fileName + " unreadable").show();
                 return;
             }
             updated = TaskFileParser.withIntellij(content);
@@ -4110,7 +4110,7 @@ public class MainWindow {
         if (updated != null) {
             String error = files.save(fileName, updated);
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot add intellij section: " + error).show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot add intellij section: " + error).show();
                 return;
             }
             if (fileName.equals(editedFileName)) {
@@ -4131,7 +4131,7 @@ public class MainWindow {
     // [impl->dsn~open-in-intellij~3]
     private @Nullable String promptForIntellijProjectPath(Task task) {
         String remote = task.intellijRemote();
-        TextInputDialog dialog = new TextInputDialog();
+        TextInputDialog dialog = Alerts.owned(dialogOwner(), new TextInputDialog());
         dialog.setTitle("Open in IntelliJ");
         dialog.setHeaderText("\"" + task.title() + "\" has no project path to open"
                 + " (no explicit intellij.projectPath and no claude: session).\n"
@@ -4181,7 +4181,7 @@ public class MainWindow {
     /// section, so the next play focuses it normally.
     // [impl->dsn~remote-window-choice~6]
     private void promptRemoteWindow(Task task) {
-        RemoteWindowChoice choice = askRemoteWindow(task, task.remote(), true);
+        RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, task.remote(), true);
         if (choice != null) {
             onStartRemoteWindow.start(task, choice.withClaude(), choice.mode());
         }
@@ -4205,13 +4205,13 @@ public class MainWindow {
     /// **tmux** button next to it would undo the choice just made.
     // [impl->dsn~remote-window-choice~6]
     // [impl->dsn~claude-mode-select~3]
-    public static @Nullable RemoteWindowChoice askRemoteWindow(
+    public static @Nullable RemoteWindowChoice askRemoteWindow(@Nullable Window owner,
             Task task, @Nullable String remote, boolean offerTmux) {
         ButtonType tmux = new ButtonType("tmux", ButtonBar.ButtonData.OK_DONE);
         ButtonType claude = new ButtonType("claude", ButtonBar.ButtonData.OK_DONE);
         Alert alert = offerTmux
-                ? new Alert(Alert.AlertType.CONFIRMATION, "", tmux, claude, ButtonType.CANCEL)
-                : new Alert(Alert.AlertType.CONFIRMATION, "", claude, ButtonType.CANCEL);
+                ? Alerts.plain(owner, Alert.AlertType.CONFIRMATION, "", tmux, claude, ButtonType.CANCEL)
+                : Alerts.plain(owner, Alert.AlertType.CONFIRMATION, "", claude, ButtonType.CANCEL);
         alert.setTitle("Open remote window");
         alert.setHeaderText(null);
         ComboBox<String> modelBox = QueuePane.modeBox("model: as is", ClaudeMode.MODELS);
@@ -4286,7 +4286,7 @@ public class MainWindow {
     /// already knows the desktop the category is for.
     // [impl->dsn~desktop-filter-empty-state~2]
     private void addCategory(@Nullable String desktop) {
-        TextInputDialog dialog = new TextInputDialog();
+        TextInputDialog dialog = Alerts.owned(dialogOwner(), new TextInputDialog());
         dialog.setTitle("Add category");
         dialog.setHeaderText("Creates a project folder in the tasks directory;\n"
                 + "it shows as a group and can hold tasks and a CS config."
@@ -4297,7 +4297,7 @@ public class MainWindow {
                 .ifPresent(name -> {
                     String error = files.createFolder(name);
                     if (error != null) {
-                        new Alert(Alert.AlertType.ERROR,
+                        Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                                 "Cannot create category %s: %s".formatted(name, error)).show();
                         return;
                     }
@@ -4334,7 +4334,7 @@ public class MainWindow {
     private void addCategoryFromUrl() {
         String remote = effectiveRemote(GroupConfig.EMPTY);
         if (remote == null) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                     "Add category from URL needs a remote — set one in settings.yaml.").show();
             return;
         }
@@ -4348,7 +4348,7 @@ public class MainWindow {
             }
         }
         String rootParent = parent;
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
         dialog.setTitle("Add category from URL");
         dialog.setHeaderText("Creates a category named after the repository, with a CS config,\n"
                 + "and starts a Claude session on " + remote + " that clones the repository\n"
@@ -4433,7 +4433,7 @@ public class MainWindow {
         String web = TaskFileParser.repoWebUrl(url);
         String name = TaskFileParser.repoName(url);
         if (web == null || name == null) {
-            new Alert(Alert.AlertType.ERROR, "Not a repository URL: " + url).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Not a repository URL: " + url).show();
             return;
         }
         if (!freeCategoryName(name, "Cancel")) {
@@ -4446,7 +4446,7 @@ public class MainWindow {
                             filterDesktop()));
         }
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                     "Cannot create category %s: %s".formatted(name, error)).show();
             return;
         }
@@ -4484,7 +4484,7 @@ public class MainWindow {
                     : System.getProperty("user.name");
             proposal = "/home/" + user + "/workspaces";
         }
-        TextInputDialog ask = new TextInputDialog(proposal);
+        TextInputDialog ask = Alerts.owned(dialogOwner(), new TextInputDialog(proposal));
         ask.setTitle("Workspaces directory");
         ask.setHeaderText("The first category on " + host
                 + ".\nWhere should its workspaces go? New workspaces roots are created under it.");
@@ -4551,7 +4551,7 @@ public class MainWindow {
         if (!files.exists(name)) {
             return true;
         }
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
         dialog.setTitle("Category exists");
         dialog.setHeaderText("A category named \"" + name + "\" already exists.");
         TextField newName = new TextField(clashRenameProposal(name, groupDefaults(name).remote()));
@@ -4648,7 +4648,7 @@ public class MainWindow {
     /// an open editor file follow the new name; an existing target refuses.
     // [impl->dsn~group-rename~1]
     private void renameGroup(String group) {
-        TextInputDialog dialog = new TextInputDialog(group);
+        TextInputDialog dialog = Alerts.owned(dialogOwner(), new TextInputDialog(group));
         dialog.setTitle("Rename group");
         dialog.setHeaderText("Renames the project folder; task ids follow the new path.");
         dialog.setContentText("Name");
@@ -4662,13 +4662,13 @@ public class MainWindow {
     // [impl->dsn~group-rename~1]
     private boolean renameGroupTo(String group, String newName) {
         if (files.exists(newName)) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                     "Cannot rename %s: %s already exists.".formatted(group, newName)).show();
             return false;
         }
         String error = files.renameFolder(group, newName);
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                     "Cannot rename %s: %s".formatted(group, error)).show();
             return false;
         }
@@ -4706,7 +4706,7 @@ public class MainWindow {
                                 + (running.size() == 1 ? "task is" : "tasks are")
                                 + " confirmed one by one next.");
         ButtonType delete = new ButtonType("Delete", ButtonBar.ButtonData.OK_DONE);
-        Alert confirm = Alerts.wrapping(Alert.AlertType.CONFIRMATION, message,
+        Alert confirm = Alerts.wrapping(dialogOwner(), Alert.AlertType.CONFIRMATION, message,
                 delete, ButtonType.CANCEL);
         confirm.setTitle("Delete category");
         confirm.setHeaderText("Delete \"" + group + "\"");
@@ -4722,7 +4722,7 @@ public class MainWindow {
             // Sweep the rest: non-running task files, the CS config, note, folder.
             String error = files.deleteFolder(group);
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR,
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                         "Cannot delete %s: %s".formatted(group, error)).show();
                 return;
             }
@@ -4903,7 +4903,7 @@ public class MainWindow {
                 ? "Claude in window %s on %s is WORKING right now — terminating kills it mid-task.\n%s"
                         .formatted(tmux.target(), remote, resumeNote)
                 : "End tmux window %s on %s?\n%s".formatted(tmux.target(), remote, resumeNote);
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, message,
+        Alert confirm = Alerts.plain(dialogOwner(), Alert.AlertType.CONFIRMATION, message,
                 confirmButton, returnButton);
         confirm.setTitle(action + " task");
         confirm.setHeaderText(action + " \"" + task.title() + "\"");
@@ -5153,7 +5153,7 @@ public class MainWindow {
         String toFile = uniqueFileName(toBase);
         String error = files.move(fromFile, toFile);
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot move %s: %s".formatted(fromFile, error)).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot move %s: %s".formatted(fromFile, error)).show();
             return;
         }
         String toId = toFile.substring(0, toFile.length() - ".md".length());
@@ -5558,9 +5558,9 @@ public class MainWindow {
         ButtonType delete = new ButtonType("Delete", ButtonBar.ButtonData.OK_DONE);
         ButtonType tidyFirst = new ButtonType("Ask Claude to tidy up first");
         Alert confirm = liveContext
-                ? Alerts.withContent(Alert.AlertType.CONFIRMATION, content,
+                ? Alerts.withContent(dialogOwner(), Alert.AlertType.CONFIRMATION, content,
                         delete, tidyFirst, ButtonType.CANCEL)
-                : Alerts.withContent(Alert.AlertType.CONFIRMATION, content,
+                : Alerts.withContent(dialogOwner(), Alert.AlertType.CONFIRMATION, content,
                         delete, ButtonType.CANCEL);
         confirm.setTitle("Delete task");
         confirm.setHeaderText("Delete \"" + task.title() + "\"");
@@ -5598,7 +5598,7 @@ public class MainWindow {
         }
         String error = files.delete(fileName);
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot delete " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot delete " + fileName + ": " + error).show();
             return DeleteChoice.CANCELLED;
         }
         if (fileName.equals(editedFileName)) {
@@ -5617,7 +5617,7 @@ public class MainWindow {
     /// when it was showing the deleted file.
     // [impl->dsn~corrupt-task-delete~2]
     private void deleteCorruptFile(String fileName) {
-        Alert confirm = Alerts.wrapping(Alert.AlertType.CONFIRMATION,
+        Alert confirm = Alerts.wrapping(dialogOwner(), Alert.AlertType.CONFIRMATION,
                 "Delete the corrupt file " + fileName + "?\nThis cannot be undone.",
                 ButtonType.OK, ButtonType.CANCEL);
         confirm.setTitle("Delete corrupt file");
@@ -5627,7 +5627,7 @@ public class MainWindow {
                 .ifPresent(button -> {
             String error = files.delete(fileName);
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot delete " + fileName + ": " + error).show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot delete " + fileName + ": " + error).show();
                 return;
             }
             if (fileName.equals(editedFileName)) {
@@ -6031,7 +6031,7 @@ public class MainWindow {
     /// ([#showFieldHelp()]) and the settings dialog.
     // [impl->dsn~task-field-help~1]
     private void showReferenceDialog(String title, String reference) {
-        Dialog<Void> dialog = new Dialog<>();
+        Dialog<Void> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
         dialog.setTitle(title);
         dialog.setHeaderText("Every field is optional. Select what you need, Ctrl+C, "
                 + "paste into the editor — or use Copy all.");
@@ -6418,7 +6418,7 @@ public class MainWindow {
                 String error = files.save(fileName, TaskSync.withGroup(current, group.name(),
                         item.isSelected(), sync.syncIdFor(current, group.name(), base)));
                 if (error != null) {
-                    new Alert(Alert.AlertType.ERROR, "Cannot save %s: %s".formatted(fileName, error)).show();
+                    Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot save %s: %s".formatted(fileName, error)).show();
                     return;
                 }
                 syncRound.run();
@@ -6442,7 +6442,7 @@ public class MainWindow {
             String error = files.save(localFile,
                     TaskSync.withGroup(current, incoming.group(), true, incoming.syncId()));
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot save %s: %s".formatted(localFile, error)).show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot save %s: %s".formatted(localFile, error)).show();
                 return;
             }
             moveTask(localFile.substring(0, localFile.length() - ".md".length()), category);
@@ -6451,7 +6451,7 @@ public class MainWindow {
                     ? incoming.syncId() : category + "/" + incoming.syncId());
             String error = files.save(fileName, TaskSync.sortInContent(incoming));
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot create %s: %s".formatted(fileName, error)).show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot create %s: %s".formatted(fileName, error)).show();
                 return;
             }
             String id = fileName.substring(0, fileName.length() - ".md".length());
@@ -6479,7 +6479,9 @@ public class MainWindow {
     /// primary desktop while the user was on another, so the dialog was
     /// invisible and the app just looked frozen. Parenting it puts it over the
     /// main window on the desktop the user is actually on.
-    private @Nullable Window dialogOwner() {
+    /// The main window, owner of every dialog it and `Main` open
+    /// (`req~owned-dialogs~1`); null before it is shown.
+    public @Nullable Window dialogOwner() {
         ListView<Object> list = taskList;
         return list == null || list.getScene() == null ? null : list.getScene().getWindow();
     }
@@ -6539,13 +6541,13 @@ public class MainWindow {
                         && task.tmux() != null && task.remote() != null)
                 .count();
         if (count == 0) {
-            new Alert(Alert.AlertType.INFORMATION,
+            Alerts.plain(dialogOwner(), Alert.AlertType.INFORMATION,
                     "No running task with a remote tmux window to restart.").show();
             return false;
         }
         ButtonType restartButton = new ButtonType("Restart");
         ButtonType returnButton = new ButtonType("Return", ButtonBar.ButtonData.CANCEL_CLOSE);
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+        Alert confirm = Alerts.plain(dialogOwner(), Alert.AlertType.CONFIRMATION,
                 ("Recreate the tmux window of %d running task(s) and resume Claude in it?\n"
                         + "Use this after the remote machine rebooted — a window that is still"
                         + " alive is not killed, it is left behind as an orphan.").formatted(count),

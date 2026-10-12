@@ -17,6 +17,7 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
+import javafx.stage.Window;
 import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.TextField;
@@ -236,18 +237,21 @@ public final class SetupWizard {
             SshCommandRunner tools, String localParent, boolean onWindows, boolean offerClone,
             Prefill prefill, Extension extension) {
         return show(ssh, localCheck, tools, localParent, onWindows, offerClone, prefill, extension,
-                name -> true);
+                name -> true, null);
     }
 
     /// As above; `freeCategoryName` is asked on Finish whether the project's
     /// category name can be taken — on a clash it offers to rename the
     /// existing category (`MainWindow.freeCategoryName`), and false keeps the
-    /// wizard on its last page.
+    /// wizard on its last page. `owner` is the main window on a re-run from
+    /// the menu (`req~owned-dialogs~1`), null on the first start, before it
+    /// exists.
     // [impl->dsn~category-name-clash~1]
     public static Optional<Result> show(SshCommandRunner ssh, Supplier<Verdict> localCheck,
             SshCommandRunner tools, String localParent, boolean onWindows, boolean offerClone,
-            Prefill prefill, Extension extension, Predicate<String> freeCategoryName) {
-        Dialog<Result> dialog = new Dialog<>();
+            Prefill prefill, Extension extension, Predicate<String> freeCategoryName,
+            @Nullable Window owner) {
+        Dialog<Result> dialog = Alerts.owned(owner, new Dialog<>());
         dialog.setTitle(offerClone ? "Welcome to ContextSwitcher" : "ContextSwitcher setup");
         dialog.setGraphic(new ImageView(AppIcon.image(48)));
         dialog.setResizable(true);

@@ -646,6 +646,11 @@ public class TerminalPane {
         }
 
         @Override
+        public javafx.stage.@Nullable Window dialogOwner() {
+            return Alerts.windowOf(root);
+        }
+
+        @Override
         public Task.@Nullable ClaudeConfig claudeOf(String remote, Task.TmuxConfig tmux) {
             var resolver = claudeResolver;
             return resolver == null ? null : resolver.apply(remote, tmux);
@@ -689,7 +694,7 @@ public class TerminalPane {
     /// this machine, opened in place.
     // [impl->dsn~terminal-owned-session~4]
     private void askForLocalPath() {
-        TextInputDialog dialog = new TextInputDialog(lastCustomPath);
+        TextInputDialog dialog = Alerts.owned(Alerts.windowOf(root), new TextInputDialog(lastCustomPath));
         dialog.setTitle("Open a local file");
         dialog.setHeaderText("Path of the file on this machine.\n~/ starts at your home directory.");
         dialog.getEditor().setPrefColumnCount(60);
@@ -702,7 +707,7 @@ public class TerminalPane {
         lastCustomPath = typed;
         Path local = localPath(typed);
         if (local == null) {
-            Alerts.wrapping(Alert.AlertType.ERROR, "No readable file " + typed + ".").show();
+            Alerts.wrapping(Alerts.windowOf(root), Alert.AlertType.ERROR, "No readable file " + typed + ".").show();
             return;
         }
         openLocal(local);
@@ -713,7 +718,7 @@ public class TerminalPane {
     private void openLocal(Path local) {
         executor.execute(() -> {
             if (!open(local)) {
-                Platform.runLater(() -> Alerts.wrapping(Alert.AlertType.INFORMATION,
+                Platform.runLater(() -> Alerts.wrapping(Alerts.windowOf(root), Alert.AlertType.INFORMATION,
                         "%s — this system has no application registered for it."
                                 .formatted(local)).show());
             }
@@ -731,7 +736,7 @@ public class TerminalPane {
     /// limit applies to a typed path as well.
     // [impl->dsn~generated-file-download~2]
     private void askForCustomPath(String remote) {
-        TextInputDialog dialog = new TextInputDialog(lastCustomPath);
+        TextInputDialog dialog = Alerts.owned(Alerts.windowOf(root), new TextInputDialog(lastCustomPath));
         dialog.setTitle("Download from " + remote);
         dialog.setHeaderText("Path of the file on " + remote
                 + ".\nRelative paths and ~/ start at the remote home.");
@@ -747,7 +752,7 @@ public class TerminalPane {
         String path = RemoteFiles.cleanPath(typed);
         if (path == null) {
             if (!typed.isBlank()) {
-                Alerts.wrapping(Alert.AlertType.ERROR,
+                Alerts.wrapping(Alerts.windowOf(root), Alert.AlertType.ERROR,
                         "Not a usable path: %s%nA path may not contain a single quote — it is "
                                 .formatted(typed.strip())
                                 + "the one character the remote command's quoting cannot carry.")
@@ -758,7 +763,7 @@ public class TerminalPane {
         executor.execute(() -> {
             RemoteFiles.RemoteFile file = remoteFiles.stat(remote, path);
             if (file == null) {
-                Platform.runLater(() -> Alerts.wrapping(Alert.AlertType.ERROR,
+                Platform.runLater(() -> Alerts.wrapping(Alerts.windowOf(root), Alert.AlertType.ERROR,
                         "No readable file %s on %s.".formatted(path, remote)).show());
                 return;
             }
@@ -777,13 +782,13 @@ public class TerminalPane {
                 local = remoteFiles.download(remote, file);
             } catch (IOException e) {
                 Logger.warn("Cannot download {}: {}", file.path(), e.getMessage());
-                Platform.runLater(() -> Alerts.wrapping(Alert.AlertType.ERROR,
+                Platform.runLater(() -> Alerts.wrapping(Alerts.windowOf(root), Alert.AlertType.ERROR,
                         "Cannot download %s:%n%s".formatted(file.fileName(), e.getMessage()))
                         .show());
                 return;
             }
             if (!open(local)) {
-                Platform.runLater(() -> Alerts.wrapping(Alert.AlertType.INFORMATION,
+                Platform.runLater(() -> Alerts.wrapping(Alerts.windowOf(root), Alert.AlertType.INFORMATION,
                         "Downloaded to %s — this system has no application registered for it."
                                 .formatted(local)).show());
             }
@@ -940,7 +945,7 @@ public class TerminalPane {
     private void selectMirroredTask() {
         TerminalSession shown = session;
         if (shown == null) {
-            noLiveMirror();
+            noLiveMirror(Alerts.windowOf(root));
             return;
         }
         shown.selectShownTask();
@@ -948,8 +953,8 @@ public class TerminalPane {
 
     /// What **Select the mirrored task** says where nothing live is shown.
     // [impl->dsn~terminal-mirrored-task~1]
-    static void noLiveMirror() {
-        Alerts.wrapping(Alert.AlertType.INFORMATION,
+    static void noLiveMirror(javafx.stage.@Nullable Window owner) {
+        Alerts.wrapping(owner, Alert.AlertType.INFORMATION,
                 "No live mirror here — what is shown belongs to the selected task.").show();
     }
 
@@ -1143,13 +1148,13 @@ public class TerminalPane {
         String remote = shown == null ? null : shown.downloadHost();
         String cleaned = RemoteFiles.cleanPath(path);
         if (remote == null || cleaned == null) {
-            Alerts.wrapping(Alert.AlertType.ERROR, "No readable file " + path + ".").show();
+            Alerts.wrapping(Alerts.windowOf(root), Alert.AlertType.ERROR, "No readable file " + path + ".").show();
             return;
         }
         executor.execute(() -> {
             RemoteFiles.RemoteFile file = remoteFiles.stat(remote, cleaned);
             if (file == null) {
-                Platform.runLater(() -> Alerts.wrapping(Alert.AlertType.ERROR,
+                Platform.runLater(() -> Alerts.wrapping(Alerts.windowOf(root), Alert.AlertType.ERROR,
                         "No readable file %s on %s.".formatted(cleaned, remote)).show());
                 return;
             }

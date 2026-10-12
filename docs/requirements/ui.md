@@ -539,18 +539,6 @@ Covers:
 
 Needs: dsn
 
-### Dialogs open over the window
-`req~dialog-placement~1`
-
-Every dialog the app opens — add task, confirmations, error messages — appears over the main window, on the monitor the window is on, not on the primary monitor.
-
-Tags: windows, linux
-
-Covers:
-- feat~task-context-switching~1
-
-Needs: dsn
-
 ### Add a category from the app
 `req~category-create~1`
 
@@ -1950,22 +1938,6 @@ Tags: windows, linux
 Covers:
 - req~window-position-per-desktop~1
 - req~window-geometry-restore~1
-
-Needs: impl, utest
-
-### Ownerless dialogs placed over the main window
-`dsn~dialog-placement~1`
-
-A JavaFX `Dialog`/`Alert` without `initOwner` centers itself on the primary screen, so with the app on a second monitor *Add task* and every error alert opened on the other one (field report 2026-10-12, PowerToys not involved).
-Most of the app's dialogs set no owner, and a new one easily forgets it, so `DialogPlacement.installEverywhere(stage)` — installed by `Main.start` next to `ReadlineKeys.installEverywhere` — listens on `Window.getWindows()` and moves each window whose scene root is a `DialogPane` and that has no owner as it is shown: centered horizontally over the main window, its top a third of the leftover height down (where JavaFX puts an owned dialog), then clamped to the visual bounds of the main window's screen.
-JavaFX adds a window to that list before sizing it, so the pane's preferred size stands in for a size not known yet; the decorations it leaves out shift the dialog by a few pixels at most.
-Owned dialogs keep JavaFX's own placement, and windows that are no dialog (detached panes, the sync-groups window) keep their own geometry; while the main window is not showing yet (the first-start wizard) nothing is moved.
-Setting the owner instead would also give modality to the window and a single taskbar entry, but has to be done before `show` at each of the ~70 call sites; the listener covers them and every future one.
-
-Tags: windows, linux
-
-Covers:
-- req~dialog-placement~1
 
 Needs: impl, utest
 

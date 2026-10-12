@@ -500,9 +500,6 @@ public class Main extends Application {
         // [impl->dsn~readline-keys~1]
         com.contextswitcher.ui.ReadlineKeys.setEnabled(startupSettings.readlineKeys());
         com.contextswitcher.ui.ReadlineKeys.installEverywhere();
-        // Ownerless dialogs open over the main window, not on the primary
-        // screen. [impl->dsn~dialog-placement~1]
-        com.contextswitcher.ui.DialogPlacement.installEverywhere(stage);
         // Before seeding an empty task directory: the first-start wizard —
         // where sessions run, the remote (checked), the task repo to clone
         // (moving to a new machine, MADR 0011), the first project. It writes
@@ -941,7 +938,7 @@ public class Main extends Application {
         // [impl->dsn~claude-mode-select~3]
         terminalPane.setWindowStarter((task, withClaude) -> {
             MainWindow.RemoteWindowChoice choice = withClaude
-                    ? MainWindow.askRemoteWindow(task, taskRemote(files, task), false)
+                    ? MainWindow.askRemoteWindow(dialogOwner(), task, taskRemote(files, task), false)
                     : new MainWindow.RemoteWindowChoice(false, ClaudeMode.DEFAULT);
             if (choice == null) {
                 window.refreshPreview(task.id());
@@ -2590,7 +2587,7 @@ public class Main extends Application {
             Alert.AlertType type = errors.length() == 0
                     ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING;
             Platform.runLater(() -> {
-                Alerts.wrapping(type, summary).show();
+                Alerts.wrapping(dialogOwner(), type, summary).show();
                 done.run();
             });
         });
@@ -2634,7 +2631,7 @@ public class Main extends Application {
             // Only the manual sync explains this; the periodic/auto passes stay
             // silent so an alert does not pop up on every tick.
             if (announce) {
-                new Alert(Alert.AlertType.INFORMATION,
+                Alerts.plain(dialogOwner(), Alert.AlertType.INFORMATION,
                         "No remotes to sync. Add hosts to the remotes: list in settings.yaml,"
                         + " or create a task with a remote: first.").show();
             }
@@ -2807,7 +2804,7 @@ public class Main extends Application {
                 if (announce) {
                     Alert.AlertType type = errors.length() == 0
                             ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING;
-                    Platform.runLater(() -> Alerts.wrapping(type, summary).show());
+                    Platform.runLater(() -> Alerts.wrapping(dialogOwner(), type, summary).show());
                 }
             } finally {
                 Platform.runLater(done);
@@ -3028,7 +3025,14 @@ public class Main extends Application {
                 name -> {
                     MainWindow window = this.window;
                     return window == null || window.freeCategoryName(name, "Back");
-                });
+                }, dialogOwner());
+    }
+
+    /// The main window as the owner of the dialogs `Main` opens
+    /// (`req~owned-dialogs~1`), null before it is shown.
+    private javafx.stage.@Nullable Window dialogOwner() {
+        MainWindow window = this.window;
+        return window == null ? null : window.dialogOwner();
     }
 
     /// Patches the wizard's settings answers into `settings.yaml` — a remote
@@ -3057,7 +3061,7 @@ public class Main extends Application {
             return updated;
         });
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot write the host to settings.yaml: "
+            Alerts.plain(null, Alert.AlertType.ERROR, "Cannot write the host to settings.yaml: "
                     + error).showAndWait();
         }
         return AppSettings.loadOrCreate(configDir());
@@ -3104,7 +3108,7 @@ public class Main extends Application {
             }
         } catch (IOException e) {
             Logger.warn("Setup wizard: cannot read settings.yaml: {}", e.getMessage());
-            new Alert(Alert.AlertType.ERROR, "Cannot read settings.yaml: " + e.getMessage()).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot read settings.yaml: " + e.getMessage()).show();
         }
     }
 
@@ -3117,7 +3121,7 @@ public class Main extends Application {
                 .run(List.of("git", "clone", url, tasksDir.toString()));
         if (!result.ok()) {
             Logger.warn("Task repo clone failed: {}", result.stderr().strip());
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(null, Alert.AlertType.ERROR,
                     "Could not clone the task repository:\n" + result.stderr().strip()
                             + "\n\nStarting with an empty task directory.").showAndWait();
         } else {
@@ -3144,7 +3148,7 @@ public class Main extends Application {
             return;
         }
         Logger.warn("Not on PATH: {}", String.join(", ", missing));
-        new Alert(Alert.AlertType.WARNING,
+        Alerts.plain(dialogOwner(), Alert.AlertType.WARNING,
                 "These tools are not on your PATH:\n\n    " + String.join(", ", missing)
                         + "\n\ntmux runs local and remote Claude sessions, ssh reaches every"
                         + " remote, git syncs the task files. Install what you need and restart;"
@@ -3406,7 +3410,7 @@ public class Main extends Application {
                 Platform.runLater(() -> {
                     creationFinished(window, "Task creation failed.");
                     window.noteTaskCreationFailed();
-                    new Alert(Alert.AlertType.ERROR, "Not a GitHub PR or GitLab MR URL: " + url).show();
+                    Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Not a GitHub PR or GitLab MR URL: " + url).show();
                 });
                 return;
             }
@@ -3482,7 +3486,7 @@ public class Main extends Application {
         if (error != null) {
             creationFinished(window, "Task creation failed.");
             window.noteTaskCreationFailed();
-            new Alert(Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
             return null;
         }
         return fileName.substring(0, fileName.length() - ".md".length());
@@ -3506,7 +3510,7 @@ public class Main extends Application {
                 : files.save(fileName, TaskFileParser.withTmuxSection(
                         content, session, windowId, "created " + LocalDate.now()));
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot update " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot update " + fileName + ": " + error).show();
             return;
         }
         // The file may be open in the editor lane; refresh it so its stale
@@ -3531,7 +3535,7 @@ public class Main extends Application {
             window.noteTaskCreationFailed();
             creationFailures.put(taskId, reason);
             window.refreshPreview(taskId);
-            new Alert(Alert.AlertType.ERROR, reason).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, reason).show();
             return;
         }
         creationFailures.remove(taskId);
@@ -3808,7 +3812,7 @@ public class Main extends Application {
                     // [impl->dsn~task-create-progress~6]
                     String reason = windowFailure(remote, launcher.failure());
                     creationFailures.put(taskId, reason);
-                    new Alert(Alert.AlertType.ERROR, reason).show();
+                    Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, reason).show();
                     return;
                 }
                 window.statusBar().message("Forked " + statusName + ".");
@@ -3996,7 +4000,7 @@ public class Main extends Application {
                     if (currentWindow != null) {
                         currentWindow.statusBar().message("Cannot open a terminal on " + remote + ".");
                     }
-                    new Alert(Alert.AlertType.ERROR,
+                    Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                             "Cannot open a window on " + remote + " (see log).").show();
                     onSettled.run();
                 });
@@ -4264,7 +4268,7 @@ public class Main extends Application {
             checkout = groupMainCheckout(files, taskGroup(task));
         }
         if (cwd == null) {
-            new Alert(Alert.AlertType.INFORMATION,
+            Alerts.plain(dialogOwner(), Alert.AlertType.INFORMATION,
                     "No workspace recorded for this window — the task needs a claude: "
                             + "section with a cwd or workspace to diff in.").show();
             return;
@@ -4276,7 +4280,7 @@ public class Main extends Application {
             String windowId = TaskDiffWindow.open(ssh, remote, mirrored.session(), workspace,
                     mainCheckout, recordedCommit);
             if (windowId == null) {
-                Platform.runLater(() -> new Alert(Alert.AlertType.ERROR,
+                Platform.runLater(() -> Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                         "Cannot open a diff window on " + remote + " (see log).").show());
                 return;
             }
@@ -4312,7 +4316,7 @@ public class Main extends Application {
             }
         }
         if (cwd == null) {
-            new Alert(Alert.AlertType.INFORMATION,
+            Alerts.plain(dialogOwner(), Alert.AlertType.INFORMATION,
                     "No working directory recorded for this task — nothing to diff.").show();
             return;
         }
@@ -4358,7 +4362,7 @@ public class Main extends Application {
         }
         String error = files.save(fileName, updated);
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot update " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot update " + fileName + ": " + error).show();
             return;
         }
         // The file may be open in the editor lane; refresh it so its stale

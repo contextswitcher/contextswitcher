@@ -151,7 +151,7 @@ final class ConfigFormPane {
         String content = text.get();
         return switch (current.mergeInto(content)) {
             case ConfigForm.MergeResult.Invalid(String reason) -> {
-                new Alert(Alert.AlertType.ERROR, reason).show();
+                Alerts.plain(Alerts.windowOf(root), Alert.AlertType.ERROR, reason).show();
                 yield false;
             }
             case ConfigForm.MergeResult.Merged(String merged) -> {
