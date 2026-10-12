@@ -624,7 +624,7 @@ public final class SetupWizard {
         // when the machine already has some.
         TextField repoUrl = new TextField();
         repoUrl.setId("setup-repo-url");
-        repoUrl.setPromptText("https://github.com/org/project  (optional)");
+        repoUrl.setPromptText("https://github.com/org/project  or  git@github.com:org/project.git  (optional)");
         repoUrl.setPrefColumnCount(40);
         String clip = javafx.scene.input.Clipboard.getSystemClipboard().getString();
         if (clip != null && TaskFileParser.repoName(clip) != null) {

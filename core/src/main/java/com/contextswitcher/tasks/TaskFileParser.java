@@ -805,16 +805,48 @@ public class TaskFileParser {
 
     /// The repository name of a GitHub (or any `https://host/owner/name`)
     /// URL, slugged as a category name: the last path segment, a `.git`
-    /// suffix dropped. Null when the text is no http(s) URL or has no such
-    /// segment — the "Add category from URL…" dialog refuses those.
+    /// suffix dropped. An ssh clone URL (`git@host:owner/name.git`,
+    /// `ssh://…`) names its repository just as well. Null when the text is
+    /// no such URL or has no such segment — the "Add category from URL…"
+    /// dialog refuses those.
     // [impl->dsn~category-from-url~4]
     public static @Nullable String repoName(String url) {
-        Matcher m = REPO_URL.matcher(url.strip());
+        String web = repoWebUrl(url);
+        if (web == null) {
+            return null;
+        }
+        Matcher m = REPO_URL.matcher(web);
         if (!m.matches()) {
             return null;
         }
         String name = slug(m.group(1));
         return name.isEmpty() ? null : name;
+    }
+
+    /// The `repo:` a category created from `url` carries: the repository's
+    /// `https://host/owner/name` page — the `repo:` is opened in the browser
+    /// and turned into issue links, which an ssh clone URL cannot be. A deep
+    /// link (a file, a pull request) is cut back to the repository: on
+    /// GitHub after `owner/name`, on GitLab before its `/-/`; other hosts
+    /// keep their path, since their repositories nest arbitrarily deep. Null
+    /// when `url` is no repository URL; whitespace rules out the scp-like
+    /// form, so a sentence with an e-mail address and a colon is none.
+    // [impl->dsn~category-from-url~4]
+    public static @Nullable String repoWebUrl(String url) {
+        String text = url.strip();
+        if (text.isEmpty() || text.chars().anyMatch(Character::isWhitespace)) {
+            return null;
+        }
+        if (text.startsWith("https://") || text.startsWith("http://")) {
+            text = text.replaceFirst("[?#].*$", "");
+            int gitlab = text.indexOf("/-/");
+            if (gitlab > 0) {
+                text = text.substring(0, gitlab);
+            }
+            text = text.replaceFirst("^(https?://(?:www\\.)?github\\.com/[^/]+/[^/]+)/.*$", "$1");
+        }
+        String web = GitRemote.repoUrl(text);
+        return web != null && REPO_URL.matcher(web).matches() ? web : null;
     }
 
     private static final Pattern REPO_URL =
