@@ -27,6 +27,10 @@ The topmost section is the day in progress — its link points at `main` until t
 - The pull-request lookup no longer logs a warning every few minutes when a task's directory has no pull request or is not a git checkout.
 - When creating a task's tmux window fails, the error alert and the task's terminal area show the remote's error message instead of only "(see log)"; before, the terminal area kept saying "Creating the tmux window …" after the failure.
 
+### Removed
+
+- "Add category from URL…" is gone from the add menu and the task list's context menu: the setup wizard's last page ("Setup wizard…" in the add menu) sets up a category from a repository URL the same way. "Add category…" stays for an empty category.
+
 ## [2026-10-11] - 2026-10-11
 
 ### Added

@@ -917,12 +917,6 @@ public class Main extends Application {
                 return null;
             }
         });
-        window.setOnHostWorkspaces((host, dir) -> {
-            String error = updateHost(host, entry -> entry.withWorkspaces(dir));
-            if (error != null) {
-                window.statusBar().message("Cannot save the workspaces directory: " + error);
-            }
-        });
         window.setOnStartClaude((task, onSettled) ->
                 startClaude(ssh, settings.claudeAuto(), task, onSettled));
         // The same window choice play makes, from the terminal placeholder.

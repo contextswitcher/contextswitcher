@@ -62,14 +62,13 @@ Clicking it quits the app with exit code 55, which `just run-loop` takes as "pul
 ## First steps
 
 1. Start the app. `~/.contextswitcher/` is created with `settings.yaml` (including a random WebSocket token) and a commented `TEMPLATE.md` in `tasks/`.
-   On the first start a wizard asks where your Claude sessions run (this machine, or a remote over ssh — either checked on the spot for `tmux` and `claude`), offers to install RefactoringMiner, ast-grep and codegraph with their skills on that host, asks whether to clone an existing task repository, and for a first category's repository URL; it writes the remote to the settings and sets the category up like **Add category from URL…** below.
+   On the first start a wizard asks where your Claude sessions run (this machine, or a remote over ssh — either checked on the spot for `tmux` and `claude`), offers to install RefactoringMiner, ast-grep and codegraph with their skills on that host, asks whether to clone an existing task repository, and for a first category's repository URL; it writes the remote to the settings and sets the category up as described under [Categories](#categories) below.
    A page of it shows the port and token the browser extension's options page needs, with the install notes one click away.
    **Setup wizard…** in the toolbar's add menu runs it again later, for another remote or host.
 2. Later remotes go into **Settings** (the gear at the top-right); everything else has a working default.
 3. Get tasks in, whichever fits:
    * **Sync tmux windows…** (toolbar, ⋮ menu) — one task per running tmux window on your remotes, including working directory, Claude session id and the PR the session published.
    * **Add task…** (toolbar `+`, `Ctrl+T`) — type a title *or* paste a GitHub PR or GitLab MR URL; the app creates the tmux window on the category's remote, starts Claude in it, and primes it with the description or the PR. Pick the category, model and reasoning effort in the same dialog. **Add plain task** just writes the file.
-   * **Add category from URL…** — hand it a repository URL and it sets the whole project up on the remote (workspaces root, clone, `CLAUDE.md`) and writes the category config for it.
 4. Select a task: the Terminal pane mirrors its terminal live, Notes and Configuration edit its file, and the Queue drafts messages for its chat.
 5. Press play (or double-click) to switch: tmux window focused, IntelliJ project opened, browser tabs focused, note and chat opened, folders raised.
 
@@ -167,7 +166,7 @@ A misspelled suffix silently does nothing — like any other misspelled optional
 A category is a subfolder of the tasks directory — a project group, shown as a collapsible section (pinnable from its header, renamable, deletable).
 It becomes a *configured* category by holding a `CONTEXTSWITCHER.md`: YAML frontmatter with the defaults every task in the folder inherits, the body free for project notes.
 The app writes the file for you as a fully commented skeleton — group header right-click → **Add CS config…** (**Edit CS config…** once it exists), or **Add category…** for a new folder — and the editor's form edits it like a task file.
-**Add category from URL…** does the whole setup from a repository URL: it names the category after the repository, writes the config with real values (remote, `workspacesRoot: <parent>/<name>-workspaces` next to your other roots, `mainCheckout`, `repo`, tag), asks how you work with that repository (fork and PR upstream, write access, your own, semantic fork), and starts a Claude session on the remote that creates the root, clones the repository and writes the root's `CLAUDE.md` from the matching shipped template — optionally continuing straight into a first message.
+**Setup wizard…** (toolbar add menu) does the whole setup from a repository URL on its last page: it names the category after the repository, writes the config with real values (remote, `workspacesRoot: <parent>/<name>-workspaces` next to your other roots, `mainCheckout`, `repo`, tag), asks how you work with that repository (fork and PR upstream, write access, your own, semantic fork), and starts a Claude session on the remote that creates the root, clones the repository and writes the root's `CLAUDE.md` from the matching shipped template — optionally continuing straight into a first message.
 
 Every key is optional:
 

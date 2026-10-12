@@ -329,9 +329,8 @@ The RefactoringMiner directory is per host: `RefactoringMinerPoller` asks `Main.
 The refactoring view takes the directory of the task's own remote and says which host to configure when it has none; the port stays one global setting.
 
 The workspaces directory is where new workspaces roots go on that host: `MainWindow.configuredWorkspacesParent(host)` is the table's value first, then the parent of that host's existing categories' roots (`dsn~setup-wizard~10`).
-It is asked twice over.
+It is asked in the setup wizard.
 The setup wizard's remote page offers the table's ssh destinations as radio choices plus *Another machine:* with the destination field (`Prefill.knownHosts`; a choice fills the field, read-only, so the check and the result read it as before; a re-run picks the first switched-on host), and has a *Workspaces directory there* field — for a known host filled as soon as the host is picked, from the table or that host's existing roots, otherwise once the connection check knows the remote's home (`<home>/workspaces`) — until typed into; the wizard writes it into the host's entry, and the last page proposes the first category's root under it.
-The toolbar's Add-category dialog, on a host whose entry has none, first asks (`MainWindow.askHostWorkspaces`, proposing that host's existing roots' parent, else `/home/<user>/workspaces` from the destination's user part — the real home is an ssh round-trip away) and saves the answer; *Cancel* abandons the category.
 
 Tags: windows, linux
 

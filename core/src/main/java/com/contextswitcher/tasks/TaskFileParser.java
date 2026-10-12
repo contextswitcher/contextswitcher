@@ -809,7 +809,7 @@ public class TaskFileParser {
     /// `ssh://…`) names its repository just as well. Null when the text is
     /// no such URL or has no such segment — the "Add category from URL…"
     /// dialog refuses those.
-    // [impl->dsn~category-from-url~4]
+    // [impl->dsn~category-from-url~5]
     public static @Nullable String repoName(String url) {
         String web = repoWebUrl(url);
         if (web == null) {
@@ -831,7 +831,7 @@ public class TaskFileParser {
     /// keep their path, since their repositories nest arbitrarily deep. Null
     /// when `url` is no repository URL; whitespace rules out the scp-like
     /// form, so a sentence with an e-mail address and a colon is none.
-    // [impl->dsn~category-from-url~4]
+    // [impl->dsn~category-from-url~5]
     public static @Nullable String repoWebUrl(String url) {
         String text = url.strip();
         if (text.isEmpty() || text.chars().anyMatch(Character::isWhitespace)) {
@@ -860,7 +860,7 @@ public class TaskFileParser {
     /// passed (the active-desktop filter's, `dsn~category-create-ui~2`). A
     /// null `remote` writes no `remote:` line — a local category
     /// (`dsn~task-create-local~4`), the setup wizard's local choice.
-    // [impl->dsn~category-from-url~4]
+    // [impl->dsn~category-from-url~5]
     // [impl->dsn~setup-wizard~10]
     public static String groupConfigForRepo(String group, String url, @Nullable String remote,
             String workspacesRoot, @Nullable String desktop) {

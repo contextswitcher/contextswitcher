@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// The setup prompt of a category created from a repository URL: the
 /// repository type's clone clause and the optional first message.
-// [utest->dsn~category-from-url~4]
+// [utest->dsn~category-from-url~5]
 class CategorySetupDescriptionTest {
 
     private static final String URL = "https://github.com/Gram21/SaiLoR";

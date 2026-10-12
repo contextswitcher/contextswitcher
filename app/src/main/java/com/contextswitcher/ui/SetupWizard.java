@@ -48,8 +48,8 @@ import com.contextswitcher.tasks.TaskFileParser;
 /// first), whether an existing task
 /// repository is to be cloned, and a category's repository URL. The
 /// answers come back as a [Result]; `Main` writes the remote into the
-/// settings, clones, and hands the project to the same category-from-URL
-/// flow the toolbar menu runs (`dsn~category-from-url~4`).
+/// settings, clones, and hands the project to the category-from-URL flow
+/// (`dsn~category-from-url~5`).
 ///
 /// One `Dialog` with swapped pages rather than six dialogs: Back works, and
 /// Cancel on any page leaves everything as it was.

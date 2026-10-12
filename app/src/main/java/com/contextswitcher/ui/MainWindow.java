@@ -132,8 +132,6 @@ import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -839,20 +837,10 @@ public class MainWindow {
     // [impl->dsn~host-table~1]
     private Function<String, @Nullable String> hostWorkspaces = host -> null;
 
-    /// Saves an asked workspaces directory into the host table; set by `Main`.
-    // [impl->dsn~host-table~1]
-    private BiConsumer<String, String> onHostWorkspaces = (host, dir) -> { };
-
     /// Installs the host table's workspaces lookup (see [#hostWorkspaces]).
     // [impl->dsn~host-table~1]
     public void setHostWorkspaces(Function<String, @Nullable String> lookup) {
         this.hostWorkspaces = lookup;
-    }
-
-    /// Installs the save of an asked workspaces directory.
-    // [impl->dsn~host-table~1]
-    public void setOnHostWorkspaces(BiConsumer<String, String> handler) {
-        this.onHostWorkspaces = handler;
     }
 
     /// Installs the setup-wizard handler (see [#onSetupWizard]).
@@ -1129,9 +1117,7 @@ public class MainWindow {
         // [impl->dsn~category-create-ui~2]
         MenuItem addCategory = new MenuItem("Add category…");
         addCategory.setOnAction(event -> addCategory());
-        MenuItem addCategoryFromUrl = new MenuItem("Add category from URL…");
-        addCategoryFromUrl.setOnAction(event -> addCategoryFromUrl());
-        list.setContextMenu(new ContextMenu(addCategory, addCategoryFromUrl, setupWizardItem()));
+        list.setContextMenu(new ContextMenu(addCategory, setupWizardItem()));
         // Keeps title, status, and action icons legible; the dock layout
         // shrinks the other panes first once the window gets this narrow.
         list.setMinWidth(220);
@@ -4315,120 +4301,13 @@ public class MainWindow {
                 });
     }
 
-    /// Creates a category for a project repository URL and lets Claude set
-    /// the project up on the remote: the folder is named after the
-    /// repository, its `CONTEXTSWITCHER.md` is written with real values
-    /// (remote, `workspacesRoot`, `mainCheckout`, `repo`, tag) instead of
-    /// the commented skeleton, and a live task is started in the fresh
-    /// workspaces root (`mkdir -p`ed by the live-task flow) whose prompt
-    /// asks Claude to clone the repository and fill in the workspace-root
-    /// `CLAUDE.md` template the prompt carries. The dialog takes the URL
-    /// (pre-filled from the clipboard when that holds one) and the
-    /// workspaces root, which follows the URL
-    /// (`<parent>/<name>-workspaces`, the parent taken from a sibling
-    /// category's root) until edited by hand, plus the repository type
-    /// ([RepoType] — which template is filled in, and whether the clone is a
-    /// fork) and an optional first message the setup prompt ends with, so
-    /// the session continues into real work. Model and
-    /// effort are picked as in the `Add task…` dialog. Needs a configured
-    /// remote, like `Add remote Claude`.
-    // [impl->dsn~category-from-url~4]
-    private void addCategoryFromUrl() {
-        String remote = effectiveRemote(GroupConfig.EMPTY);
-        if (remote == null) {
-            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
-                    "Add category from URL needs a remote — set one in settings.yaml.").show();
-            return;
-        }
-        // A host's first category asks where its workspaces go, unless the
-        // host table already says. [impl->dsn~host-table~1]
-        String parent = hostWorkspaces.apply(remote);
-        if (parent == null) {
-            parent = askHostWorkspaces(remote);
-            if (parent == null) {
-                return;
-            }
-        }
-        String rootParent = parent;
-        Dialog<ButtonType> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
-        dialog.setTitle("Add category from URL");
-        dialog.setHeaderText("Creates a category named after the repository, with a CS config,\n"
-                + "and starts a Claude session on " + remote + " that clones the repository\n"
-                + "into the workspaces root and writes its CLAUDE.md.");
-        TextField url = new TextField();
-        String clip = Clipboard.getSystemClipboard().getString();
-        if (clip != null && TaskFileParser.repoName(clip) != null) {
-            url.setText(clip.strip());
-        }
-        TextField root = new TextField();
-        boolean[] rootEdited = {false};
-        Runnable followUrl = () -> {
-            String name = TaskFileParser.repoName(url.getText());
-            if (!rootEdited[0]) {
-                root.setText(name == null ? "" : rootParent + "/" + name + "-workspaces");
-            }
-        };
-        url.textProperty().addListener((obs, old, text) -> followUrl.run());
-        root.setOnKeyTyped(event -> rootEdited[0] = true);
-        followUrl.run();
-        GridPane grid = new GridPane();
-        grid.setHgap(8);
-        grid.setVgap(6);
-        // Labels never ellipsize: the label column keeps its preferred
-        // width, the field column takes what is left and grows.
-        ColumnConstraints labels = new ColumnConstraints();
-        labels.setMinWidth(Region.USE_PREF_SIZE);
-        ColumnConstraints fields = new ColumnConstraints();
-        fields.setHgrow(Priority.ALWAYS);
-        fields.setMinWidth(0);
-        grid.getColumnConstraints().addAll(labels, fields);
-        ComboBox<RepoType> repoType = new ComboBox<>();
-        repoType.getItems().setAll(RepoType.values());
-        repoType.setValue(RepoType.WRITE_ACCESS);
-        repoType.getStyleClass().add(Styles.SMALL);
-        // The setup session's model and effort, the Add-task dialog's boxes
-        // pre-filled from the last pick actually sent.
-        // [impl->dsn~claude-mode-select~3]
-        ComboBox<String> modelBox = QueuePane.modeBox("model: as is", ClaudeMode.MODELS);
-        ComboBox<String> effortBox = QueuePane.modeBox("effort: as is", ClaudeMode.EFFORTS);
-        ClaudeMode remembered = lastMode();
-        QueuePane.selectMode(modelBox, remembered.model());
-        QueuePane.selectMode(effortBox, remembered.effort());
-        TextArea firstMessage = new TextArea();
-        firstMessage.setPromptText("Optional: what Claude should do once the setup is done");
-        firstMessage.setPrefRowCount(3);
-        firstMessage.setWrapText(true);
-        grid.addRow(0, new Label("Repository URL"), url);
-        grid.addRow(1, new Label("Workspaces root"), root);
-        grid.addRow(2, new Label("Repository type"), repoType);
-        grid.addRow(3, new Label("First message"), firstMessage);
-        grid.add(new HBox(6, modelBox, effortBox), 1, 4);
-        url.setPrefColumnCount(40);
-        firstMessage.setPrefColumnCount(40);
-        dialog.getDialogPane().setContent(grid);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(
-                Bindings.createBooleanBinding(
-                        () -> TaskFileParser.repoName(url.getText()) == null || root.getText().isBlank(),
-                        url.textProperty(), root.textProperty()));
-        Platform.runLater(url::requestFocus);
-        if (dialog.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
-            return;
-        }
-        ClaudeMode mode = new ClaudeMode(
-                QueuePane.modeValue(modelBox), QueuePane.modeValue(effortBox));
-        rememberMode(mode);
-        createCategoryFromRepo(url.getText(), root.getText().strip(), remote, repoType.getValue(),
-                mode, firstMessage.getText());
-    }
-
-    /// The category-from-URL flow behind [#addCategoryFromUrl]'s dialog, also
-    /// the setup wizard's last page (`dsn~setup-wizard~10`): creates the folder
+    /// The category-from-URL flow behind the setup wizard's last page
+    /// (`dsn~setup-wizard~10`): creates the folder
     /// and its config, then starts the setup session. With a `remote` that is
     /// a live task there; with none (a local category) the same description is
     /// handed to a local Claude in the workspaces root, the template appended
     /// to the prompt, since the local launcher carries no appendix of its own.
-    // [impl->dsn~category-from-url~4]
+    // [impl->dsn~category-from-url~5]
     // [impl->dsn~setup-wizard~10]
     public void createCategoryFromRepo(String url, String workspacesRoot, @Nullable String remote,
             RepoType type, ClaudeMode mode, @Nullable String firstMessage) {
@@ -4470,34 +4349,6 @@ public class MainWindow {
             onStartLocalClaude.start(taskId, workspacesRoot,
                     description + "\n\n" + type.template(), mode);
         }
-    }
-
-    /// Asks where the workspaces of `host` go — its first category, with no
-    /// workspaces directory in the host table yet — and saves the answer
-    /// there. Proposes the parent of that host's existing roots, else
-    /// `/home/<user>/workspaces` from the destination's user part (the
-    /// remote's real home is a round-trip away; the proposal is only a
-    /// start). Null when cancelled or left empty.
-    // [impl->dsn~host-table~1]
-    private @Nullable String askHostWorkspaces(String host) {
-        String proposal = categoriesWorkspacesParent(host);
-        if (proposal == null) {
-            String user = host.contains("@") ? host.substring(0, host.indexOf('@'))
-                    : System.getProperty("user.name");
-            proposal = "/home/" + user + "/workspaces";
-        }
-        TextInputDialog ask = Alerts.owned(dialogOwner(), new TextInputDialog(proposal));
-        ask.setTitle("Workspaces directory");
-        ask.setHeaderText("The first category on " + host
-                + ".\nWhere should its workspaces go? New workspaces roots are created under it.");
-        ask.setContentText("Directory on " + host + ":");
-        ask.getEditor().setPrefColumnCount(36);
-        String dir = ask.showAndWait().map(String::strip).filter(text -> !text.isEmpty())
-                .map(text -> text.replaceAll("/+$", "")).orElse(null);
-        if (dir != null) {
-            onHostWorkspaces.accept(host, dir);
-        }
-        return dir;
     }
 
     /// Where new workspaces roots on `host` go: the host table's workspaces
@@ -4612,7 +4463,7 @@ public class MainWindow {
         return !folders.isEmpty();
     }
 
-    /// The setup task's description for [#addCategoryFromUrl]: clone into
+    /// The setup task's description for [#createCategoryFromRepo]: clone into
     /// the group-named subdirectory of the workspaces root (the
     /// `mainCheckout` the config names), then fill in the workspace-root
     /// `CLAUDE.md` template the prompt carries — the one [RepoType] the user
@@ -4620,7 +4471,7 @@ public class MainWindow {
     /// (created when there is none yet); `firstMessage` — when non-blank — is
     /// the work to do once the setup is done, so the setup session continues
     /// straight into it.
-    // [impl->dsn~category-from-url~4]
+    // [impl->dsn~category-from-url~5]
     // [impl->dsn~claude-md-templates~1]
     static String categorySetupDescription(String url, String group, String workspacesRoot,
             RepoType type, @Nullable String firstMessage) {
@@ -6900,9 +6751,7 @@ public class MainWindow {
         addTask.setOnAction(event -> addTask(selectedGroup()));
         MenuItem addCategory = new MenuItem("Add category…");
         addCategory.setOnAction(event -> addCategory());
-        MenuItem addCategoryFromUrl = new MenuItem("Add category from URL…");
-        addCategoryFromUrl.setOnAction(event -> addCategoryFromUrl());
-        button.getItems().addAll(addTask, addCategory, addCategoryFromUrl,
+        button.getItems().addAll(addTask, addCategory,
                 new SeparatorMenuItem(), setupWizardItem());
         return button;
     }

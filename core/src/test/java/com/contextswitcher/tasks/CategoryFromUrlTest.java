@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// A category created from a repository URL: the folder name derived from
 /// the URL and the real-valued `CONTEXTSWITCHER.md` written for it.
-// [utest->dsn~category-from-url~4]
+// [utest->dsn~category-from-url~5]
 class CategoryFromUrlTest {
 
     @Test

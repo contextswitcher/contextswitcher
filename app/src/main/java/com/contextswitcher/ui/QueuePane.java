@@ -1514,8 +1514,8 @@ public class QueuePane {
 
     /// A model or effort picker: `asIs` is the first entry and means "leave
     /// the session as it is" (nothing sent), every other entry is a
-    /// `/model`/`/effort` argument. Used by the `Add task…` and the
-    /// category-from-URL dialog, so both offer the same choices.
+    /// `/model`/`/effort` argument. Used by the `Add task…` dialog and the
+    /// remote-window choice, so both offer the same choices.
     // [impl->dsn~claude-mode-select~3]
     public static ComboBox<String> modeBox(String asIs, List<String> values) {
         ComboBox<String> box = new ComboBox<>();
