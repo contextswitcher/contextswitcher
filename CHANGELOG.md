@@ -17,6 +17,7 @@ The topmost section is the day in progress — its link points at `main` until t
 - A remote directory written with `~` (such as `~/workspaces/…`) works: before, the app looked for a directory literally named `~` there, so creating a window or looking up a workspace's pull request failed.
 - Closing the app no longer logs an error from a pull-request check that was still scheduled.
 - The pull-request lookup no longer logs a warning every few minutes when a task's directory has no pull request or is not a git checkout.
+- When creating a task's tmux window fails, the error alert and the task's terminal area show the remote's error message instead of only "(see log)"; before, the terminal area kept saying "Creating the tmux window …" after the failure.
 
 ## [2026-10-11] - 2026-10-11
 

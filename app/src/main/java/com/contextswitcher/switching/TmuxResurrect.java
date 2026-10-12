@@ -23,6 +23,7 @@ public class TmuxResurrect {
 
     private final SshCommandRunner ssh;
     private final boolean claudeAuto;
+    private @Nullable String failure;
 
     public TmuxResurrect(SshCommandRunner ssh) {
         this(ssh, false);
@@ -77,6 +78,13 @@ public class TmuxResurrect {
         return ssh.run(remote, startCommand(windowId, sessionId, claudeAuto)).ok();
     }
 
+    /// The remote's error output of the last [#createWindow] that returned
+    /// null, like [ClaudeWindowLauncher#failure()].
+    // [impl->dsn~task-create-progress~6]
+    public @Nullable String failure() {
+        return failure;
+    }
+
     /// Creates a fresh window (a new session when the base session is gone)
     /// in `cwd` with no Claude — the plain-shell choice of the remote-only
     /// auto-create popup. Returns the new immutable window id, or null with
@@ -90,6 +98,7 @@ public class TmuxResurrect {
         if (!created.ok() || created.stdout().isBlank()) {
             Logger.warn("Cannot create window for session {} on {}: {}",
                     session, remote, created.stderr().strip());
+            failure = created.stderr().strip();
             return null;
         }
         return created.stdout().strip();

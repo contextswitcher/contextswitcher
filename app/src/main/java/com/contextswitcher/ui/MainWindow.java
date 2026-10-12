@@ -892,7 +892,7 @@ public class MainWindow {
 
     /// Tasks whose remote half is still being set up, by task id — written by
     /// `Main`'s creation flows, read by the row renderer.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private final Map<String, TaskListCell.Creation> creations = new HashMap<>();
 
     /// True only while [#rebuildRows] hands the new rows to `visibleRows`:
@@ -903,7 +903,7 @@ public class MainWindow {
 
     /// Advances the creating rows' time-driven bars — through the bound
     /// properties, not a cell rebuild; runs only while a creation is in flight.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private @Nullable Timeline creationTicker;
 
     /// The header row pinned over the top of the list, and the row index it
@@ -3502,7 +3502,7 @@ public class MainWindow {
             new Alert(Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
             return null;
         }
-        // [impl->dsn~task-create-progress~5]
+        // [impl->dsn~task-create-progress~6]
         statusBar().message("Task created.");
         String taskId = fileName.substring(0, fileName.length() - ".md".length());
         pendingSelectionId = taskId;
@@ -3513,7 +3513,7 @@ public class MainWindow {
     /// Reports what a task's still-running remote creation is doing right now;
     /// the first call for a task starts its progress bar (and the repaint
     /// ticker), later ones only rename the step. FX thread.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     public void creationProgress(String taskId, String step) {
         TaskListCell.Creation running = creations.get(taskId);
         if (running != null) {
@@ -3536,7 +3536,7 @@ public class MainWindow {
 
     /// Ends a task's creation progress — success or failure alike; the row
     /// falls back to its normal second line. FX thread.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     public void creationDone(String taskId) {
         if (creations.remove(taskId) == null) {
             return;
