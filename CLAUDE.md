@@ -27,8 +27,9 @@
   Icon-only buttons additionally get `Styles.BUTTON_ICON, Styles.FLAT`.
   Controls AtlantaFX has no `.small` rule for are patched in `app/src/main/resources/com/contextswitcher/ui/main.css`.
 * No truncated text: a button label, radio/checkbox caption or hint line must never end up as "Test conne…" / "Add remote Cl…" (Oliver, 2026-10-11).
-  Often widening the dialog (or the button's `minWidth`, `Region.USE_PREF_SIZE`) is enough; otherwise reshape it — wrap hint labels (`setWrapText(true)`), shorten the label and move the detail into a tooltip, or put the buttons on their own row.
-  Check every new or changed dialog at its initial size before committing, including the longest variant of dynamic text (host names, category names).
+  Often widening the dialog (or the button's `minWidth`, `Region.USE_PREF_SIZE`) is enough; otherwise reshape it — wrap hint labels (`setWrapText(true)` plus `setMinHeight(Region.USE_PREF_SIZE)`), let the field next to a button give way (`HBox.setHgrow`), shorten the label and move the detail into a tooltip, or put the buttons on their own row.
+  AtlantaFX caps every dialog pane at 600px from the user-agent sheet, which a `setMaxWidth` in code does not override; a dialog that needs more adds the `uncapped` style class (`main.css`).
+  Windows' font is wider than Linux's: what fits under Xvfb can be cut off there, so a dialog's UI test asserts `UiTestSupport.truncatedTexts(…)` is empty, at a narrowed window where the layout has room to give.
 * Doc comments in Markdown Javadoc form (JEP 467, `///`), not classic `/** … */`.
 * Nullness: JSpecify — every package gets `@NullMarked` in `package-info.java`; anything nullable is annotated `@Nullable` (type-use position, e.g. `Task.@Nullable TmuxConfig`).
 * Logging: tinylog 2 API directly (`org.tinylog.Logger` static methods, no logger fields). The `slf4j-tinylog` bridge exists only for third-party libraries. Config in `app/src/main/resources/tinylog.properties` (console + rolling file in `~/.contextswitcher/logs/`).
