@@ -272,6 +272,19 @@ public final class SetupWizard {
                 "Once the category is set up, its session is asked: " + CHECKUP_PROMPT));
         followForward((ButtonBar) dialog.getDialogPane().lookup(".button-bar"));
         nextButton.setDefaultButton(true);
+        // Full button labels (field report 2026-10-12, "Finish and che…" on
+        // Windows): AtlantaFX caps a dialog pane at 600px, which the icon and
+        // a wider font overrun — the wizard opts out like the Add-task dialog;
+        // ButtonBar gives every button the widest one's width, so the two long
+        // OTHER buttons keep their own; and no button shrinks below its label,
+        // so the bar's minimum widens the window instead of eliding text.
+        // [impl->dsn~full-labels~1]
+        dialog.getDialogPane().getStyleClass().add("uncapped");
+        ButtonBar.setButtonUniformSize(checkupButton, false);
+        ButtonBar.setButtonUniformSize(startNowButton, false);
+        for (ButtonType type : dialog.getDialogPane().getButtonTypes()) {
+            ((Button) dialog.getDialogPane().lookupButton(type)).setMinWidth(Region.USE_PREF_SIZE);
+        }
 
         // Page 1: where sessions run.
         ToggleGroup where = new ToggleGroup();

@@ -17,6 +17,19 @@ Covers:
 
 Needs: dsn
 
+### Labels are never cut off
+`req~full-labels~1`
+
+No button label, radio or checkbox caption, field caption or hint is shown cut off with "…" ("Finish and che…", "Test conne…"); the window is wider, or the text wraps, instead.
+Windows draws a wider font than Linux, so this holds there, not only where the layout was tried.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ## Design
 
 ### Every dialog gets an owner
@@ -39,3 +52,22 @@ Covers:
 - req~owned-dialogs~1
 
 Needs: impl
+
+### Dialogs make room for their labels
+`dsn~full-labels~1`
+
+Three JavaFX/AtlantaFX defaults cut labels, each with its remedy:
+
+- AtlantaFX caps every `.dialog-pane` at 600px from its user-agent sheet, which a `setMaxWidth` in code does not override; a dialog that needs more adds the `uncapped` style class (`main.css`) — the Add-task dialog and the setup wizard, whose icon and four buttons overran it on Windows (field report 2026-10-12, "Finish and che…").
+- A dialog's `ButtonBar` gives every button the widest one's width (`ButtonBar.setButtonUniformSize`, on by default), so one long label makes four wide buttons that then no longer fit; a long button opts out (the wizard's *Finish and check up* and *Start right away*).
+- A button shrinks below its label when its container is tight; `setMinWidth(Region.USE_PREF_SIZE)` makes the label the minimum, so the container — the button bar, and with it the window — widens instead (every wizard button, the button next to a field via `withButton`, the tool rows' *Install*/*Recheck*).
+
+Text that may be long wraps instead: `setWrapText(true)` with `setMinHeight(Region.USE_PREF_SIZE)`, or a field next to a button gives way (`HBox.setHgrow`).
+Each dialog's UI test asserts `UiTestSupport.truncatedTexts(…)` is empty — it compares each label's drawn text with its text, since `Labeled.isTextTruncated()` proved unreliable — so a layout that only fits under Xvfb's narrower font fails on CI rather than on Windows.
+
+Tags: windows, linux
+
+Covers:
+- req~full-labels~1
+
+Needs: impl, utest

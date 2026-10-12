@@ -27,7 +27,7 @@
   Icon-only buttons additionally get `Styles.BUTTON_ICON, Styles.FLAT`.
   Controls AtlantaFX has no `.small` rule for are patched in `app/src/main/resources/com/contextswitcher/ui/main.css`.
 * Dialogs: every `Dialog`/`Alert` gets an owner before `show` — `Alerts.plain/wrapping/withContent(owner, …)` or `Alerts.owned(owner, dialog)`, never a bare `new Alert(…)`; an ownerless one opens on the primary monitor (`docs/requirements/common-javafx.md`, the place for such app-wide JavaFX rules).
-* No truncated text: a button label, radio/checkbox caption or hint line must never end up as "Test conne…" / "Add remote Cl…" (Oliver, 2026-10-11).
+* No truncated text: a button label, radio/checkbox caption or hint line must never end up as "Test conne…" / "Add remote Cl…" (Oliver, 2026-10-11; `req~full-labels~1` in `docs/requirements/common-javafx.md`).
   Often widening the dialog (or the button's `minWidth`, `Region.USE_PREF_SIZE`) is enough; otherwise reshape it — wrap hint labels (`setWrapText(true)` plus `setMinHeight(Region.USE_PREF_SIZE)`), let the field next to a button give way (`HBox.setHgrow`), shorten the label and move the detail into a tooltip, or put the buttons on their own row.
   AtlantaFX caps every dialog pane at 600px from the user-agent sheet, which a `setMaxWidth` in code does not override; a dialog that needs more adds the `uncapped` style class (`main.css`).
   Windows' font is wider than Linux's: what fits under Xvfb can be cut off there, so a dialog's UI test asserts `UiTestSupport.truncatedTexts(…)` is empty, at a narrowed window where the layout has room to give.

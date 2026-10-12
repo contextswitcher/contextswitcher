@@ -3182,6 +3182,7 @@ public class MainWindow {
         dialog.getDialogPane().setContent(content);
         // Out from under AtlantaFX's 600px cap (main.css): the four buttons
         // need more with a wider font (Windows), and the cap cut their labels.
+        // [impl->dsn~full-labels~1]
         dialog.getDialogPane().getStyleClass().add("uncapped");
 
         Button remoteButton = (Button) dialog.getDialogPane().lookupButton(remoteType);

@@ -15,6 +15,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Fixed
 
+- The setup wizard's last page shows "Finish and check up" in full instead of "Finish and che…".
 - A category can be added from an ssh clone URL such as `git@github.com:owner/project.git`, in the setup wizard and in "Add category from URL…"; the repository is then cloned over ssh. Before, only `https://` URLs were accepted and Finish stayed disabled.
 - A link into a repository, such as a file on GitHub, adds a category for that repository. Before, the category was named after the file.
 - The Add-task dialog shows its buttons ("Add remote Claude", "Add local Claude", "Add plain task") and hints in full instead of cutting them off with "…"; the hints wrap and the dialog is as wide as its buttons need.
