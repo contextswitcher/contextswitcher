@@ -3017,9 +3017,9 @@ public class Main extends Application {
     /// Patches the wizard's settings answers into `settings.yaml` — a remote
     /// not yet listed, and the RefactoringMiner directory the tools page
     /// found or installed (the setting the badge and the view are gated on,
-    /// `dsn~recommended-tools~2`) — and returns the re-read settings.
+    /// `dsn~recommended-tools~3`) — and returns the re-read settings.
     // [impl->dsn~setup-wizard~10]
-    // [impl->dsn~recommended-tools~2]
+    // [impl->dsn~recommended-tools~3]
     private static AppSettings applyWizardSettings(AppSettings settings, SetupWizard.Result result)
             throws IOException {
         // The session host becomes (or updates) its row of the host table:

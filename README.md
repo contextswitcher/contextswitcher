@@ -372,6 +372,10 @@ A Claude session can publish where it works and what it is doing, so the app sho
 All of them are tmux **window** user options (no confirmation, scoped to the one window) that ContextSwitcher reads on the poll it already runs.
 Nothing here is required — every part left out simply leaves its display empty — but the status dots and `@cs_workspace` are what make the list live, so do at least those two.
 
+The setup wizard does the hooks part for you: the *Status reporting hooks* row on its tools page adds the hooks below, plus a `PostToolUse` hook publishing `@cs_workspace` after every Bash call, to the host's `~/.claude/settings.json`, keeping what is already there ([`dsn~claude-report-hooks~1`](docs/requirements/ui.md)).
+It needs `jq` on the host.
+The rest of this section is for setting it up by hand, and for the optional parts the wizard leaves alone (PR, commit, model and effort).
+
 **Status — use Claude Code hooks (deterministic).** Do not rely on Claude *remembering* to reset the status; drive it from hooks so it can never get stuck on "working". In the remote's `~/.claude/settings.json`:
 
 ```json

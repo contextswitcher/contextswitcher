@@ -951,7 +951,7 @@ For the ssh destination it takes: *Test connection*, and *Next* itself while no 
 `remoteVerdict` reads the answer: no output at all is ssh's failure (its first stderr line shown); otherwise the first line is the home and a missing `tmux …` or `… (Claude Code)` line names the tool to install (`toolsVerdict`, shared with the local check).
 A success shows both versions and moves on, a failure keeps the page — the verdict names what to fix, and the user can still cancel. The remote's `$HOME` is kept as the parent of the proposed workspaces root, since the app cannot know a remote home otherwise.
 Claude's authorization is deliberately not checked: Claude Code has no offline "logged in" query, and a credentials-file heuristic misreads an Enterprise or Bedrock setup; the first session's own login prompt is visible in the mirrored terminal.
-Page three recommends tools (`dsn~recommended-tools~2`), one row each with a live status, an *Install* and a *Recheck* button; nothing on it gates *Next*. It is skipped for a local choice on Windows, where the installers cannot run.
+Page three recommends tools (`dsn~recommended-tools~3`), one row each with a live status, an *Install* and a *Recheck* button; nothing on it gates *Next*. It is skipped for a local choice on Windows, where the installers cannot run.
 Page four is the browser extension, the one part the app cannot install: what it does, the WebSocket port and token its options page needs (the token in a read-only field with a *Copy* button, since retyping it from `settings.yaml` is where people stall), a button opening the configured browser's install notes on GitHub through the app's URL opener, and — on a re-run, when `ExtensionServer` is up — which browser's extension is connected right now (`SetupWizard.Extension`, filled by `Main` from the settings and the server).
 When the extension is already there as the wizard opens, the page is skipped: it has nothing left to help with.
 "There" is either signal: an extension connected right now, or a browser profile listing it (`InstalledExtension.find`, `~9`→`~10`).
@@ -986,9 +986,9 @@ Covers:
 Needs: impl, utest
 
 ### Recommended session tools
-`dsn~recommended-tools~2`
+`dsn~recommended-tools~3`
 
-`RecommendedTools` names what makes a session good rather than what the app needs — RefactoringMiner (the badge and the AST-diff view, `dsn~refactoring-miner-commands~1`), ast-grep and codegraph, the two search tools Claude reaches for with their skills — as pure `sh -c '<script>'` argv builders: a `probe` printing the version (non-zero exit when missing) and an `install` printing it last, both free of double quotes (`dsn~ssh-command-runner~7`).
+`RecommendedTools` names what makes a session good rather than what the app needs — the status reporting hooks (`dsn~claude-report-hooks~1`, first on the page, `~2`→`~3`), RefactoringMiner (the badge and the AST-diff view, `dsn~refactoring-miner-commands~1`), ast-grep and codegraph, the two search tools Claude reaches for with their skills — as pure `sh -c '<script>'` argv builders: a `probe` printing the version (non-zero exit when missing) and an `install` printing it last, both free of double quotes (`dsn~ssh-command-runner~7`).
 The wizard's tools page runs them through an `SshCommandRunner` handed in by `Main`: a `HostCommandRunner` over a five-minute `ProcessSshRunner` for the remote and a `LocalTmuxRunner` for `TmuxHost.LOCAL`, so this machine (Linux/macOS) gets the same page minus RefactoringMiner, which the app only ever runs over ssh (`local()`).
 Every row is probed when the page is entered; *Install* — its tooltip says where it puts what (`Tool.installs`): RefactoringMiner under `~/.contextswitcher`, the other binaries in `~/.local/bin`, the skills under `~/.claude` — runs the installer, disabled for the round-trip, and the version it prints becomes the status — a failure shows the installer's first stderr line and leaves the button enabled.
 *Recheck* runs the probe again, for a tool installed outside the wizard (a package manager, another shell) while the page is open.
@@ -997,6 +997,25 @@ RefactoringMiner reuses `RefactoringMinerCommands.setupCommand` (the settings di
 ast-grep is the pinned release zip's `ast-grep` binary unzipped into `~/.local/bin` (`sg` deliberately left in the zip: it would shadow shadow-utils' `sg`), then `npx -y skills add ast-grep/agent-skill -g -a claude-code -s '*' -y` for its two skills — a missing `npx` only warns on stderr, the binary is still there.
 codegraph is its pinned `install.sh` (`CODEGRAPH_VERSION`), `codegraph install -y` registering the MCP server with the agents it detects, and the shipped `skills/codegraph-SKILL.md` written to `~/.claude/skills/codegraph/` first through the install's stdin (`runWithInput`), since the tool ships no skill of its own and the file is what tells a session to prefer it over grep.
 Both look for their binaries with `~/.local/bin` appended to `PATH`, where the native installers put them and a non-interactive shell does not look.
+
+Tags: windows, linux
+
+Covers:
+- req~setup-wizard~1
+
+Needs: impl, utest
+
+### Status reporting hooks, installed by the wizard
+`dsn~claude-report-hooks~1`
+
+The tools page's first row installs the Claude Code hooks of README *Let Claude report its state* into the session host's `~/.claude/settings.json` (this machine's too, outside Windows): `UserPromptSubmit`/`Stop`/`Notification` publish `@cs_status`, `SessionStart` publishes `@cs_session_id` and reports a fresh session as waiting, and `PostToolUse` on `Bash` publishes `@cs_workspace` from the hook input's `cwd` — so a session that `cd`s into a worktree it made itself reports it without a `CLAUDE.md` instruction.
+Every hook is guarded by `[ -n "$TMUX_PANE" ]` and targets `-t "$TMUX_PANE"`, for the reasons the README gives.
+Without them the app learns neither a session's id nor its worktree: no status dot, and the delete dialog has no transcript and no working directory to offer (field report 2026-10-12: a host set up through the wizard, a worktree Claude made on its own, nothing to clean up).
+The probe greps the file for each option the hooks publish and needs `jq` on the host (the session-id and workspace hooks read their input with it).
+*Install* is a script on `sh -s`'s stdin (`RecommendedTools.HOOKS_INSTALL`), not an argv: the hooks' JSON is full of the double quotes no remote argv may carry (`dsn~ssh-command-runner~7`).
+It merges with `jq` per event, adding a hook only when no command of that event already publishes the same option (`@cs_status working` and `@cs_status waiting` count as different), so hooks copied from the README by hand, other hooks (a `codegraph prompt-hook`) and a second run are left as they are; a changed file is first copied to `settings.json.before-contextswitcher`, and a file that is no JSON object, or a missing `jq`, fails the install with that reason and touches nothing.
+The `statusLine` for model and effort is left out: a user's own status line would be replaced, and the README's snippet is to be merged by hand.
+Sessions already running read their hooks at start, so they report from their next start on.
 
 Tags: windows, linux
 

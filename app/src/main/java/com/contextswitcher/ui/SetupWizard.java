@@ -494,7 +494,7 @@ public final class SetupWizard {
 
         // Page 3: the recommended tools, one row each — probed when the page
         // is entered and on Recheck, installed on its button, re-probed after.
-        // [impl->dsn~recommended-tools~2]
+        // [impl->dsn~recommended-tools~3]
         VBox toolRows = new VBox(6);
         @Nullable String[] rmHome = {null};
         Runnable probeTools = () -> {

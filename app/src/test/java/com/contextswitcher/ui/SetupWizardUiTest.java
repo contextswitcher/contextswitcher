@@ -75,9 +75,12 @@ class SetupWizardUiTest {
         @Override
         public SshResult runWithInput(String host, List<String> command, byte[] input) {
             String script = String.join(" ", command);
-            String tool = script.contains("RefactoringMiner") ? "refactoringminer"
+            boolean hooksInstall = script.equals("sh -s")
+                    && new String(input, java.nio.charset.StandardCharsets.UTF_8).contains("@cs_workspace");
+            String tool = hooksInstall || script.contains("settings.json") ? "claude-hooks"
+                    : script.contains("RefactoringMiner") ? "refactoringminer"
                     : script.contains("ast-grep") ? "ast-grep" : "codegraph";
-            if (script.contains("install.sh") || script.contains("unzip")) {
+            if (hooksInstall || script.contains("install.sh") || script.contains("unzip")) {
                 if (tool.equals("codegraph") && input.length == 0) {
                     return new SshResult(1, "", "no skill on stdin");
                 }
@@ -122,6 +125,14 @@ class SetupWizardUiTest {
         // Installed, there is nothing left to install.
         assertThat(installCodegraph.isVisible()).isFalse();
         assertThat(INSTALLED).contains("devbox/codegraph").doesNotContain("devbox/ast-grep");
+        // The reporting hooks are a row of their own; Install feeds the
+        // installer script on stdin. [utest->dsn~claude-report-hooks~1]
+        Label hooks = FX_ROBOT.selectNodes(Label.class, "#setup-tool-claude-hooks").fetchOptional().orElseThrow();
+        assertThat(hooks.getText()).isEqualTo("Not installed");
+        clickButtonById("setup-install-claude-hooks");
+        awaitPresent(() -> Optional.of(hooks).filter(label -> label.getText().startsWith("OK: 1.0")),
+                "installed hooks");
+        assertThat(INSTALLED).contains("devbox/claude-hooks");
         // ast-grep installed by other means: Recheck probes again and finds it.
         Label astGrep = FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional().orElseThrow();
         assertThat(astGrep.getText()).isEqualTo("Not installed");
