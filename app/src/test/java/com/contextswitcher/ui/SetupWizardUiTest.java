@@ -291,6 +291,23 @@ class SetupWizardUiTest {
         clickButton("Cancel");
     }
 
+    /// The host page shows its button and texts in full next to the
+    /// configured hosts, also when narrower than it opens — "Test conne…"
+    /// used to be all of the button with Windows' wider font (CLAUDE.md, "No
+    /// truncated text"). Narrowing the window stands in for that font: under
+    /// Xvfb the page fits at its opening width either way.
+    @Test
+    void theHostPageShowsAllLabelsInFull() {
+        Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS,
+                "/home/local", false, false, new SetupWizard.Prefill("koppor@nixos", sessionHost -> "/home/koppor/workspaces",
+                null, true, java.util.List.of("koppor@swkgpu1", "koppor@nixos")), EXTENSION));
+        clickButton("Next");
+        TextField host = field("#setup-host");
+        Platform.runLater(() -> host.getScene().getWindow().setWidth(480));
+        assertThat(UiTestSupport.truncatedTexts(host)).isEmpty();
+        clickButton("Cancel");
+    }
+
     /// A re-run where the extension already talks to the app skips its page,
     /// and with categories in place the last page adds one.
     @Test
