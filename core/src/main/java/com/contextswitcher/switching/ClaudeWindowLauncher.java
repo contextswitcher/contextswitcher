@@ -284,7 +284,7 @@ public class ClaudeWindowLauncher {
         List<String> command = new ArrayList<>(List.of("tmux", "new-window", "-t", "'" + session + ":'"));
         if (cwd != null) {
             command.add("-c");
-            command.add("'" + cwd + "'");
+            command.add(SshCommandRunner.quotePath(cwd));
         }
         command.addAll(List.of("-n", SshCommandRunner.quote(windowName(name)), "-P", "-F", "'#{window_id}'"));
         return command;
@@ -324,7 +324,7 @@ public class ClaudeWindowLauncher {
         List<String> command = new ArrayList<>(List.of("tmux", "new-session", "-d", "-s", "'" + session + "'"));
         if (cwd != null) {
             command.add("-c");
-            command.add("'" + cwd + "'");
+            command.add(SshCommandRunner.quotePath(cwd));
         }
         command.addAll(List.of("-n", SshCommandRunner.quote(windowName(name)), "-P", "-F", "'#{window_id}'"));
         return command;

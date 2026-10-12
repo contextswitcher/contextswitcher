@@ -82,7 +82,7 @@ public final class TmuxMirrorCommands {
     /// and the pty exits when the shell does.
     // [impl->dsn~terminal-reconnect~2]
     // [impl->dsn~terminal-mouse-scroll~9]
-    // [impl->dsn~ssh-command-runner~7]
+    // [impl->dsn~ssh-command-runner~8]
     // [impl->dsn~terminal-local-mirror~2]
     // [impl->dsn~wsl-sessions~1]
     public static List<String> attachCommand(String host, Task.TmuxConfig tmux) {

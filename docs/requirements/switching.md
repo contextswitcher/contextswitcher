@@ -253,7 +253,7 @@ Needs: dsn
 ## Design
 
 ### ssh command runner
-`dsn~ssh-command-runner~7`
+`dsn~ssh-command-runner~8`
 
 `SshCommandRunner` invokes the system `ssh` executable via `ProcessBuilder` with the task's host alias and remote command, applies a timeout, captures exit code and stderr, and logs every invocation with full argv, exit code, and stderr.
 On Windows, the built-in OpenSSH client (`%SystemRoot%\System32\OpenSSH\ssh.exe`) is addressed by absolute path when installed: a PATH-resolved `ssh` may be an MSYS build (Git for Windows, Cygwin) whose runtime re-parses the argv with POSIX quoting rules and strips the single quotes protecting remote arguments — a `tmux -F '#{…}'` format then reaches the remote shell unquoted and `#` comments it away (exit 0, default-format output).
@@ -264,6 +264,7 @@ A runner with a long timeout still holds its slot for that long, so a caller wit
 The remote command is sent as `sh -c '<command>'` (`ProcessSshRunner.posix`, `~6`→`~7`): sshd hands it to the user's **login shell**, and the commands are written for sh — assignments, `$(…)`, `if …; then`, `[ … ]` — so under fish every such command failed (koppor@nixos, field report 2026-10-11: the status poll some 5,600 times a day, the mirror reattach, the workspace PR lookup).
 The login shell now sees one single-quoted word (inner quotes escaped the POSIX way, `'\''`, which fish reads alike), and `sh` inherits the environment it set up, PATH included; a command that already starts with `sh` is sent as it is.
 The interactive mirror attach keeps its plain tmux words — `\;` and single quotes mean the same to fish.
+A path in a remote command goes through `SshCommandRunner.quotePath` (`~7`→`~8`): quoted like any word, except that a leading `~` or `~/` stays outside the quotes so the remote shell expands it — quoted whole, a workspaces directory typed as `~/workspaces/…` named a directory literally called `~`, and `cd`, `mkdir -p` and `tmux new-window -c` went to the wrong place or failed (field report 2026-10-12).
 
 Tags: windows, linux
 
@@ -278,7 +279,7 @@ Needs: impl, utest
 Every `ProcessSshRunner` call reports its result to the shared `HostBackoff`; a **host failure** is ssh's own exit 255 (connect timeout, unknown host, refused, host key, authentication) or the runner's timeout — a remote command's failure carries its own exit code and counts as an answer.
 After three host failures in a row the host is backed off for one minute; each failed retry doubles that, up to five minutes; any answer forgets the host.
 Failures arriving while the backoff runs — calls in flight when it began, or several pollers retrying at once — do not extend it.
-ssh gets `-o ConnectTimeout=5`, so an unreachable host gives up in five seconds instead of holding one of the six ssh slots (`dsn~ssh-command-runner~7`) for the full timeout.
+ssh gets `-o ConnectTimeout=5`, so an unreachable host gives up in five seconds instead of holding one of the six ssh slots (`dsn~ssh-command-runner~8`) for the full timeout.
 Only the background polls consult the backoff (`Main.pollable`): the tmux status, PR and title pollers (their host supplier), the footer-PR scrape, the workspace PR lookup, the RefactoringMiner poll and the periodic reconcile skip a backed-off host, and the first poll after the delay is the retry.
 The manual "Sync tmux windows…" and everything else the user triggers (switch, message, mirror) always tries.
 The backoff is in-memory only; a restart starts afresh.

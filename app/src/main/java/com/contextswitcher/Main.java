@@ -2040,8 +2040,15 @@ public class Main extends Application {
                 Thread.currentThread().interrupt();
             }
         }
-        if (actionExecutor != null) {
-            actionExecutor.shutdownNow();
+        // Cleared before the shutdown: a poller's Platform.runLater queued just
+        // before closing still runs after stop(), and its `this.actionExecutor`
+        // null check then skips the work instead of a RejectedExecutionException
+        // (field report 2026-10-12, scrapeFooterPrs on shutdown). stop() and
+        // those callbacks share the FX thread, so there is no race.
+        ExecutorService closing = actionExecutor;
+        actionExecutor = null;
+        if (closing != null) {
+            closing.shutdownNow();
         }
         if (scheduler != null) {
             scheduler.shutdownNow();
@@ -3529,7 +3536,7 @@ public class Main extends Application {
     /// another machine's `/data/kopp` proposed on one without `/data`).
     // [impl->dsn~task-create-live~8]
     private static @Nullable String makeDirectory(SshCommandRunner ssh, String remote, String dir) {
-        SshCommandRunner.SshResult made = ssh.run(remote, List.of("mkdir", "-p", "'" + dir + "'"));
+        SshCommandRunner.SshResult made = ssh.run(remote, List.of("mkdir", "-p", SshCommandRunner.quotePath(dir)));
         if (made.ok()) {
             return null;
         }
@@ -4706,7 +4713,7 @@ public class Main extends Application {
             return;
         }
         executor.execute(() -> {
-            SshCommandRunner.SshResult result = ssh.run(host, List.of("git", "-C", "'" + cwd + "'",
+            SshCommandRunner.SshResult result = ssh.run(host, List.of("git", "-C", SshCommandRunner.quotePath(cwd),
                     "config", "--get", "remote.origin.url"));
             if (!result.ok()) {
                 return;
@@ -4987,7 +4994,7 @@ public class Main extends Application {
         // batch `dsn~claude-pr-capture~2` already built for the periodic
         // footer poll — not one connection per window, which is what made a
         // single reconcile cost eleven of them on a host with ten Claude
-        // windows, over the six global slots of `dsn~ssh-command-runner~7`.
+        // windows, over the six global slots of `dsn~ssh-command-runner~8`.
         // [impl->dsn~claude-pr-capture~2]
         Map<String, List<String>> footerPrs = prLookup.findPrUrls(host,
                 sessions.stream().flatMap(session -> session.windows().stream())

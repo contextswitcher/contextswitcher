@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// The recommended tools' scripts obey the transport rule (no double quotes,
-/// `dsn~ssh-command-runner~7`), the local set leaves RefactoringMiner out,
+/// `dsn~ssh-command-runner~8`), the local set leaves RefactoringMiner out,
 /// and a version is the command's last line (`dsn~recommended-tools~3`).
 // [utest->dsn~recommended-tools~3]
 class RecommendedToolsTest {

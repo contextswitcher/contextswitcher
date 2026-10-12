@@ -78,7 +78,7 @@ public class ClaudeSessionCleanup {
     /// `rm -rf` of the working directory, single-quoted like the launcher's
     /// `mkdir -p` (no double quotes — the Windows ssh.exe constraint).
     static List<String> workdirCommand(String workdir) {
-        return List.of("rm", "-rf", "'" + workdir + "'");
+        return List.of("rm", "-rf", SshCommandRunner.quotePath(workdir));
     }
 
     /// Removes the transcript on `remote`; null on success, else a short

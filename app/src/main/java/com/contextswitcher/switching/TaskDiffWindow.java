@@ -75,7 +75,7 @@ public final class TaskDiffWindow {
     static List<String> newWindowCommand(String session, String cwd, String workspace,
             @Nullable String commit) {
         return List.of("tmux", "new-window", "-t", "'" + session + ":'",
-                "-c", "'" + cwd + "'",
+                "-c", SshCommandRunner.quotePath(cwd),
                 "-n", "diff", "-P", "-F", "'#{window_id}'",
                 SshCommandRunner.quote(diffCommand(workspace, commit)));
     }

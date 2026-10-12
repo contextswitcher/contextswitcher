@@ -62,7 +62,7 @@ public class WorkspacePrLookup {
     /// single-quoted (spaces, no double quotes — see `SshCommandRunner`), and
     /// the JSON is parsed in Java rather than with `-q` for the same reason.
     static List<String> remoteCommand(String workspace) {
-        return List.of("cd", SshCommandRunner.quote(workspace),
+        return List.of("cd", SshCommandRunner.quotePath(workspace),
                 "&&", "gh", "pr", "view", "--json", "url");
     }
 
@@ -87,6 +87,11 @@ public class WorkspacePrLookup {
             command.addAll(remoteCommand(workspace));
             command.add(")");
         }
+        // A workspace without a PR - or a workspaces root that is no checkout
+        // at all - makes its `gh` exit 1; as the batch's last one that was a
+        // WARN per poll (field report 2026-10-12). Only ssh's own failure
+        // (255) is one, and the output is what tells the rest.
+        command.addAll(List.of(";", "true"));
         return command;
     }
 
@@ -170,8 +175,8 @@ public class WorkspacePrLookup {
     /// The PR of every given workspace's branch, workspaces without one
     /// absent. Workspaces that exist on this machine are asked locally, one
     /// `gh` each ([#findPrUrl]); the rest go to `host` in one ssh call
-    /// ([#batchCommand]). The batch's exit code is the last `gh`'s, so only a
-    /// failure that left no output at all (the connection itself) discards it.
+    /// ([#batchCommand]). The batch ends in `true`, so a non-zero exit is the
+    /// connection itself; it discards the round only when it left no output.
     public Map<String, String> findPrUrls(String host, Collection<String> workspaces) {
         Map<String, String> urls = new LinkedHashMap<>();
         List<String> remote = new ArrayList<>();

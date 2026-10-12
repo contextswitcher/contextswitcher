@@ -12,6 +12,12 @@ The topmost section is the day in progress — its link points at `main` until t
 
 - The setup wizard installs Claude Code's status reporting hooks on the session host, keeping the hooks and settings already there. With them, a session reports its status, its id and the directory it works in, so tasks get their status dot and deleting a task offers to remove its worktree and transcript. Before, a host set up through the wizard reported none of this.
 
+### Fixed
+
+- A remote directory written with `~` (such as `~/workspaces/…`) works: before, the app looked for a directory literally named `~` there, so creating a window or looking up a workspace's pull request failed.
+- Closing the app no longer logs an error from a pull-request check that was still scheduled.
+- The pull-request lookup no longer logs a warning every few minutes when a task's directory has no pull request or is not a git checkout.
+
 ## [2026-10-11] - 2026-10-11
 
 ### Added

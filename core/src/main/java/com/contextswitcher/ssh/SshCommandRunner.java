@@ -30,4 +30,17 @@ public interface SshCommandRunner {
     static String quote(String word) {
         return "'" + word.replace("'", "'\\''") + "'";
     }
+
+    /// [#quote] for a remote path, with a leading `~` or `~/` left outside the
+    /// quotes so the remote shell still expands it to the home directory.
+    /// Quoted whole, `~/workspaces/x` named a directory literally called `~`
+    /// (field report 2026-10-12: `cd: ~/workspaces/…: No such file or
+    /// directory` from a workspaces directory typed with a tilde).
+    // [impl->dsn~ssh-command-runner~8]
+    static String quotePath(String path) {
+        if (path.equals("~") || path.equals("~/")) {
+            return path;
+        }
+        return path.startsWith("~/") ? "~/" + quote(path.substring(2)) : quote(path);
+    }
 }
