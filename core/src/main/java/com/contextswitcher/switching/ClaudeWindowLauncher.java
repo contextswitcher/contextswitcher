@@ -30,6 +30,7 @@ public class ClaudeWindowLauncher {
     private final SshCommandRunner ssh;
     private final MessageSender sender;
     private final boolean claudeAuto;
+    private @Nullable String failure;
 
     /// `claudeAuto` starts Claude with `--dangerously-skip-permissions`
     /// (settings `claudeAuto`), so the session bootstraps unattended.
@@ -91,12 +92,12 @@ public class ClaudeWindowLauncher {
     /// As [#launch(String, String, String, String, String, ClaudeMode)], but
     /// reporting each remote round-trip it starts to `onStep` — the caller
     /// turns those into the creating task's row progress
-    /// (`dsn~task-create-progress~5`) — and handing the fresh window's id to
+    /// (`dsn~task-create-progress~6`) — and handing the fresh window's id to
     /// `onWindow` the moment it exists, well before Claude is up: the caller
     /// records it in the task file right then, so the terminal mirror can
     /// attach and the session can be watched starting. Both are called off the
     /// FX thread, so the consumers have to hop threads themselves.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     public @Nullable String launch(String remote, String session, String title, String prompt,
             @Nullable String cwd, ClaudeMode mode, Consumer<String> onStep,
             Consumer<String> onWindow) {
@@ -121,6 +122,7 @@ public class ClaudeWindowLauncher {
         if (!created.ok() || created.stdout().isBlank()) {
             Logger.warn("Cannot create a window for session {} on {}: {}",
                     session, remote, created.stderr().strip());
+            failure = created.stderr().strip();
             return null;
         }
         String windowId = created.stdout().strip();
@@ -166,6 +168,15 @@ public class ClaudeWindowLauncher {
                     windowId, remote, error);
         }
         return windowId;
+    }
+
+    /// The remote's error output of the last [#launch] that returned null —
+    /// what the log line says, for the caller to show where the user is
+    /// looking instead of pointing at the log. Null after a launch that got
+    /// a window; may be empty when the remote said nothing.
+    // [impl->dsn~task-create-progress~6]
+    public @Nullable String failure() {
+        return failure;
     }
 
     /// Reads the remote's user settings, where `/model` and `/effort` save
@@ -284,7 +295,7 @@ public class ClaudeWindowLauncher {
         List<String> command = new ArrayList<>(List.of("tmux", "new-window", "-t", "'" + session + ":'"));
         if (cwd != null) {
             command.add("-c");
-            command.add("'" + cwd + "'");
+            command.add(SshCommandRunner.quotePath(cwd));
         }
         command.addAll(List.of("-n", SshCommandRunner.quote(windowName(name)), "-P", "-F", "'#{window_id}'"));
         return command;
@@ -324,7 +335,7 @@ public class ClaudeWindowLauncher {
         List<String> command = new ArrayList<>(List.of("tmux", "new-session", "-d", "-s", "'" + session + "'"));
         if (cwd != null) {
             command.add("-c");
-            command.add("'" + cwd + "'");
+            command.add(SshCommandRunner.quotePath(cwd));
         }
         command.addAll(List.of("-n", SshCommandRunner.quote(windowName(name)), "-P", "-F", "'#{window_id}'"));
         return command;

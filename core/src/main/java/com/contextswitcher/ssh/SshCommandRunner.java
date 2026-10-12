@@ -27,7 +27,37 @@ public interface SshCommandRunner {
     /// POSIX single-quoting for one word of a remote command: wraps it in
     /// `'…'`, and an embedded single quote becomes `'\''` (end quote, escaped
     /// quote, reopen) — the remote shell sees the word as written.
+    ///
+    /// A backslash is taken out of the quotes the same way (`'\\'`): fish
+    /// reads `\'` and `\\` as escapes even *inside* single quotes, where sh
+    /// keeps them literal, so a quoted word holding a backslash — every word
+    /// quoted twice, as [ProcessSshRunner#posix] does, holds the inner `'\''`
+    /// — parsed differently under a fish login shell (field report
+    /// 2026-10-12: a task titled "can't …" got "quotes are not balanced").
+    /// Outside quotes, `\\` and `\'` mean the same to both.
+    // [impl->dsn~ssh-command-runner~8]
     static String quote(String word) {
-        return "'" + word.replace("'", "'\\''") + "'";
+        StringBuilder quoted = new StringBuilder("'");
+        for (char c : word.toCharArray()) {
+            switch (c) {
+                case '\'' -> quoted.append("'\\''");
+                case '\\' -> quoted.append("'\\\\'");
+                default -> quoted.append(c);
+            }
+        }
+        return quoted.append('\'').toString();
+    }
+
+    /// [#quote] for a remote path, with a leading `~` or `~/` left outside the
+    /// quotes so the remote shell still expands it to the home directory.
+    /// Quoted whole, `~/workspaces/x` named a directory literally called `~`
+    /// (field report 2026-10-12: `cd: ~/workspaces/…: No such file or
+    /// directory` from a workspaces directory typed with a tilde).
+    // [impl->dsn~ssh-command-runner~8]
+    static String quotePath(String path) {
+        if (path.equals("~") || path.equals("~/")) {
+            return path;
+        }
+        return path.startsWith("~/") ? "~/" + quote(path.substring(2)) : quote(path);
     }
 }

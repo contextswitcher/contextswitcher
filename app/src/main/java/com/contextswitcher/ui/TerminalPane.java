@@ -86,6 +86,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.TextAlignment;
 import org.jspecify.annotations.Nullable;
 import org.tinylog.Logger;
 
@@ -283,6 +284,12 @@ public class TerminalPane {
         this.ssh = ssh;
         this.replies = new ClaudeReplies(ssh);
         message.getStyleClass().add(Styles.TEXT_MUTED);
+        // A failed creation shows the remote's error output here, which can
+        // run longer than the lane is wide and span several lines.
+        // [impl->dsn~task-create-progress~6]
+        message.setWrapText(true);
+        message.setTextAlignment(TextAlignment.CENTER);
+        message.setPadding(new Insets(0, 16, 0, 16));
         StackPane.setAlignment(message, Pos.CENTER);
         switchingLabel.getStyleClass().add(Styles.TEXT_MUTED);
         StackPane.setAlignment(switchingLabel, Pos.CENTER);

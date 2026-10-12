@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 /// The time-driven creation bar: it must start near empty, grow with the
 /// elapsed time, and never reach full — a finished bar on a task whose remote
 /// half is still coming up is exactly the lie the bar exists to avoid.
-// [utest->dsn~task-create-progress~5]
+// [utest->dsn~task-create-progress~6]
 class TaskCreationProgressTest {
 
     @Test

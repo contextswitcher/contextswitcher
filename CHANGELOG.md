@@ -16,6 +16,11 @@ The topmost section is the day in progress — its link points at `main` until t
 
 - The Add-task dialog shows its buttons ("Add remote Claude", "Add local Claude", "Add plain task") and hints in full instead of cutting them off with "…"; the hints wrap and the dialog is as wide as its buttons need.
 - The setup wizard's "Test connection" button, the tools page's "Install" and "Recheck", and the field captions are no longer cut off on a narrow page: the field next to a button gives way and long captions wrap.
+- On a host whose login shell is fish, a task whose title contains an apostrophe ("can't …") could not get its tmux window: fish rejected the command as having unbalanced quotes.
+- A remote directory written with `~` (such as `~/workspaces/…`) works: before, the app looked for a directory literally named `~` there, so creating a window or looking up a workspace's pull request failed.
+- Closing the app no longer logs an error from a pull-request check that was still scheduled.
+- The pull-request lookup no longer logs a warning every few minutes when a task's directory has no pull request or is not a git checkout.
+- When creating a task's tmux window fails, the error alert and the task's terminal area show the remote's error message instead of only "(see log)"; before, the terminal area kept saying "Creating the tmux window …" after the failure.
 
 ## [2026-10-11] - 2026-10-11
 
