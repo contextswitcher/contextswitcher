@@ -14,6 +14,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Fixed
 
+- On a host whose login shell is fish, a task whose title contains an apostrophe ("can't …") could not get its tmux window: fish rejected the command as having unbalanced quotes.
 - A remote directory written with `~` (such as `~/workspaces/…`) works: before, the app looked for a directory literally named `~` there, so creating a window or looking up a workspace's pull request failed.
 - Closing the app no longer logs an error from a pull-request check that was still scheduled.
 - The pull-request lookup no longer logs a warning every few minutes when a task's directory has no pull request or is not a git checkout.
