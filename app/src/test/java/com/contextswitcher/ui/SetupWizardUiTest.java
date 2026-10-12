@@ -305,6 +305,8 @@ class SetupWizardUiTest {
         TextField host = field("#setup-host");
         Platform.runLater(() -> host.getScene().getWindow().setWidth(480));
         assertThat(UiTestSupport.truncatedTexts(host)).isEmpty();
+        // At 480px the button bar may reach past the window's edge.
+        Platform.runLater(() -> host.getScene().getWindow().sizeToScene());
         clickButton("Cancel");
     }
 
