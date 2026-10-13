@@ -35,7 +35,7 @@ Decisions follow [MADR](https://adr.github.io/madr/). New records: copy the curr
 | [0028](0028-jgit-task-repo-clone-on-android.md) | JGit clone of the task backup repo as the Android task source (scoped exception to 0011) | proposed |
 | [0029](0029-one-mirror-client-per-tmux-session-verified-by-its-own-select.md) | One mirror client per tmux session, verified by its own select | accepted |
 | [0030](0030-chrome-extension-as-a-second-copy-not-a-shared-source.md) | Chrome extension as a second copy, not a shared source | accepted |
-| [0031](0031-ghq-layout-for-checkouts-workspaces-root-beside-it.md) | ghq layout for checkouts, the workspaces root beside it | proposed |
+| [0031](0031-ghq-layout-for-checkouts-gwq-for-per-task-worktrees.md) | ghq layout for checkouts, gwq for per-task worktrees | accepted |
 | [0032](0032-shellfx-docking-shell-for-the-main-window.md) | ShellFX docking shell for the main window | accepted |
 | [0033](0033-sync-groups-as-flat-git-repositories-of-shared-task-content.md) | Sync groups as flat git repositories of shared task content | accepted |
 | [0034](0034-gemsfx-info-center-for-background-work-notifications.md) | GemsFX info center for background-work notifications | accepted |
