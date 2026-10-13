@@ -5,9 +5,9 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// The recommended tools' scripts obey the transport rule (no double quotes,
-/// `dsn~ssh-command-runner~7`), the local set leaves RefactoringMiner out,
-/// and a version is the command's last line (`dsn~recommended-tools~2`).
-// [utest->dsn~recommended-tools~2]
+/// `dsn~ssh-command-runner~8`), the local set leaves RefactoringMiner out,
+/// and a version is the command's last line (`dsn~recommended-tools~3`).
+// [utest->dsn~recommended-tools~3]
 class RecommendedToolsTest {
 
     @Test
@@ -21,9 +21,9 @@ class RecommendedToolsTest {
     @Test
     void thisMachineGetsNoRefactoringMiner() {
         assertThat(RecommendedTools.local()).extracting(RecommendedTools.Tool::key)
-                .containsExactly("ast-grep", "codegraph");
+                .containsExactly("claude-hooks", "ast-grep", "codegraph");
         assertThat(RecommendedTools.remote(null)).extracting(RecommendedTools.Tool::key)
-                .containsExactly("refactoringminer", "ast-grep", "codegraph");
+                .containsExactly("claude-hooks", "refactoringminer", "ast-grep", "codegraph");
     }
 
     @Test
@@ -32,6 +32,26 @@ class RecommendedToolsTest {
         assertThat(codegraph.installInput()).isNotNull();
         assertThat(new String(codegraph.installInput())).startsWith("---\nname: codegraph");
         assertThat(String.join(" ", codegraph.install())).contains("skills/codegraph/SKILL.md");
+    }
+
+    /// The installer adds a hook for every option the probe looks for, each
+    /// guarded by and targeting the hook's own pane, and goes to `sh -s` on
+    /// stdin, the only way its double quotes reach the host.
+    // [utest->dsn~claude-report-hooks~1]
+    @Test
+    void reportingHooksPublishWhatTheProbeLooksFor() {
+        RecommendedTools.Tool hooks = RecommendedTools.reportingHooks();
+        assertThat(hooks.install()).containsExactly("sh", "-s");
+        assertThat(new String(hooks.installInput(), java.nio.charset.StandardCharsets.UTF_8))
+                .isEqualTo(RecommendedTools.HOOKS_INSTALL);
+        for (String marker : RecommendedTools.HOOK_MARKERS) {
+            assertThat(String.join(" ", hooks.probe())).contains("grep -q " + marker);
+            assertThat(RecommendedTools.HOOKS_INSTALL).containsPattern("@" + marker);
+        }
+        assertThat(RecommendedTools.HOOKS_INSTALL.lines().filter(line -> line.contains("\"command\""))
+                .toList()).hasSize(6).allMatch(line -> line.contains(
+                        "[ -n \\\"$TMUX_PANE\\\" ] && tmux set -w -t \\\"$TMUX_PANE\\\" @cs_"));
+        assertThat(RecommendedTools.HOOKS_INSTALL).doesNotContain("\r");
     }
 
     @Test

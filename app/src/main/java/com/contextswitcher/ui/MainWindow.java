@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -131,8 +132,6 @@ import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -838,20 +837,10 @@ public class MainWindow {
     // [impl->dsn~host-table~1]
     private Function<String, @Nullable String> hostWorkspaces = host -> null;
 
-    /// Saves an asked workspaces directory into the host table; set by `Main`.
-    // [impl->dsn~host-table~1]
-    private BiConsumer<String, String> onHostWorkspaces = (host, dir) -> { };
-
     /// Installs the host table's workspaces lookup (see [#hostWorkspaces]).
     // [impl->dsn~host-table~1]
     public void setHostWorkspaces(Function<String, @Nullable String> lookup) {
         this.hostWorkspaces = lookup;
-    }
-
-    /// Installs the save of an asked workspaces directory.
-    // [impl->dsn~host-table~1]
-    public void setOnHostWorkspaces(BiConsumer<String, String> handler) {
-        this.onHostWorkspaces = handler;
     }
 
     /// Installs the setup-wizard handler (see [#onSetupWizard]).
@@ -892,7 +881,7 @@ public class MainWindow {
 
     /// Tasks whose remote half is still being set up, by task id — written by
     /// `Main`'s creation flows, read by the row renderer.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private final Map<String, TaskListCell.Creation> creations = new HashMap<>();
 
     /// True only while [#rebuildRows] hands the new rows to `visibleRows`:
@@ -903,7 +892,7 @@ public class MainWindow {
 
     /// Advances the creating rows' time-driven bars — through the bound
     /// properties, not a cell rebuild; runs only while a creation is in flight.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private @Nullable Timeline creationTicker;
 
     /// The header row pinned over the top of the list, and the row index it
@@ -1128,9 +1117,7 @@ public class MainWindow {
         // [impl->dsn~category-create-ui~2]
         MenuItem addCategory = new MenuItem("Add category…");
         addCategory.setOnAction(event -> addCategory());
-        MenuItem addCategoryFromUrl = new MenuItem("Add category from URL…");
-        addCategoryFromUrl.setOnAction(event -> addCategoryFromUrl());
-        list.setContextMenu(new ContextMenu(addCategory, addCategoryFromUrl, setupWizardItem()));
+        list.setContextMenu(new ContextMenu(addCategory, setupWizardItem()));
         // Keeps title, status, and action icons legible; the dock layout
         // shrinks the other panes first once the window gets this narrow.
         list.setMinWidth(220);
@@ -1278,7 +1265,7 @@ public class MainWindow {
                     return name != null && isGroupConfig(name);
                 },
                 // [impl->dsn~host-table~1]
-                configuredRemotes);
+                configuredRemotes, this::knownDesktops);
         configFormPane = pane;
         selectOnClick.accept(pane.getRoot());
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(
@@ -3031,7 +3018,7 @@ public class MainWindow {
     /// rename listener then brings the task's tmux window name along.
     // [impl->dsn~task-rename-title~2]
     private void renameTask(Task task) {
-        TextInputDialog dialog = new TextInputDialog(task.title());
+        TextInputDialog dialog = Alerts.owned(dialogOwner(), new TextInputDialog(task.title()));
         dialog.setTitle("Rename task");
         dialog.setHeaderText("New title for " + task.id() + ".md");
         dialog.setContentText("Title");
@@ -3039,7 +3026,7 @@ public class MainWindow {
             String fileName = task.id() + ".md";
             String content = files.read(fileName);
             if (content == null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot rename " + fileName + ": file unreadable").show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot rename " + fileName + ": file unreadable").show();
                 return;
             }
             files.save(fileName, TaskFileParser.withTitle(content, title));
@@ -3087,7 +3074,7 @@ public class MainWindow {
         // flush it so the button reflects the current, not the on-disk, state.
         saveEditorIfDirty();
 
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
         dialog.setTitle("Add task");
         dialog.setResizable(true);
         dialog.setHeaderText("Enter a title or description, or paste a GitHub PR or GitLab MR URL.");
@@ -3148,12 +3135,15 @@ public class MainWindow {
         field.textProperty().addListener((obs, old, text) -> updateMode.accept(text));
         modeLabel.getStyleClass().add(Styles.TEXT_MUTED);
         Label remoteHint = new Label();
-        remoteHint.getStyleClass().add(Styles.TEXT_MUTED);
         Label localHint = new Label();
-        localHint.getStyleClass().add(Styles.TEXT_MUTED);
         Label keysHint = new Label("Enter starts a new line; three Enters or three"
                 + " Ctrl+Enters in a row create the task. Drop files to attach them.");
-        keysHint.getStyleClass().add(Styles.TEXT_MUTED);
+        for (Label hint : List.of(remoteHint, localHint, keysHint)) {
+            hint.getStyleClass().add(Styles.TEXT_MUTED);
+            hint.setWrapText(true);
+            // The VBox gives the field what it can; a hint keeps all its lines.
+            hint.setMinHeight(Region.USE_PREF_SIZE);
+        }
         // Model and effort for the new session, sent as `/model`/`/effort`
         // ahead of the context prompt; ignored by `Add plain task` (no chat).
         // [impl->dsn~claude-mode-select~3]
@@ -3172,7 +3162,14 @@ public class MainWindow {
         // Enlarging the dialog grows the description field, not the hints.
         VBox.setVgrow(field, Priority.ALWAYS);
         content.setPadding(new Insets(8));
+        // A fixed width, so the hints wrap and the quick message strip pages
+        // instead of either one setting the dialog's width.
+        content.setPrefWidth(620);
         dialog.getDialogPane().setContent(content);
+        // Out from under AtlantaFX's 600px cap (main.css): the four buttons
+        // need more with a wider font (Windows), and the cap cut their labels.
+        // [impl->dsn~full-labels~1]
+        dialog.getDialogPane().getStyleClass().add("uncapped");
 
         Button remoteButton = (Button) dialog.getDialogPane().lookupButton(remoteType);
         Button plainButton = (Button) dialog.getDialogPane().lookupButton(plainType);
@@ -3352,7 +3349,7 @@ public class MainWindow {
         TextField titleField = new TextField();
         titleField.setPromptText("optional, e.g. Probeklausur in moodle");
 
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
         dialog.setTitle("Add link");
         dialog.setHeaderText("Adds a link to \"" + task.title() + "\":\n"
                 + "an onenote: link becomes the note, an http(s) URL a browser tab.\n"
@@ -3399,7 +3396,7 @@ public class MainWindow {
         saveEditorIfDirty();
         String loaded = files.read(fileName);
         if (loaded == null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot add link: " + fileName + " unreadable").show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot add link: " + fileName + " unreadable").show();
             return;
         }
         String updated = note != null
@@ -3407,7 +3404,7 @@ public class MainWindow {
                 : TaskFileParser.addBrowserUrl(loaded, link, title);
         String error = files.save(fileName, updated);
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot add link: " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot add link: " + error).show();
             return;
         }
         if (fileName.equals(editedFileName)) {
@@ -3423,7 +3420,7 @@ public class MainWindow {
     /// reloaded when it shows the file.
     // [impl->dsn~task-remove-link~2]
     private void removeTaskUrl(Task staleTask, Task.UrlEntry entry) {
-        Alert confirm = Alerts.wrapping(Alert.AlertType.CONFIRMATION,
+        Alert confirm = Alerts.wrapping(dialogOwner(), Alert.AlertType.CONFIRMATION,
                 "Remove " + entry.url() + " from the task?", ButtonType.OK, ButtonType.CANCEL);
         confirm.setTitle("Remove link");
         confirm.setHeaderText("Remove link");
@@ -3434,12 +3431,12 @@ public class MainWindow {
         String fileName = task.id() + ".md";
         String loaded = files.read(fileName);
         if (loaded == null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot remove link: " + fileName + " unreadable").show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot remove link: " + fileName + " unreadable").show();
             return;
         }
         String error = files.save(fileName, TaskFileParser.removeBrowserUrl(loaded, entry.url()));
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot remove link: " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot remove link: " + error).show();
             return;
         }
         statusBar().message("Removed " + entry.url());
@@ -3499,10 +3496,10 @@ public class MainWindow {
         String error = files.save(fileName, content);
         if (error != null) {
             noteTaskCreationFailed();
-            new Alert(Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
             return null;
         }
-        // [impl->dsn~task-create-progress~5]
+        // [impl->dsn~task-create-progress~6]
         statusBar().message("Task created.");
         String taskId = fileName.substring(0, fileName.length() - ".md".length());
         pendingSelectionId = taskId;
@@ -3513,7 +3510,7 @@ public class MainWindow {
     /// Reports what a task's still-running remote creation is doing right now;
     /// the first call for a task starts its progress bar (and the repaint
     /// ticker), later ones only rename the step. FX thread.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     public void creationProgress(String taskId, String step) {
         TaskListCell.Creation running = creations.get(taskId);
         if (running != null) {
@@ -3536,7 +3533,7 @@ public class MainWindow {
 
     /// Ends a task's creation progress — success or failure alike; the row
     /// falls back to its normal second line. FX thread.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     public void creationDone(String taskId) {
         if (creations.remove(taskId) == null) {
             return;
@@ -3730,7 +3727,7 @@ public class MainWindow {
             onChosen.accept(remotes.getFirst());
             return;
         }
-        Dialog<String> dialog = new Dialog<>();
+        Dialog<String> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
         dialog.setTitle("Add task from PR");
         dialog.setHeaderText("No task carries this PR yet — pick or type the ssh host for the new task.");
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -3849,7 +3846,7 @@ public class MainWindow {
         String error = files.save(fileName,
                 TaskFileParser.groupConfigSkeleton(group, remote, desktop, hints));
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
             return false;
         }
         // Nothing observable changes (the config is not a task), so repaint
@@ -3873,7 +3870,7 @@ public class MainWindow {
         String fileName = groupConfigFileName(group);
         String content = files.read(fileName);
         if (content == null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot tag group " + group + ": config unreadable").show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot tag group " + group + ": config unreadable").show();
             return;
         }
         List<String> tags = new ArrayList<>(parser.parseGroupConfig(content).tags());
@@ -3883,7 +3880,7 @@ public class MainWindow {
         }
         String error = files.save(fileName, TaskFileParser.withTags(content, tags));
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot tag group " + group + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot tag group " + group + ": " + error).show();
             return;
         }
         if (fileName.equals(editedFileName)) {
@@ -3910,14 +3907,14 @@ public class MainWindow {
         String fileName = groupConfigFileName(group);
         String content = files.read(fileName);
         if (content == null) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                     "Cannot pin category " + group + ": config unreadable").show();
             return;
         }
         boolean pinned = parser.parseGroupConfig(content).pinned();
         String error = files.save(fileName, TaskFileParser.withPinned(content, !pinned));
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot pin category " + group + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot pin category " + group + ": " + error).show();
             return;
         }
         if (fileName.equals(editedFileName)) {
@@ -4083,7 +4080,7 @@ public class MainWindow {
             }
             String content = files.read(fileName);
             if (content == null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot add intellij section: " + fileName + " unreadable").show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot add intellij section: " + fileName + " unreadable").show();
                 return;
             }
             updated = TaskFileParser.withIntellijProjectPath(content, projectPath);
@@ -4091,7 +4088,7 @@ public class MainWindow {
             // Path resolves (a claude: session) but no `intellij:` section yet.
             String content = files.read(fileName);
             if (content == null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot add intellij section: " + fileName + " unreadable").show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot add intellij section: " + fileName + " unreadable").show();
                 return;
             }
             updated = TaskFileParser.withIntellij(content);
@@ -4101,7 +4098,7 @@ public class MainWindow {
         if (updated != null) {
             String error = files.save(fileName, updated);
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot add intellij section: " + error).show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot add intellij section: " + error).show();
                 return;
             }
             if (fileName.equals(editedFileName)) {
@@ -4122,7 +4119,7 @@ public class MainWindow {
     // [impl->dsn~open-in-intellij~3]
     private @Nullable String promptForIntellijProjectPath(Task task) {
         String remote = task.intellijRemote();
-        TextInputDialog dialog = new TextInputDialog();
+        TextInputDialog dialog = Alerts.owned(dialogOwner(), new TextInputDialog());
         dialog.setTitle("Open in IntelliJ");
         dialog.setHeaderText("\"" + task.title() + "\" has no project path to open"
                 + " (no explicit intellij.projectPath and no claude: session).\n"
@@ -4172,7 +4169,7 @@ public class MainWindow {
     /// section, so the next play focuses it normally.
     // [impl->dsn~remote-window-choice~6]
     private void promptRemoteWindow(Task task) {
-        RemoteWindowChoice choice = askRemoteWindow(task, task.remote(), true);
+        RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, task.remote(), true);
         if (choice != null) {
             onStartRemoteWindow.start(task, choice.withClaude(), choice.mode());
         }
@@ -4196,13 +4193,13 @@ public class MainWindow {
     /// **tmux** button next to it would undo the choice just made.
     // [impl->dsn~remote-window-choice~6]
     // [impl->dsn~claude-mode-select~3]
-    public static @Nullable RemoteWindowChoice askRemoteWindow(
+    public static @Nullable RemoteWindowChoice askRemoteWindow(@Nullable Window owner,
             Task task, @Nullable String remote, boolean offerTmux) {
         ButtonType tmux = new ButtonType("tmux", ButtonBar.ButtonData.OK_DONE);
         ButtonType claude = new ButtonType("claude", ButtonBar.ButtonData.OK_DONE);
         Alert alert = offerTmux
-                ? new Alert(Alert.AlertType.CONFIRMATION, "", tmux, claude, ButtonType.CANCEL)
-                : new Alert(Alert.AlertType.CONFIRMATION, "", claude, ButtonType.CANCEL);
+                ? Alerts.plain(owner, Alert.AlertType.CONFIRMATION, "", tmux, claude, ButtonType.CANCEL)
+                : Alerts.plain(owner, Alert.AlertType.CONFIRMATION, "", claude, ButtonType.CANCEL);
         alert.setTitle("Open remote window");
         alert.setHeaderText(null);
         ComboBox<String> modelBox = QueuePane.modeBox("model: as is", ClaudeMode.MODELS);
@@ -4277,7 +4274,7 @@ public class MainWindow {
     /// already knows the desktop the category is for.
     // [impl->dsn~desktop-filter-empty-state~2]
     private void addCategory(@Nullable String desktop) {
-        TextInputDialog dialog = new TextInputDialog();
+        TextInputDialog dialog = Alerts.owned(dialogOwner(), new TextInputDialog());
         dialog.setTitle("Add category");
         dialog.setHeaderText("Creates a project folder in the tasks directory;\n"
                 + "it shows as a group and can hold tasks and a CS config."
@@ -4288,7 +4285,7 @@ public class MainWindow {
                 .ifPresent(name -> {
                     String error = files.createFolder(name);
                     if (error != null) {
-                        new Alert(Alert.AlertType.ERROR,
+                        Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                                 "Cannot create category %s: %s".formatted(name, error)).show();
                         return;
                     }
@@ -4304,126 +4301,20 @@ public class MainWindow {
                 });
     }
 
-    /// Creates a category for a project repository URL and lets Claude set
-    /// the project up on the remote: the folder is named after the
-    /// repository, its `CONTEXTSWITCHER.md` is written with real values
-    /// (remote, `workspacesRoot`, `mainCheckout`, `repo`, tag) instead of
-    /// the commented skeleton, and a live task is started in the fresh
-    /// workspaces root (`mkdir -p`ed by the live-task flow) whose prompt
-    /// asks Claude to clone the repository and fill in the workspace-root
-    /// `CLAUDE.md` template the prompt carries. The dialog takes the URL
-    /// (pre-filled from the clipboard when that holds one) and the
-    /// workspaces root, which follows the URL
-    /// (`<parent>/<name>-workspaces`, the parent taken from a sibling
-    /// category's root) until edited by hand, plus the repository type
-    /// ([RepoType] — which template is filled in, and whether the clone is a
-    /// fork) and an optional first message the setup prompt ends with, so
-    /// the session continues into real work. Model and
-    /// effort are picked as in the `Add task…` dialog. Needs a configured
-    /// remote, like `Add remote Claude`.
-    // [impl->dsn~category-from-url~4]
-    private void addCategoryFromUrl() {
-        String remote = effectiveRemote(GroupConfig.EMPTY);
-        if (remote == null) {
-            new Alert(Alert.AlertType.ERROR,
-                    "Add category from URL needs a remote — set one in settings.yaml.").show();
-            return;
-        }
-        // A host's first category asks where its workspaces go, unless the
-        // host table already says. [impl->dsn~host-table~1]
-        String parent = hostWorkspaces.apply(remote);
-        if (parent == null) {
-            parent = askHostWorkspaces(remote);
-            if (parent == null) {
-                return;
-            }
-        }
-        String rootParent = parent;
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Add category from URL");
-        dialog.setHeaderText("Creates a category named after the repository, with a CS config,\n"
-                + "and starts a Claude session on " + remote + " that clones the repository\n"
-                + "into the workspaces root and writes its CLAUDE.md.");
-        TextField url = new TextField();
-        String clip = Clipboard.getSystemClipboard().getString();
-        if (clip != null && TaskFileParser.repoName(clip) != null) {
-            url.setText(clip.strip());
-        }
-        TextField root = new TextField();
-        boolean[] rootEdited = {false};
-        Runnable followUrl = () -> {
-            String name = TaskFileParser.repoName(url.getText());
-            if (!rootEdited[0]) {
-                root.setText(name == null ? "" : rootParent + "/" + name + "-workspaces");
-            }
-        };
-        url.textProperty().addListener((obs, old, text) -> followUrl.run());
-        root.setOnKeyTyped(event -> rootEdited[0] = true);
-        followUrl.run();
-        GridPane grid = new GridPane();
-        grid.setHgap(8);
-        grid.setVgap(6);
-        // Labels never ellipsize: the label column keeps its preferred
-        // width, the field column takes what is left and grows.
-        ColumnConstraints labels = new ColumnConstraints();
-        labels.setMinWidth(Region.USE_PREF_SIZE);
-        ColumnConstraints fields = new ColumnConstraints();
-        fields.setHgrow(Priority.ALWAYS);
-        fields.setMinWidth(0);
-        grid.getColumnConstraints().addAll(labels, fields);
-        ComboBox<RepoType> repoType = new ComboBox<>();
-        repoType.getItems().setAll(RepoType.values());
-        repoType.setValue(RepoType.WRITE_ACCESS);
-        repoType.getStyleClass().add(Styles.SMALL);
-        // The setup session's model and effort, the Add-task dialog's boxes
-        // pre-filled from the last pick actually sent.
-        // [impl->dsn~claude-mode-select~3]
-        ComboBox<String> modelBox = QueuePane.modeBox("model: as is", ClaudeMode.MODELS);
-        ComboBox<String> effortBox = QueuePane.modeBox("effort: as is", ClaudeMode.EFFORTS);
-        ClaudeMode remembered = lastMode();
-        QueuePane.selectMode(modelBox, remembered.model());
-        QueuePane.selectMode(effortBox, remembered.effort());
-        TextArea firstMessage = new TextArea();
-        firstMessage.setPromptText("Optional: what Claude should do once the setup is done");
-        firstMessage.setPrefRowCount(3);
-        firstMessage.setWrapText(true);
-        grid.addRow(0, new Label("Repository URL"), url);
-        grid.addRow(1, new Label("Workspaces root"), root);
-        grid.addRow(2, new Label("Repository type"), repoType);
-        grid.addRow(3, new Label("First message"), firstMessage);
-        grid.add(new HBox(6, modelBox, effortBox), 1, 4);
-        url.setPrefColumnCount(40);
-        firstMessage.setPrefColumnCount(40);
-        dialog.getDialogPane().setContent(grid);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(
-                Bindings.createBooleanBinding(
-                        () -> TaskFileParser.repoName(url.getText()) == null || root.getText().isBlank(),
-                        url.textProperty(), root.textProperty()));
-        Platform.runLater(url::requestFocus);
-        if (dialog.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
-            return;
-        }
-        ClaudeMode mode = new ClaudeMode(
-                QueuePane.modeValue(modelBox), QueuePane.modeValue(effortBox));
-        rememberMode(mode);
-        createCategoryFromRepo(url.getText(), root.getText().strip(), remote, repoType.getValue(),
-                mode, firstMessage.getText());
-    }
-
-    /// The category-from-URL flow behind [#addCategoryFromUrl]'s dialog, also
-    /// the setup wizard's last page (`dsn~setup-wizard~10`): creates the folder
+    /// The category-from-URL flow behind the setup wizard's last page
+    /// (`dsn~setup-wizard~10`): creates the folder
     /// and its config, then starts the setup session. With a `remote` that is
     /// a live task there; with none (a local category) the same description is
     /// handed to a local Claude in the workspaces root, the template appended
     /// to the prompt, since the local launcher carries no appendix of its own.
-    // [impl->dsn~category-from-url~4]
+    // [impl->dsn~category-from-url~5]
     // [impl->dsn~setup-wizard~10]
     public void createCategoryFromRepo(String url, String workspacesRoot, @Nullable String remote,
             RepoType type, ClaudeMode mode, @Nullable String firstMessage) {
+        String web = TaskFileParser.repoWebUrl(url);
         String name = TaskFileParser.repoName(url);
-        if (name == null) {
-            new Alert(Alert.AlertType.ERROR, "Not a repository URL: " + url).show();
+        if (web == null || name == null) {
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Not a repository URL: " + url).show();
             return;
         }
         if (!freeCategoryName(name, "Cancel")) {
@@ -4432,18 +4323,21 @@ public class MainWindow {
         String error = files.createFolder(name);
         if (error == null) {
             error = files.save(groupConfigFileName(name),
-                    TaskFileParser.groupConfigForRepo(name, url, remote, workspacesRoot,
+                    TaskFileParser.groupConfigForRepo(name, web, remote, workspacesRoot,
                             filterDesktop()));
         }
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                     "Cannot create category %s: %s".formatted(name, error)).show();
             return;
         }
         groupConfigCache.remove(name);
-        String description = categorySetupDescription(url, name, workspacesRoot, type, firstMessage);
+        // An ssh URL is what the session clones with; an https one may be a
+        // deep link, which only the web URL cuts back to the repository.
+        String clone = url.strip().startsWith("http") ? web : url;
+        String description = categorySetupDescription(clone, name, workspacesRoot, type, firstMessage);
         if (remote != null) {
-            onCreateLiveTask.create(description, remote, workspacesRoot, url.strip(), false, name,
+            onCreateLiveTask.create(description, remote, workspacesRoot, web, false, name,
                     mode, type.template());
             return;
         }
@@ -4455,34 +4349,6 @@ public class MainWindow {
             onStartLocalClaude.start(taskId, workspacesRoot,
                     description + "\n\n" + type.template(), mode);
         }
-    }
-
-    /// Asks where the workspaces of `host` go — its first category, with no
-    /// workspaces directory in the host table yet — and saves the answer
-    /// there. Proposes the parent of that host's existing roots, else
-    /// `/home/<user>/workspaces` from the destination's user part (the
-    /// remote's real home is a round-trip away; the proposal is only a
-    /// start). Null when cancelled or left empty.
-    // [impl->dsn~host-table~1]
-    private @Nullable String askHostWorkspaces(String host) {
-        String proposal = categoriesWorkspacesParent(host);
-        if (proposal == null) {
-            String user = host.contains("@") ? host.substring(0, host.indexOf('@'))
-                    : System.getProperty("user.name");
-            proposal = "/home/" + user + "/workspaces";
-        }
-        TextInputDialog ask = new TextInputDialog(proposal);
-        ask.setTitle("Workspaces directory");
-        ask.setHeaderText("The first category on " + host
-                + ".\nWhere should its workspaces go? New workspaces roots are created under it.");
-        ask.setContentText("Directory on " + host + ":");
-        ask.getEditor().setPrefColumnCount(36);
-        String dir = ask.showAndWait().map(String::strip).filter(text -> !text.isEmpty())
-                .map(text -> text.replaceAll("/+$", "")).orElse(null);
-        if (dir != null) {
-            onHostWorkspaces.accept(host, dir);
-        }
-        return dir;
     }
 
     /// Where new workspaces roots on `host` go: the host table's workspaces
@@ -4538,7 +4404,7 @@ public class MainWindow {
         if (!files.exists(name)) {
             return true;
         }
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
         dialog.setTitle("Category exists");
         dialog.setHeaderText("A category named \"" + name + "\" already exists.");
         TextField newName = new TextField(clashRenameProposal(name, groupDefaults(name).remote()));
@@ -4597,7 +4463,7 @@ public class MainWindow {
         return !folders.isEmpty();
     }
 
-    /// The setup task's description for [#addCategoryFromUrl]: clone into
+    /// The setup task's description for [#createCategoryFromRepo]: clone into
     /// the group-named subdirectory of the workspaces root (the
     /// `mainCheckout` the config names), then fill in the workspace-root
     /// `CLAUDE.md` template the prompt carries — the one [RepoType] the user
@@ -4605,7 +4471,7 @@ public class MainWindow {
     /// (created when there is none yet); `firstMessage` — when non-blank — is
     /// the work to do once the setup is done, so the setup session continues
     /// straight into it.
-    // [impl->dsn~category-from-url~4]
+    // [impl->dsn~category-from-url~5]
     // [impl->dsn~claude-md-templates~1]
     static String categorySetupDescription(String url, String group, String workspacesRoot,
             RepoType type, @Nullable String firstMessage) {
@@ -4635,7 +4501,7 @@ public class MainWindow {
     /// an open editor file follow the new name; an existing target refuses.
     // [impl->dsn~group-rename~1]
     private void renameGroup(String group) {
-        TextInputDialog dialog = new TextInputDialog(group);
+        TextInputDialog dialog = Alerts.owned(dialogOwner(), new TextInputDialog(group));
         dialog.setTitle("Rename group");
         dialog.setHeaderText("Renames the project folder; task ids follow the new path.");
         dialog.setContentText("Name");
@@ -4649,13 +4515,13 @@ public class MainWindow {
     // [impl->dsn~group-rename~1]
     private boolean renameGroupTo(String group, String newName) {
         if (files.exists(newName)) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                     "Cannot rename %s: %s already exists.".formatted(group, newName)).show();
             return false;
         }
         String error = files.renameFolder(group, newName);
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                     "Cannot rename %s: %s".formatted(group, error)).show();
             return false;
         }
@@ -4693,7 +4559,7 @@ public class MainWindow {
                                 + (running.size() == 1 ? "task is" : "tasks are")
                                 + " confirmed one by one next.");
         ButtonType delete = new ButtonType("Delete", ButtonBar.ButtonData.OK_DONE);
-        Alert confirm = Alerts.wrapping(Alert.AlertType.CONFIRMATION, message,
+        Alert confirm = Alerts.wrapping(dialogOwner(), Alert.AlertType.CONFIRMATION, message,
                 delete, ButtonType.CANCEL);
         confirm.setTitle("Delete category");
         confirm.setHeaderText("Delete \"" + group + "\"");
@@ -4709,7 +4575,7 @@ public class MainWindow {
             // Sweep the rest: non-running task files, the CS config, note, folder.
             String error = files.deleteFolder(group);
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR,
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                         "Cannot delete %s: %s".formatted(group, error)).show();
                 return;
             }
@@ -4793,6 +4659,27 @@ public class MainWindow {
             return desktop;
         }
         return fallbackDesktop.isBlank() ? null : fallbackDesktop;
+    }
+
+    /// The virtual desktop names the app knows — those the categories name,
+    /// the active one and the fallback — for the configuration form to
+    /// suggest, sorted ignoring case.
+    // [impl->dsn~task-field-form~4]
+    private List<String> knownDesktops() {
+        Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        folders.forEach(group -> {
+            String desktop = groupDefaults(group).desktop();
+            if (desktop != null && !desktop.isBlank()) {
+                names.add(desktop);
+            }
+        });
+        if (activeDesktop != null) {
+            names.add(activeDesktop);
+        }
+        if (!fallbackDesktop.isBlank()) {
+            names.add(fallbackDesktop);
+        }
+        return List.copyOf(names);
     }
 
     /// Opens a throwaway tmux window on the category's remote (its config's
@@ -4890,7 +4777,7 @@ public class MainWindow {
                 ? "Claude in window %s on %s is WORKING right now — terminating kills it mid-task.\n%s"
                         .formatted(tmux.target(), remote, resumeNote)
                 : "End tmux window %s on %s?\n%s".formatted(tmux.target(), remote, resumeNote);
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, message,
+        Alert confirm = Alerts.plain(dialogOwner(), Alert.AlertType.CONFIRMATION, message,
                 confirmButton, returnButton);
         confirm.setTitle(action + " task");
         confirm.setHeaderText(action + " \"" + task.title() + "\"");
@@ -5140,7 +5027,7 @@ public class MainWindow {
         String toFile = uniqueFileName(toBase);
         String error = files.move(fromFile, toFile);
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot move %s: %s".formatted(fromFile, error)).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot move %s: %s".formatted(fromFile, error)).show();
             return;
         }
         String toId = toFile.substring(0, toFile.length() - ".md".length());
@@ -5545,9 +5432,9 @@ public class MainWindow {
         ButtonType delete = new ButtonType("Delete", ButtonBar.ButtonData.OK_DONE);
         ButtonType tidyFirst = new ButtonType("Ask Claude to tidy up first");
         Alert confirm = liveContext
-                ? Alerts.withContent(Alert.AlertType.CONFIRMATION, content,
+                ? Alerts.withContent(dialogOwner(), Alert.AlertType.CONFIRMATION, content,
                         delete, tidyFirst, ButtonType.CANCEL)
-                : Alerts.withContent(Alert.AlertType.CONFIRMATION, content,
+                : Alerts.withContent(dialogOwner(), Alert.AlertType.CONFIRMATION, content,
                         delete, ButtonType.CANCEL);
         confirm.setTitle("Delete task");
         confirm.setHeaderText("Delete \"" + task.title() + "\"");
@@ -5585,7 +5472,7 @@ public class MainWindow {
         }
         String error = files.delete(fileName);
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot delete " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot delete " + fileName + ": " + error).show();
             return DeleteChoice.CANCELLED;
         }
         if (fileName.equals(editedFileName)) {
@@ -5604,7 +5491,7 @@ public class MainWindow {
     /// when it was showing the deleted file.
     // [impl->dsn~corrupt-task-delete~2]
     private void deleteCorruptFile(String fileName) {
-        Alert confirm = Alerts.wrapping(Alert.AlertType.CONFIRMATION,
+        Alert confirm = Alerts.wrapping(dialogOwner(), Alert.AlertType.CONFIRMATION,
                 "Delete the corrupt file " + fileName + "?\nThis cannot be undone.",
                 ButtonType.OK, ButtonType.CANCEL);
         confirm.setTitle("Delete corrupt file");
@@ -5614,7 +5501,7 @@ public class MainWindow {
                 .ifPresent(button -> {
             String error = files.delete(fileName);
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot delete " + fileName + ": " + error).show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot delete " + fileName + ": " + error).show();
                 return;
             }
             if (fileName.equals(editedFileName)) {
@@ -6018,7 +5905,7 @@ public class MainWindow {
     /// ([#showFieldHelp()]) and the settings dialog.
     // [impl->dsn~task-field-help~1]
     private void showReferenceDialog(String title, String reference) {
-        Dialog<Void> dialog = new Dialog<>();
+        Dialog<Void> dialog = Alerts.owned(dialogOwner(), new Dialog<>());
         dialog.setTitle(title);
         dialog.setHeaderText("Every field is optional. Select what you need, Ctrl+C, "
                 + "paste into the editor — or use Copy all.");
@@ -6405,7 +6292,7 @@ public class MainWindow {
                 String error = files.save(fileName, TaskSync.withGroup(current, group.name(),
                         item.isSelected(), sync.syncIdFor(current, group.name(), base)));
                 if (error != null) {
-                    new Alert(Alert.AlertType.ERROR, "Cannot save %s: %s".formatted(fileName, error)).show();
+                    Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot save %s: %s".formatted(fileName, error)).show();
                     return;
                 }
                 syncRound.run();
@@ -6429,7 +6316,7 @@ public class MainWindow {
             String error = files.save(localFile,
                     TaskSync.withGroup(current, incoming.group(), true, incoming.syncId()));
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot save %s: %s".formatted(localFile, error)).show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot save %s: %s".formatted(localFile, error)).show();
                 return;
             }
             moveTask(localFile.substring(0, localFile.length() - ".md".length()), category);
@@ -6438,7 +6325,7 @@ public class MainWindow {
                     ? incoming.syncId() : category + "/" + incoming.syncId());
             String error = files.save(fileName, TaskSync.sortInContent(incoming));
             if (error != null) {
-                new Alert(Alert.AlertType.ERROR, "Cannot create %s: %s".formatted(fileName, error)).show();
+                Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot create %s: %s".formatted(fileName, error)).show();
                 return;
             }
             String id = fileName.substring(0, fileName.length() - ".md".length());
@@ -6466,7 +6353,9 @@ public class MainWindow {
     /// primary desktop while the user was on another, so the dialog was
     /// invisible and the app just looked frozen. Parenting it puts it over the
     /// main window on the desktop the user is actually on.
-    private @Nullable Window dialogOwner() {
+    /// The main window, owner of every dialog it and `Main` open
+    /// (`req~owned-dialogs~1`); null before it is shown.
+    public @Nullable Window dialogOwner() {
         ListView<Object> list = taskList;
         return list == null || list.getScene() == null ? null : list.getScene().getWindow();
     }
@@ -6526,13 +6415,13 @@ public class MainWindow {
                         && task.tmux() != null && task.remote() != null)
                 .count();
         if (count == 0) {
-            new Alert(Alert.AlertType.INFORMATION,
+            Alerts.plain(dialogOwner(), Alert.AlertType.INFORMATION,
                     "No running task with a remote tmux window to restart.").show();
             return false;
         }
         ButtonType restartButton = new ButtonType("Restart");
         ButtonType returnButton = new ButtonType("Return", ButtonBar.ButtonData.CANCEL_CLOSE);
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+        Alert confirm = Alerts.plain(dialogOwner(), Alert.AlertType.CONFIRMATION,
                 ("Recreate the tmux window of %d running task(s) and resume Claude in it?\n"
                         + "Use this after the remote machine rebooted — a window that is still"
                         + " alive is not killed, it is left behind as an orphan.").formatted(count),
@@ -6862,9 +6751,7 @@ public class MainWindow {
         addTask.setOnAction(event -> addTask(selectedGroup()));
         MenuItem addCategory = new MenuItem("Add category…");
         addCategory.setOnAction(event -> addCategory());
-        MenuItem addCategoryFromUrl = new MenuItem("Add category from URL…");
-        addCategoryFromUrl.setOnAction(event -> addCategoryFromUrl());
-        button.getItems().addAll(addTask, addCategory, addCategoryFromUrl,
+        button.getItems().addAll(addTask, addCategory,
                 new SeparatorMenuItem(), setupWizardItem());
         return button;
     }

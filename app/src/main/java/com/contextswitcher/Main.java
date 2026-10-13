@@ -230,7 +230,7 @@ public class Main extends Application {
     /// silently overwriting the others. FX thread only.
     /// Observable, so the terminal bar and *Restart to update* can stay
     /// disabled while any creation runs (`dsn~busy-while-creating~2`).
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     // [impl->dsn~busy-while-creating~2]
     private final IntegerProperty creationsInFlight = new SimpleIntegerProperty();
     /// The step each still-windowless creation is on, so the terminal lane of
@@ -238,14 +238,21 @@ public class Main extends Application {
     /// instead of "No tmux configured for this task.". An entry is dropped as
     /// soon as the window exists — the mirror itself takes over from there.
     /// FX thread only.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private final Map<String, String> creationSteps = new HashMap<>();
     /// Creations whose tmux window already exists: from there on their steps
     /// go to the row's progress bar only, never into the terminal lane, which
     /// is by then attached to the fresh window.
     /// FX thread only.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private final Set<String> windowedCreations = new HashSet<>();
+    /// Why each windowless task's last creation failed — the remote's error,
+    /// shown in the terminal lane where the creation's steps stood, so the
+    /// user reads the cause there instead of digging it out of the log. An
+    /// entry is dropped when a later creation of the task gets its window.
+    /// FX thread only.
+    // [impl->dsn~task-create-progress~6]
+    private final Map<String, String> creationFailures = new HashMap<>();
     /// True while the "show active desktop only" filter is on; gates the active-
     /// desktop poll so it spawns `powershell` only when the filter is in use.
     // [impl->dsn~active-desktop-filter~6]
@@ -910,12 +917,6 @@ public class Main extends Application {
                 return null;
             }
         });
-        window.setOnHostWorkspaces((host, dir) -> {
-            String error = updateHost(host, entry -> entry.withWorkspaces(dir));
-            if (error != null) {
-                window.statusBar().message("Cannot save the workspaces directory: " + error);
-            }
-        });
         window.setOnStartClaude((task, onSettled) ->
                 startClaude(ssh, settings.claudeAuto(), task, onSettled));
         // The same window choice play makes, from the terminal placeholder.
@@ -931,7 +932,7 @@ public class Main extends Application {
         // [impl->dsn~claude-mode-select~3]
         terminalPane.setWindowStarter((task, withClaude) -> {
             MainWindow.RemoteWindowChoice choice = withClaude
-                    ? MainWindow.askRemoteWindow(task, taskRemote(files, task), false)
+                    ? MainWindow.askRemoteWindow(dialogOwner(), task, taskRemote(files, task), false)
                     : new MainWindow.RemoteWindowChoice(false, ClaudeMode.DEFAULT);
             if (choice == null) {
                 window.refreshPreview(task.id());
@@ -2040,8 +2041,15 @@ public class Main extends Application {
                 Thread.currentThread().interrupt();
             }
         }
-        if (actionExecutor != null) {
-            actionExecutor.shutdownNow();
+        // Cleared before the shutdown: a poller's Platform.runLater queued just
+        // before closing still runs after stop(), and its `this.actionExecutor`
+        // null check then skips the work instead of a RejectedExecutionException
+        // (field report 2026-10-12, scrapeFooterPrs on shutdown). stop() and
+        // those callbacks share the FX thread, so there is no race.
+        ExecutorService closing = actionExecutor;
+        actionExecutor = null;
+        if (closing != null) {
+            closing.shutdownNow();
         }
         if (scheduler != null) {
             scheduler.shutdownNow();
@@ -2573,7 +2581,7 @@ public class Main extends Application {
             Alert.AlertType type = errors.length() == 0
                     ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING;
             Platform.runLater(() -> {
-                Alerts.wrapping(type, summary).show();
+                Alerts.wrapping(dialogOwner(), type, summary).show();
                 done.run();
             });
         });
@@ -2617,7 +2625,7 @@ public class Main extends Application {
             // Only the manual sync explains this; the periodic/auto passes stay
             // silent so an alert does not pop up on every tick.
             if (announce) {
-                new Alert(Alert.AlertType.INFORMATION,
+                Alerts.plain(dialogOwner(), Alert.AlertType.INFORMATION,
                         "No remotes to sync. Add hosts to the remotes: list in settings.yaml,"
                         + " or create a task with a remote: first.").show();
             }
@@ -2790,7 +2798,7 @@ public class Main extends Application {
                 if (announce) {
                     Alert.AlertType type = errors.length() == 0
                             ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING;
-                    Platform.runLater(() -> Alerts.wrapping(type, summary).show());
+                    Platform.runLater(() -> Alerts.wrapping(dialogOwner(), type, summary).show());
                 }
             } finally {
                 Platform.runLater(done);
@@ -3011,15 +3019,22 @@ public class Main extends Application {
                 name -> {
                     MainWindow window = this.window;
                     return window == null || window.freeCategoryName(name, "Back");
-                });
+                }, dialogOwner());
+    }
+
+    /// The main window as the owner of the dialogs `Main` opens
+    /// (`req~owned-dialogs~1`), null before it is shown.
+    private javafx.stage.@Nullable Window dialogOwner() {
+        MainWindow window = this.window;
+        return window == null ? null : window.dialogOwner();
     }
 
     /// Patches the wizard's settings answers into `settings.yaml` — a remote
     /// not yet listed, and the RefactoringMiner directory the tools page
     /// found or installed (the setting the badge and the view are gated on,
-    /// `dsn~recommended-tools~2`) — and returns the re-read settings.
+    /// `dsn~recommended-tools~3`) — and returns the re-read settings.
     // [impl->dsn~setup-wizard~10]
-    // [impl->dsn~recommended-tools~2]
+    // [impl->dsn~recommended-tools~3]
     private static AppSettings applyWizardSettings(AppSettings settings, SetupWizard.Result result)
             throws IOException {
         // The session host becomes (or updates) its row of the host table:
@@ -3040,7 +3055,7 @@ public class Main extends Application {
             return updated;
         });
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot write the host to settings.yaml: "
+            Alerts.plain(null, Alert.AlertType.ERROR, "Cannot write the host to settings.yaml: "
                     + error).showAndWait();
         }
         return AppSettings.loadOrCreate(configDir());
@@ -3087,7 +3102,7 @@ public class Main extends Application {
             }
         } catch (IOException e) {
             Logger.warn("Setup wizard: cannot read settings.yaml: {}", e.getMessage());
-            new Alert(Alert.AlertType.ERROR, "Cannot read settings.yaml: " + e.getMessage()).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot read settings.yaml: " + e.getMessage()).show();
         }
     }
 
@@ -3100,7 +3115,7 @@ public class Main extends Application {
                 .run(List.of("git", "clone", url, tasksDir.toString()));
         if (!result.ok()) {
             Logger.warn("Task repo clone failed: {}", result.stderr().strip());
-            new Alert(Alert.AlertType.ERROR,
+            Alerts.plain(null, Alert.AlertType.ERROR,
                     "Could not clone the task repository:\n" + result.stderr().strip()
                             + "\n\nStarting with an empty task directory.").showAndWait();
         } else {
@@ -3127,7 +3142,7 @@ public class Main extends Application {
             return;
         }
         Logger.warn("Not on PATH: {}", String.join(", ", missing));
-        new Alert(Alert.AlertType.WARNING,
+        Alerts.plain(dialogOwner(), Alert.AlertType.WARNING,
                 "These tools are not on your PATH:\n\n    " + String.join(", ", missing)
                         + "\n\ntmux runs local and remote Claude sessions, ssh reaches every"
                         + " remote, git syncs the task files. Install what you need and restart;"
@@ -3389,7 +3404,7 @@ public class Main extends Application {
                 Platform.runLater(() -> {
                     creationFinished(window, "Task creation failed.");
                     window.noteTaskCreationFailed();
-                    new Alert(Alert.AlertType.ERROR, "Not a GitHub PR or GitLab MR URL: " + url).show();
+                    Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Not a GitHub PR or GitLab MR URL: " + url).show();
                 });
                 return;
             }
@@ -3398,7 +3413,7 @@ public class Main extends Application {
             // section the launcher has yet to produce: the row is in the list
             // from the first second, showing its creation progress, instead of
             // appearing only once the remote is done.
-            // [impl->dsn~task-create-progress~5]
+            // [impl->dsn~task-create-progress~6]
             // Provenance under # Notes only in intro mode.
             // [impl->dsn~skeleton-hints~4]
             String content = TaskFileParser.prTaskContent(title, remote, url,
@@ -3417,12 +3432,14 @@ public class Main extends Application {
                 window.selectCreatedTask(taskId);
                 creationStep(window, taskId, "Creating the tmux window …");
                 executor.execute(() -> {
-                    String windowId = new ClaudeWindowLauncher(ssh, sender, claudeAuto)
+                    ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+                    String windowId = launcher
                             .launch(remote, session, title, prompt, null, mode,
                                     step -> Platform.runLater(() -> creationStep(window, taskId, step)),
                                     fresh -> Platform.runLater(() ->
                                             recordCreatedWindow(files, window, taskId, session, fresh)));
-                    Platform.runLater(() -> finishCreation(window, taskId, windowId, remote));
+                    Platform.runLater(() -> finishCreation(window, taskId, windowId, remote,
+                            windowFailure(remote, launcher.failure())));
                 });
             });
         });
@@ -3436,7 +3453,7 @@ public class Main extends Application {
     /// alone: [TerminalPane#showMessage] ends the connection, so standing in
     /// again would tear the just-attached live mirror down.
     /// FX thread.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private void creationStep(MainWindow window, String taskId, String step) {
         window.creationProgress(taskId, step);
         if (windowedCreations.contains(taskId)) {
@@ -3452,7 +3469,7 @@ public class Main extends Application {
     /// Saves a freshly created task file under `base`, de-duplicated with
     /// `-2`/`-3`… like the plain flow, and returns its task id — or null when
     /// the save failed, having reported it. FX thread.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private @Nullable String saveNewTask(MainWindow.TaskFileAccess files, MainWindow window,
             String base, String content) {
         String fileName = base + ".md";
@@ -3463,7 +3480,7 @@ public class Main extends Application {
         if (error != null) {
             creationFinished(window, "Task creation failed.");
             window.noteTaskCreationFailed();
-            new Alert(Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot create " + fileName + ": " + error).show();
             return null;
         }
         return fileName.substring(0, fileName.length() - ".md".length());
@@ -3474,7 +3491,7 @@ public class Main extends Application {
     /// mirror can then attach to the window and the session is watchable while
     /// it comes up, instead of the task staying "no tmux configured" for the
     /// whole launch. FX thread.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private void recordCreatedWindow(MainWindow.TaskFileAccess files, MainWindow window,
             String taskId, String session, String windowId) {
         // From here the mirror shows the real session; stop standing in for it.
@@ -3487,7 +3504,7 @@ public class Main extends Application {
                 : files.save(fileName, TaskFileParser.withTmuxSection(
                         content, session, windowId, "created " + LocalDate.now()));
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot update " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot update " + fileName + ": " + error).show();
             return;
         }
         // The file may be open in the editor lane; refresh it so its stale
@@ -3497,28 +3514,34 @@ public class Main extends Application {
 
     /// Ends a live/PR creation: clears the row's progress bar and reports the
     /// outcome. A failed launch leaves the task file behind, so the description
-    /// the user typed is never lost to a dead remote. FX thread.
-    // [impl->dsn~task-create-progress~5]
+    /// the user typed is never lost to a dead remote. The `reason` a failed
+    /// creation shows goes into the alert and, in place of the last step, into
+    /// the task's terminal lane (`creationFailures`), which would otherwise
+    /// stay on a stale "Creating …". FX thread.
+    // [impl->dsn~task-create-progress~6]
     private void finishCreation(MainWindow window, String taskId, @Nullable String windowId,
-            String remote) {
-        finishCreation(window, taskId, windowId, remote, null);
-    }
-
-    /// [#finishCreation(MainWindow, String, String, String)] with the
-    /// `reason` a failed creation shows instead of the generic one.
-    private void finishCreation(MainWindow window, String taskId, @Nullable String windowId,
-            String remote, @Nullable String reason) {
+            String remote, String reason) {
         creationSteps.remove(taskId);
         windowedCreations.remove(taskId);
         window.creationDone(taskId);
         if (windowId == null) {
             creationFinished(window, "Task creation failed.");
             window.noteTaskCreationFailed();
-            new Alert(Alert.AlertType.ERROR, reason != null ? reason
-                    : "Cannot create a tmux window on " + remote + " (see log).").show();
+            creationFailures.put(taskId, reason);
+            window.refreshPreview(taskId);
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, reason).show();
             return;
         }
+        creationFailures.remove(taskId);
         creationFinished(window, "Task created.");
+    }
+
+    /// The failure message of a window creation on `remote`: the remote's own
+    /// error output when it gave one, else a pointer to the log.
+    // [impl->dsn~task-create-progress~6]
+    static String windowFailure(String remote, @Nullable String stderr) {
+        String head = "Cannot create a tmux window on " + remote;
+        return stderr == null || stderr.isBlank() ? head + " (see log)." : head + ":\n" + stderr.strip();
     }
 
     /// `mkdir -p`s `dir` on `remote` so `tmux new-window -c` can start there,
@@ -3529,7 +3552,7 @@ public class Main extends Application {
     /// another machine's `/data/kopp` proposed on one without `/data`).
     // [impl->dsn~task-create-live~8]
     private static @Nullable String makeDirectory(SshCommandRunner ssh, String remote, String dir) {
-        SshCommandRunner.SshResult made = ssh.run(remote, List.of("mkdir", "-p", "'" + dir + "'"));
+        SshCommandRunner.SshResult made = ssh.run(remote, List.of("mkdir", "-p", SshCommandRunner.quotePath(dir)));
         if (made.ok()) {
             return null;
         }
@@ -3540,7 +3563,7 @@ public class Main extends Application {
     /// Announces a started async task creation in the status bar. Creations
     /// may overlap (the executor runs each on its own virtual thread), so the
     /// message counts them rather than pretending there is only one.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private void creationStarted(MainWindow window) {
         int running = creationsInFlight.get() + 1;
         creationsInFlight.set(running);
@@ -3552,7 +3575,7 @@ public class Main extends Application {
     /// Reports a finished async task creation (`outcome` = success or failure
     /// line), naming how many are still running so a fast one's outcome does
     /// not read as "all done".
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private void creationFinished(MainWindow window, String outcome) {
         int running = creationsInFlight.get() - 1;
         creationsInFlight.set(running);
@@ -3611,7 +3634,7 @@ public class Main extends Application {
         // showing its creation progress — instead of appearing only when the
         // remote is done. A failed remote then leaves a plain task carrying the
         // description rather than nothing at all.
-        // [impl->dsn~task-create-progress~5]
+        // [impl->dsn~task-create-progress~6]
         // The description lives under # Notes from the start, so nothing
         // is lost when the title is later replaced by Claude's @cs_title.
         String content = ClaudeWindowLauncher.liveTaskContent(title, remote, workdir, appendix)
@@ -3656,13 +3679,14 @@ public class Main extends Application {
                 Platform.runLater(() -> finishCreation(window, taskId, null, remote, unmade));
                 return;
             }
-            String windowId = new ClaudeWindowLauncher(ssh, sender, claudeAuto)
+            ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+            String windowId = launcher
                     .launch(remote, session, title, prompt, workdir, mode,
                             step -> Platform.runLater(() -> creationStep(window, taskId, step)),
                             fresh -> Platform.runLater(() ->
                                     recordCreatedWindow(files, window, taskId, session, fresh)));
             Platform.runLater(() -> {
-                finishCreation(window, taskId, windowId, remote);
+                finishCreation(window, taskId, windowId, remote, windowFailure(remote, launcher.failure()));
                 if (windowId != null) {
                     // Record the session id Claude publishes on startup without
                     // the user pressing "Sync tmux windows…" (dsn~tmux-sync~7).
@@ -3766,7 +3790,8 @@ public class Main extends Application {
         window.statusBar().message("Forking " + statusName + " …");
         window.creationProgress(taskId, "Creating the tmux window …");
         executor.execute(() -> {
-            String windowId = new ClaudeWindowLauncher(ssh, sender, claudeAuto)
+            ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+            String windowId = launcher
                     .launch(remote, session, instruction, prompt, cwd, mode,
                             step -> Platform.runLater(() -> window.creationProgress(taskId, step)),
                             fresh -> Platform.runLater(() ->
@@ -3776,8 +3801,12 @@ public class Main extends Application {
                 window.creationDone(taskId);
                 if (windowId == null) {
                     window.statusBar().message("Forking " + statusName + " failed.");
-                    new Alert(Alert.AlertType.ERROR,
-                            "Cannot create a tmux window on " + remote + " (see log).").show();
+                    // The fork is not selected, but its row is where the user
+                    // looks next: the cause waits in its terminal lane.
+                    // [impl->dsn~task-create-progress~6]
+                    String reason = windowFailure(remote, launcher.failure());
+                    creationFailures.put(taskId, reason);
+                    Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, reason).show();
                     return;
                 }
                 window.statusBar().message("Forked " + statusName + ".");
@@ -3841,7 +3870,7 @@ public class Main extends Application {
         String session = usualSession(repository, remote);
         boolean claudeAuto = settings.claudeAuto();
         // The progress bar the Add-task flow puts on the row
-        // (`dsn~task-create-progress~5`). This path does the very work that
+        // (`dsn~task-create-progress~6`). This path does the very work that
         // one does — an ssh round-trip per step, ten seconds and more — and
         // showed nothing for it but two buttons going grey. Field report
         // 2026-09-12: "I clicked 'Claude' on this task and it just stalled. I
@@ -3851,7 +3880,7 @@ public class Main extends Application {
         // Counted in, because the shared `finishCreation` below counts out:
         // without this the in-flight counter went negative and the *next*
         // Add-task creation announced "Creating 0 tasks …".
-        // [impl->dsn~task-create-progress~5]
+        // [impl->dsn~task-create-progress~6]
         creationStarted(window);
         creationStep(window, task.id(), "Creating the tmux window …");
         executor.execute(() -> {
@@ -3861,29 +3890,33 @@ public class Main extends Application {
                 return;
             }
             String windowId;
+            String failure;
             if (withClaude) {
                 String description = task.notes().isBlank() ? task.title() : task.notes().strip();
                 String prompt = ClaudeWindowLauncher.liveTaskPrompt(description, repo, bootstrapWorktree && cwd != null,
                         group, null);
-                windowId = new ClaudeWindowLauncher(ssh, sender, claudeAuto)
+                ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+                windowId = launcher
                         .launch(remote, session, task.title(), prompt, cwd, mode,
                                 step -> Platform.runLater(() -> creationStep(window, task.id(), step)),
                                 id -> { });
+                failure = launcher.failure();
             } else {
-                windowId = new TmuxResurrect(ssh, claudeAuto)
-                        .createWindow(remote, session, cwd, task.title());
+                TmuxResurrect resurrect = new TmuxResurrect(ssh, claudeAuto);
+                windowId = resurrect.createWindow(remote, session, cwd, task.title());
+                failure = resurrect.failure();
             }
             String created = windowId;
+            String reason = windowFailure(remote, failure);
             Platform.runLater(() -> {
                 // Clears the bar and reports the outcome exactly as the
                 // Add-task flow does, the failure alert included.
                 // [impl->dsn~remote-window-choice~6]
-                finishCreation(window, task.id(), created, remote);
+                // A failure re-draws the placeholder (in `finishCreation`), so
+                // its buttons — dead for the round-trip — can be pressed again.
+                // [impl->dsn~remote-window-choice~6]
+                finishCreation(window, task.id(), created, remote, reason);
                 if (created == null) {
-                    // Re-draws the placeholder, so its buttons — dead for the
-                    // round-trip — can be pressed again after a failed attempt.
-                    // [impl->dsn~remote-window-choice~6]
-                    window.refreshPreview(task.id());
                     return;
                 }
                 writeRemoteWindowBack(orchestrator, repository, settings, files,
@@ -3961,7 +3994,7 @@ public class Main extends Application {
                     if (currentWindow != null) {
                         currentWindow.statusBar().message("Cannot open a terminal on " + remote + ".");
                     }
-                    new Alert(Alert.AlertType.ERROR,
+                    Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                             "Cannot open a window on " + remote + " (see log).").show();
                     onSettled.run();
                 });
@@ -4229,7 +4262,7 @@ public class Main extends Application {
             checkout = groupMainCheckout(files, taskGroup(task));
         }
         if (cwd == null) {
-            new Alert(Alert.AlertType.INFORMATION,
+            Alerts.plain(dialogOwner(), Alert.AlertType.INFORMATION,
                     "No workspace recorded for this window — the task needs a claude: "
                             + "section with a cwd or workspace to diff in.").show();
             return;
@@ -4241,7 +4274,7 @@ public class Main extends Application {
             String windowId = TaskDiffWindow.open(ssh, remote, mirrored.session(), workspace,
                     mainCheckout, recordedCommit);
             if (windowId == null) {
-                Platform.runLater(() -> new Alert(Alert.AlertType.ERROR,
+                Platform.runLater(() -> Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                         "Cannot open a diff window on " + remote + " (see log).").show());
                 return;
             }
@@ -4277,7 +4310,7 @@ public class Main extends Application {
             }
         }
         if (cwd == null) {
-            new Alert(Alert.AlertType.INFORMATION,
+            Alerts.plain(dialogOwner(), Alert.AlertType.INFORMATION,
                     "No working directory recorded for this task — nothing to diff.").show();
             return;
         }
@@ -4323,7 +4356,7 @@ public class Main extends Application {
         }
         String error = files.save(fileName, updated);
         if (error != null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot update " + fileName + ": " + error).show();
+            Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Cannot update " + fileName + ": " + error).show();
             return;
         }
         // The file may be open in the editor lane; refresh it so its stale
@@ -4706,7 +4739,7 @@ public class Main extends Application {
             return;
         }
         executor.execute(() -> {
-            SshCommandRunner.SshResult result = ssh.run(host, List.of("git", "-C", "'" + cwd + "'",
+            SshCommandRunner.SshResult result = ssh.run(host, List.of("git", "-C", SshCommandRunner.quotePath(cwd),
                     "config", "--get", "remote.origin.url"));
             if (!result.ok()) {
                 return;
@@ -4760,8 +4793,9 @@ public class Main extends Application {
         Task.TmuxConfig tmux = task.tmux();
         if (tmux == null) {
             // A creation still on its way to a window says what it is doing.
-            // [impl->dsn~task-create-progress~5]
+            // [impl->dsn~task-create-progress~6]
             String step = creationSteps.get(task.id());
+            String failure = creationFailures.get(task.id());
             if (step != null) {
                 terminal.showMessage(step);
             } else if (task.remote() != null || taskRemote(files, task) != null) {
@@ -4773,9 +4807,11 @@ public class Main extends Application {
                 // of its own, and asking the user to add a line to the file
                 // first is the dead end this placeholder exists to remove.
                 // [impl->dsn~remote-window-choice~6]
-                terminal.showStartWindowMessage("No tmux configured for this task.", task);
+                // A failed creation's cause stands in for the placeholder text.
+                // [impl->dsn~task-create-progress~6]
+                terminal.showStartWindowMessage(failure != null ? failure : "No tmux configured for this task.", task);
             } else {
-                terminal.showMessage("No tmux configured for this task.");
+                terminal.showMessage(failure != null ? failure : "No tmux configured for this task.");
             }
             return;
         }
@@ -4987,7 +5023,7 @@ public class Main extends Application {
         // batch `dsn~claude-pr-capture~2` already built for the periodic
         // footer poll — not one connection per window, which is what made a
         // single reconcile cost eleven of them on a host with ten Claude
-        // windows, over the six global slots of `dsn~ssh-command-runner~7`.
+        // windows, over the six global slots of `dsn~ssh-command-runner~8`.
         // [impl->dsn~claude-pr-capture~2]
         Map<String, List<String>> footerPrs = prLookup.findPrUrls(host,
                 sessions.stream().flatMap(session -> session.windows().stream())

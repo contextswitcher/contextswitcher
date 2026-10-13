@@ -35,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
 // [utest->dsn~setup-wizard~10]
+// [utest->dsn~full-labels~1]
 @Tag("ui")
 @TestFxApplication(SetupWizardUiTest.TestApp.class)
 class SetupWizardUiTest {
@@ -75,9 +76,12 @@ class SetupWizardUiTest {
         @Override
         public SshResult runWithInput(String host, List<String> command, byte[] input) {
             String script = String.join(" ", command);
-            String tool = script.contains("RefactoringMiner") ? "refactoringminer"
+            boolean hooksInstall = script.equals("sh -s")
+                    && new String(input, java.nio.charset.StandardCharsets.UTF_8).contains("@cs_workspace");
+            String tool = hooksInstall || script.contains("settings.json") ? "claude-hooks"
+                    : script.contains("RefactoringMiner") ? "refactoringminer"
                     : script.contains("ast-grep") ? "ast-grep" : "codegraph";
-            if (script.contains("install.sh") || script.contains("unzip")) {
+            if (hooksInstall || script.contains("install.sh") || script.contains("unzip")) {
                 if (tool.equals("codegraph") && input.length == 0) {
                     return new SshResult(1, "", "no skill on stdin");
                 }
@@ -122,6 +126,14 @@ class SetupWizardUiTest {
         // Installed, there is nothing left to install.
         assertThat(installCodegraph.isVisible()).isFalse();
         assertThat(INSTALLED).contains("devbox/codegraph").doesNotContain("devbox/ast-grep");
+        // The reporting hooks are a row of their own; Install feeds the
+        // installer script on stdin. [utest->dsn~claude-report-hooks~1]
+        Label hooks = FX_ROBOT.selectNodes(Label.class, "#setup-tool-claude-hooks").fetchOptional().orElseThrow();
+        assertThat(hooks.getText()).isEqualTo("Not installed");
+        clickButtonById("setup-install-claude-hooks");
+        awaitPresent(() -> Optional.of(hooks).filter(label -> label.getText().startsWith("OK: 1.0")),
+                "installed hooks");
+        assertThat(INSTALLED).contains("devbox/claude-hooks");
         // ast-grep installed by other means: Recheck probes again and finds it.
         Label astGrep = FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional().orElseThrow();
         assertThat(astGrep.getText()).isEqualTo("Not installed");
@@ -174,6 +186,9 @@ class SetupWizardUiTest {
         clickButton("Next");
         type(field("#setup-repo-url"), "https://github.com/org/proj");
         assertThat(field("#setup-root").getText()).isEqualTo("/home/local/proj-workspaces");
+        // The last page's four buttons, "Finish and check up" among them,
+        // show their full labels (field report 2026-10-12: "Finish and che…").
+        assertThat(UiTestSupport.truncatedTexts(field("#setup-root"))).isEmpty();
         // The second way out: Finish, plus the checkup question for the setup session.
         clickButtonById("setup-checkup");
         awaitPresent(() -> Optional.ofNullable(result.get()), "wizard result");
@@ -277,6 +292,25 @@ class SetupWizardUiTest {
         clickButton("Next");
         type(field("#setup-repo-url"), "https://github.com/org/proj");
         assertThat(field("#setup-root").getText()).isEqualTo("/data/me/proj-workspaces");
+        clickButton("Cancel");
+    }
+
+    /// The host page shows its button and texts in full next to the
+    /// configured hosts, also when narrower than it opens — "Test conne…"
+    /// used to be all of the button with Windows' wider font (CLAUDE.md, "No
+    /// truncated text"). Narrowing the window stands in for that font: under
+    /// Xvfb the page fits at its opening width either way.
+    @Test
+    void theHostPageShowsAllLabelsInFull() {
+        Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS,
+                "/home/local", false, false, new SetupWizard.Prefill("koppor@nixos", sessionHost -> "/home/koppor/workspaces",
+                null, true, java.util.List.of("koppor@swkgpu1", "koppor@nixos")), EXTENSION));
+        clickButton("Next");
+        TextField host = field("#setup-host");
+        Platform.runLater(() -> host.getScene().getWindow().setWidth(480));
+        assertThat(UiTestSupport.truncatedTexts(host)).isEmpty();
+        // At 480px the button bar may reach past the window's edge.
+        Platform.runLater(() -> host.getScene().getWindow().sizeToScene());
         clickButton("Cancel");
     }
 

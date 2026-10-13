@@ -512,3 +512,10 @@
     -fx-background-radius: 0.35em;
     -fx-effect: dropshadow(gaussian, -color-shadow-default, 12, 0, 0, 3);
 }
+
+/* AtlantaFX caps every dialog pane at 600px, from the user-agent sheet that a
+   setMaxWidth in code does not override. A dialog whose buttons need more (a
+   wider font, Windows) opts out, so the cap no longer cuts their labels. */
+.dialog-pane.uncapped {
+    -fx-max-width: -1;
+}

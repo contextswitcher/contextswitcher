@@ -12,6 +12,7 @@ Requirements are traced with [OpenFastTrace](https://github.com/itsallcode/openf
 | [browser-integration.md](browser-integration.md) | Firefox extension and its protocol (`req~` + `dsn~`) |
 | [terminal.md](terminal.md) | Terminal snapshot preview and (M2) live mirror (`req~` + `dsn~`) |
 | [ui.md](ui.md) | Main window (`req~` + `dsn~`) |
+| [common-javafx.md](common-javafx.md) | Rules every dialog and window follows, such as owned dialogs (`req~` + `dsn~`) |
 | [analysis.md](analysis.md) | Refactoring insight: RefactoringMiner view and badge (`req~` + `dsn~`) |
 | [android.md](android.md) | Android companion app: task repo sync and read-only task list (`feat~` + `req~` + `dsn~`) |
 | [provenance.md](provenance.md) | Provenance of sent messages: records, replies, commit ranges, report (`req~` + `dsn~`) |

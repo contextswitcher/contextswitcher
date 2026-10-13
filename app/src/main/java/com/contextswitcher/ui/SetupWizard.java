@@ -17,12 +17,14 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
+import javafx.stage.Window;
 import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -46,8 +48,8 @@ import com.contextswitcher.tasks.TaskFileParser;
 /// first), whether an existing task
 /// repository is to be cloned, and a category's repository URL. The
 /// answers come back as a [Result]; `Main` writes the remote into the
-/// settings, clones, and hands the project to the same category-from-URL
-/// flow the toolbar menu runs (`dsn~category-from-url~4`).
+/// settings, clones, and hands the project to the category-from-URL flow
+/// (`dsn~category-from-url~5`).
 ///
 /// One `Dialog` with swapped pages rather than six dialogs: Back works, and
 /// Cancel on any page leaves everything as it was.
@@ -235,18 +237,21 @@ public final class SetupWizard {
             SshCommandRunner tools, String localParent, boolean onWindows, boolean offerClone,
             Prefill prefill, Extension extension) {
         return show(ssh, localCheck, tools, localParent, onWindows, offerClone, prefill, extension,
-                name -> true);
+                name -> true, null);
     }
 
     /// As above; `freeCategoryName` is asked on Finish whether the project's
     /// category name can be taken — on a clash it offers to rename the
     /// existing category (`MainWindow.freeCategoryName`), and false keeps the
-    /// wizard on its last page.
+    /// wizard on its last page. `owner` is the main window on a re-run from
+    /// the menu (`req~owned-dialogs~1`), null on the first start, before it
+    /// exists.
     // [impl->dsn~category-name-clash~1]
     public static Optional<Result> show(SshCommandRunner ssh, Supplier<Verdict> localCheck,
             SshCommandRunner tools, String localParent, boolean onWindows, boolean offerClone,
-            Prefill prefill, Extension extension, Predicate<String> freeCategoryName) {
-        Dialog<Result> dialog = new Dialog<>();
+            Prefill prefill, Extension extension, Predicate<String> freeCategoryName,
+            @Nullable Window owner) {
+        Dialog<Result> dialog = Alerts.owned(owner, new Dialog<>());
         dialog.setTitle(offerClone ? "Welcome to ContextSwitcher" : "ContextSwitcher setup");
         dialog.setGraphic(new ImageView(AppIcon.image(48)));
         dialog.setResizable(true);
@@ -267,6 +272,19 @@ public final class SetupWizard {
                 "Once the category is set up, its session is asked: " + CHECKUP_PROMPT));
         followForward((ButtonBar) dialog.getDialogPane().lookup(".button-bar"));
         nextButton.setDefaultButton(true);
+        // Full button labels (field report 2026-10-12, "Finish and che…" on
+        // Windows): AtlantaFX caps a dialog pane at 600px, which the icon and
+        // a wider font overrun — the wizard opts out like the Add-task dialog;
+        // ButtonBar gives every button the widest one's width, so the two long
+        // OTHER buttons keep their own; and no button shrinks below its label,
+        // so the bar's minimum widens the window instead of eliding text.
+        // [impl->dsn~full-labels~1]
+        dialog.getDialogPane().getStyleClass().add("uncapped");
+        ButtonBar.setButtonUniformSize(checkupButton, false);
+        ButtonBar.setButtonUniformSize(startNowButton, false);
+        for (ButtonType type : dialog.getDialogPane().getButtonTypes()) {
+            ((Button) dialog.getDialogPane().lookupButton(type)).setMinWidth(Region.USE_PREF_SIZE);
+        }
 
         // Page 1: where sessions run.
         ToggleGroup where = new ToggleGroup();
@@ -455,9 +473,9 @@ public final class SetupWizard {
                             : another));
         }
         VBox sshRows = new VBox(8,
-                new Label("ssh destination (an alias from ~/.ssh/config, or user@host)"),
+                caption("ssh destination (an alias from ~/.ssh/config, or user@host)"),
                 knownRows,
-                new HBox(6, host, test),
+                withButton(host, test),
                 muted("Key-based access is required — the app never asks for a password. "
                         + "The check runs tmux -V and claude --version there."));
         Button testWsl = new Button("Test");
@@ -465,8 +483,8 @@ public final class SetupWizard {
         testWsl.getStyleClass().add(Styles.SMALL);
         testWsl.setOnAction(event -> runTest.accept(() -> { }));
         VBox wslRows = new VBox(8,
-                new Label("WSL distribution"),
-                new HBox(6, distro, testWsl),
+                caption("WSL distribution"),
+                withButton(distro, testWsl),
                 muted("Leave it empty for the default distribution. The check runs tmux -V and "
                         + "claude --version inside it, through wsl.exe — no ssh, no password."));
         // One page, two field groups: which questions belong to the chosen
@@ -486,7 +504,7 @@ public final class SetupWizard {
             knownWorkspaces.accept(TmuxHost.wslHost(text));
         });
         VBox workspacesRows = new VBox(8,
-                new Label("Workspaces directory there (new workspaces roots go under it)"),
+                caption("Workspaces directory there (new workspaces roots go under it)"),
                 workspaces,
                 muted("Known for a configured host, otherwise filled in once the check has run; "
                         + "created on the first category."));
@@ -494,7 +512,7 @@ public final class SetupWizard {
 
         // Page 3: the recommended tools, one row each — probed when the page
         // is entered and on Recheck, installed on its button, re-probed after.
-        // [impl->dsn~recommended-tools~2]
+        // [impl->dsn~recommended-tools~3]
         VBox toolRows = new VBox(6);
         @Nullable String[] rmHome = {null};
         Runnable probeTools = () -> {
@@ -564,6 +582,12 @@ public final class SetupWizard {
                 Label name = new Label(tool.label());
                 name.getStyleClass().add(Styles.TEXT_BOLD);
                 Label why = muted(tool.why());
+                // The status takes what the buttons leave, wrapping a long
+                // failure instead of cutting the buttons' labels.
+                status.setWrapText(true);
+                HBox.setHgrow(status, Priority.ALWAYS);
+                install.setMinWidth(Region.USE_PREF_SIZE);
+                recheck.setMinWidth(Region.USE_PREF_SIZE);
                 HBox line = new HBox(8, name, status, install, recheck);
                 line.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
                 toolRows.getChildren().addAll(line, why);
@@ -606,7 +630,7 @@ public final class SetupWizard {
                         + "for Chrome; the browser has to load it itself, so this page only helps."),
                 muted("On its options page enter the port " + extension.port()
                         + " and this token:"),
-                new HBox(6, token, copyToken),
+                withButton(token, copyToken),
                 installNotes,
                 connected);
 
@@ -616,7 +640,7 @@ public final class SetupWizard {
         cloneUrl.setPromptText("git@github.com:me/my-tasks.git  or  https://…  (leave empty to start fresh)");
         cloneUrl.setPrefColumnCount(40);
         VBox page5 = page("Already using ContextSwitcher on another machine?",
-                new Label("Clone URL of your task repository"), cloneUrl,
+                caption("Clone URL of your task repository"), cloneUrl,
                 muted("The tasks directory is cloned from it, so your categories and tasks come "
                         + "along. Leave it empty on a first install."));
 
@@ -624,7 +648,7 @@ public final class SetupWizard {
         // when the machine already has some.
         TextField repoUrl = new TextField();
         repoUrl.setId("setup-repo-url");
-        repoUrl.setPromptText("https://github.com/org/project  (optional)");
+        repoUrl.setPromptText("https://github.com/org/project  or  git@github.com:org/project.git  (optional)");
         repoUrl.setPrefColumnCount(40);
         String clip = javafx.scene.input.Clipboard.getSystemClipboard().getString();
         if (clip != null && TaskFileParser.repoName(clip) != null) {
@@ -656,10 +680,10 @@ public final class SetupWizard {
         repoType.setValue(RepoType.WRITE_ACCESS);
         repoType.getStyleClass().add(Styles.SMALL);
         VBox page6 = page(prefill.categoriesExist() ? "Add a category" : "First category",
-                new Label("Repository URL"), repoUrl,
-                new Label("Workspaces root (the primary clone and per-task worktrees go under it)"),
+                caption("Repository URL"), repoUrl,
+                caption("Workspaces root (the primary clone and per-task worktrees go under it)"),
                 root,
-                new Label("How you work with the repository"), repoType,
+                caption("How you work with the repository"), repoType,
                 muted("A category is created for it and a Claude session sets the root up: "
                         + "clones the repository and writes its CLAUDE.md. Leave the URL empty "
                         + "to add categories later from the toolbar."));
@@ -826,6 +850,22 @@ public final class SetupWizard {
         String order = bar.getButtonOrder().replace("U", "");
         int forward = Math.max(order.indexOf('X'), order.indexOf('I'));
         bar.setButtonOrder(order.substring(0, forward + 1) + "U" + order.substring(forward + 1));
+    }
+
+    /// A field and its button on one line: the field gives way when the page
+    /// is narrow, so the button's label is never cut off.
+    private static HBox withButton(Region field, Button button) {
+        button.setMinWidth(Region.USE_PREF_SIZE);
+        HBox.setHgrow(field, Priority.ALWAYS);
+        return new HBox(6, field, button);
+    }
+
+    /// A field's caption, wrapping like [#muted] rather than being cut off.
+    private static Label caption(String text) {
+        Label label = new Label(text);
+        label.setWrapText(true);
+        label.setMinHeight(Region.USE_PREF_SIZE);
+        return label;
     }
 
     private static Label muted(String text) {

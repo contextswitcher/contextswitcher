@@ -9,7 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~ssh-command-runner~7]
+// [utest->dsn~ssh-command-runner~8]
 class ProcessSshRunnerTest {
 
     /// sshd's default `MaxStartups` refuses the eleventh unauthenticated

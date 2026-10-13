@@ -119,7 +119,7 @@ public class TaskListCell extends ListCell<Object> {
     /// the creation ticks twice a second, and repainting it by rebuilding the
     /// cells (`ListView.refresh`) makes the whole tree flicker for as long as a
     /// task is being created. A bound bar repaints itself alone.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     public static final class Creation {
 
         /// Worst case wall time of a remote creation: two ssh round-trips plus
@@ -384,7 +384,7 @@ public class TaskListCell extends ListCell<Object> {
     private final BiConsumer<Task, Runnable> onShowRefactorings;
     /// The task's in-flight remote creation, or null when it is a settled
     /// task — decides whether the row shows the creation progress bar.
-    // [impl->dsn~task-create-progress~5]
+    // [impl->dsn~task-create-progress~6]
     private final Function<Task, @Nullable Creation> creationOf;
 
     public TaskListCell(Consumer<Task> onSwitch, Consumer<Task> onOpenInIntellij,
@@ -1261,7 +1261,7 @@ public class TaskListCell extends ListCell<Object> {
         // the creation progress instead of the config subtitle: the task file
         // exists from the first moment (so the row is real and keeps the typed
         // description even if the remote fails), but its tmux window and Claude
-        // session arrive seconds later. [impl->dsn~task-create-progress~5]
+        // session arrive seconds later. [impl->dsn~task-create-progress~6]
         Creation creating = creationOf.apply(task);
         if (creating != null) {
             ProgressBar bar = new ProgressBar();

@@ -180,7 +180,7 @@ final class OwnedSession implements TerminalSession {
 
     @Override
     public void selectShownTask() {
-        TerminalPane.noLiveMirror();
+        TerminalPane.noLiveMirror(view.dialogOwner());
     }
 
     /// Left alone: re-attaching would mean killing the Claude it hosts.

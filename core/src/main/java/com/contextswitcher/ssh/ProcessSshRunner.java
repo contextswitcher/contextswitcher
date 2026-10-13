@@ -29,7 +29,7 @@ import org.tinylog.Logger;
 /// arguments — a `tmux -F '#{…}'` format then reaches the remote shell
 /// unquoted, `#` starts a comment there, and tmux answers in its default
 /// format (exit 0, silently useless).
-// [impl->dsn~ssh-command-runner~7]
+// [impl->dsn~ssh-command-runner~8]
 public class ProcessSshRunner implements SshCommandRunner {
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(10);

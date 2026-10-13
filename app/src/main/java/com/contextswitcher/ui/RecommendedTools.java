@@ -20,8 +20,8 @@ import com.contextswitcher.analysis.RefactoringMinerCommands;
 /// Pure argv builders (`sh -c '<script>'`), run through an
 /// `SshCommandRunner` on the remote or, via `HostCommandRunner`, on this
 /// machine. Same transport constraint as every remote command: no double
-/// quotes anywhere (`dsn~ssh-command-runner~7`).
-// [impl->dsn~recommended-tools~2]
+/// quotes anywhere (`dsn~ssh-command-runner~8`).
+// [impl->dsn~recommended-tools~3]
 public final class RecommendedTools {
 
     /// One tool: its `label`, one line of `why`, `installs` — where *Install*
@@ -47,17 +47,97 @@ public final class RecommendedTools {
     private RecommendedTools() {
     }
 
-    /// The tools for a remote host: all three. `refactoringMinerHome` is
-    /// the configured directory to probe, null for the default one.
+    /// The tools for a remote host: the reporting hooks and all three tools.
+    /// `refactoringMinerHome` is the configured directory to probe, null for
+    /// the default one.
     public static List<Tool> remote(@Nullable String refactoringMinerHome) {
-        return List.of(refactoringMiner(refactoringMinerHome), astGrep(), codegraph());
+        return List.of(reportingHooks(), refactoringMiner(refactoringMinerHome), astGrep(), codegraph());
     }
 
     /// The tools for this machine: RefactoringMiner is left out, since the
     /// app runs it over ssh only (`dsn~refactoring-miner-commands~1`).
     public static List<Tool> local() {
-        return List.of(astGrep(), codegraph());
+        return List.of(reportingHooks(), astGrep(), codegraph());
     }
+
+    /// The `@cs_*` options every hook publishes, as the probe greps for them
+    /// (`.` for the space, which a quoted word would carry in double quotes).
+    static final List<String> HOOK_MARKERS = List.of("cs_status.working", "cs_status.waiting",
+            "cs_status.attention", "cs_session_id", "cs_workspace");
+
+    /// The Claude Code hooks that make a session report itself
+    /// (`dsn~claude-report-hooks~1`): status, session id and working
+    /// directory as tmux window options. Without them the app never learns
+    /// a session's id or worktree — no status dot, no transcript or worktree
+    /// to remove on delete (field report 2026-10-12, a fresh host).
+    static Tool reportingHooks() {
+        StringBuilder probe = new StringBuilder("S=$HOME/.claude/settings.json; command -v jq >/dev/null");
+        for (String marker : HOOK_MARKERS) {
+            probe.append(" && grep -q ").append(marker).append(" $S");
+        }
+        probe.append(" && echo in ~/.claude/settings.json");
+        return new Tool("claude-hooks", "Status reporting hooks",
+                "Claude Code hooks that publish each session's status, id and working directory "
+                        + "to its tmux window: the live status dots, resume, Show diff and the "
+                        + "worktree cleanup on delete rely on them. Sessions started before the "
+                        + "install pick them up on their next start.",
+                "Adds the missing hooks to ~/.claude/settings.json, keeping every setting and hook "
+                        + "already there (a copy of the file goes to settings.json.before-contextswitcher). "
+                        + "Needs jq on the host; an unreadable settings.json is left alone.",
+                script(probe.toString()), List.of("sh", "-s"),
+                HOOKS_INSTALL.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /// The hooks installer, fed to `sh -s` on stdin — a script of its own
+    /// rather than an argv, since the hooks' JSON is full of the double
+    /// quotes no argv may carry. `jq` merges per event: a hook is added when
+    /// no command of that event publishes the same option already, so the
+    /// README's hand-copied hooks and a second run add nothing. Every hook is
+    /// guarded by `$TMUX_PANE` and targets it (README, *Let Claude report its
+    /// state*); the working directory comes from the `cwd` of the hook input
+    /// after each Bash call, where a `cd` into a new worktree shows.
+    // [impl->dsn~claude-report-hooks~1]
+    static final String HOOKS_INSTALL = """
+            command -v jq >/dev/null || { echo "jq is missing on this host - install it, then press Install again" >&2; exit 1; }
+            S="$HOME/.claude/settings.json"
+            mkdir -p "$HOME/.claude" || exit 1
+            [ -s "$S" ] || echo '{}' > "$S" || exit 1
+            jq -e 'type == "object"' "$S" >/dev/null 2>&1 || { echo "$S is no JSON object - left untouched" >&2; exit 1; }
+            CS=$(cat <<'EOF'
+            {
+              "UserPromptSubmit": [
+                {"hooks": [{"type": "command", "command": "[ -n \\"$TMUX_PANE\\" ] && tmux set -w -t \\"$TMUX_PANE\\" @cs_status working 2>/dev/null || true"}]}
+              ],
+              "Stop": [
+                {"hooks": [{"type": "command", "command": "[ -n \\"$TMUX_PANE\\" ] && tmux set -w -t \\"$TMUX_PANE\\" @cs_status waiting 2>/dev/null || true"}]}
+              ],
+              "Notification": [
+                {"hooks": [{"type": "command", "command": "[ -n \\"$TMUX_PANE\\" ] && tmux set -w -t \\"$TMUX_PANE\\" @cs_status attention 2>/dev/null || true"}]}
+              ],
+              "SessionStart": [
+                {"hooks": [{"type": "command", "command": "[ -n \\"$TMUX_PANE\\" ] && tmux set -w -t \\"$TMUX_PANE\\" @cs_session_id \\"$(jq -r .session_id)\\" 2>/dev/null || true"}]},
+                {"matcher": "startup|resume|clear", "hooks": [{"type": "command", "command": "[ -n \\"$TMUX_PANE\\" ] && tmux set -w -t \\"$TMUX_PANE\\" @cs_status waiting 2>/dev/null || true"}]}
+              ],
+              "PostToolUse": [
+                {"matcher": "Bash", "hooks": [{"type": "command", "command": "[ -n \\"$TMUX_PANE\\" ] && tmux set -w -t \\"$TMUX_PANE\\" @cs_workspace \\"$(jq -r .cwd)\\" 2>/dev/null || true"}]}
+              ]
+            }
+            EOF
+            )
+            jq --argjson cs "$CS" '
+              def marker: [capture("(?<m>@cs_[a-z_]+( (working|waiting|attention))?)") | .m][0] // "";
+              def present($e; $m): [(.hooks[$e] // [])[] | (.hooks // [])[] | (.command // "") | select(contains($m))] | length > 0;
+              reduce ($cs | to_entries[] | .key as $e | .value[] | {e: $e, g: .}) as $x (.;
+                if present($x.e; ($x.g.hooks[0].command | marker)) then .
+                else .hooks[$x.e] = ((.hooks[$x.e] // []) + [$x.g]) end)
+            ' "$S" > "$S.contextswitcher-new" || { rm -f "$S.contextswitcher-new"; exit 1; }
+            if cmp -s "$S" "$S.contextswitcher-new"; then
+              rm -f "$S.contextswitcher-new"
+            else
+              cp "$S" "$S.before-contextswitcher" && mv "$S.contextswitcher-new" "$S" || exit 1
+            fi
+            echo in ~/.claude/settings.json
+            """;
 
     /// Probes `home` when configured (an install under a custom path shows
     /// as found), else the wizard's own default directory; the installer

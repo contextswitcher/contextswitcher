@@ -33,7 +33,10 @@ public final class FrontmatterCatalog {
         /// An ssh destination: an editable drop-down offering the settings'
         /// hosts (`dsn~host-table~1`), any other value typed in kept; blank
         /// means the key is not set.
-        HOST
+        HOST,
+        /// A virtual desktop name: a text field suggesting, as it is typed, the
+        /// desktop names the app knows; blank means the key is not set.
+        DESKTOP
     }
 
     /// One catalog entry: the frontmatter `key` — top-level, or one level of
@@ -131,7 +134,7 @@ public final class FrontmatterCatalog {
             new Field("tags", "Tags", "Category", Type.LIST,
                     "Inherited by every task in the category; one per line."),
             // [impl->dsn~category-desktop-focus~4]
-            new Field("desktop", "Virtual desktop", "Category", Type.STRING,
+            new Field("desktop", "Virtual desktop", "Category", Type.DESKTOP,
                     "Name of the Windows virtual desktop this category lives on — "
                             + "the header's ▶ button focuses it."),
             // [impl->dsn~complete-control-desktop~1]

@@ -747,13 +747,15 @@ Setup (one-time, in `%USERPROFILE%\.contextswitcher\tasks`):
       stays; a real host → "OK: tmux x.y, Claude Code x.y.z", the settings'
       `remotes` gain it, and the first project's root is proposed under that
       host's home.
-- [ ] **Wizard, tools page (remote):** three rows probe within seconds; on a
+- [ ] **Wizard, tools page (remote):** four rows probe within seconds; on a
       host without them each says "Not installed"; *Install* on codegraph →
       "OK: 1.6.0", `codegraph --version` works in a fresh login shell there and
       `~/.claude/skills/codegraph/SKILL.md` exists; *Install* on RefactoringMiner
       → after Finish, the host's `hosts` entry in settings.yaml has `refactoringMiner`.
-- [ ] **Wizard, tools page (this machine, Linux):** two rows, no
+- [ ] **Wizard, tools page (this machine, Linux):** three rows, no
       RefactoringMiner; on Windows the page is skipped.
+- [ ] **Wizard, status reporting hooks:** on a host whose `~/.claude/settings.json` has none of them (and another hook of its own) → "Not installed"; *Install* → "OK: in …/settings.json", the file keeps the other hook and gains one entry per event, `settings.json.before-contextswitcher` holds the old file; *Install* again changes nothing.
+      Start a task there, let Claude `cd` into a worktree it creates → within a minute the task file's `claude:` gains `sessionId` and `workspace: <the worktree>`, the row shows a status dot, and the delete dialog offers the transcript and the worktree.
 - [ ] **Wizard, extension page:** the token matches settings.yaml, *Copy*
       puts it on the clipboard, the install-notes button opens the README of
       the configured browser; on a re-run with the extension connected the

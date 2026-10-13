@@ -24,6 +24,7 @@ import static com.contextswitcher.ui.UiTestSupport.awaitPresent;
 import static com.contextswitcher.ui.UiTestSupport.awaitTaskFileContaining;
 import static com.contextswitcher.ui.UiTestSupport.openAddTask;
 import static com.contextswitcher.ui.UiTestSupport.findButton;
+import static com.contextswitcher.ui.UiTestSupport.truncatedTexts;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -115,6 +116,19 @@ class AddTaskDialogUiTest {
         assertThat(awaitButton("Add plain task").isDefaultButton()).isTrue();
         var buttons = local.getParent().getChildrenUnmodifiable();
         assertThat(buttons.indexOf(local)).isGreaterThan(buttons.indexOf(remote));
+        FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
+    }
+
+    /// At its opening size the dialog shows every button label and hint in
+    /// full — "Add remote Cl…" used to be all of a button (CLAUDE.md, "No
+    /// truncated text"). The test config has no remote, so the remote hint
+    /// is its longest variant.
+    // [utest->dsn~full-labels~1]
+    @Test
+    void openingSizeShowsAllLabelsInFull() {
+        openAddTask();
+        Button plain = awaitButton("Add plain task");
+        assertThat(truncatedTexts(plain)).isEmpty();
         FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
     }
 

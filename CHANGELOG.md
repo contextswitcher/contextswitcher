@@ -6,6 +6,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub once the day is over.
 The topmost section is the day in progress — its link points at `main` until that tag exists.
 
+## [2026-10-12] - 2026-10-12
+
+### Added
+
+- The "Virtual desktop" field of a category's configuration suggests desktop names while typing: the desktops the other categories use, the active desktop and the fallback desktop. Press Down to see them all.
+- The setup wizard installs Claude Code's status reporting hooks on the session host, keeping the hooks and settings already there. With them, a session reports its status, its id and the directory it works in, so tasks get their status dot and deleting a task offers to remove its worktree and transcript. Before, a host set up through the wizard reported none of this.
+
+### Fixed
+
+- The setup wizard's last page shows "Finish and check up" in full instead of "Finish and che…".
+- A category can be added from an ssh clone URL such as `git@github.com:owner/project.git`, in the setup wizard and in "Add category from URL…"; the repository is then cloned over ssh. Before, only `https://` URLs were accepted and Finish stayed disabled.
+- A link into a repository, such as a file on GitHub, adds a category for that repository. Before, the category was named after the file.
+- The Add-task dialog shows its buttons ("Add remote Claude", "Add local Claude", "Add plain task") and hints in full instead of cutting them off with "…"; the hints wrap and the dialog is as wide as its buttons need.
+- The setup wizard's "Test connection" button, the tools page's "Install" and "Recheck", and the field captions are no longer cut off on a narrow page: the field next to a button gives way and long captions wrap.
+- On a host whose login shell is fish, a task whose title contains an apostrophe ("can't …") could not get its tmux window: fish rejected the command as having unbalanced quotes.
+- A remote directory written with `~` (such as `~/workspaces/…`) works: before, the app looked for a directory literally named `~` there, so creating a window or looking up a workspace's pull request failed.
+- Dialogs — "Add task", confirmations, error messages — open over the app's window, on its monitor, instead of on the primary monitor.
+- Closing the app no longer logs an error from a pull-request check that was still scheduled.
+- The pull-request lookup no longer logs a warning every few minutes when a task's directory has no pull request or is not a git checkout.
+- When creating a task's tmux window fails, the error alert and the task's terminal area show the remote's error message instead of only "(see log)"; before, the terminal area kept saying "Creating the tmux window …" after the failure.
+
+### Removed
+
+- "Add category from URL…" is gone from the add menu and the task list's context menu: the setup wizard's last page ("Setup wizard…" in the add menu) sets up a category from a repository URL the same way. "Add category…" stays for an empty category.
+
 ## [2026-10-11] - 2026-10-11
 
 ### Added
@@ -92,6 +117,7 @@ The topmost section is the day in progress — its link points at `main` until t
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-10-12]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-11...v2026-10-12
 [2026-10-11]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-10...v2026-10-11
 [2026-10-10]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-01...v2026-10-10
 [2026-10-01]: https://github.com/contextswitcher/contextswitcher/compare/v2026-09-28...v2026-10-01

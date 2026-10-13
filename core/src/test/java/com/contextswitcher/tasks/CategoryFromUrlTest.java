@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// A category created from a repository URL: the folder name derived from
 /// the URL and the real-valued `CONTEXTSWITCHER.md` written for it.
-// [utest->dsn~category-from-url~4]
+// [utest->dsn~category-from-url~5]
 class CategoryFromUrlTest {
 
     @Test
@@ -22,7 +22,40 @@ class CategoryFromUrlTest {
     void nonRepoTextYieldsNoName() {
         assertThat(TaskFileParser.repoName("Fix the NPE in the importer")).isNull();
         assertThat(TaskFileParser.repoName("https://github.com/")).isNull();
-        assertThat(TaskFileParser.repoName("git@github.com:Gram21/SaiLoR.git")).isNull();
+        assertThat(TaskFileParser.repoName("Mail bob@example.org: the importer is broken")).isNull();
+        assertThat(TaskFileParser.repoName("/home/me/SaiLoR")).isNull();
+    }
+
+    @Test
+    void anSshCloneUrlNamesItsRepository() {
+        assertThat(TaskFileParser.repoName("git@github.com:Gram21/SaiLoR.git")).isEqualTo("sailor");
+        assertThat(TaskFileParser.repoName("ssh://git@github.com:22/Gram21/SaiLoR")).isEqualTo("sailor");
+    }
+
+    /// A link to a file, a pull request or a GitLab page inside the
+    /// repository names the repository, not the file.
+    @Test
+    void aDeepLinkNamesItsRepository() {
+        assertThat(TaskFileParser.repoWebUrl(
+                "https://github.com/JabRef/jabref-demonstration-libraries/blob/main/.markdownlint.yml"))
+                .isEqualTo("https://github.com/JabRef/jabref-demonstration-libraries");
+        assertThat(TaskFileParser.repoName("https://github.com/JabRef/jabref/pull/12345"))
+                .isEqualTo("jabref");
+        assertThat(TaskFileParser.repoWebUrl("https://gitlab.com/group/sub/project/-/blob/main/README.md"))
+                .isEqualTo("https://gitlab.com/group/sub/project");
+    }
+
+    /// The category's `repo:` is opened in the browser, so an ssh clone URL
+    /// is written as its web page; an https URL stays as typed.
+    @Test
+    void theRepoIsTheWebUrl() {
+        assertThat(TaskFileParser.repoWebUrl("git@github.com:JabRef/jabref-demonstration-libraries.git"))
+                .isEqualTo("https://github.com/JabRef/jabref-demonstration-libraries");
+        assertThat(TaskFileParser.repoWebUrl(" https://github.com/Gram21/SaiLoR.git/ "))
+                .isEqualTo("https://github.com/Gram21/SaiLoR");
+        assertThat(TaskFileParser.repoWebUrl("https://gitea.example.org/a/b/SaiLoR?tab=readme"))
+                .isEqualTo("https://gitea.example.org/a/b/SaiLoR");
+        assertThat(TaskFileParser.repoWebUrl("Fix the NPE in the importer")).isNull();
     }
 
     @Test

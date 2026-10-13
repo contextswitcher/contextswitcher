@@ -41,7 +41,10 @@ class WorkspacePrLookupTest {
                 .isEqualTo("echo '===contextswitcher-workspace /a===' ; "
                         + "( cd '/a' && gh pr view --json url ) ; "
                         + "echo '===contextswitcher-workspace /b c===' ; "
-                        + "( cd '/b c' && gh pr view --json url )");
+                        + "( cd '/b c' && gh pr view --json url ) ; true");
+        // A tilde path stays expandable: quoted whole it named a directory "~".
+        assertThat(String.join(" ", WorkspacePrLookup.batchCommand(List.of("~/ws/x"))))
+                .contains("( cd ~/'ws/x' && gh pr view --json url )");
         assertThat(WorkspacePrLookup.batchCommand(List.of("/a", "/b c")))
                 .noneMatch(part -> part.contains("\""));
     }

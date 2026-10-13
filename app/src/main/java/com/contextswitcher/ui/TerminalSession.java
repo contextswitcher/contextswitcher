@@ -109,6 +109,10 @@ sealed interface TerminalSession permits TmuxSession, OwnedSession {
 
         void showLocalFiles(Button source);
 
+        /// The window the pane is in, owner of the session's dialogs
+        /// (`req~owned-dialogs~1`).
+        javafx.stage.@Nullable Window dialogOwner();
+
         /// The Claude session recorded for `tmux`'s window; null when none.
         Task.@Nullable ClaudeConfig claudeOf(String remote, Task.TmuxConfig tmux);
 
