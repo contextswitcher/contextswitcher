@@ -12,6 +12,10 @@ The topmost section is the day in progress — its link points at `main` until t
 
 - Clicking "N on other desktops" next to the task search lists those tasks; picking one switches to its desktop and selects it.
 
+### Fixed
+
+- With "Show active desktop only" on, a category whose virtual desktop does not exist on this computer is shown on the fallback desktop (`fallbackDesktop`, `misc` by default), where its desktop button already led. Before, it was hidden on every desktop.
+
 ## [2026-10-12] - 2026-10-12
 
 ### Added

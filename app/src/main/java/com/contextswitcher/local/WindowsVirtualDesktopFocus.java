@@ -3,6 +3,8 @@ package com.contextswitcher.local;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import org.jspecify.annotations.Nullable;
 
@@ -198,7 +200,7 @@ public class WindowsVirtualDesktopFocus {
     private final LocalCommandRunner runner;
     /// The desktop a name that matches nothing falls back to (`fallbackDesktop`
     /// in `settings.yaml`); empty = no fallback, a miss just fails.
-    // [impl->dsn~fallback-desktop~1]
+    // [impl->dsn~fallback-desktop~2]
     private final String fallback;
 
     public WindowsVirtualDesktopFocus(LocalCommandRunner runner) {
@@ -242,7 +244,7 @@ public class WindowsVirtualDesktopFocus {
         }
         if (result.exitCode() == 2) {
             // A configured desktop that does not exist on this machine lands on
-            // the fallback rather than nowhere. [impl->dsn~fallback-desktop~1]
+            // the fallback rather than nowhere. [impl->dsn~fallback-desktop~2]
             if (!fallback.isBlank() && !fallback.equalsIgnoreCase(name)) {
                 LocalCommandRunner.LocalResult retry = runner.run(command(fallback));
                 if (retry.exitCode() == 0) {
@@ -401,7 +403,10 @@ public class WindowsVirtualDesktopFocus {
     /// the top — a second `Add-Type` of the same types throws, which inside the
     /// loop would silently demote every later tick to the registry) and then
     /// checks the desktop in-process every [#WATCH_INTERVAL_MILLIS], printing
-    /// a [#WATCH_PREFIX] line whenever the name changes. That turns
+    /// a [#WATCH_PREFIX] line whenever the name changes, and a
+    /// [#DESKTOPS_PREFIX] line (tab-separated) whenever the set of named
+    /// desktops does — what the filter needs to tell a `desktop:` naming a
+    /// missing desktop (`dsn~fallback-desktop~2`). That turns
     /// switch-detection latency from poll interval + `powershell` start +
     /// Roslyn compile (seconds) into at most the sleep interval.
     ///
@@ -434,11 +439,25 @@ public class WindowsVirtualDesktopFocus {
               $key = $base + '\\Desktops\\{' + $cur.ToString() + '}'
               return (Get-ItemProperty -Path $key -Name Name -ErrorAction SilentlyContinue).Name
             }
+            function Get-DesktopNames {
+              $ids = (Get-ItemProperty -Path $base -Name VirtualDesktopIDs).VirtualDesktopIDs
+              for ($i = 0; $i -lt [int]($ids.Length / 16); $i++) {
+                $guid = [Guid]::new([byte[]]($ids[($i * 16)..($i * 16 + 15)]))
+                $key = $base + '\\Desktops\\{' + $guid.ToString() + '}'
+                $name = (Get-ItemProperty -Path $key -Name Name -ErrorAction SilentlyContinue).Name
+                if ($name) { $name }
+              }
+            }
             $last = $null
+            $lastNames = $null
             while ($true) {
               try {
                 $line = 'desktop:' + (Get-CurrentName)
                 if ($line -ne $last) { [Console]::Out.WriteLine($line); $last = $line }
+              } catch { }
+              try {
+                $names = 'desktops:' + (@(Get-DesktopNames) -join "`t")
+                if ($names -ne $lastNames) { [Console]::Out.WriteLine($names); $lastNames = $names }
               } catch { }
               Start-Sleep -Milliseconds 250
             }
@@ -447,6 +466,10 @@ public class WindowsVirtualDesktopFocus {
     /// Marks a watcher stdout line carrying the active desktop's name; anything
     /// else on the (merged) stream is PowerShell noise and is ignored.
     static final String WATCH_PREFIX = "desktop:";
+
+    /// Marks a watcher stdout line listing the named desktops, tab-separated.
+    // [impl->dsn~fallback-desktop~2]
+    static final String DESKTOPS_PREFIX = "desktops:";
 
     /// The watcher's in-process check interval — the new worst-case latency for
     /// noticing an externally triggered desktop switch.
@@ -476,6 +499,22 @@ public class WindowsVirtualDesktopFocus {
         return new ActiveDesktop(true, name.isEmpty() ? null : name);
     }
 
+    /// One watcher stdout line → the named desktops (case-insensitive, as the
+    /// filter matches them), or null for any other line.
+    // [impl->dsn~fallback-desktop~2]
+    static @Nullable SortedSet<String> parseDesktopsLine(String line) {
+        if (!line.startsWith(DESKTOPS_PREFIX)) {
+            return null;
+        }
+        SortedSet<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (String name : line.substring(DESKTOPS_PREFIX.length()).split("\t")) {
+            if (!name.isBlank()) {
+                names.add(name.strip());
+            }
+        }
+        return names;
+    }
+
     /// A running watcher; closing destroys the `powershell` process (which ends
     /// the reader thread through end-of-stream).
     public record Watch(Process process) implements AutoCloseable {
@@ -487,12 +526,12 @@ public class WindowsVirtualDesktopFocus {
 
     /// Starts the persistent watcher, feeding every successful read to `onRead`
     /// (from a daemon reader thread — the callback marshals to the UI thread
-    /// itself) and calling `onExit` once when the process ends for any reason,
+    /// itself), every changed set of named desktops to `onDesktops`, and calling `onExit` once when the process ends for any reason,
     /// so the caller can fall back to one-shot polling. Returns null where the
     /// process cannot start at all (no `powershell`, non-Windows).
     // [impl->dsn~active-desktop-filter~6]
     public static @Nullable Watch watch(java.util.function.Consumer<ActiveDesktop> onRead,
-            Runnable onExit) {
+            java.util.function.Consumer<SortedSet<String>> onDesktops, Runnable onExit) {
         if (!System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) {
             return null;
         }
@@ -511,6 +550,10 @@ public class WindowsVirtualDesktopFocus {
                     ActiveDesktop read = parseWatchLine(line);
                     if (read != null) {
                         onRead.accept(read);
+                    }
+                    SortedSet<String> desktops = parseDesktopsLine(line);
+                    if (desktops != null) {
+                        onDesktops.accept(desktops);
                     }
                 }
             } catch (java.io.IOException e) {

@@ -59,7 +59,7 @@ public final class SettingsCatalog {
             new Option("showOnAllDesktops", "Show window on all desktops", "General", Type.BOOLEAN,
                     "Pins the window to every Windows virtual desktop at startup; "
                             + "each desktop then remembers its own window position."),
-            // [impl->dsn~fallback-desktop~1]
+            // [impl->dsn~fallback-desktop~2]
             new Option("fallbackDesktop", "Fallback desktop", "General", Type.STRING,
                     "Virtual desktop used for a category that names no desktop, or one that "
                             + "does not exist; empty turns the fallback off."),

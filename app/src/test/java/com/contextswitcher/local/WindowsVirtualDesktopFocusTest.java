@@ -68,7 +68,7 @@ class WindowsVirtualDesktopFocusTest {
                 .isEqualTo("focused desktop \"vs.code\"");
     }
 
-    // [utest->dsn~fallback-desktop~1]
+    // [utest->dsn~fallback-desktop~2]
     @Test
     void aMissingDesktopIsRetriedOnTheFallback() {
         var runner = new RecordingRunner(name -> name.contains("misc") ? 0 : 2);
@@ -78,7 +78,7 @@ class WindowsVirtualDesktopFocusTest {
         assertThat(runner.names).containsExactly("jabref", "misc");
     }
 
-    // [utest->dsn~fallback-desktop~1]
+    // [utest->dsn~fallback-desktop~2]
     @Test
     void aMissingFallbackFailsNamingBothAndIsNotRetriedForItself() {
         var runner = new RecordingRunner(name -> 2);
@@ -251,6 +251,18 @@ class WindowsVirtualDesktopFocusTest {
         // Merged-in stderr chatter is not a reading.
         assertThat(WindowsVirtualDesktopFocus.parseWatchLine("Add-Type : whatever"))
                 .isNull();
+    }
+
+    // [utest->dsn~fallback-desktop~2]
+    @Test
+    void watcherReportsTheNamedDesktopsCaseInsensitively() {
+        assertThat(WindowsVirtualDesktopFocus.watchScript()).contains("'desktops:' + (@(Get-DesktopNames) -join \"`t\")");
+        var names = WindowsVirtualDesktopFocus.parseDesktopsLine("desktops:JabRef\tmisc\t");
+        assertThat(names).containsExactly("JabRef", "misc");
+        assertThat(names).contains("jabref");
+        assertThat(WindowsVirtualDesktopFocus.parseDesktopsLine("desktops:")).isEmpty();
+        // The active-desktop line is not a list of desktops.
+        assertThat(WindowsVirtualDesktopFocus.parseDesktopsLine("desktop:JabRef")).isNull();
     }
 
     // [utest->dsn~active-desktop-filter~6]

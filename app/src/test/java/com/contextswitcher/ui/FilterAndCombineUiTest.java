@@ -111,6 +111,7 @@ class FilterAndCombineUiTest {
     /// without a desktop" brings exactly those back, and not the categories of
     /// *other* desktops.
     // [utest->dsn~active-desktop-filter~6]
+    // [utest->dsn~fallback-desktop~2]
     @Test
     void theNoDesktopOptionKeepsUnassignedCategoriesOnly() throws Exception {
         Path dir = UiTestSupport.tasksDir;
@@ -145,9 +146,17 @@ class FilterAndCombineUiTest {
 
         // On the fallback desktop itself the unassigned category shows without
         // the option — that is the desktop it is focused on
-        // (`dsn~fallback-desktop~1`).
+        // (`dsn~fallback-desktop~2`).
         Platform.runLater(() -> mainWindow()
                 .updateActiveDesktop(com.contextswitcher.config.AppSettings.DEFAULT_FALLBACK_DESKTOP));
+        awaitTasks(list, List.of("tools/work"));
+
+        // A desktop missing on this machine lands on the fallback too: Zeta's
+        // category joins the unassigned one there (`dsn~fallback-desktop~2`).
+        Platform.runLater(() -> mainWindow().updateExistingDesktops(new java.util.TreeSet<>(
+                List.of("Epsilon", com.contextswitcher.config.AppSettings.DEFAULT_FALLBACK_DESKTOP))));
+        awaitTasks(list, List.of("tools/work", "zeta/work"));
+        Platform.runLater(() -> mainWindow().updateExistingDesktops(null));
         awaitTasks(list, List.of("tools/work"));
     }
 

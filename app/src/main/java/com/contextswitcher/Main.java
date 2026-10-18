@@ -272,7 +272,7 @@ public class Main extends Application {
     /// The virtual desktop a category with no (or an unknown) `desktop:` is
     /// focused on — `fallbackDesktop` in `settings.yaml`, blank = no fallback.
     /// Refreshed on a settings save, like the pin above.
-    // [impl->dsn~fallback-desktop~1]
+    // [impl->dsn~fallback-desktop~2]
     private volatile String fallbackDesktop = AppSettings.DEFAULT_FALLBACK_DESKTOP;
 
     /// `autoSuspendMinutes` / `mergedCleanupDays` in `settings.yaml`, refreshed
@@ -848,7 +848,7 @@ public class Main extends Application {
                             applyDesktopPin(saved);
                             // [impl->dsn~window-position-per-desktop~2]
                             trackWindowPosition = positionTrackingEnabled(saved);
-                            // [impl->dsn~fallback-desktop~1]
+                            // [impl->dsn~fallback-desktop~2]
                             fallbackDesktop = saved.fallbackDesktop();
                             // [impl->dsn~auto-suspend-idle~2]
                             autoSuspendMinutes = saved.autoSuspendMinutes();
@@ -2160,7 +2160,7 @@ public class Main extends Application {
     /// `desktop:` takes effect without a restart, like [MainWindow]'s header
     /// desktop button.
     // [impl->dsn~pr-open-on-category-desktop~3]
-    // [impl->dsn~fallback-desktop~1]
+    // [impl->dsn~fallback-desktop~2]
     private @Nullable String groupDesktop(MainWindow.TaskFileAccess files, @Nullable String group) {
         if (group == null || group.isEmpty()) {
             return null;
@@ -4582,7 +4582,8 @@ public class Main extends Application {
             return;
         }
         WindowsVirtualDesktopFocus.Watch watch =
-                WindowsVirtualDesktopFocus.watch(this::pushDesktop, () -> desktopWatchLive = false);
+                WindowsVirtualDesktopFocus.watch(this::pushDesktop, this::pushDesktopNames,
+                        () -> desktopWatchLive = false);
         this.desktopWatch = watch;
         this.desktopWatchLive = watch != null;
     }
@@ -4603,6 +4604,19 @@ public class Main extends Application {
                     applyDesktopPosition(result.name());
                 }
             });
+        }
+    }
+
+    /// Pushes the watcher's set of named desktops to the window on the FX thread,
+    /// so the desktop filter can send a category naming a missing desktop to
+    /// the fallback. Only the watcher reports them; without it the set stays
+    /// unknown and every `desktop:` counts as existing.
+    // ponytail: no one-shot read of the names; add one if the watcher-less poll matters
+    // [impl->dsn~fallback-desktop~2]
+    private void pushDesktopNames(java.util.SortedSet<String> names) {
+        MainWindow currentWindow = this.window;
+        if (currentWindow != null) {
+            Platform.runLater(() -> currentWindow.updateExistingDesktops(names));
         }
     }
 

@@ -492,12 +492,14 @@ Covers:
 Needs: impl, utest
 
 ### Fallback desktop resolution
-`dsn~fallback-desktop~1`
+`dsn~fallback-desktop~2`
 
 `AppSettings.fallbackDesktop` (default `misc`, blank = off) names the desktop both unresolved cases fall back to; it is a `SettingsCatalog` option like every other key, and `Main` refreshes it on a settings save.
 The two cases are resolved in the two places they can be seen.
 A category that names no `desktop:` is resolved at read time: `MainWindow.groupDesktop` and `Main.groupDesktop` return the fallback instead of null, so the header button shows for every category, the active-desktop filter (`dsn~active-desktop-filter~6`) shows such a category while the fallback desktop is the active one (it matches the fallback name directly, keeping the category nameless for that filter's "without a desktop" sub-option), and a PR/link click lands there (`dsn~pr-open-on-category-desktop~3`).
 A `desktop:` naming a desktop that does not exist can only be seen when the switch runs, so it is resolved there: `WindowsVirtualDesktopFocus` takes the fallback name and, on the script's exit 2, re-runs it once for the fallback; the status bar then reports the fallback switch with the missed name appended, and a fallback that does not exist either fails naming both.
+The active-desktop filter (`dsn~active-desktop-filter~6`) sees the second case too (revision `~2`; `~1` hid such a category on every desktop while its button still landed on the fallback): the persistent desktop watcher also prints a `desktops:` line, the named desktops tab-separated, whenever that set changes, and `MainWindow.onActiveDesktop` treats a `desktop:` missing from it like no `desktop:` at all — shown on the fallback desktop, and with "Also show categories without a desktop".
+Without the watcher the set is unknown and every `desktop:` counts as existing, the `~1` behaviour.
 The root group (an ungrouped task) has no category and keeps resolving to null — there is nothing to fall back *for*.
 
 Tags: windows

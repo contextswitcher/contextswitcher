@@ -21,6 +21,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -455,7 +456,7 @@ public class MainWindow {
     private final boolean hints;
     /// The virtual desktop a category with no `desktop:` of its own belongs to
     /// (`fallbackDesktop` in `settings.yaml`); blank = no fallback.
-    // [impl->dsn~fallback-desktop~1]
+    // [impl->dsn~fallback-desktop~2]
     private final String fallbackDesktop;
     /// The tag palette last read from settings.yaml (cached so hot paths — chip
     /// colors, the row menus — never touch disk); refreshed on a settings edit.
@@ -540,6 +541,11 @@ public class MainWindow {
     /// yet read) — the filter then narrows nothing (shows everything).
     // [impl->dsn~active-desktop-filter~6]
     private @Nullable String activeDesktop;
+    /// The named virtual desktops on this machine (case-insensitive), pushed by
+    /// `Main`'s desktop watcher; null while unknown, and then every `desktop:`
+    /// counts as existing.
+    // [impl->dsn~fallback-desktop~2]
+    private @Nullable SortedSet<String> existingDesktops;
 
     /// Desktop name → id of the task last selected while that desktop was
     /// active, recorded by the list's selection listener and re-selected by
@@ -2979,20 +2985,26 @@ public class MainWindow {
     /// would otherwise be unreachable while the filter is on.
     /// A category naming no desktop also passes while the fallback desktop is
     /// the active one — that is the desktop it is focused on
-    /// (`dsn~fallback-desktop~1`) — but it stays *nameless* here, or the
+    /// (`dsn~fallback-desktop~2`) — but it stays *nameless* here, or the
     /// fallback (default `misc`) would leave "Also show categories without a
     /// desktop" with nothing to show.
     /// `desktopByGroup` memoizes the file read for one rebuild; it maps to
     /// `null` for "no desktop", hence `containsKey` rather than
     /// `computeIfAbsent` (which does not cache a null).
     // [impl->dsn~active-desktop-filter~6]
-    // [impl->dsn~fallback-desktop~1]
+    // [impl->dsn~fallback-desktop~2]
     private boolean onActiveDesktop(String group, String activeDesktopFilter,
             Map<String, @Nullable String> desktopByGroup) {
         if (!desktopByGroup.containsKey(group)) {
             desktopByGroup.put(group, groupDefaults(group).desktop());
         }
         String desktop = desktopByGroup.get(group);
+        // A desktop missing on this machine is focused on the fallback, so the
+        // filter treats the category as naming none. [impl->dsn~fallback-desktop~2]
+        SortedSet<String> existing = existingDesktops;
+        if (desktop != null && existing != null && !existing.contains(desktop)) {
+            desktop = null;
+        }
         if (desktop == null) {
             // A config that does not load has no desktop by accident; hiding
             // the category would hide the header warning saying so.
@@ -4691,7 +4703,7 @@ public class MainWindow {
     /// desktop-focus button shows for it. Null only with the fallback turned off
     /// (empty `fallbackDesktop`), which is the pre-fallback behavior.
     // [impl->dsn~category-desktop-focus~4]
-    // [impl->dsn~fallback-desktop~1]
+    // [impl->dsn~fallback-desktop~2]
     private @Nullable String groupDesktop(String group) {
         String desktop = groupDefaults(group).desktop();
         if (desktop != null) {
@@ -6628,6 +6640,20 @@ public class MainWindow {
         button.setText(activeDesktopOnly
                 ? "Show active desktop only (" + (activeDesktop != null ? activeDesktop : "unknown") + ")"
                 : "Show active desktop only");
+    }
+
+    /// Records the named desktops on this machine (pushed by `Main`'s watcher)
+    /// and, when they changed and the desktop filter is on, rebuilds — a
+    /// category naming a desktop that is missing here moves to the fallback.
+    // [impl->dsn~fallback-desktop~2]
+    public void updateExistingDesktops(@Nullable SortedSet<String> desktops) {
+        if (Objects.equals(desktops, existingDesktops)) {
+            return;
+        }
+        existingDesktops = desktops;
+        if (activeDesktopOnly) {
+            rebuildRows();
+        }
     }
 
     /// Records the active virtual desktop's name (pushed by `Main`'s poller) and,
