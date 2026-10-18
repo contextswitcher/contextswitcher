@@ -2478,7 +2478,7 @@ A change to the entries re-runs the current query the same way, so a task edited
 Enter selects and scrolls to the first matching task (and focuses the list); Escape (or the clear button) clears the query, returns focus to the list, and scrolls the selected row back into view — in the restored full list the found task usually sits outside the viewport. A blank query matches everything, so an empty bar shows the full list.
 A running query **suspends the narrowing content filters** — tag, awaits-input and running-tasks (`dsn~task-tag-filter~2`, `dsn~awaits-input-filter~1`, `dsn~running-tasks-filter~1`): `rebuildRows` reads each of them as `!searching && <flag>`, so while the find bar has text the query alone decides which *tasks* show.
 Find is an explicit "where is this task", those filters are ambient state the user set at some other moment, and ANDing the two made the bar answer "0 matches" for a task that plainly exists (field report 2026-09-09: a PR URL found nothing because its category lives on another virtual desktop while the desktop filter was on).
-The active-desktop filter is the exception and keeps narrowing (`dsn~search-hits-off-desktop~1`): suspending it moved the list to another desktop behind the user's back, which reads as the app switching context on its own (field report 2026-09-10).
+The active-desktop filter is the exception and keeps narrowing (`dsn~search-hits-off-desktop~2`): suspending it moved the list to another desktop behind the user's back, which reads as the app switching context on its own (field report 2026-09-10).
 The filters stay ticked and take effect again the moment the query is cleared.
 Clearing the query keeps whatever task is selected — the match the user found and focused stays selected, rather than the list reverting to the task that was selected before the search: `rebuildRows` does not preserve a selection the active search hides, so no stale pre-search id lingers to override the found task once the filter is lifted.
 
@@ -2618,7 +2618,7 @@ The item is disabled while the desktop filter is off (on its own it changes noth
 A category whose `CONTEXTSWITCHER.md` does not load is kept regardless, so its header warning stays visible (`dsn~group-config-parse-error~1`).
 The same test applies to the **task-less folders** added as groups after that per-entry pass (`dsn~task-create-ui~15`, so a fresh category is not invisible): they are exempt from the content filters because a category without tasks has nothing to filter out, but this filter narrows by a property of the *category*, which an empty one has just as much (field report 2026-07-29: `cloudref`, `desktop: jabref` and no task file yet, sat in the list while the ContextSwitcher desktop was active).
 `FilterAndCombineUiTest` also pins the sub-option: with the desktop filter on, a no-`desktop:` category is hidden, and ticking "Also show categories without a desktop" brings it back without bringing back the categories of *other* desktops.
-A find query does not suspend this filter, unlike the content filters (`dsn~task-find~9`); the hits it hides are counted and reported instead (`dsn~search-hits-off-desktop~1`).
+A find query does not suspend this filter, unlike the content filters (`dsn~task-find~9`); the hits it hides are counted and reported instead (`dsn~search-hits-off-desktop~2`).
 No row of another desktop can therefore reach the list while the filter is on, and the earlier `unfilterForeignDesktop` — which unticked the filter when such a row was selected out of a suspended-filter search — is gone with the state it repaired.
 The filter composes with the other toolbar filters as an AND — with "Show running tasks only" also on, the list is the running tasks *of the active desktop* (`FilterAndCombineUiTest`); `current()`'s parsing, the script's fallback, and the watcher's compile-once shape and line protocol are unit-tested.
 
@@ -2630,12 +2630,14 @@ Covers:
 Needs: impl, utest
 
 ### Search hits outside the active desktop
-`dsn~search-hits-off-desktop~1`
+`dsn~search-hits-off-desktop~2`
 
 The active-desktop filter (`dsn~active-desktop-filter~6`) keeps narrowing while a find query runs, so a hit in a category of another desktop never appears in the list — the list stays on the desktop the user is working on instead of quietly following the query elsewhere (field report 2026-09-10: a search jumped the view to another desktop's category, and the implicit context switch was worse than the missing hit).
 So the hit is not lost, `MainWindow.rebuildRows` counts the entries the query matched but the desktop filter dropped into `hitsOffDesktop`, and the find bar's match label appends "· N on other desktops" to its count (blank when the count is 0 — no filter, no query, or every hit is here).
 When *every* hit is elsewhere the list is empty, and its placeholder says "No matches on this desktop — N on other desktops." (`dsn~desktop-filter-empty-state~2`) instead of the generic filter line.
-Reaching those hits stays a manual act: unticking the desktop filter, or switching to the desktop in question. Deliberately no auto-widening and no offered shortcut yet — the point of this design is to find out how often the count is non-zero in daily use before adding machinery for it.
+Still no auto-widening, but the hits are one click away (field report 2026-10-18): while the count is non-zero the label shows a hand cursor, and a click pops up a menu listing each hit as "<title> — <desktop>".
+Picking one focuses that desktop (the category header's desktop focus, `dsn~category-desktop-focus~4`), moves the list to it right away via `updateActiveDesktop` instead of waiting for the desktop watch, and selects the task.
+A hit whose category has no desktop (fallback desktop turned off) is listed disabled — there is nowhere to switch to.
 The label carries the `find-match-count` style class so the UI test can read it.
 
 Tags: windows
@@ -2651,7 +2653,7 @@ Needs: impl, utest
 
 When a rebuild produces no rows while a narrowing filter is active, `MainWindow.rebuildRows` swaps the list's placeholder: the stock "No tasks yet — copy TEMPLATE.md…" text would be a lie, since tasks exist and the filters hide them all (field report 2026-08-23: desktop filter on, a desktop without categories, the app claiming there are no tasks).
 With the desktop filter as the *sole* narrowing (a known active desktop, no search/tag/awaits-input/running filter), the placeholder names the desktop ("No categories on desktop "X".") and offers an `Add category for desktop "X"…` `Hyperlink`, which runs the normal `Add category…` dialog (`dsn~category-create-ui~2`) and pre-fills the created config's `desktop:` line — real (uncommented) via a `desktop` parameter on `TaskFileParser.groupConfigSkeleton` instead of the `# desktop: <group>` example — so the new category appears on the desktop in view without a manual edit; the dialog header names the pre-set desktop.
-A search whose hits all sit on other desktops (`dsn~search-hits-off-desktop~1`) gets its own line — "No matches on this desktop — N on other desktops." — rather than a bare "nothing matches" that reads as "the task is gone".
+A search whose hits all sit on other desktops (`dsn~search-hits-off-desktop~2`) gets its own line — "No matches on this desktop — N on other desktops." — rather than a bare "nothing matches" that reads as "the task is gone".
 Any other filter combination (search, tags, awaits-input, running — with or without the desktop filter) gets a plain "No tasks match the current filters." line (field report 2026-08-24: desktop filter on plus a non-matching "Find task" search offered to create a category for a desktop that had plenty).
 An empty task directory keeps the stock placeholder.
 The skeleton's `desktop` pre-fill is unit-tested; the placeholder swap itself is UI wiring (house convention, as with the other toolbar filters).

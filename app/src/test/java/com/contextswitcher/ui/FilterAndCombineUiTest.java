@@ -10,10 +10,13 @@ import java.util.concurrent.TimeUnit;
 
 import javafx.application.Platform;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
+import javafx.stage.Window;
 
 import com.contextswitcher.Main;
 import com.contextswitcher.tasks.TaskEntry;
@@ -236,10 +239,10 @@ class FilterAndCombineUiTest {
 
     /// A find query no longer lifts the desktop filter: a task of *another*
     /// desktop stays hidden, and the find bar reports it as a hit on another
-    /// desktop instead (`dsn~search-hits-off-desktop~1`). Field report
+    /// desktop instead (`dsn~search-hits-off-desktop~2`). Field report
     /// 2026-09-10: the earlier suspension moved the list to the other
     /// desktop's category, an implicit context switch worse than the miss.
-    // [utest->dsn~search-hits-off-desktop~1]
+    // [utest->dsn~search-hits-off-desktop~2]
     // [utest->dsn~task-find~9]
     // [utest->dsn~active-desktop-filter~6]
     @Test
@@ -275,7 +278,30 @@ class FilterAndCombineUiTest {
         Platform.runLater(() -> search.setText("here"));
         awaitTasks(list, List.of("kappa/here"));
         awaitMatchLabel("1 match");
+
+        // A click on the count lists the hits elsewhere; picking one moves
+        // the list to that desktop and selects the task there.
+        Platform.runLater(() -> search.setText("faraway"));
+        awaitMatchLabel("0 matches \u00b7 1 on other desktops");
+        Label count = awaitPresent(() -> FX_ROBOT.selectNodes(Label.class).fromAll()
+                .filter(label -> label.getStyleClass().contains("find-match-count"))
+                .findFirst(), "match label");
+        FX_ROBOT.mouse().moveTo(count).click();
+        MenuItem hit = awaitPresent(() -> Window.getWindows().stream()
+                .filter(ContextMenu.class::isInstance)
+                .map(ContextMenu.class::cast)
+                .filter(menu -> "hits-off-desktop".equals(menu.getId()) && menu.isShowing())
+                .flatMap(menu -> menu.getItems().stream())
+                .filter(item -> "faraway \u2014 Lambda".equals(item.getText()))
+                .findFirst(), "the off-desktop hit in the popup");
+        Platform.runLater(() -> {
+            hit.getParentPopup().hide();
+            hit.fire();
+        });
+        awaitTasks(list, List.of("lambda/faraway"));
+        awaitSelected("lambda/faraway");
         Platform.runLater(search::clear);
+        Platform.runLater(() -> mainWindow().updateActiveDesktop("Kappa"));
         awaitTasks(list, List.of("kappa/here"));
     }
 

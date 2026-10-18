@@ -97,6 +97,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
@@ -693,10 +694,10 @@ public class MainWindow {
     // [impl->dsn~current-category-highlight~1]
     private @Nullable String currentGroup;
 
-    /// How many entries the running query matched but the active-desktop filter
-    /// hid, counted by the last [#rebuildRows]; 0 with no query or no filter.
-    // [impl->dsn~search-hits-off-desktop~1]
-    private int hitsOffDesktop;
+    /// The entries the running query matched but the active-desktop filter
+    /// hid, collected by the last [#rebuildRows]; empty with no query or no filter.
+    // [impl->dsn~search-hits-off-desktop~2]
+    private List<TaskEntry> hitsOffDesktop = List.of();
 
     /// UI state kept across app restarts (not configuration — that lives in
     /// settings.yaml): currently only the last tmux-import destination.
@@ -1496,6 +1497,8 @@ public class MainWindow {
         searchBox.getStyleClass().add("search-field");
 
         findMatchLabel.getStyleClass().addAll(Styles.TEXT_MUTED, "find-match-count");
+        // [impl->dsn~search-hits-off-desktop~2]
+        findMatchLabel.setOnMouseClicked(event -> showHitsOffDesktop());
         HBox bar = new HBox(6, searchBox, findMatchLabel);
         HBox.setHgrow(searchBox, Priority.ALWAYS);
         bar.setAlignment(Pos.CENTER_LEFT);
@@ -1823,13 +1826,48 @@ public class MainWindow {
     private void updateMatchLabel() {
         if (searchQuery.strip().isEmpty()) {
             findMatchLabel.setText("");
+            findMatchLabel.setCursor(null);
             return;
         }
         long matches = visibleRows.stream().filter(TaskEntry.class::isInstance).count();
-        // [impl->dsn~search-hits-off-desktop~1]
+        // [impl->dsn~search-hits-off-desktop~2]
+        int offDesktop = hitsOffDesktop.size();
+        findMatchLabel.setCursor(offDesktop == 0 ? null : Cursor.HAND);
         findMatchLabel.setText(matches + (matches == 1 ? " match" : " matches")
-                + (hitsOffDesktop == 0 ? "" : " · %d on other desktops".formatted(hitsOffDesktop))
+                + (offDesktop == 0 ? "" : " · %d on other desktops".formatted(offDesktop))
                 + (searchPending ? " · searching messages…" : ""));
+    }
+
+    /// Pops up the query's hits on other desktops under the match label; picking
+    /// one switches to its category's desktop and selects it there.
+    // [impl->dsn~search-hits-off-desktop~2]
+    private void showHitsOffDesktop() {
+        if (hitsOffDesktop.isEmpty()) {
+            return;
+        }
+        ContextMenu menu = new ContextMenu();
+        menu.setId("hits-off-desktop");
+        for (TaskEntry entry : hitsOffDesktop) {
+            String desktop = groupDesktop(entry.group());
+            String title = entry instanceof TaskEntry.Loaded loaded ? loaded.task().title() : entry.id();
+            MenuItem item = new MenuItem(title + " — " + (desktop == null ? "no desktop" : desktop));
+            // A category without a desktop (fallback off) has nowhere to go.
+            item.setDisable(desktop == null);
+            item.setOnAction(event -> goToHitOffDesktop(entry.id(), Objects.requireNonNull(desktop)));
+            menu.getItems().add(item);
+        }
+        menu.show(findMatchLabel, Side.BOTTOM, 0, 0);
+    }
+
+    /// Switches to `desktop` and selects the task there. The list is moved to
+    /// the desktop at once rather than when the desktop watch reports the
+    /// switch, so the selection lands on a row that is shown; the watch's
+    /// later report of the same desktop is then a no-op.
+    // [impl->dsn~search-hits-off-desktop~2]
+    private void goToHitOffDesktop(String taskId, String desktop) {
+        onFocusDesktop.accept(desktop);
+        updateActiveDesktop(desktop);
+        selectTask(taskId);
     }
 
     /// Selects (and scrolls to) the first matching task row — Enter in the find
@@ -2445,7 +2483,8 @@ public class MainWindow {
         // hits it swallows are counted instead and reported by the find bar.
         // [impl->dsn~active-desktop-filter~6]
         @Nullable String activeDesktopFilter = activeDesktopOnly ? activeDesktop : null;
-        hitsOffDesktop = 0;
+        List<TaskEntry> offDesktop = new ArrayList<>();
+        hitsOffDesktop = offDesktop;
         // The find field's category chip narrows the list to that category.
         // [impl->dsn~category-search~3]
         String scope = scopeCategory;
@@ -2520,9 +2559,9 @@ public class MainWindow {
                 // Counted while a query runs: the find bar says how many hits
                 // sit outside the desktop in view, so "0 matches" never reads
                 // as "the task does not exist".
-                // [impl->dsn~search-hits-off-desktop~1]
+                // [impl->dsn~search-hits-off-desktop~2]
                 if (searching) {
-                    hitsOffDesktop++;
+                    offDesktop.add(entry);
                 }
                 continue;
             }
@@ -2715,7 +2754,7 @@ public class MainWindow {
                     ? new Label("Searching…")
                     : narrowed
                     ? filteredEmptyPlaceholder(desktopOnly ? activeDesktopFilter : null,
-                            searching ? hitsOffDesktop : 0)
+                            searching ? hitsOffDesktop.size() : 0)
                     : emptyStatePlaceholder());
         }
         // The task on screen right now, kept as the fallback for the
@@ -7222,7 +7261,7 @@ public class MainWindow {
         if (offDesktop > 0) {
             // The search matched, just not here — say where, instead of the
             // bare "nothing matches" that reads as "the task is gone".
-            // [impl->dsn~search-hits-off-desktop~1]
+            // [impl->dsn~search-hits-off-desktop~2]
             placeholder = new VBox(new Label(
                     "No matches on this desktop — %d on other desktops.".formatted(offDesktop)));
         } else if (desktop == null) {
