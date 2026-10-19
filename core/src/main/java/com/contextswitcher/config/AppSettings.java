@@ -42,7 +42,7 @@ import com.contextswitcher.tasks.TextFiles;
 /// Ctrl+E, Alt+B, … — on in every text input (`dsn~readline-keys~1`).
 /// `fallbackDesktop` (default `misc`) is the virtual desktop a category falls
 /// back to: one that names no `desktop:`, or names one that does not exist on
-/// this machine. Empty turns the fallback off (`dsn~fallback-desktop~1`).
+/// this machine. Empty turns the fallback off (`dsn~fallback-desktop~2`).
 /// `browser` (default `firefox`) is the browser the Windows helpers raise,
 /// launch, and capture windows of; the extension itself needs no such setting,
 /// since it dials in (`dsn~browser-choice~2`).
@@ -59,7 +59,7 @@ import com.contextswitcher.tasks.TextFiles;
 // [impl->dsn~window-desktop-pin~2]
 // [impl->dsn~refactoring-web-view~1]
 // [impl->dsn~readline-keys~1]
-// [impl->dsn~fallback-desktop~1]
+// [impl->dsn~fallback-desktop~2]
 // [impl->dsn~auto-suspend-idle~2]
 // [impl->dsn~browser-choice~2]
 // [impl->dsn~merged-task-cleanup~2]
@@ -109,7 +109,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
     /// The default `refactoringMinerPort` — RM's own web-view default (https://github.com/contextswitcher/contextswitcher-private/issues/50).
     public static final int DEFAULT_REFACTORING_MINER_PORT = 6789;
     /// The default `fallbackDesktop` — the desktop unconfigured (or misnamed)
-    /// categories are focused on. [impl->dsn~fallback-desktop~1]
+    /// categories are focused on. [impl->dsn~fallback-desktop~2]
     public static final String DEFAULT_FALLBACK_DESKTOP = "misc";
     private static final String FILE_NAME = "settings.yaml";
 
@@ -308,7 +308,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
         // opt-in: only an explicit `true` counts. [impl->dsn~readline-keys~1]
         boolean readlineKeys = map.get("readlineKeys") instanceof Boolean chords && chords;
         // An absent key keeps the default fallback; an explicit empty string
-        // turns the fallback off. [impl->dsn~fallback-desktop~1]
+        // turns the fallback off. [impl->dsn~fallback-desktop~2]
         Object fallbackDesktop = map.get("fallbackDesktop");
         // Absent = the default hour; a non-integer reads as off, like 0.
         // [impl->dsn~auto-suspend-idle~2]

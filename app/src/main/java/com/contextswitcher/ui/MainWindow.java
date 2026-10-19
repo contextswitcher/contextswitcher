@@ -21,6 +21,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -97,6 +98,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
@@ -454,7 +456,7 @@ public class MainWindow {
     private final boolean hints;
     /// The virtual desktop a category with no `desktop:` of its own belongs to
     /// (`fallbackDesktop` in `settings.yaml`); blank = no fallback.
-    // [impl->dsn~fallback-desktop~1]
+    // [impl->dsn~fallback-desktop~2]
     private final String fallbackDesktop;
     /// The tag palette last read from settings.yaml (cached so hot paths — chip
     /// colors, the row menus — never touch disk); refreshed on a settings edit.
@@ -539,6 +541,15 @@ public class MainWindow {
     /// yet read) — the filter then narrows nothing (shows everything).
     // [impl->dsn~active-desktop-filter~6]
     private @Nullable String activeDesktop;
+    /// The named virtual desktops on this machine (case-insensitive), pushed by
+    /// `Main`'s desktop watcher; null while unknown, and then every `desktop:`
+    /// counts as existing.
+    // [impl->dsn~fallback-desktop~2]
+    private @Nullable SortedSet<String> existingDesktops;
+    /// The one-shot read behind the configuration form's desktop refresh;
+    /// reads nothing until `Main` installs it.
+    private Supplier<CompletableFuture<@Nullable SortedSet<String>>> desktopNamesReader =
+            () -> CompletableFuture.completedFuture(null);
 
     /// Desktop name → id of the task last selected while that desktop was
     /// active, recorded by the list's selection listener and re-selected by
@@ -693,10 +704,10 @@ public class MainWindow {
     // [impl->dsn~current-category-highlight~1]
     private @Nullable String currentGroup;
 
-    /// How many entries the running query matched but the active-desktop filter
-    /// hid, counted by the last [#rebuildRows]; 0 with no query or no filter.
-    // [impl->dsn~search-hits-off-desktop~1]
-    private int hitsOffDesktop;
+    /// The entries the running query matched but the active-desktop filter
+    /// hid, collected by the last [#rebuildRows]; empty with no query or no filter.
+    // [impl->dsn~search-hits-off-desktop~2]
+    private List<TaskEntry> hitsOffDesktop = List.of();
 
     /// UI state kept across app restarts (not configuration — that lives in
     /// settings.yaml): currently only the last tmux-import destination.
@@ -1265,7 +1276,7 @@ public class MainWindow {
                     return name != null && isGroupConfig(name);
                 },
                 // [impl->dsn~host-table~1]
-                configuredRemotes, this::knownDesktops);
+                configuredRemotes, this::knownDesktops, this::refreshKnownDesktops);
         configFormPane = pane;
         selectOnClick.accept(pane.getRoot());
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(
@@ -1496,6 +1507,8 @@ public class MainWindow {
         searchBox.getStyleClass().add("search-field");
 
         findMatchLabel.getStyleClass().addAll(Styles.TEXT_MUTED, "find-match-count");
+        // [impl->dsn~search-hits-off-desktop~2]
+        findMatchLabel.setOnMouseClicked(event -> showHitsOffDesktop());
         HBox bar = new HBox(6, searchBox, findMatchLabel);
         HBox.setHgrow(searchBox, Priority.ALWAYS);
         bar.setAlignment(Pos.CENTER_LEFT);
@@ -1823,13 +1836,48 @@ public class MainWindow {
     private void updateMatchLabel() {
         if (searchQuery.strip().isEmpty()) {
             findMatchLabel.setText("");
+            findMatchLabel.setCursor(null);
             return;
         }
         long matches = visibleRows.stream().filter(TaskEntry.class::isInstance).count();
-        // [impl->dsn~search-hits-off-desktop~1]
+        // [impl->dsn~search-hits-off-desktop~2]
+        int offDesktop = hitsOffDesktop.size();
+        findMatchLabel.setCursor(offDesktop == 0 ? null : Cursor.HAND);
         findMatchLabel.setText(matches + (matches == 1 ? " match" : " matches")
-                + (hitsOffDesktop == 0 ? "" : " · %d on other desktops".formatted(hitsOffDesktop))
+                + (offDesktop == 0 ? "" : " · %d on other desktops".formatted(offDesktop))
                 + (searchPending ? " · searching messages…" : ""));
+    }
+
+    /// Pops up the query's hits on other desktops under the match label; picking
+    /// one switches to its category's desktop and selects it there.
+    // [impl->dsn~search-hits-off-desktop~2]
+    private void showHitsOffDesktop() {
+        if (hitsOffDesktop.isEmpty()) {
+            return;
+        }
+        ContextMenu menu = new ContextMenu();
+        menu.setId("hits-off-desktop");
+        for (TaskEntry entry : hitsOffDesktop) {
+            String desktop = groupDesktop(entry.group());
+            String title = entry instanceof TaskEntry.Loaded loaded ? loaded.task().title() : entry.id();
+            MenuItem item = new MenuItem(title + " — " + (desktop == null ? "no desktop" : desktop));
+            // A category without a desktop (fallback off) has nowhere to go.
+            item.setDisable(desktop == null);
+            item.setOnAction(event -> goToHitOffDesktop(entry.id(), Objects.requireNonNull(desktop)));
+            menu.getItems().add(item);
+        }
+        menu.show(findMatchLabel, Side.BOTTOM, 0, 0);
+    }
+
+    /// Switches to `desktop` and selects the task there. The list is moved to
+    /// the desktop at once rather than when the desktop watch reports the
+    /// switch, so the selection lands on a row that is shown; the watch's
+    /// later report of the same desktop is then a no-op.
+    // [impl->dsn~search-hits-off-desktop~2]
+    private void goToHitOffDesktop(String taskId, String desktop) {
+        onFocusDesktop.accept(desktop);
+        updateActiveDesktop(desktop);
+        selectTask(taskId);
     }
 
     /// Selects (and scrolls to) the first matching task row — Enter in the find
@@ -2445,7 +2493,8 @@ public class MainWindow {
         // hits it swallows are counted instead and reported by the find bar.
         // [impl->dsn~active-desktop-filter~6]
         @Nullable String activeDesktopFilter = activeDesktopOnly ? activeDesktop : null;
-        hitsOffDesktop = 0;
+        List<TaskEntry> offDesktop = new ArrayList<>();
+        hitsOffDesktop = offDesktop;
         // The find field's category chip narrows the list to that category.
         // [impl->dsn~category-search~3]
         String scope = scopeCategory;
@@ -2520,9 +2569,9 @@ public class MainWindow {
                 // Counted while a query runs: the find bar says how many hits
                 // sit outside the desktop in view, so "0 matches" never reads
                 // as "the task does not exist".
-                // [impl->dsn~search-hits-off-desktop~1]
+                // [impl->dsn~search-hits-off-desktop~2]
                 if (searching) {
-                    hitsOffDesktop++;
+                    offDesktop.add(entry);
                 }
                 continue;
             }
@@ -2715,7 +2764,7 @@ public class MainWindow {
                     ? new Label("Searching…")
                     : narrowed
                     ? filteredEmptyPlaceholder(desktopOnly ? activeDesktopFilter : null,
-                            searching ? hitsOffDesktop : 0)
+                            searching ? hitsOffDesktop.size() : 0)
                     : emptyStatePlaceholder());
         }
         // The task on screen right now, kept as the fallback for the
@@ -2940,20 +2989,26 @@ public class MainWindow {
     /// would otherwise be unreachable while the filter is on.
     /// A category naming no desktop also passes while the fallback desktop is
     /// the active one — that is the desktop it is focused on
-    /// (`dsn~fallback-desktop~1`) — but it stays *nameless* here, or the
+    /// (`dsn~fallback-desktop~2`) — but it stays *nameless* here, or the
     /// fallback (default `misc`) would leave "Also show categories without a
     /// desktop" with nothing to show.
     /// `desktopByGroup` memoizes the file read for one rebuild; it maps to
     /// `null` for "no desktop", hence `containsKey` rather than
     /// `computeIfAbsent` (which does not cache a null).
     // [impl->dsn~active-desktop-filter~6]
-    // [impl->dsn~fallback-desktop~1]
+    // [impl->dsn~fallback-desktop~2]
     private boolean onActiveDesktop(String group, String activeDesktopFilter,
             Map<String, @Nullable String> desktopByGroup) {
         if (!desktopByGroup.containsKey(group)) {
             desktopByGroup.put(group, groupDefaults(group).desktop());
         }
         String desktop = desktopByGroup.get(group);
+        // A desktop missing on this machine is focused on the fallback, so the
+        // filter treats the category as naming none. [impl->dsn~fallback-desktop~2]
+        SortedSet<String> existing = existingDesktops;
+        if (desktop != null && existing != null && !existing.contains(desktop)) {
+            desktop = null;
+        }
         if (desktop == null) {
             // A config that does not load has no desktop by accident; hiding
             // the category would hide the header warning saying so.
@@ -4652,7 +4707,7 @@ public class MainWindow {
     /// desktop-focus button shows for it. Null only with the fallback turned off
     /// (empty `fallbackDesktop`), which is the pre-fallback behavior.
     // [impl->dsn~category-desktop-focus~4]
-    // [impl->dsn~fallback-desktop~1]
+    // [impl->dsn~fallback-desktop~2]
     private @Nullable String groupDesktop(String group) {
         String desktop = groupDefaults(group).desktop();
         if (desktop != null) {
@@ -4661,12 +4716,17 @@ public class MainWindow {
         return fallbackDesktop.isBlank() ? null : fallbackDesktop;
     }
 
-    /// The virtual desktop names the app knows — those the categories name,
-    /// the active one and the fallback — for the configuration form to
-    /// suggest, sorted ignoring case.
+    /// The virtual desktop names the app knows — this machine's named
+    /// desktops as last read, those the categories name, the active one and
+    /// the fallback — for the configuration form to suggest, sorted ignoring
+    /// case.
     // [impl->dsn~task-field-form~4]
     private List<String> knownDesktops() {
         Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        SortedSet<String> existing = existingDesktops;
+        if (existing != null) {
+            names.addAll(existing);
+        }
         folders.forEach(group -> {
             String desktop = groupDefaults(group).desktop();
             if (desktop != null && !desktop.isBlank()) {
@@ -6591,6 +6651,46 @@ public class MainWindow {
                 : "Show active desktop only");
     }
 
+    /// Installs the one-shot read of this machine's named desktops (null when
+    /// it fails) behind the configuration form's desktop refresh button.
+    // [impl->dsn~task-field-form~4]
+    public void setDesktopNamesReader(Supplier<CompletableFuture<@Nullable SortedSet<String>>> reader) {
+        this.desktopNamesReader = reader;
+    }
+
+    /// The desktop refresh button's round-trip: reads the named desktops,
+    /// records them as [#updateExistingDesktops] would, and completes on the
+    /// FX thread with the refreshed [#knownDesktops].
+    // [impl->dsn~task-field-form~4]
+    private CompletableFuture<List<String>> refreshKnownDesktops() {
+        statusBar().message("Reading the virtual desktops …");
+        return desktopNamesReader.get()
+                .exceptionally(error -> null)
+                .thenApplyAsync(names -> {
+                    if (names != null) {
+                        updateExistingDesktops(names);
+                    }
+                    statusBar().message(names == null
+                            ? "Could not read the virtual desktops (Windows only)."
+                            : "Read %d named virtual desktops.".formatted(names.size()));
+                    return knownDesktops();
+                }, Platform::runLater);
+    }
+
+    /// Records the named desktops on this machine (pushed by `Main`'s watcher)
+    /// and, when they changed and the desktop filter is on, rebuilds — a
+    /// category naming a desktop that is missing here moves to the fallback.
+    // [impl->dsn~fallback-desktop~2]
+    public void updateExistingDesktops(@Nullable SortedSet<String> desktops) {
+        if (Objects.equals(desktops, existingDesktops)) {
+            return;
+        }
+        existingDesktops = desktops;
+        if (activeDesktopOnly) {
+            rebuildRows();
+        }
+    }
+
     /// Records the active virtual desktop's name (pushed by `Main`'s poller) and,
     /// when the filter is on and the desktop actually changed, re-narrows the
     /// list so it follows the desktop the user switched to and re-selects that
@@ -7222,7 +7322,7 @@ public class MainWindow {
         if (offDesktop > 0) {
             // The search matched, just not here — say where, instead of the
             // bare "nothing matches" that reads as "the task is gone".
-            // [impl->dsn~search-hits-off-desktop~1]
+            // [impl->dsn~search-hits-off-desktop~2]
             placeholder = new VBox(new Label(
                     "No matches on this desktop — %d on other desktops.".formatted(offDesktop)));
         } else if (desktop == null) {

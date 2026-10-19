@@ -3,6 +3,7 @@ package com.contextswitcher.ui;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Supplier;
 
 import javafx.geometry.Side;
 import javafx.scene.control.ContextMenu;
@@ -47,14 +48,16 @@ final class Suggestions {
         return prefix.size() > MAX_SHOWN ? prefix.subList(0, MAX_SHOWN) : prefix;
     }
 
-    /// Attaches the popup to `field`. It opens on typing and on Down (which
-    /// also lists everything for an empty field), and closes when the field
-    /// loses focus.
-    static void install(TextField field, List<String> candidates) {
+    /// Attaches the popup to `field`, its entries read from `candidates` each
+    /// time it opens. It opens on typing and on Down (which also lists
+    /// everything for an empty field), and closes when the field loses focus.
+    /// The returned action opens it from elsewhere — after a refresh of the
+    /// candidates — provided the field has focus.
+    static Runnable install(TextField field, Supplier<List<String>> candidates) {
         ContextMenu popup = new ContextMenu();
         popup.getStyleClass().add("suggestions");
         Runnable refresh = () -> {
-            List<String> matches = matching(candidates, field.getText());
+            List<String> matches = matching(candidates.get(), field.getText());
             if (matches.isEmpty()) {
                 popup.hide();
                 return;
@@ -91,5 +94,10 @@ final class Suggestions {
                 popup.hide();
             }
         });
+        return () -> {
+            if (field.isFocused()) {
+                refresh.run();
+            }
+        };
     }
 }

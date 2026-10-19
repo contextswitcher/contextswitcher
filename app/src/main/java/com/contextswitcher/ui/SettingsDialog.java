@@ -357,7 +357,7 @@ final class SettingsDialog {
         }
         // These three are on the form but used to be dropped on the way back,
         // so saving any field reset them to their defaults.
-        // [impl->dsn~fallback-desktop~1]
+        // [impl->dsn~fallback-desktop~2]
         String fallbackDesktop = ((TextField) controls.get("fallbackDesktop")).getText();
         int autoSuspendMinutes;
         try {

@@ -68,7 +68,7 @@ class WindowsVirtualDesktopFocusTest {
                 .isEqualTo("focused desktop \"vs.code\"");
     }
 
-    // [utest->dsn~fallback-desktop~1]
+    // [utest->dsn~fallback-desktop~2]
     @Test
     void aMissingDesktopIsRetriedOnTheFallback() {
         var runner = new RecordingRunner(name -> name.contains("misc") ? 0 : 2);
@@ -78,7 +78,7 @@ class WindowsVirtualDesktopFocusTest {
         assertThat(runner.names).containsExactly("jabref", "misc");
     }
 
-    // [utest->dsn~fallback-desktop~1]
+    // [utest->dsn~fallback-desktop~2]
     @Test
     void aMissingFallbackFailsNamingBothAndIsNotRetriedForItself() {
         var runner = new RecordingRunner(name -> 2);
@@ -253,6 +253,18 @@ class WindowsVirtualDesktopFocusTest {
                 .isNull();
     }
 
+    // [utest->dsn~fallback-desktop~2]
+    @Test
+    void watcherReportsTheNamedDesktopsCaseInsensitively() {
+        assertThat(WindowsVirtualDesktopFocus.watchScript()).contains("'desktops:' + (@(Get-DesktopNames) -join \"`t\")");
+        var names = WindowsVirtualDesktopFocus.parseDesktopsLine("desktops:JabRef\tmisc\t");
+        assertThat(names).containsExactly("JabRef", "misc");
+        assertThat(names).contains("jabref");
+        assertThat(WindowsVirtualDesktopFocus.parseDesktopsLine("desktops:")).isEmpty();
+        // The active-desktop line is not a list of desktops.
+        assertThat(WindowsVirtualDesktopFocus.parseDesktopsLine("desktop:JabRef")).isNull();
+    }
+
     // [utest->dsn~active-desktop-filter~6]
     @Test
     void currentDistinguishesNameUnnamedAndFailedRead() {
@@ -283,5 +295,24 @@ class WindowsVirtualDesktopFocusTest {
         assertThat(command).startsWith("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand");
         String decoded = new String(Base64.getDecoder().decode(command.get(4)), StandardCharsets.UTF_16LE);
         assertThat(decoded).isEqualTo(WindowsVirtualDesktopFocus.currentScript());
+    }
+
+    // [utest->dsn~task-field-form~4]
+    @Test
+    void oneShotNamesReadDefinesTheHelperBeforeUsingIt() {
+        String script = WindowsVirtualDesktopFocus.namesScript();
+        assertThat(script.indexOf("function Get-DesktopNames"))
+                .isNotNegative()
+                .isLessThan(script.indexOf("@(Get-DesktopNames)"));
+        // The watcher keeps the same helper.
+        assertThat(WindowsVirtualDesktopFocus.watchScript()).contains("function Get-DesktopNames");
+    }
+
+    // [utest->dsn~task-field-form~4]
+    @Test
+    void oneShotNamesReadParsesTheDesktopsLine() {
+        assertThat(currentReturning(0, "noise\ndesktops:JabRef\tmisc\n").names())
+                .containsExactly("JabRef", "misc");
+        assertThat(currentReturning(1, "").names()).isNull();
     }
 }

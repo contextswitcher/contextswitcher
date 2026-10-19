@@ -39,7 +39,7 @@ class SuggestionsUiTest {
         @Override
         public void start(Stage stage) {
             TextField field = new TextField();
-            Suggestions.install(field, List.of("misc", "JabRef", "contextswitcher"));
+            Suggestions.install(field, () -> List.of("misc", "JabRef", "contextswitcher"));
             FIELD.set(field);
             stage.setScene(new Scene(new VBox(field), 400, 300));
             stage.show();
