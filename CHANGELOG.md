@@ -11,6 +11,7 @@ The topmost section is the day in progress — its link points at `main` until t
 ### Added
 
 - A refresh button next to a category's "Virtual desktop" field reads this machine's virtual desktops again and lists them, so a desktop created or renamed while the form is open can be picked. The field now also suggests every named desktop on the machine, not only those other categories use.
+
 ### Fixed
 
 - Two attachments placed directly next to each other in a message reach the chat as two separate paths. Before, the chat showed them as one path with stray backticks in the middle.
