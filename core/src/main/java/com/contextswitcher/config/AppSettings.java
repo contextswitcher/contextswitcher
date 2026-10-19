@@ -488,6 +488,17 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                     color: "#2da44e"         # optional CSS hex; omitted = muted gray chip
                   - name: phone
                     color: "#bf3989"
+                profiles:                    # how the machine looks per situation; a category picks one with `profile:`, the status bar can override it
+                  default:                   # the system's normal look: every category without `profile:`, and the fallback for keys a profile leaves out
+                    resolution: 2560x1440    # primary display mode, <width>x<height>
+                    displays: extend         # Win+P mode: internal (PC screen only), clone (duplicate), extend, external (second screen only)
+                    taskbar: visible         # visible or autohide
+                    bookmarksBar: visible    # Firefox bookmarks toolbar: visible or hidden (needs the userChrome.css rule, see README)
+                  lecture:
+                    resolution: 1920x1080
+                    displays: clone
+                    taskbar: autohide
+                    bookmarksBar: hidden
                 """;
     }
 

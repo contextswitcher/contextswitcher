@@ -158,6 +158,9 @@ async function handleCommand(message) {
   if (message.type === "close-window") {
     return resultOf(message.id, () => closeWindow(message.windowId));
   }
+  if (message.type === "bookmarks-bar") {
+    return resultOf(message.id, () => setBookmarksBar(message.hidden));
+  }
   if (message.type === "tab-count") {
     // Unsolicited answer to a tab report: no correlation id, no reply.
     showTabCount(message.url, message.tasks);
@@ -378,6 +381,40 @@ async function activeTab() {
   return { ok: true, detail: url };
 }
 
+// The bookmarks toolbar of an environment profile. No WebExtension API shows
+// or hides a toolbar, so every window gets an invisible title preface that a
+// userChrome.css rule keys on (`:root[titlepreface*="0B"]
+// #PersonalToolbar { visibility: collapse !important; }`, see README).
+// Kept in storage so windows opened later, and a browser restart, follow.
+// [impl->dsn~environment-profile-bookmarks-bar~1]
+const BOOKMARKS_HIDDEN_PREFACE = "⁠​";
+
+async function setBookmarksBar(hidden) {
+  await browser.storage.local.set({ bookmarksHidden: !!hidden });
+  const all = await browser.windows.getAll({ windowTypes: ["normal"] });
+  for (const w of all) {
+    await applyBookmarksPreface(w.id, !!hidden);
+  }
+  return { ok: true, detail: `bookmarks bar ${hidden ? "hidden" : "visible"} in ${all.length} window(s)` };
+}
+
+async function applyBookmarksPreface(windowId, hidden) {
+  await browser.windows.update(windowId, { titlePreface: hidden ? BOOKMARKS_HIDDEN_PREFACE : "" });
+}
+
+browser.windows.onCreated.addListener(async (w) => {
+  const { bookmarksHidden } = await browser.storage.local.get({ bookmarksHidden: false });
+  if (bookmarksHidden && w.type === "normal") {
+    await applyBookmarksPreface(w.id, true);
+  }
+});
+
+browser.storage.local.get({ bookmarksHidden: false }).then(({ bookmarksHidden }) => {
+  if (bookmarksHidden) {
+    setBookmarksBar(true);
+  }
+});
+
 async function closeWindow(windowId) {
   await browser.windows.remove(windowId);
   return { ok: true, detail: `closed window ${windowId}` };
@@ -564,7 +601,9 @@ browser.windows.onFocusChanged.addListener(async (windowId) => {
 // New port/token from the options page: drop the connection and retry
 // immediately with the fresh settings.
 browser.storage.onChanged.addListener((changes, area) => {
-  if (area !== "local") {
+  // Only the connection settings reconnect; the bookmarks-bar state is the
+  // extension's own bookkeeping, written while answering a request.
+  if (area !== "local" || !["port", "token", "enabled"].some((key) => key in changes)) {
     return;
   }
   backoffMs = BACKOFF_INITIAL_MS;

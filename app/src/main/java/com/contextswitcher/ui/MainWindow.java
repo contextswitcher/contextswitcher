@@ -1032,6 +1032,11 @@ public class MainWindow {
     }
 
     private final SwitchStatusBar statusBar = new SwitchStatusBar();
+    /// The environment-profile override (screen share, …) next to the chips;
+    /// hidden until [#installProfileOverride] wires it.
+    // [impl->dsn~environment-profile-override~1]
+    private final MenuButton profileOverride = iconMenuButton(MDITechnology.MONITOR_SHARE,
+            "Environment profile override — laid over the category's profile until switched back");
     /// The commit the running app was built from, in the status bar's right
     /// corner — empty until [#showCommit] fills it (git is asked off the FX
     /// thread), and empty forever when the app runs out of a zip.
@@ -1085,6 +1090,48 @@ public class MainWindow {
 
     public SwitchStatusBar statusBar() {
         return statusBar;
+    }
+
+    /// Wires the status bar's environment-profile override: its menu offers
+    /// "Category profile" (no override) and every profile `names` returns —
+    /// read when the menu opens, so a profile added to `settings.yaml` shows
+    /// without a restart — and hands the choice (null: none) to `onChoose`.
+    /// The button shows the active override's name, so a forgotten
+    /// "screenshare" stays in sight.
+    // [impl->dsn~environment-profile-override~1]
+    public void installProfileOverride(Supplier<List<String>> names, Consumer<@Nullable String> onChoose) {
+        profileOverride.setVisible(true);
+        profileOverride.setOnShowing(event -> {
+            String active = profileOverride.getText();
+            ToggleGroup group = new ToggleGroup();
+            RadioMenuItem none = new RadioMenuItem("Category profile");
+            none.setToggleGroup(group);
+            none.setSelected(active == null || active.isEmpty());
+            none.setOnAction(e -> {
+                profileOverride.setText(null);
+                onChoose.accept(null);
+            });
+            List<MenuItem> items = new ArrayList<>(List.of(none, new SeparatorMenuItem()));
+            for (String name : names.get()) {
+                RadioMenuItem item = new RadioMenuItem(name);
+                item.setToggleGroup(group);
+                item.setSelected(name.equals(active));
+                item.setOnAction(e -> {
+                    profileOverride.setText(name);
+                    onChoose.accept(name);
+                });
+                items.add(item);
+            }
+            if (items.size() == 2) {
+                MenuItem empty = new MenuItem("No profiles: in settings.yaml");
+                empty.setDisable(true);
+                items.add(empty);
+            }
+            profileOverride.getItems().setAll(items);
+        });
+        // A MenuButton with no items never opens, so the showing handler
+        // would never run.
+        profileOverride.getItems().setAll(new MenuItem());
     }
 
     public void show(Stage stage, Application application) {
@@ -1260,7 +1307,9 @@ public class MainWindow {
             Clipboard.getSystemClipboard().setContent(content);
             statusBar().message("Commit " + sha + " copied.");
         });
-        HBox bottomBar = new HBox(statusBar, commitLabel, openLog);
+        profileOverride.setVisible(false);
+        profileOverride.managedProperty().bind(profileOverride.visibleProperty());
+        HBox bottomBar = new HBox(statusBar, profileOverride, commitLabel, openLog);
         bottomBar.setAlignment(Pos.CENTER_LEFT);
         bottomBar.setPadding(new Insets(0, 6, 0, 0));
         // The panes as ShellFX dock tabs (MADR 0032). The raw frontmatter editor

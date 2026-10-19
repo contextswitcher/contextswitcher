@@ -219,6 +219,13 @@ public class ExtensionServer extends WebSocketServer implements TabCommands {
         return request(id, ExtensionProtocol.encodeActiveTab(id));
     }
 
+    /// Shows or hides the bookmarks toolbar of every browser window.
+    // [impl->dsn~environment-profile-bookmarks-bar~1]
+    public ExtensionProtocol.Result bookmarksBar(boolean hidden) {
+        String id = UUID.randomUUID().toString();
+        return request(id, ExtensionProtocol.encodeBookmarksBar(id, hidden));
+    }
+
     /// Tells the extension which tasks list `url`, the answer to its
     /// `tab-activated` report. Fire-and-forget: nothing correlates it and
     /// nothing comes back, so no connected extension is simply nothing to

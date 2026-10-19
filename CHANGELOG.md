@@ -10,6 +10,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Added
 
+- Environment profiles: `settings.yaml` can define named looks for the machine (`profiles:` with screen `resolution`, projector mode `displays`, `taskbar: autohide`, Firefox `bookmarksBar: hidden`), and a category picks one with `profile:` in its `CONTEXTSWITCHER.md`. Switching to a task applies its category's profile, and a task of a category without one restores the `default` profile. A status-bar menu lays an override such as `screenshare` on top until switched back. Hiding the bookmarks bar needs a one-time `userChrome.css` rule (see the Firefox extension README).
 - A refresh button next to a category's "Virtual desktop" field reads this machine's virtual desktops again and lists them, so a desktop created or renamed while the form is open can be picked. The field now also suggests every named desktop on the machine, not only those other categories use.
 
 ### Fixed

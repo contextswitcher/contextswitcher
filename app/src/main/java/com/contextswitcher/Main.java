@@ -42,6 +42,7 @@ import com.contextswitcher.analysis.RefactoringMinerCommands;
 import com.contextswitcher.analysis.RefactoringMinerPoller;
 import com.contextswitcher.analysis.RefactoringMinerView;
 import com.contextswitcher.config.AppSettings;
+import com.contextswitcher.config.EnvironmentProfiles;
 import com.contextswitcher.config.HostSettings;
 import com.contextswitcher.config.InstalledExtension;
 import com.contextswitcher.config.EnergySaver;
@@ -68,6 +69,7 @@ import com.contextswitcher.local.BrowserWindowFocus;
 import com.contextswitcher.local.JetBrainsClientFocus;
 import com.contextswitcher.local.WindowsDesktopPin;
 import com.contextswitcher.local.LocalFolderFocus;
+import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
 import com.contextswitcher.local.ClaudeCliSummarizer;
 import com.contextswitcher.local.LocalCommandRunner;
@@ -91,6 +93,7 @@ import com.contextswitcher.switching.BrowserCloseAction;
 import com.contextswitcher.switching.ChatFocusAction;
 import com.contextswitcher.switching.ClaudeWindowLauncher;
 import com.contextswitcher.switching.BrowserFocusAction;
+import com.contextswitcher.switching.EnvironmentProfileAction;
 import com.contextswitcher.switching.ExplorerFolderAction;
 import com.contextswitcher.switching.IntellijGatewayAction;
 import com.contextswitcher.switching.LocalDiff;
@@ -318,6 +321,11 @@ public class Main extends Application {
     private @Nullable RefactoringMinerPoller refactoringPoller;
     private @Nullable RefactoringMinerView refactoringView;
     private @Nullable ExtensionServer extensionServer;
+    /// The status bar's environment-profile override (null: none), laid over
+    /// the category's profile on every switch. Session-only on purpose: a
+    /// restart starts in the plain category look.
+    // [impl->dsn~environment-profile-override~1]
+    private volatile @Nullable String profileOverride;
     private @Nullable TerminalPane terminalPane;
     private @Nullable PaneSnapshots paneSnapshots;
 
@@ -596,6 +604,21 @@ public class Main extends Application {
         // Held on its own too: the category header's folder button opens the
         // same folders the switch action does, without a task in between.
         // [impl->dsn~category-folders-button~1]
+        // Read fresh per switch, like the category config: an edited profile
+        // needs no restart. [impl->dsn~environment-profiles~1]
+        WindowsEnvironment windowsEnvironment = new WindowsEnvironment(new LocalCommandRunner());
+        EnvironmentProfileAction environmentProfile = new EnvironmentProfileAction(
+                () -> EnvironmentProfiles.parse(readSettingsFile(configDir())),
+                group -> groupLink(files, group, TaskFileParser::groupProfile),
+                () -> profileOverride,
+                profile -> {
+                    WindowsEnvironment.ApplyResult result = windowsEnvironment.apply(profile);
+                    return new ActionResult(result.ok(), result.detail());
+                },
+                hidden -> {
+                    ExtensionProtocol.Result result = extensionServer.bookmarksBar(hidden);
+                    return new ActionResult(result.ok(), result.detail());
+                });
         ExplorerFolderAction explorerFolders =
                 new ExplorerFolderAction(new LocalFolderFocus(new LocalCommandRunner()));
         SwitchOrchestrator orchestrator = new SwitchOrchestrator(
@@ -631,7 +654,8 @@ public class Main extends Application {
                         new NoteFocusAction(this::openUrl,
                                 group -> groupLink(files, group, TaskFileParser::groupNote)),
                         new ChatFocusAction(this::openUrl,
-                                group -> groupLink(files, group, TaskFileParser::groupChat))),
+                                group -> groupLink(files, group, TaskFileParser::groupChat)),
+                        environmentProfile),
                 actionExecutor, Platform::runLater);
         // Suspend teardown reuses the orchestrator machinery (concurrent
         // actions + chips) with the ending counterpart of each action.
@@ -953,6 +977,19 @@ public class Main extends Application {
         // started breaks that start. [impl->dsn~busy-while-creating~2]
         terminalPane.disableBarWhile(creationsInFlight.greaterThan(0));
         window.disableRestartWhile(creationsInFlight.greaterThan(0));
+        // [impl->dsn~environment-profile-override~1]
+        window.installProfileOverride(
+                () -> EnvironmentProfiles.parse(readSettingsFile(configDir())).names(),
+                choice -> {
+                    profileOverride = choice;
+                    window.statusBar().message("Applying "
+                            + (choice == null ? "the category profile" : "profile " + choice) + " …");
+                    actionExecutor.execute(() -> {
+                        ActionResult result = environmentProfile.reapply();
+                        Platform.runLater(() -> window.statusBar().message(
+                                (result.ok() ? "Profile " : "Profile failed — ") + result.detail()));
+                    });
+                });
         this.window = window;
         this.stage = stage;
         this.windowPositions = new WindowPositions(configDir());

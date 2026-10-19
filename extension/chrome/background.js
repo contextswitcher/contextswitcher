@@ -221,6 +221,11 @@ async function handleCommand(message) {
   if (message.type === "close-window") {
     return resultOf(message.id, () => closeWindow(message.windowId));
   }
+  if (message.type === "bookmarks-bar") {
+    // Chrome has no userChrome.css and no title preface to key one on.
+    // [impl->dsn~environment-profile-bookmarks-bar~1]
+    return resultOf(message.id, async () => ({ ok: false, detail: "bookmarks bar: Firefox only" }));
+  }
   if (message.type === "tab-count") {
     // Unsolicited answer to a tab report: no correlation id, no reply.
     showTabCount(message.url, message.tasks);
