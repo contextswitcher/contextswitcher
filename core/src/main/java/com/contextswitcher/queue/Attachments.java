@@ -151,9 +151,32 @@ public final class Attachments {
         String result = text;
         for (Map.Entry<Path, String> entry : remoteByLocal.entrySet()) {
             String remote = "`" + entry.getValue() + "`";
-            result = result.replace(marker(entry.getKey()), remote);
-            result = result.replace(fileMarker(entry.getKey()), remote);
+            result = replaceSpaced(result, marker(entry.getKey()), remote);
+            result = replaceSpaced(result, fileMarker(entry.getKey()), remote);
         }
         return result;
+    }
+
+    /// Replaces every `target` with the code span `span`, padding it with a
+    /// space where it would touch a backtick: two markers pasted side by side
+    /// would otherwise become `` `a``b` `` — one code span `a``b` to Markdown,
+    /// with the backticks shown inside the path.
+    private static String replaceSpaced(String text, String target, String span) {
+        StringBuilder result = new StringBuilder(text.length());
+        int from = 0;
+        int at;
+        while ((at = text.indexOf(target, from)) >= 0) {
+            result.append(text, from, at);
+            int end = at + target.length();
+            if (at > 0 && text.charAt(at - 1) == '`') {
+                result.append(' ');
+            }
+            result.append(span);
+            if (end < text.length() && text.charAt(end) == '`') {
+                result.append(' ');
+            }
+            from = end;
+        }
+        return result.append(text, from, text.length()).toString();
     }
 }

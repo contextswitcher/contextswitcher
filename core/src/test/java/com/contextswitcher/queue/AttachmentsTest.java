@@ -122,4 +122,18 @@ class AttachmentsTest {
         assertThat(rewritten).isEqualTo(
                 "screenshot: `/home/koppor/.contextswitcher/attachments/img-1.png` shows the bug");
     }
+
+    /// Two markers pasted without anything between them: back to back,
+    /// `` `a``b` `` would read as one code span with backticks inside.
+    @Test
+    void rewriteSeparatesAdjacentMarkersWithASpace() {
+        Path file = attachments.resolve("report.pdf");
+        Path image = attachments.resolve("img-1.png");
+        String text = "see " + Attachments.fileMarker(file) + Attachments.marker(image);
+
+        String rewritten = Attachments.rewrite(text,
+                Map.of(file, "/remote/report.pdf", image, "/remote/img-1.png"));
+
+        assertThat(rewritten).isEqualTo("see `/remote/report.pdf` `/remote/img-1.png`");
+    }
 }
