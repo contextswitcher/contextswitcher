@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 import atlantafx.base.theme.Styles;
 
@@ -18,14 +20,19 @@ import com.contextswitcher.tasks.TaskTags;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 import org.jspecify.annotations.Nullable;
+
+import tools.maran.svg.materialdesign.MDIInterface;
+import tools.maran.svgnode.SvgNode;
 
 /// The configuration form's generation and write-back, for [ConfigFormPane]:
 /// the frontmatter of the open task or category file as a generated key/value
@@ -42,19 +49,28 @@ final class ConfigForm {
     private final List<Field> fields;
     /// One control per catalog field, keyed by the field's key.
     private final Map<String, Region> controls;
+    /// The names a desktop field suggests; replaced by its refresh button.
+    private List<String> desktops;
+    /// Re-reads the desktop names; completes on the FX thread.
+    private final Supplier<CompletableFuture<List<String>>> refreshDesktops;
+    /// Opens a desktop field's suggestions; a no-op without such a field.
+    private Runnable showDesktops = () -> { };
 
     /// The form for `fields`, its controls seeded from `content`'s frontmatter;
     /// `hosts` are the destinations a host field offers, `desktops` the names
-    /// a desktop field suggests.
-    ConfigForm(List<Field> fields, String content, List<String> hosts, List<String> desktops) {
+    /// a desktop field suggests, and `refreshDesktops` reads those again for
+    /// the field's refresh button.
+    ConfigForm(List<Field> fields, String content, List<String> hosts, List<String> desktops,
+            Supplier<CompletableFuture<List<String>>> refreshDesktops) {
         this.fields = List.copyOf(fields);
-        this.controls = buildControls(this.fields, content, hosts, desktops);
+        this.desktops = List.copyOf(desktops);
+        this.refreshDesktops = refreshDesktops;
+        this.controls = buildControls(content, hosts);
     }
 
     /// One control per catalog field, seeded from the file's frontmatter and
     /// keyed by the field's key.
-    private static Map<String, Region> buildControls(List<Field> fields, String content,
-            List<String> hosts, List<String> desktops) {
+    private Map<String, Region> buildControls(String content, List<String> hosts) {
         Map<String, Object> seeds = seeds(fields, content);
         Map<String, Region> controls = new LinkedHashMap<>();
         for (Field field : fields) {
@@ -63,7 +79,7 @@ final class ConfigForm {
                 case STRING -> new TextField((String) seed);
                 case DESKTOP -> {
                     TextField text = new TextField((String) seed);
-                    Suggestions.install(text, desktops);
+                    showDesktops = Suggestions.install(text, () -> desktops);
                     yield text;
                 }
                 case BOOLEAN -> {
@@ -132,10 +148,34 @@ final class ConfigForm {
                 group = field.group();
                 root.getChildren().add(FieldForm.section(group, root.getChildren().isEmpty()));
             }
-            root.getChildren().add(
-                    FieldForm.row(field.label(), field.help(), controls.get(field.key())));
+            Region control = controls.get(field.key());
+            root.getChildren().add(field.type() == FrontmatterCatalog.Type.DESKTOP
+                    ? FieldForm.row(field.label(), field.help(), control, desktopRefresh(control))
+                    : FieldForm.row(field.label(), field.help(), control));
         }
         return root;
+    }
+
+    /// The desktop field's refresh button: reads the desktop names again — a
+    /// desktop created or renamed since the form was built — and opens the
+    /// suggestions with them. Disabled for the round-trip.
+    private Button desktopRefresh(Region field) {
+        Button refresh = new Button(null, new SvgNode(MDIInterface.RELOAD.path(), 16));
+        refresh.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
+        refresh.setId(field.getId() + "-refresh");
+        refresh.setTooltip(new Tooltip("Refresh — read this machine's virtual desktops again"));
+        refresh.setOnAction(event -> {
+            refresh.setDisable(true);
+            refreshDesktops.get().whenComplete((names, error) -> {
+                if (names != null) {
+                    desktops = List.copyOf(names);
+                }
+                refresh.setDisable(false);
+                field.requestFocus();
+                showDesktops.run();
+            });
+        });
+        return refresh;
     }
 
     // --- seeding -----------------------------------------------------------

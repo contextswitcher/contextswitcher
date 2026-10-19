@@ -546,6 +546,10 @@ public class MainWindow {
     /// counts as existing.
     // [impl->dsn~fallback-desktop~2]
     private @Nullable SortedSet<String> existingDesktops;
+    /// The one-shot read behind the configuration form's desktop refresh;
+    /// reads nothing until `Main` installs it.
+    private Supplier<CompletableFuture<@Nullable SortedSet<String>>> desktopNamesReader =
+            () -> CompletableFuture.completedFuture(null);
 
     /// Desktop name → id of the task last selected while that desktop was
     /// active, recorded by the list's selection listener and re-selected by
@@ -1272,7 +1276,7 @@ public class MainWindow {
                     return name != null && isGroupConfig(name);
                 },
                 // [impl->dsn~host-table~1]
-                configuredRemotes, this::knownDesktops);
+                configuredRemotes, this::knownDesktops, this::refreshKnownDesktops);
         configFormPane = pane;
         selectOnClick.accept(pane.getRoot());
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(
@@ -4712,12 +4716,17 @@ public class MainWindow {
         return fallbackDesktop.isBlank() ? null : fallbackDesktop;
     }
 
-    /// The virtual desktop names the app knows — those the categories name,
-    /// the active one and the fallback — for the configuration form to
-    /// suggest, sorted ignoring case.
+    /// The virtual desktop names the app knows — this machine's named
+    /// desktops as last read, those the categories name, the active one and
+    /// the fallback — for the configuration form to suggest, sorted ignoring
+    /// case.
     // [impl->dsn~task-field-form~4]
     private List<String> knownDesktops() {
         Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        SortedSet<String> existing = existingDesktops;
+        if (existing != null) {
+            names.addAll(existing);
+        }
         folders.forEach(group -> {
             String desktop = groupDefaults(group).desktop();
             if (desktop != null && !desktop.isBlank()) {
@@ -6640,6 +6649,32 @@ public class MainWindow {
         button.setText(activeDesktopOnly
                 ? "Show active desktop only (" + (activeDesktop != null ? activeDesktop : "unknown") + ")"
                 : "Show active desktop only");
+    }
+
+    /// Installs the one-shot read of this machine's named desktops (null when
+    /// it fails) behind the configuration form's desktop refresh button.
+    // [impl->dsn~task-field-form~4]
+    public void setDesktopNamesReader(Supplier<CompletableFuture<@Nullable SortedSet<String>>> reader) {
+        this.desktopNamesReader = reader;
+    }
+
+    /// The desktop refresh button's round-trip: reads the named desktops,
+    /// records them as [#updateExistingDesktops] would, and completes on the
+    /// FX thread with the refreshed [#knownDesktops].
+    // [impl->dsn~task-field-form~4]
+    private CompletableFuture<List<String>> refreshKnownDesktops() {
+        statusBar().message("Reading the virtual desktops …");
+        return desktopNamesReader.get()
+                .exceptionally(error -> null)
+                .thenApplyAsync(names -> {
+                    if (names != null) {
+                        updateExistingDesktops(names);
+                    }
+                    statusBar().message(names == null
+                            ? "Could not read the virtual desktops (Windows only)."
+                            : "Read %d named virtual desktops.".formatted(names.size()));
+                    return knownDesktops();
+                }, Platform::runLater);
     }
 
     /// Records the named desktops on this machine (pushed by `Main`'s watcher)

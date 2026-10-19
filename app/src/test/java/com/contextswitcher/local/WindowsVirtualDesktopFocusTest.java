@@ -296,4 +296,23 @@ class WindowsVirtualDesktopFocusTest {
         String decoded = new String(Base64.getDecoder().decode(command.get(4)), StandardCharsets.UTF_16LE);
         assertThat(decoded).isEqualTo(WindowsVirtualDesktopFocus.currentScript());
     }
+
+    // [utest->dsn~task-field-form~4]
+    @Test
+    void oneShotNamesReadDefinesTheHelperBeforeUsingIt() {
+        String script = WindowsVirtualDesktopFocus.namesScript();
+        assertThat(script.indexOf("function Get-DesktopNames"))
+                .isNotNegative()
+                .isLessThan(script.indexOf("@(Get-DesktopNames)"));
+        // The watcher keeps the same helper.
+        assertThat(WindowsVirtualDesktopFocus.watchScript()).contains("function Get-DesktopNames");
+    }
+
+    // [utest->dsn~task-field-form~4]
+    @Test
+    void oneShotNamesReadParsesTheDesktopsLine() {
+        assertThat(currentReturning(0, "noise\ndesktops:JabRef\tmisc\n").names())
+                .containsExactly("JabRef", "misc");
+        assertThat(currentReturning(1, "").names()).isNull();
+    }
 }

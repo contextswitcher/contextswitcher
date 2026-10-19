@@ -1,6 +1,7 @@
 package com.contextswitcher.ui;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -62,17 +63,21 @@ final class ConfigFormPane {
     private final Supplier<List<String>> hosts;
     /// The desktop names a desktop field suggests, read per build.
     private final Supplier<List<String>> desktops;
+    /// Re-reads the desktop names for a desktop field's refresh button.
+    private final Supplier<CompletableFuture<List<String>>> refreshDesktops;
 
     /// `rawEditor` is the editor lane's frontmatter editor (it auto-saves on
     /// focus loss); `text` and `apply` read and replace-and-save the whole buffer.
     ConfigFormPane(Node rawEditor, Supplier<String> text, Consumer<String> apply, BooleanSupplier category,
-            Supplier<List<String>> hosts, Supplier<List<String>> desktops) {
+            Supplier<List<String>> hosts, Supplier<List<String>> desktops,
+            Supplier<CompletableFuture<List<String>>> refreshDesktops) {
         this.rawEditor = rawEditor;
         this.text = text;
         this.apply = apply;
         this.category = category;
         this.hosts = hosts;
         this.desktops = desktops;
+        this.refreshDesktops = refreshDesktops;
         // Icon-only like every pane toolbar's controls; the tooltip names each.
         // [impl->dsn~task-field-form~4]
         rawToggle.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
@@ -137,7 +142,7 @@ final class ConfigFormPane {
             return;
         }
         List<Field> fields = category.getAsBoolean() ? FrontmatterCatalog.CATEGORY : FrontmatterCatalog.TASK;
-        ConfigForm built = new ConfigForm(fields, content, hosts.get(), desktops.get());
+        ConfigForm built = new ConfigForm(fields, content, hosts.get(), desktops.get(), refreshDesktops);
         form = built;
         ScrollPane scroll = new ScrollPane(built.render());
         scroll.setFitToWidth(true);

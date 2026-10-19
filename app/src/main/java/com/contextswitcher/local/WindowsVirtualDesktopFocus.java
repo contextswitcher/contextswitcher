@@ -439,15 +439,6 @@ public class WindowsVirtualDesktopFocus {
               $key = $base + '\\Desktops\\{' + $cur.ToString() + '}'
               return (Get-ItemProperty -Path $key -Name Name -ErrorAction SilentlyContinue).Name
             }
-            function Get-DesktopNames {
-              $ids = (Get-ItemProperty -Path $base -Name VirtualDesktopIDs).VirtualDesktopIDs
-              for ($i = 0; $i -lt [int]($ids.Length / 16); $i++) {
-                $guid = [Guid]::new([byte[]]($ids[($i * 16)..($i * 16 + 15)]))
-                $key = $base + '\\Desktops\\{' + $guid.ToString() + '}'
-                $name = (Get-ItemProperty -Path $key -Name Name -ErrorAction SilentlyContinue).Name
-                if ($name) { $name }
-              }
-            }
             $last = $null
             $lastNames = $null
             while ($true) {
@@ -462,6 +453,51 @@ public class WindowsVirtualDesktopFocus {
               Start-Sleep -Milliseconds 250
             }
             """;
+
+    /// Lists the named desktops in Task View order, one per pipeline item; the
+    /// unnamed ones are skipped, since a `desktop:` can only name a named one.
+    /// `$base` is the caller's (PowerShell scopes are dynamic), so the watcher
+    /// and the one-shot [#NAMES_SCRIPT] share it.
+    private static final String NAMES_FUNCTION = """
+            function Get-DesktopNames {
+              $ids = (Get-ItemProperty -Path $base -Name VirtualDesktopIDs).VirtualDesktopIDs
+              for ($i = 0; $i -lt [int]($ids.Length / 16); $i++) {
+                $guid = [Guid]::new([byte[]]($ids[($i * 16)..($i * 16 + 15)]))
+                $key = $base + '\\Desktops\\{' + $guid.ToString() + '}'
+                $name = (Get-ItemProperty -Path $key -Name Name -ErrorAction SilentlyContinue).Name
+                if ($name) { $name }
+              }
+            }
+            """;
+
+    /// The one-shot read of the named desktops: a single [#DESKTOPS_PREFIX]
+    /// line, as the watcher prints it.
+    private static final String NAMES_SCRIPT = """
+            $ErrorActionPreference = 'Stop'
+            [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+            $base = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VirtualDesktops'
+            [Console]::Out.WriteLine('desktops:' + (@(Get-DesktopNames) -join "`t"))
+            """;
+
+    static String namesScript() {
+        return NAMES_FUNCTION + "\n" + NAMES_SCRIPT;
+    }
+
+    /// Reads the named desktops once — the configuration form's refresh, which
+    /// must work without the watcher too. Null when the read fails (off
+    /// Windows, no `powershell`).
+    // [impl->dsn~task-field-form~4]
+    public @Nullable SortedSet<String> names() {
+        String encoded = Base64.getEncoder().encodeToString(
+                namesScript().getBytes(StandardCharsets.UTF_16LE));
+        LocalCommandRunner.LocalResult result = runner.run(
+                List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded));
+        if (result.exitCode() != 0) {
+            return null;
+        }
+        return result.stdout().lines().map(WindowsVirtualDesktopFocus::parseDesktopsLine)
+                .filter(java.util.Objects::nonNull).findFirst().orElse(null);
+    }
 
     /// Marks a watcher stdout line carrying the active desktop's name; anything
     /// else on the (merged) stream is PowerShell noise and is ignored.
@@ -478,7 +514,7 @@ public class WindowsVirtualDesktopFocus {
     /// The watcher script: registry helper first (functions before use), then
     /// the compile-once + check-loop body.
     static String watchScript() {
-        return REGISTRY_CURRENT_FUNCTION + "\n"
+        return REGISTRY_CURRENT_FUNCTION + "\n" + NAMES_FUNCTION + "\n"
                 + WATCH_SCRIPT.replace("__TYPES__", CURRENT_COM_TYPES.strip());
     }
 

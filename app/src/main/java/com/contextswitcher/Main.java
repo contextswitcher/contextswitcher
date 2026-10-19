@@ -907,6 +907,14 @@ public class Main extends Application {
         // [impl->dsn~start-claude-button~2]
         // [impl->dsn~setup-wizard~10]
         window.setOnSetupWizard(this::rerunSetupWizard);
+        // [impl->dsn~task-field-form~4]
+        window.setDesktopNamesReader(() -> {
+            ExecutorService executor = this.actionExecutor;
+            return executor == null
+                    ? CompletableFuture.completedFuture(null)
+                    : CompletableFuture.supplyAsync(
+                            () -> new WindowsVirtualDesktopFocus(new LocalCommandRunner()).names(), executor);
+        });
         // [impl->dsn~host-table~1]
         window.setHostWorkspaces(host -> {
             try {

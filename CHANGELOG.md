@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub once the day is over.
 The topmost section is the day in progress — its link points at `main` until that tag exists.
 
+## [2026-10-19] - 2026-10-19
+
+### Added
+
+- A refresh button next to a category's "Virtual desktop" field reads this machine's virtual desktops again and lists them, so a desktop created or renamed while the form is open can be picked. The field now also suggests every named desktop on the machine, not only those other categories use.
+
 ## [2026-10-18] - 2026-10-18
 
 ### Added
@@ -127,7 +133,8 @@ The topmost section is the day in progress — its link points at `main` until t
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
-[2026-10-18]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-12...main
+[2026-10-19]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-18...main
+[2026-10-18]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-12...v2026-10-18
 [2026-10-12]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-11...v2026-10-12
 [2026-10-11]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-10...v2026-10-11
 [2026-10-10]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-01...v2026-10-10
