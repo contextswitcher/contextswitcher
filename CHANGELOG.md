@@ -15,6 +15,7 @@ The topmost section is the day in progress — its link points at `main` until t
 - Browser extensions 0.8.0: the icon's popup names the installed extension version, and in Firefox says when a profile marked the bookmarks bar hidden, pointing at the `userChrome.css` setup when the bar still shows.
 ### Fixed
 
+- The update window's hint shows `just run-loop` in a monospaced font.
 - Activating the browser tab of a suspended task resumes the task without touching the browser: the tab stays in front, and the task's other pages are no longer opened in a tab group with the first of them activated (which could resume a second suspended task listing that page).
 - On Windows, two tasks working in the same folder each resume their own Claude conversation. Before, both showed the folder's newest conversation. A task that recorded no conversation yet now skips the ones other tasks own.
 - A task row shows play instead of pause when its Claude is known not to run: on Windows when the task has no session running, or on a remote when the window was last seen at a bare shell. On Windows, play starts or resumes the session directly. The button switches as soon as a session starts or exits.
