@@ -3213,16 +3213,67 @@ public class MainWindow {
         dialog.setHeaderText("Enter a title or description, or paste a GitHub PR or GitLab MR URL.");
         // The category the task lands in, pre-selected with the one it was
         // opened for; picking another re-evaluates hints and buttons.
+        // Listed like the Ctrl+J popup: the active desktop's categories under
+        // a heading first, the rest under another — and narrowed by the host
+        // picker to its right (`(all hosts)`, `local`, each remote).
+        // [impl->dsn~task-create-category-pick~1]
         ComboBox<String> categoryBox = new ComboBox<>();
         categoryBox.setId("add-task-category");
         categoryBox.getStyleClass().add(Styles.SMALL);
-        categoryBox.getItems().add("");
-        categoryBox.getItems().addAll(folders.stream()
-                .sorted(String.CASE_INSENSITIVE_ORDER).toList());
-        if (!categoryBox.getItems().contains(initialGroup)) {
-            categoryBox.getItems().add(initialGroup);
+        Map<String, @Nullable String> hostOf = new LinkedHashMap<>();
+        for (String group : folders) {
+            AddTarget target = addTarget(group);
+            hostOf.put(group, target.localWorkdir() != null ? CategoryJump.LOCAL_HOST : target.remote());
         }
+        ComboBox<String> hostBox = new ComboBox<>();
+        hostBox.setId("add-task-host");
+        hostBox.getStyleClass().add(Styles.SMALL);
+        hostBox.getItems().addAll(CategoryJump.hosts(hostOf.values()));
+        hostBox.setValue(CategoryJump.ALL_HOSTS);
+        Set<String> headers = new HashSet<>();
+        Runnable refillCategories = () -> {
+            List<CategoryJump.Row> rows = CategoryJump.rows(
+                    CategoryJump.onHost(folders, hostOf::get, hostBox.getValue()),
+                    this::groupDesktop, activeDesktop, "");
+            headers.clear();
+            rows.stream().filter(CategoryJump.Row::header).map(CategoryJump.Row::text).forEach(headers::add);
+            List<String> items = new ArrayList<>();
+            items.add("");
+            rows.stream().map(CategoryJump.Row::text).forEach(items::add);
+            if (!items.contains(initialGroup)) {
+                items.add(initialGroup);
+            }
+            String picked = categoryBox.getValue();
+            categoryBox.getItems().setAll(items);
+            categoryBox.setValue(items.contains(picked) ? picked : initialGroup);
+        };
         categoryBox.setValue(initialGroup);
+        refillCategories.run();
+        hostBox.valueProperty().addListener((obs, old, value) -> refillCategories.run());
+        categoryBox.setCellFactory(view -> new ListCell<>() {
+            @Override
+            protected void updateItem(@Nullable String item, boolean empty) {
+                super.updateItem(item, empty);
+                boolean header = !empty && item != null && headers.contains(item);
+                setText(empty || item == null ? null : categoryBox.getConverter().toString(item));
+                setDisable(header);
+                getStyleClass().remove(Styles.TEXT_CAPTION);
+                if (header) {
+                    getStyleClass().add(Styles.TEXT_CAPTION);
+                }
+            }
+        });
+        // A disabled cell still takes the arrow keys' selection: step over a
+        // heading in the direction the keys were going.
+        categoryBox.valueProperty().addListener((obs, old, value) -> {
+            if (value == null || !headers.contains(value)) {
+                return;
+            }
+            List<String> items = categoryBox.getItems();
+            int at = items.indexOf(value);
+            int next = old != null && items.indexOf(old) > at ? at - 1 : at + 1;
+            categoryBox.setValue(next >= 0 && next < items.size() ? items.get(next) : old);
+        });
         categoryBox.setConverter(new javafx.util.StringConverter<>() {
             @Override
             public String toString(@Nullable String group) {
@@ -3234,7 +3285,7 @@ public class MainWindow {
                 return text;
             }
         });
-        HBox categoryRow = new HBox(6, new Label("Category:"), categoryBox);
+        HBox categoryRow = new HBox(6, new Label("Category:"), categoryBox, new Label("on"), hostBox);
         categoryRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         ButtonType plainType = new ButtonType("Add plain task", ButtonBar.ButtonData.OK_DONE);
         ButtonType remoteType = new ButtonType("Add remote Claude", ButtonBar.ButtonData.OTHER);
