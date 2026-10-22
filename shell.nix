@@ -11,7 +11,8 @@
 # dies with `UnsatisfiedLinkError: no glassgtk3 in java.library.path`, which is
 # what any UI test or `./gradlew run` hits on a bare NixOS box.
 #
-# `xvfb-run` is here for `./gradlew :app:uiTest` (MADR 0014); NixOS ships the
+# `xvfb-run` is here for `just uitest-xvfb`, the on-a-display fallback of the
+# UI tests (MADR 0014; they run headless by default); NixOS ships the
 # `Xvfb` binary in `xorg.xorgserver` but the wrapper script in its own package.
 { pkgs ? import <nixpkgs> { } }:
 

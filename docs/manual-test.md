@@ -21,7 +21,7 @@ diagnosis: `%USERPROFILE%\.contextswitcher\logs\`.
 
 **Automated UI tests (MADR 0014).**
 Items that need no remote host and no human eye move into TestFX tests
-(`gradlew :app:uiTest`; headless Linux: `xvfb-run -a ./gradlew :app:uiTest`, CI runs them on every push).
+(`gradlew :app:uiTest`, headless on every OS; CI runs them on every push).
 An item covered there is marked *(automated: `<TestClass>`)* — re-check it manually only when the note says a variant stays manual.
 New checklist items for pure-UI behavior (dialogs, key chords, list filtering) should start as a UI test instead of growing this list.
 

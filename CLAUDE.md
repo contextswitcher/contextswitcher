@@ -37,8 +37,8 @@
 * Portability: keep all code OS-portable (no Windows-only APIs, paths via `user.home`, plain `ssh` from PATH). Windows is the primary verification target for v0.1; Linux/GNOME follows without a rewrite.
 * License is MIT — no strong-copyleft dependencies (GPL); weak copyleft is fine as a normal library dependency (LGPL, EPL, MPL — Oliver's call, 2026-07-14), as are Apache/MIT/BSD. GPL-2.0 *with Classpath Exception* is accepted too (ShellFX's `tabpanepro`, 2026-09-13, MADR 0032). Check licenses of new dependencies.
 * Unit tests for real logic (parsing, argv/URL building, protocol encoding), not for UI.
-  Pure-UI behavior (dialogs, key chords, filters) gets a TestFX test instead (`@Tag("ui")`, `gradlew :app:uiTest`; headless: `just uitest`; MADR 0014) — not part of `build`.
-  Use `just uitest`, not a bare `xvfb-run -a`: the wrapper's default screen size is the distribution's (nixpkgs ships 640x480), and on a screen too small for the window a robot click lands on nothing and the test fails for no reason of its own.
+  Pure-UI behavior (dialogs, key chords, filters) gets a TestFX test instead (`@Tag("ui")`, `gradlew :app:uiTest` = `just uitest`, headless on every OS via JavaFX's headless glass platform; MADR 0014) — not part of `build`.
+  The headless platform is a JavaFX 26 prototype with a fixed 1000x1000 screen; its focus quirks are patched in `UiTestSupport`, and a mouse press carries `isPopupTrigger` (RichTextArea ignores such a click — request focus directly, `PlayFocusesTaskListUiTest`). Fallback on a display: `just uitest-xvfb`.
   Manual E2E checklists live in `docs/manual-test.md` (from M1-17 on) for what needs a real remote or a human eye; prefer a UI test over a new checklist item.
   A UI behavior shared by two places (the compose chords, installed on the queue add box *and* the Add-task dialog field) gets its test at **each** call site — a test at one of them leaves the other free to regress unnoticed.
 * Docs drift: `CONSISTENCY.md` lists what prose must agree with code (spec-id revisions, settings keys, shortcuts, links); `scripts/consistency.sh` runs the mechanical half. Run it when touching README.md or `docs/`.
