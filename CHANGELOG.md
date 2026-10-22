@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub once the day is over.
 The topmost section is the day in progress — its link points at `main` until that tag exists.
 
+## [2026-10-22] - 2026-10-22
+
+### Fixed
+
+- On Windows, two tasks working in the same folder each resume their own Claude conversation. Before, both showed the folder's newest conversation. A task that recorded no conversation yet now skips the ones other tasks own.
+
 ## [2026-10-19] - 2026-10-19
 
 ### Added
@@ -137,6 +143,7 @@ The topmost section is the day in progress — its link points at `main` until t
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-10-22]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-19...main
 [2026-10-19]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-18...v2026-10-19
 [2026-10-18]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-12...v2026-10-18
 [2026-10-12]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-11...v2026-10-12
