@@ -32,11 +32,12 @@ Covers:
 Needs: dsn
 
 ### Browser tab selects task
-`req~browser-tab-selects-task~2`
+`req~browser-tab-selects-task~3`
 
 Activating a Firefox tab whose address belongs to a task — one of the task's `browser.urls`, or a page under it — selects that task in ContextSwitcher, the reverse direction of `req~focus-browser-tab~2`.
 For a task that is not suspended, that is all that happens: the application is not raised and no switch is run, since the user is working in the browser and the selection is only there when they look back at the app.
-A **suspended** task is resumed as well, exactly as its row's play button resumes it (`req~task-suspend-resume~2`): its tmux window is recreated and its Claude session resumed, so opening the task's pull request lands on the same live context a running task offers instead of a dead row.
+A **suspended** task is resumed as well, as its row's play button resumes it (`req~task-suspend-resume~2`): its tmux window is recreated and its Claude session resumed, so opening the task's pull request lands on the same live context a running task offers instead of a dead row.
+That resume leaves the browser alone: the user is already in the browser, on the page they chose, so none of the task's other URLs is opened and no tab is activated — a tab-triggered resume never pulls the user away from the tab they activated (field report 2026-10-22: opening a suspended task's page opened its dozen other pages in a tab group and switched to the first of them, which belonged to a second suspended task that resumed in turn).
 A tab belonging to no task leaves the selection alone.
 
 Tags: windows, linux
@@ -246,7 +247,7 @@ Tags: windows, linux
 Covers:
 - req~focus-browser-tab~2
 - req~extension-reconnect~1
-- req~browser-tab-selects-task~2
+- req~browser-tab-selects-task~3
 - req~browser-tab-context-count~1
 - req~browser-tab-task-popup~1
 - req~browser-tab-group~3
@@ -386,14 +387,17 @@ Covers:
 Needs: impl, utest
 
 ### Browser tab selection
-`dsn~browser-tab-selects-task~6`
+`dsn~browser-tab-selects-task~7`
 
 The extension listens on `tabs.onActivated`, `tabs.onUpdated` (a URL change in the active tab) and `windows.onFocusChanged` (switching windows fires no `onActivated`) and sends an unsolicited `{"type":"tab-activated","url":…}` — no correlation id, no reply — deduplicated against the last reported URL, since `onUpdated` fires repeatedly per navigation.
 `ExtensionServer` honours the message only on the connection that passed `hello` and hands the URL to `Main.selectTaskForTab`, which picks the task with the best `Task.tabUrlMatch` (2 exact `browser.urls` hit, 1 page under one of them — same `/`, `#`, `?` boundary rule as the extension's `isSameOrSubUrl`, 0 no match) and selects its row.
 A fragment on a task's URL (a PR review comment, `…/pull/1#pullrequestreview-2`) only points into the page, so the page without it and its sub-pages score 1 as well (field report 2026-09-28: a task listing a review comment did not own the PR's `/changes` tab).
 No match, or no window yet, does nothing.
-A match whose status is `suspended` is additionally handed to `MainWindow.resumeTask` — the same `setStatus(task, ACTIVE)` the row's play button and the queue's send-into-a-suspended-chat run (`dsn~task-suspend~6`), so the status write and the resurrecting switch come for free and no confirmation appears.
-It is the status *on disk* that decides, and `resumeTask` re-reads it, so a second `tab-activated` for the same tab arriving while the resume is in flight finds the task already `active` and only rewrites the status it already has.
+A match whose status is `suspended` is additionally handed to `MainWindow.resumeTaskFromTab`: the same status write to `active` as the row's play button and the queue's send-into-a-suspended-chat (`setStatus`, `dsn~task-suspend~6`), with no confirmation, followed by the resurrecting switch through the `onTabResume` hook instead of `onSwitch`.
+`Main` wires that hook to `switchToExceptBrowser`: the task's configured actions (category defaults folded in, as every switch does) minus `browser`, run through the same narrowed `switchTo` the toolbar globe uses with `only = {browser}` — so the tmux window is recreated and Claude resumed, but no `focus-url` is sent: no tab of the task is opened or activated, and the tab group is not assembled.
+A task whose only configured action is the browser has nothing to resurrect; the status flip alone is its resume and no switch chips appear.
+Before (field report 2026-10-22) the tab resume was the full play: `BrowserFocusAction` opened every URL of the task and activated the first, and that first page, listed by a second suspended task, reported itself and resumed that one too — a chain of resumes started by opening one page.
+It is the status *on disk* that decides, and `resumeTaskFromTab` re-reads it, so a second `tab-activated` for the same tab arriving while the resume is in flight finds the task already `active` and does nothing.
 A `done` task is never resumed: completing it ended its context on purpose.
 Several tasks can list the same URL — one implementing a PR, one checking why a check of it fails — and then score alike; `Main.rankTabMatches` breaks that tie in favour of the **currently selected** task, so activating the PR's tab keeps the task the user is on instead of switching the app (and the terminal mirror) to the other one, which reads as the app switching tasks by itself (field report 2026-09-09).
 A better score still wins over the selection: an exact hit is about *this* tab, a selected task matching only a parent page is not.
@@ -408,7 +412,7 @@ The id stays pending regardless and wins as soon as it has a row.
 Tags: windows, linux
 
 Covers:
-- req~browser-tab-selects-task~2
+- req~browser-tab-selects-task~3
 
 Needs: impl, utest
 

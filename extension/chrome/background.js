@@ -455,7 +455,7 @@ async function closeWindow(windowId) {
 // The user activating a tab is reported to the app, which selects the task
 // owning that URL (no reply expected). Deduplicated: onUpdated fires several
 // times per navigation, and re-reporting the same URL is pure noise.
-// [impl->dsn~browser-tab-selects-task~6]
+// [impl->dsn~browser-tab-selects-task~7]
 let lastReportedUrl = null;
 
 function reportActiveTab(tab) {

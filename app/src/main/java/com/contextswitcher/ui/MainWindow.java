@@ -579,6 +579,17 @@ public class MainWindow {
         this.onBrowserSwitch = handler;
     }
 
+    /// The resurrecting switch of a task resumed from its browser tab — every
+    /// action but the browser one; set by `Main`, a no-op until then.
+    /// [impl->dsn~browser-tab-selects-task~7]
+    private Consumer<Task> onTabResume = task -> { };
+
+    /// Installs the browser-less resume switch (see [#onTabResume]).
+    // [impl->dsn~browser-tab-selects-task~7]
+    public void setOnTabResume(Consumer<Task> handler) {
+        this.onTabResume = handler;
+    }
+
     /// The globe's context menu: which browsers are connected, which one is
     /// chosen, and what choosing one does; set by `Main`.
     // [impl->dsn~prefer-chosen-browser~1]
@@ -2904,7 +2915,7 @@ public class MainWindow {
         // at all, and only a click brought the highlight back (field report
         // 2026-09-10). The task still on screen keeps it instead; the id
         // stays pending and wins as soon as it has a row.
-        // [impl->dsn~browser-tab-selects-task~6]
+        // [impl->dsn~browser-tab-selects-task~7]
         if (onScreenId != null && list != null) {
             int row = rowOf(onScreenId);
             if (row >= 0) {
@@ -4115,6 +4126,25 @@ public class MainWindow {
     // [impl->dsn~message-queue-resume-send~2]
     public void resumeTask(Task task) {
         setStatus(task, TaskStatus.ACTIVE);
+    }
+
+    /// Resumes a suspended task whose browser tab the user just activated:
+    /// the same status flip as [#resumeTask], but the resurrecting switch
+    /// runs through [#onTabResume] and leaves the browser alone — the user is
+    /// already in the browser, on the page they chose, and the task's other
+    /// pages opening in front of it is what they did not ask for. The status
+    /// on disk decides: a task no longer suspended (a second report of the
+    /// same tab while the resume is in flight) is left as it is.
+    // [impl->dsn~browser-tab-selects-task~7]
+    public void resumeTaskFromTab(Task staleTask) {
+        Task task = freshTask(staleTask);
+        if (task.status() != TaskStatus.SUSPENDED) {
+            return;
+        }
+        writeStatus(task, TaskStatus.ACTIVE);
+        // The pre-flip task, as `setStatus` hands it to the switch: the tmux
+        // action reads `suspended` as "recreate, do not focus the bare session".
+        onTabResume.accept(task);
     }
 
     /// Pins or unpins a task by writing (or removing) the `pinned:` line of
@@ -7218,7 +7248,7 @@ public class MainWindow {
     /// selection is a header, a corrupt file, or nothing. Survives the
     /// transient clear a row rebuild causes, so it answers "is this task
     /// already the one in view" even while a collapsed category hides its row.
-    // [impl->dsn~browser-tab-selects-task~6]
+    // [impl->dsn~browser-tab-selects-task~7]
     public @Nullable String selectedTaskId() {
         Task previewed = previewedTask;
         return previewed == null ? null : previewed.id();
@@ -7355,7 +7385,7 @@ public class MainWindow {
         // see is no selection, and the browser-tab reporter has no other way
         // to say "this task". `rebuildRows` applies the pending selection
         // itself, so each step only has to reveal.
-        // [impl->dsn~browser-tab-selects-task~6]
+        // [impl->dsn~browser-tab-selects-task~7]
         if (collapsedGroups.remove(groupOf(taskId))) {
             rebuildRows();
         }

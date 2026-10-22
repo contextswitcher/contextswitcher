@@ -909,6 +909,9 @@ public class Main extends Application {
         // The toolbar globe: the browser action alone, otherwise a plain play.
         // [impl->dsn~extension-connection-indicator~2]
         window.setOnBrowserSwitch(task -> switchTo(orchestrator, files, task, Set.of("browser")));
+        // A resume the browser triggered: everything but the browser action.
+        // [impl->dsn~browser-tab-selects-task~7]
+        window.setOnTabResume(task -> switchToExceptBrowser(orchestrator, files, task));
         // The globe's right-click: the chosen browser drives while connected
         // and is the one launched while not; saved as `browser`, so it lasts.
         // [impl->dsn~prefer-chosen-browser~1]
@@ -1041,7 +1044,7 @@ public class Main extends Application {
                 () -> handleDeepLink(orchestrator, repository, files, stage, url)));
         // Clicking a task's tab in the browser selects that task: the
         // extension reports the activated tab, the app follows.
-        // [impl->dsn~browser-tab-selects-task~6]
+        // [impl->dsn~browser-tab-selects-task~7]
         extensionServer.setTabActivatedHandler(url -> Platform.runLater(() -> {
             // Closing a tab activates its neighbour: during a teardown that is
             // the app's own doing, not the user's, and would resume the task
@@ -2465,10 +2468,11 @@ public class Main extends Application {
     /// (or no window yet) does nothing — the user is working in the browser,
     /// and neither a status message nor a raise of the app is wanted there.
     /// A **suspended** match is resumed on top of the selection
-    /// (`dsn~browser-tab-selects-task~6`): its row alone shows nothing to work
+    /// (`dsn~browser-tab-selects-task~7`): its row alone shows nothing to work
     /// with, so the tab opens the same live context a running task's row
-    /// already has.
-    // [impl->dsn~browser-tab-selects-task~6]
+    /// already has — minus the browser action, since the user is already on
+    /// the page they chose.
+    // [impl->dsn~browser-tab-selects-task~7]
     // [impl->dsn~browser-tab-context-count~2]
     private void selectTaskForTab(TaskRepository repository, String url, boolean resume) {
         MainWindow window = this.window;
@@ -2503,14 +2507,18 @@ public class Main extends Application {
             if (!task.id().equals(window.selectedTaskId())) {
                 window.selectTask(task.id());
             }
-            // The regular resume (status back to `active`, then the switch
-            // that resurrects the tmux window and resumes Claude) — the very
-            // path the row's play button runs. A second activation of the same
-            // tab while that is in flight sees the task already `active` and
-            // does nothing.
+            // The resume (status back to `active`, then the switch that
+            // resurrects the tmux window and resumes Claude) — the row's play
+            // button minus the browser action: the user is in the browser on
+            // the page they chose, and a switch that opens the task's other
+            // pages on top of it (and activates the first, which may belong to
+            // yet another suspended task that then resumes too) is the
+            // opposite of what the click meant (field report 2026-10-22). A
+            // second activation of the same tab while that is in flight sees
+            // the task already `active` and does nothing.
             if (resume && task.status() == TaskStatus.SUSPENDED) {
-                Logger.info("Tab activated a suspended task, resuming {}", task.id());
-                window.resumeTask(task);
+                Logger.info("Tab activated a suspended task, resuming {} (browser left alone)", task.id());
+                window.resumeTaskFromTab(task);
             }
         });
     }
@@ -5046,7 +5054,7 @@ public class Main extends Application {
     /// task won, so opening the PR tab of the task you just selected switched
     /// the app (and the terminal mirror) to the *other* one, which reads as
     /// the app switching tasks by itself (field report 2026-09-09).
-    // [impl->dsn~browser-tab-selects-task~6]
+    // [impl->dsn~browser-tab-selects-task~7]
     static java.util.List<Task> rankTabMatches(java.util.List<Task> matches, String url,
             @Nullable String selectedId) {
         return matches.stream()
@@ -5183,6 +5191,26 @@ public class Main extends Application {
 
     private void switchTo(SwitchOrchestrator orchestrator, MainWindow.TaskFileAccess files, Task task) {
         switchTo(orchestrator, files, task, null);
+    }
+
+    /// The resurrecting switch of a task resumed from its browser tab: every
+    /// configured action except the browser one. The user is already in the
+    /// browser, on the page they chose; opening the task's other pages over
+    /// it — and activating the first, which may belong to another suspended
+    /// task that then resumes in turn — is not what the click meant. A task
+    /// whose only configured action is the browser has nothing to resurrect,
+    /// and the status flip alone is its resume.
+    // [impl->dsn~browser-tab-selects-task~7]
+    private void switchToExceptBrowser(SwitchOrchestrator orchestrator,
+            MainWindow.TaskFileAccess files, Task task) {
+        Set<String> only = new java.util.HashSet<>(
+                orchestrator.configuredActions(withCategoryDefaults(files, task)));
+        only.remove("browser");
+        if (only.isEmpty()) {
+            Logger.debug("Tab resume of {}: only the browser is configured, nothing to resurrect", task.id());
+            return;
+        }
+        switchTo(orchestrator, files, task, only);
     }
 
     /// A play, optionally narrowed to the actions named in `only` (`null`: all

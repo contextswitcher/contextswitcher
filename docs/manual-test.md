@@ -1279,7 +1279,7 @@ The pane is now sized to its content (`Alerts.withContent`) and the dialog is re
 - [ ] The same with a long working-directory path → the label wraps onto a second line and the dialog grows to show it.
 - [ ] Delete a category with tasks in it → both lines of its confirmation are readable.
 
-## Browser tab selects task (`dsn~browser-tab-selects-task~6`)
+## Browser tab selects task (`dsn~browser-tab-selects-task~7`)
 
 Needs a real Firefox with the extension loaded — the reporting side lives in the browser.
 
@@ -1288,6 +1288,7 @@ Needs a real Firefox with the extension loaded — the reporting side lives in t
 - [ ] Activate a tab belonging to no task (a search result) → the selection stays where it was.
 - [ ] Switch between two Firefox windows showing different tasks' tabs → the selection follows the window switch.
 - [ ] Activate the tab of a **suspended** task's PR → the task is selected *and* resumed: its status goes back to `active`, its tmux window is recreated and its Claude session resumed, as if its play button had been pressed.
+- [ ] … and the browser is left alone: the tab you activated stays in front, none of the task's other `browser.urls` is opened, no tab group appears. With a second suspended task listing one of those other URLs, that task stays suspended.
 - [ ] Activate that same tab again once it is running → nothing is switched a second time, only the selection.
 - [ ] Activate the tab of a **done** task → it is selected and stays done.
 - [ ] With task A selected, move between the tabs of A's own tab group → the task list does not move at all: no scroll, no repaint, and a category collapsed over A's row stays collapsed.
