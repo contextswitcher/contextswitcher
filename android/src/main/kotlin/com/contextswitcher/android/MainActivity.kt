@@ -421,7 +421,7 @@ internal fun TaskListScreen(
 
     var addProgress by remember { mutableStateOf<String?>(null) }
 
-    // [impl->dsn~android-live-task~1]
+    // [impl->dsn~android-live-task~2]
     fun startClaudeTask(category: String, title: String, mode: ClaudeMode, skipPermissions: Boolean) {
         val settings = settingsStore.load() ?: return
         val starter = liveTasks ?: return

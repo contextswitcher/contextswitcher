@@ -20,7 +20,7 @@ import java.time.LocalDate
 /// The task file — the desktop's live-task file plus the `tmux:` section — is
 /// pushed the moment the window exists ([onCreated]), before Claude is up, so
 /// the list shows it while the rest of the start runs (a quarter minute).
-// [impl->dsn~android-live-task~1]
+// [impl->dsn~android-live-task~2]
 class LiveTaskStarter(
     private val sync: TaskRepoSync,
     private val ssh: SshCommandRunner,
@@ -32,9 +32,13 @@ class LiveTaskStarter(
         data class Failed(val message: String) : Outcome
     }
 
-    /// The remote a live task in `category` would run on, or null when its
-    /// `CONTEXTSWITCHER.md` names none (then only a plain task is possible).
-    fun remoteOf(dir: File, category: String): String? = config(dir, category).remote()
+    /// The remote a live task in `category` would run on, like the desktop's
+    /// `effectiveRemote`: the category's `CONTEXTSWITCHER.md` `remote`, else
+    /// the first remote a task in the clone names (the phone has no `remotes`
+    /// setting). Null only when no remote is known anywhere — then only a
+    /// plain task is possible.
+    fun remoteOf(dir: File, category: String): String? =
+        config(dir, category).remote() ?: tasks(dir).mapNotNull { it.remote() }.firstOrNull()
 
     fun start(
         dir: File,
@@ -48,7 +52,7 @@ class LiveTaskStarter(
         onCreated: (taskId: String) -> Unit,
     ): Outcome {
         val config = config(dir, category)
-        val remote = config.remote() ?: return Outcome.Failed("The category names no remote in its ${TaskRepository.GROUP_CONFIG_FILE_NAME}")
+        val remote = remoteOf(dir, category) ?: return Outcome.Failed("No remote: none in the category's ${TaskRepository.GROUP_CONFIG_FILE_NAME}, none on any task")
         val workdir = config.resolveWorkdir()
         val session = usualSession(dir, remote)
         val prompt = ClaudeWindowLauncher.liveTaskPrompt(description, config.repo(), config.bootstrapWorktree(), category, null)
@@ -89,10 +93,11 @@ class LiveTaskStarter(
     /// The tmux session the remote's tasks live in, like the desktop's
     /// `usualSession`: the first task on `remote` with one, else `0`.
     private fun usualSession(dir: File, remote: String): String =
+        tasks(dir).firstOrNull { it.remote() == remote && it.tmux() != null }?.tmux()?.session() ?: "0"
+
+    private fun tasks(dir: File) =
         runCatching { buildTaskListModel(dir.toPath()) }.getOrDefault(emptyList())
             .flatMap { it.entries }
             .filterIsInstance<TaskEntry.Loaded>()
             .map { it.task() }
-            .firstOrNull { it.remote() == remote && it.tmux() != null }
-            ?.tmux()?.session() ?: "0"
 }

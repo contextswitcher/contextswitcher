@@ -17,7 +17,7 @@ import org.junit.jupiter.api.io.TempDir
 /// A live task from the phone: window in the remote's usual session and the
 /// category's workspace, the task file pushed with that window, Claude
 /// started with the desktop's prompt.
-// [utest->dsn~android-live-task~1]
+// [utest->dsn~android-live-task~2]
 class LiveTaskStarterTest {
 
     private class Remote : SshCommandRunner {
@@ -82,12 +82,26 @@ class LiveTaskStarterTest {
     }
 
     @Test
-    fun `a category without a remote starts nothing`(@TempDir tmp: File) {
+    fun `a category without a remote falls back to the first remote a task names`(@TempDir tmp: File) {
+        File(tmp, ".git").mkdirs()
+        File(tmp, "notes").mkdirs()
+        File(tmp, "notes/CONTEXTSWITCHER.md").writeText("---\nrepo: https://github.com/o/r\n---\n")
+        File(tmp, "work").mkdirs()
+        File(tmp, "work/older.md").writeText("---\ntitle: Older\nstatus: active\nremote: me@box\n---\n")
+        val starter = LiveTaskStarter(TaskRepoSync(), Remote(), MessageSender(Remote(), tmp.toPath()))
+
+        assertThat(starter.remoteOf(tmp, "notes")).isEqualTo("me@box")
+        assertThat(starter.remoteOf(tmp, "")).isEqualTo("me@box")
+    }
+
+    @Test
+    fun `without any remote the dialog has none and the start fails`(@TempDir tmp: File) {
         val remote = Remote()
         File(tmp, ".git").mkdirs()
-        val outcome = LiveTaskStarter(TaskRepoSync(), remote, MessageSender(remote, tmp.toPath()))
-            .start(tmp, "u", "t", "work", "x", ClaudeMode.DEFAULT, false, {}) {}
+        val starter = LiveTaskStarter(TaskRepoSync(), remote, MessageSender(remote, tmp.toPath()))
+        val outcome = starter.start(tmp, "u", "t", "work", "x", ClaudeMode.DEFAULT, false, {}) {}
 
+        assertThat(starter.remoteOf(tmp, "work")).isNull()
         assertThat(outcome).isInstanceOf(LiveTaskStarter.Outcome.Failed::class.java)
         assertThat(remote.commands).isEmpty()
     }
