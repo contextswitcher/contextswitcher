@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -4096,14 +4097,19 @@ public class Main extends Application {
             // Windows has no tmux to run the session in, so the **app** hosts
             // it in the terminal pane's own ConPTY — a Windows Terminal tab
             // could not be typed into from here (`dsn~terminal-owned-session~4`).
+            // The session id is chosen here and pinned with `--session-id`, so
+            // the task file names its own transcript: the cwd alone is shared
+            // by every task started in the same folder.
+            String sessionId = UUID.randomUUID().toString();
             terminal.startOwned(taskId,
-                    LocalClaudeLauncher.ownedCommand(description, mode.model(), null), workdir);
+                    LocalClaudeLauncher.ownedCommand(description, mode.model(), sessionId, false),
+                    workdir);
             if (currentWindow != null) {
                 currentWindow.statusBar().message("Claude started in " + workdir + ".");
             }
-            // No tmux window to record — only the cwd, which is what finds the
-            // transcript again when the app is restarted.
-            writeLocalWindowBack(files, taskId, null, workdir);
+            // No tmux window to record — the cwd and the session id, which is
+            // what finds the transcript again when the app is restarted.
+            writeLocalWindowBack(files, taskId, null, workdir, sessionId);
             return;
         }
         executor.execute(() -> {
@@ -4116,7 +4122,7 @@ public class Main extends Application {
                             : "Cannot start Claude in " + workdir + ": " + launch.error());
                 }
                 if (launch.window() != null) {
-                    writeLocalWindowBack(files, taskId, launch.window(), workdir);
+                    writeLocalWindowBack(files, taskId, launch.window(), workdir, null);
                 }
             });
         });
@@ -4126,10 +4132,11 @@ public class Main extends Application {
     /// in — `tmux:` (session `0` plus the window id) and `claude.cwd`, the same
     /// sections the remote flow writes, minus a `remote:`: that absence is
     /// what marks the session as local, and the mirror addresses it as
-    /// `TmuxHost.LOCAL` instead of over ssh. FX thread.
+    /// `TmuxHost.LOCAL` instead of over ssh. An app-owned session records its
+    /// `sessionId` too (`dsn~terminal-owned-session~4`). FX thread.
     // [impl->dsn~terminal-local-mirror~2]
     private void writeLocalWindowBack(MainWindow.TaskFileAccess files, String taskId,
-            @Nullable String windowId, String workdir) {
+            @Nullable String windowId, String workdir, @Nullable String sessionId) {
         MainWindow window = this.window;
         if (window == null) {
             return;
@@ -4147,6 +4154,9 @@ public class Main extends Application {
                         : TaskFileParser.withTmuxSection(content, LocalClaudeLauncher.SESSION,
                                 windowId, "created " + LocalDate.now()),
                 workdir);
+        if (sessionId != null) {
+            updated = TaskFileParser.withClaudeSessionId(updated, sessionId);
+        }
         String error = files.save(fileName, updated);
         if (error != null) {
             Logger.warn("Cannot record the local tmux window in {}: {}", fileName, error);
@@ -4846,7 +4856,7 @@ public class Main extends Application {
         // owned branch answers *before* the remote offers below — those two
         // buttons open a window on a remote, which such a task does not have.
         // [impl->dsn~terminal-owned-session~4]
-        if (LocalClaudeLauncher.ownsSession(task) && showOwnedSession(terminal, task)) {
+        if (LocalClaudeLauncher.ownsSession(task) && showOwnedSession(files, terminal, task)) {
             return;
         }
         Task.TmuxConfig tmux = task.tmux();
@@ -4925,13 +4935,16 @@ public class Main extends Application {
     /// Shows the task's app-owned session, or — when no process of the app's
     /// is running for it — offers to start one. After an app restart the
     /// offer is a **resume**: the task's `claude.sessionId` (else the newest
-    /// transcript for its `cwd`) continues the same conversation, which is
-    /// what replaces the detach a
+    /// transcript for its `cwd` that no other task claims) continues the same
+    /// conversation, which is what replaces the detach a
     /// tmux mirror would have given (`dsn~terminal-owned-session~4`).
+    /// Whichever id is started or resumed is written to the task file, so the
+    /// transcript is claimed and no other task in the folder falls back to it.
     /// False when the task names no directory to run in, the one case that
     /// falls through to the ordinary "No tmux configured" placeholder.
     // [impl->dsn~terminal-owned-session~4]
-    private boolean showOwnedSession(TerminalPane terminal, Task task) {
+    private boolean showOwnedSession(MainWindow.TaskFileAccess files, TerminalPane terminal,
+            Task task) {
         if (terminal.showOwnedIfRunning(task.id())) {
             return true;
         }
@@ -4939,16 +4952,66 @@ public class Main extends Application {
         if (cwd == null) {
             return false;
         }
-        String session = ClaudeSessionLookup.localSessionToResume(cwd,
-                task.claude() == null ? null : task.claude().sessionId());
+        String recorded = task.claude() == null ? null : task.claude().sessionId();
+        String found = ClaudeSessionLookup.localSessionToResume(cwd, recorded,
+                sessionIdsClaimedByOthers(task.id()));
+        boolean resume = found != null;
+        String session = found != null ? found : UUID.randomUUID().toString();
         terminal.showActionMessage(
-                session == null
-                        ? "No session running — start Claude in " + cwd + "."
-                        : "No session running — resume the last one in " + cwd + ".",
-                session == null ? "start" : "resume",
-                () -> terminal.startOwned(task.id(),
-                        LocalClaudeLauncher.ownedCommand("", null, session), cwd));
+                resume
+                        ? "No session running — resume the last one in " + cwd + "."
+                        : "No session running — start Claude in " + cwd + ".",
+                resume ? "resume" : "start",
+                () -> {
+                    terminal.startOwned(task.id(),
+                            LocalClaudeLauncher.ownedCommand("", null, session, resume), cwd);
+                    if (!session.equals(recorded)) {
+                        recordOwnedSession(files, task.id(), cwd, session);
+                    }
+                });
         return true;
+    }
+
+    /// The `claude.sessionId`s every task but `taskId` records — the
+    /// transcripts an owned session must not fall back to.
+    // [impl->dsn~terminal-owned-session~4]
+    private Set<String> sessionIdsClaimedByOthers(String taskId) {
+        TaskRepository repository = this.repository;
+        if (repository == null) {
+            return Set.of();
+        }
+        return repository.entries().stream()
+                .filter(entry -> entry instanceof TaskEntry.Loaded loaded
+                        && !loaded.id().equals(taskId))
+                .map(entry -> ((TaskEntry.Loaded) entry).task().claude())
+                .filter(Objects::nonNull)
+                .map(Task.ClaudeConfig::sessionId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /// Writes the id an owned session was started or resumed with into the
+    /// task file — the claim [#sessionIdsClaimedByOthers] reads. FX thread.
+    // [impl->dsn~terminal-owned-session~4]
+    private void recordOwnedSession(MainWindow.TaskFileAccess files, String taskId, String cwd,
+            String sessionId) {
+        String fileName = taskId + ".md";
+        String content = files.read(fileName);
+        if (content == null) {
+            Logger.warn("Owned session {} started but {} is unreadable; not recorded",
+                    sessionId, fileName);
+            return;
+        }
+        String error = files.save(fileName, TaskFileParser.withClaudeSessionId(
+                TaskFileParser.withClaudeSection(content, cwd), sessionId));
+        if (error != null) {
+            Logger.warn("Cannot record session {} in {}: {}", sessionId, fileName, error);
+            return;
+        }
+        MainWindow window = this.window;
+        if (window != null) {
+            window.reloadEditorIfShowing(fileName);
+        }
     }
 
     /// Moves the list to the task owning the window the **mirror says it is

@@ -81,8 +81,12 @@ public class LocalClaudeLauncher {
     /// the error instead of going blank. Newlines are folded to spaces — a
     /// command line is one line.
     ///
-    /// With a `session` the argv resumes that transcript and passes neither
-    /// model nor prompt: both belong to the conversation being continued.
+    /// The `session` id is always given: a `resume` continues that transcript
+    /// and passes neither model nor prompt — both belong to the conversation
+    /// being continued; a fresh start pins it with `--session-id`, so the task
+    /// file can record which transcript is its own. Without that the app had
+    /// only the cwd to go by, and two tasks in one folder resumed the same
+    /// newest transcript.
     ///
     /// A `"` becomes `'`: `cmd` knows no escaped quote, so one ended the
     /// quoted prompt and `cmd` parsed the rest — `"<"` became an input
@@ -90,13 +94,15 @@ public class LocalClaudeLauncher {
     // ponytail: `%NAME%` in the description is still expanded by cmd; deliver
     // the prompt through a file if that ever bites.
     public static List<String> ownedCommand(String description, @Nullable String model,
-            @Nullable String session) {
+            String session, boolean resume) {
         List<String> command = new ArrayList<>(List.of("cmd", "/k", "claude"));
-        if (session != null) {
+        if (resume) {
             command.add("--resume");
             command.add(session);
             return List.copyOf(command);
         }
+        command.add("--session-id");
+        command.add(session);
         addClaudeArguments(command,
                 description.replace("\r", " ").replace("\n", " ").replace('"', '\''), model);
         return List.copyOf(command);

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -35,10 +36,22 @@ class ClaudeSessionLookupTest {
         Files.writeString(dir.resolve("new.jsonl"), "");
         Files.setLastModifiedTime(dir.resolve("new.jsonl"), FileTime.fromMillis(2_000));
 
-        assertThat(ClaudeSessionLookup.sessionToResume(dir, "old")).isEqualTo("old");
-        assertThat(ClaudeSessionLookup.sessionToResume(dir, null)).isEqualTo("new");
-        assertThat(ClaudeSessionLookup.sessionToResume(dir, "gone")).isEqualTo("new");
-        assertThat(ClaudeSessionLookup.sessionToResume(dir.resolve("missing"), "old")).isNull();
+        assertThat(ClaudeSessionLookup.sessionToResume(dir, "old", Set.of())).isEqualTo("old");
+        assertThat(ClaudeSessionLookup.sessionToResume(dir, null, Set.of())).isEqualTo("new");
+        assertThat(ClaudeSessionLookup.sessionToResume(dir, "gone", Set.of())).isEqualTo("new");
+        assertThat(ClaudeSessionLookup.sessionToResume(dir.resolve("missing"), "old", Set.of())).isNull();
+    }
+
+    // [utest->dsn~terminal-owned-session~4]
+    @Test
+    void skipsANewerTranscriptAnotherTaskClaims(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("old.jsonl"), "");
+        Files.setLastModifiedTime(dir.resolve("old.jsonl"), FileTime.fromMillis(1_000));
+        Files.writeString(dir.resolve("new.jsonl"), "");
+        Files.setLastModifiedTime(dir.resolve("new.jsonl"), FileTime.fromMillis(2_000));
+
+        assertThat(ClaudeSessionLookup.sessionToResume(dir, null, Set.of("new"))).isEqualTo("old");
+        assertThat(ClaudeSessionLookup.sessionToResume(dir, null, Set.of("new", "old"))).isNull();
     }
 
     @Test
