@@ -493,13 +493,15 @@ Needs: impl, utest
 The bottom bar carries a flat `MenuButton` (MDI `monitor-share`) right of the switch chips, shown once `Main` wires it (`MainWindow.installProfileOverride`).
 Opening it lists "Category profile" (no override) and every profile name from `settings.yaml`, read at that moment, as radio items; the button shows the active override's name, so a forgotten `screenshare` stays in sight.
 A choice is kept in `Main.profileOverride` (session-only: a restart starts without override), is laid over every later switch, and takes effect right away through `EnvironmentProfileAction.reapply` — the profile of the category last switched to — with the outcome as a status-bar message.
+The button starts hidden from its construction on (`hiddenUntilInstalled`), not where the bottom bar is assembled: `Main` wires the override before `show` builds that bar, and hiding it there hid it for good.
+`ProfileOverrideUiTest` boots the real `Main` and checks the button is visible and lists the profiles; it opens the menu with `MenuButton.show`, since the robot's click did not open it in the test window.
 
 Tags: windows
 
 Covers:
 - req~environment-profiles~1
 
-Needs: impl
+Needs: impl, utest
 
 ### Note focus action
 `dsn~note-focus-action~1`

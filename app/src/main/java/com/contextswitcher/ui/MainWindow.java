@@ -1035,8 +1035,8 @@ public class MainWindow {
     /// The environment-profile override (screen share, …) next to the chips;
     /// hidden until [#installProfileOverride] wires it.
     // [impl->dsn~environment-profile-override~1]
-    private final MenuButton profileOverride = iconMenuButton(MDITechnology.MONITOR_SHARE,
-            "Environment profile override — laid over the category's profile until switched back");
+    private final MenuButton profileOverride = hiddenUntilInstalled(iconMenuButton(MDITechnology.MONITOR_SHARE,
+            "Environment profile override — laid over the category's profile until switched back"));
     /// The commit the running app was built from, in the status bar's right
     /// corner — empty until [#showCommit] fills it (git is asked off the FX
     /// thread), and empty forever when the app runs out of a zip.
@@ -1307,8 +1307,6 @@ public class MainWindow {
             Clipboard.getSystemClipboard().setContent(content);
             statusBar().message("Commit " + sha + " copied.");
         });
-        profileOverride.setVisible(false);
-        profileOverride.managedProperty().bind(profileOverride.visibleProperty());
         HBox bottomBar = new HBox(statusBar, profileOverride, commitLabel, openLog);
         bottomBar.setAlignment(Pos.CENTER_LEFT);
         bottomBar.setPadding(new Insets(0, 6, 0, 0));
@@ -7135,6 +7133,17 @@ public class MainWindow {
         label.setMaxWidth(Double.MAX_VALUE);
         Tooltip.install(label, new Tooltip(tooltip));
         return new CustomMenuItem(label);
+    }
+
+    /// `button`, invisible and taking no room until made visible. Hidden here,
+    /// at construction, rather than where the bottom bar is assembled: `Main`
+    /// wires (and reveals) the override before [#show] builds that bar.
+    // [impl->dsn~environment-profile-override~1]
+    private static MenuButton hiddenUntilInstalled(MenuButton button) {
+        button.setId("profile-override");
+        button.setVisible(false);
+        button.managedProperty().bind(button.visibleProperty());
+        return button;
     }
 
     /// A flat icon-only `MenuButton` for the toolbar — the [#iconButton] shape
