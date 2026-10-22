@@ -89,7 +89,7 @@ public class TmuxResurrect {
     /// in `cwd` with no Claude — the plain-shell choice of the remote-only
     /// auto-create popup. Returns the new immutable window id, or null with
     /// the failure logged.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     public @Nullable String createWindow(String remote, String session, @Nullable String cwd, String name) {
         SshCommandRunner.SshResult created = ssh.run(remote, ClaudeWindowLauncher.newWindowCommand(session, cwd, name));
         if (!created.ok()) {

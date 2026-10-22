@@ -390,7 +390,7 @@ public class MainWindow {
     /// Claude session over a plain shell; both start in the task's workspace
     /// on the remote and write the resulting `tmux:` (and `claude:`) section
     /// back to the file.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     public interface RemoteWindowStarter {
         void start(Task task, boolean withClaude, ClaudeMode mode);
     }
@@ -398,7 +398,7 @@ public class MainWindow {
     /// What [#askRemoteWindow] came back with: a Claude session or a plain
     /// tmux shell, and — for the Claude one — the model and effort to start it
     /// with.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     public record RemoteWindowChoice(boolean withClaude, ClaudeMode mode) {
     }
 
@@ -4326,7 +4326,7 @@ public class MainWindow {
     /// **claude** session — both started in the task's workspace on the remote.
     /// Once created, the file gains the `tmux:` (and, for claude, `claude:`)
     /// section, so the next play focuses it normally.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     private void promptRemoteWindow(Task task) {
         RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, task.remote(), true);
         if (choice != null) {
@@ -4350,7 +4350,7 @@ public class MainWindow {
     /// caller already knows it wants Claude (the placeholder's `claude`
     /// button): the dialog is then only there to pick model and effort, and a
     /// **tmux** button next to it would undo the choice just made.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     // [impl->dsn~claude-mode-select~3]
     public static @Nullable RemoteWindowChoice askRemoteWindow(@Nullable Window owner,
             Task task, @Nullable String remote, boolean offerTmux) {

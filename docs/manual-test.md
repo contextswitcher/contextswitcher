@@ -61,7 +61,7 @@ New checklist items for pure-UI behavior (dialogs, key chords, list filtering) s
       written back to the task file. *(2026-07-14; exercised repeatedly via
       the suspend/resume flow, which shares the resurrect path.)*
 
-## Open a window on play for a remote-only task (`dsn~remote-window-choice~6`)
+## Open a window on play for a remote-only task (`dsn~remote-window-choice~7`)
 
 - [ ] A task with only `remote:` set and **no** live `tmux:` section (commented
       template block is fine) → press the **play icon** → a dialog offers
@@ -78,10 +78,10 @@ New checklist items for pure-UI behavior (dialogs, key chords, list filtering) s
       of the prompt), and the next start is pre-selected with them.
 - [ ] Cancel → nothing happens.
 - [ ] The same task's terminal pane reads "No tmux configured for this task."
-      with **tmux** / **claude** buttons under it; **tmux** creates the plain
-      window straight away, **claude** opens the dialog above, and a failure
-      leaves the buttons pressable.
-- [ ] Cancelling that dialog starts nothing and leaves both placeholder buttons
+      with a single **Start Claude** button under it (no tmux-only button);
+      it opens the dialog above without its **tmux** button, and a failure
+      leaves the button pressable.
+- [ ] Cancelling that dialog starts nothing and leaves the placeholder button
       pressable.
 - [ ] "Open in IntelliJ" on a remote-only task opens IntelliJ **without** the
       tmux/claude dialog.

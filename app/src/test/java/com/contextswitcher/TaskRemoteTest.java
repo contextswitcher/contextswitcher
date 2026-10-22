@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// claude". A task written by hand carries no `remote:`, and the terminal
 /// placeholder's window buttons were gated on one — a dead end that asked for
 /// a frontmatter line first.
-// [utest->dsn~remote-window-choice~6]
+// [utest->dsn~remote-window-choice~7]
 class TaskRemoteTest {
 
     private static final String GROUP_CONFIG = """
