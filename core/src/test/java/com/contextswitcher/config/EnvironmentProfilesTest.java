@@ -1,5 +1,7 @@
 package com.contextswitcher.config;
 
+import java.util.Map;
+
 import com.contextswitcher.config.EnvironmentProfile.BookmarksBar;
 import com.contextswitcher.config.EnvironmentProfile.Displays;
 import com.contextswitcher.config.EnvironmentProfile.Resolution;
@@ -39,7 +41,7 @@ class EnvironmentProfilesTest {
 
         assertThat(profiles.names()).containsExactly("default", "lecture", "screenshare", "broken");
         assertThat(profiles.byName().get("lecture")).isEqualTo(new EnvironmentProfile(
-                new Resolution(1920, 1080), Displays.CLONE, Taskbar.AUTOHIDE, null));
+                Map.of("primary", new Resolution(1920, 1080)), Displays.CLONE, Taskbar.AUTOHIDE, null));
         // A typo reads as "not set", not as a broken settings file.
         assertThat(profiles.byName().get("broken").isEmpty()).isTrue();
     }
@@ -49,13 +51,33 @@ class EnvironmentProfilesTest {
         EnvironmentProfiles profiles = EnvironmentProfiles.parse(SETTINGS);
 
         assertThat(profiles.effective(null, null)).isEqualTo(new EnvironmentProfile(
-                new Resolution(2560, 1440), Displays.EXTEND, Taskbar.VISIBLE, BookmarksBar.VISIBLE));
+                Map.of("primary", new Resolution(2560, 1440)), Displays.EXTEND, Taskbar.VISIBLE, BookmarksBar.VISIBLE));
         assertThat(profiles.effective("lecture", null)).isEqualTo(new EnvironmentProfile(
-                new Resolution(1920, 1080), Displays.CLONE, Taskbar.AUTOHIDE, BookmarksBar.VISIBLE));
+                Map.of("primary", new Resolution(1920, 1080)), Displays.CLONE, Taskbar.AUTOHIDE, BookmarksBar.VISIBLE));
         // The override only hides the bookmarks bar; the category keeps the rest.
         assertThat(profiles.effective("lecture", "screenshare")).isEqualTo(new EnvironmentProfile(
-                new Resolution(1920, 1080), Displays.CLONE, Taskbar.AUTOHIDE, BookmarksBar.HIDDEN));
+                Map.of("primary", new Resolution(1920, 1080)), Displays.CLONE, Taskbar.AUTOHIDE, BookmarksBar.HIDDEN));
         assertThat(profiles.effective(null, "screenshare").bookmarksBar()).isEqualTo(BookmarksBar.HIDDEN);
+    }
+
+    @Test
+    void resolutionPerScreenMergesPerSelector() {
+        EnvironmentProfiles profiles = EnvironmentProfiles.parse("""
+                profiles:
+                  default:
+                    resolution:
+                      internal: 1920x1200
+                      DELL U4025QW: 5120x2160
+                      bogus: wide
+                  lecture:
+                    resolution: {External: 1920x1080, dell u4025qw: 3440x1440}
+                """);
+
+        assertThat(profiles.byName().get("default").resolution()).containsOnlyKeys("internal", "DELL U4025QW");
+        assertThat(profiles.effective("lecture", null).resolution()).containsExactly(
+                Map.entry("internal", new Resolution(1920, 1200)),
+                Map.entry("External", new Resolution(1920, 1080)),
+                Map.entry("dell u4025qw", new Resolution(3440, 1440)));
     }
 
     @Test

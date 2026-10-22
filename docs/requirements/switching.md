@@ -435,11 +435,11 @@ Needs: impl, utest
 ### Environment profiles
 `dsn~environment-profiles~1`
 
-`EnvironmentProfiles.parse` reads `settings.yaml`'s `profiles:` mapping (name → `EnvironmentProfile` with `resolution` `<w>x<h>`, `displays` `internal`/`clone`/`extend`/`external`, `taskbar` `visible`/`autohide`, `bookmarksBar` `visible`/`hidden`), leniently: a malformed value reads as unset, an unparseable file as no profiles.
+`EnvironmentProfiles.parse` reads `settings.yaml`'s `profiles:` mapping (name → `EnvironmentProfile` with `resolution` — a map from screen selector to `<w>x<h>`, a bare `<w>x<h>` meaning `{primary: …}` —, `displays` `internal`/`clone`/`extend`/`external`, `taskbar` `visible`/`autohide`, `bookmarksBar` `visible`/`hidden`), leniently: a malformed value reads as unset, an unparseable file as no profiles.
 It is read on its own, fresh on every switch, rather than as an `AppSettings` field — an edited profile needs no restart, and the settings editor patches the file key by key (`YamlPatch`), so the section survives a form save.
 A category names its profile with `profile:` in `CONTEXTSWITCHER.md` (`TaskFileParser.groupProfile`); the group-config skeleton carries it as a commented example.
 
-`EnvironmentProfiles.effective(categoryProfile, override)` layers per key: the override over the category's profile over `default`; a name `settings.yaml` does not define throws, naming it.
+`EnvironmentProfiles.effective(categoryProfile, override)` layers per key: the override over the category's profile over `default`, and `resolution` per screen selector (case-insensitive), so a lecture profile that sets `external` keeps the default's `internal`; a name `settings.yaml` does not define throws, naming it.
 `EnvironmentProfileAction` (chip `profile`) is configured exactly when `settings.yaml` defines any profile — a category without `profile:` still applies `default`, which is what undoes a lecture-hall look.
 It hands the effective profile's machine keys to `WindowsEnvironment` (`dsn~environment-profile-windows~1`) and the bookmarks bar to the extension (`dsn~environment-profile-bookmarks-bar~1`); the latter only when it differs from the state last put into effect, so a session without a browser does not fail every switch over an unchanged bar, and a failed send is retried on the next switch.
 The chip names the layers (`lecture + screenshare: …`) and what changed, or `already in place`.
@@ -456,9 +456,12 @@ Needs: impl, utest
 
 `WindowsEnvironment` builds one PowerShell script (inline C# P/Invoke, run as `-EncodedCommand`) with a step per key the profile sets; each step reads the current state and changes only what differs, so switching between tasks of one category costs no flicker.
 `displays` goes first: `QueryDisplayConfig(QDC_DATABASE_CURRENT)` yields the topology, `SetDisplayConfig(SDC_APPLY | SDC_TOPOLOGY_INTERNAL/CLONE/EXTEND/EXTERNAL)` sets it (the documented call behind Win+P, rather than `DisplaySwitch.exe`, whose switches moved between Windows 11 builds), then the script waits 2.5 s for the mode set to settle.
-`resolution` compares `EnumDisplaySettings(ENUM_CURRENT_SETTINGS)` of the primary display and sets it with `ChangeDisplaySettings(…, CDS_UPDATEREGISTRY)` — persisted, so a projector hot-plug that re-applies the stored mode does not undo it.
+`resolution` is per screen: `QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS)` lists the active screens and `DisplayConfigGetDeviceInfo` names each — EDID friendly name (`DELL U4025QW`; a laptop panel often has none), product code from the device path (`DEL4308`), output technology (LVDS/embedded DisplayPort/embedded UDI/internal = `internal`, anything else `external`), and its GDI source (`\\.\DISPLAYn`).
+Each screen takes the rule for its name or code, else `primary` (the screen at 0,0), else `internal`/`external`; a screen no rule matches is left alone, and a rule for a screen that is not connected is skipped silently — rooms differ in their screens.
+Display numbers are not a selector, since Windows renumbers them on docking and hot-plug.
+A screen whose current mode differs is staged with `ChangeDisplaySettingsEx(CDS_UPDATEREGISTRY | CDS_NORESET)` and all staged modes are applied together — persisted, so a projector hot-plug that re-applies the stored mode does not undo them.
 `taskbar` compares `SHAppBarMessage(ABM_GETSTATE)` and sets `ABM_SETSTATE` (`ABS_AUTOHIDE` or `ABS_ALWAYSONTOP`) on `Shell_TrayWnd` — the taskbar's auto-hide setting, which ExplorerPatcher's Windows 10 taskbar honours too.
-A mode the displays do not offer (`clone` with no projector plugged in) does not stop the other steps; the script exits 3 with the failures listed first.
+A mode the displays do not offer (`clone` with no projector plugged in, a resolution a screen lacks) does not stop the other steps; the script exits 3 with the failures listed first.
 A profile with only `bookmarksBar` spawns no `powershell`.
 
 Tags: windows
