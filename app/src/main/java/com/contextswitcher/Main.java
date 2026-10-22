@@ -4920,7 +4920,7 @@ public class Main extends Application {
                 sessionIdsClaimedByOthers(task.id()));
         boolean resume = found != null;
         String session = found != null ? found : UUID.randomUUID().toString();
-        terminal.showActionMessage(
+        terminal.showActionMessage(task.id(),
                 resume
                         ? "No session running — resume the last one in " + cwd + "."
                         : "No session running — start Claude in " + cwd + ".",

@@ -386,6 +386,11 @@ public class TaskListCell extends ListCell<Object> {
     /// task — decides whether the row shows the creation progress bar.
     // [impl->dsn~task-create-progress~6]
     private final Function<Task, @Nullable Creation> creationOf;
+    /// Whether the task is active but its Claude is *known* not to run — an
+    /// owned session with no live process, or a window the poll saw at a
+    /// bare shell. The hover toggle then offers play instead of pause.
+    // [impl->dsn~task-row-hover-actions~7]
+    private final Predicate<Task> sessionStopped;
 
     public TaskListCell(Consumer<Task> onSwitch, Consumer<Task> onOpenInIntellij,
             Consumer<Task> onRename, Consumer<Task> onDelete,
@@ -420,8 +425,10 @@ public class TaskListCell extends ListCell<Object> {
             Consumer<String> onOpenAutoSearch,
             Consumer<String> onScopeCategory, Function<String, @Nullable String> groupPath,
             Predicate<String> groupCurrent,
-            Function<Task, javafx.scene.control.@Nullable Menu> syncGroupsMenu) {
+            Function<Task, javafx.scene.control.@Nullable Menu> syncGroupsMenu,
+            Predicate<Task> sessionStopped) {
         this.syncGroupsMenu = syncGroupsMenu;
+        this.sessionStopped = sessionStopped;
         this.creationOf = creationOf;
         this.groupAutoQuery = groupAutoQuery;
         this.onOpenAutoSearch = onOpenAutoSearch;
@@ -1412,13 +1419,15 @@ public class TaskListCell extends ListCell<Object> {
         // The action gutter: shown only while the mouse is on the row, and laid
         // over the row (unmanaged) just left of the always-visible icons, so
         // hovering never reflows or re-truncates the title. One toggle — pause
-        // on an active task, play (resume and switch) otherwise, in the accent
-        // colour — then add link and the refactoring view, a divider, and
-        // delete at the far right, away from the toggle a row is reached for.
+        // on an active task whose Claude runs (or may), play (resume and
+        // switch) otherwise, in the accent colour — then add link and the
+        // refactoring view, a divider, and delete at the far right, away from
+        // the toggle a row is reached for.
         // [impl->dsn~task-row-hover-actions~7]
-        boolean active = task.status() == TaskStatus.ACTIVE;
+        boolean active = task.status() == TaskStatus.ACTIVE && !sessionStopped.test(task);
         Button toggle = iconButton(active ? MDIInterface.PAUSE : MDIInterface.PLAY,
-                active ? "Suspend…" : "Resume and switch");
+                active ? "Suspend…" : task.status() == TaskStatus.ACTIVE
+                        ? "No session running — switch and start it" : "Resume and switch");
         toggle.setId("task-toggle-button");
         toggle.getGraphic().getStyleClass().add("task-toggle-glyph");
         toggle.setOnAction(event -> {

@@ -1120,7 +1120,11 @@ public class MainWindow {
                 this::refactoringSummaryFor, this::showRefactorings,
                 task -> creations.get(task.id()),
                 this::groupAutoQuery, this::openAutoSearch,
-                this::toggleCategoryScope, this::groupPath, this::isCurrentGroup, this::syncGroupsMenu));
+                this::toggleCategoryScope, this::groupPath, this::isCurrentGroup, this::syncGroupsMenu,
+                this::sessionStopped));
+        // A session started or ended flips its row's pause/play toggle.
+        // [impl->dsn~task-row-hover-actions~7]
+        terminal.setOnOwnedChanged(list::refresh);
         list.setPlaceholder(emptyStatePlaceholder());
         installDragAutoScroll(list);
         // Fallback menu for the empty area below the last row (cells with
@@ -1939,6 +1943,22 @@ public class MainWindow {
     /// (the poll has not seen the window) counts as "has Claude": the button
     /// only appears on evidence, never on silence.
     // [impl->dsn~start-claude-button~2]
+    /// Whether the task's Claude is *known* not to run: an app-owned session
+    /// with no live process, or a window the poll saw at a bare shell
+    /// ([#lacksClaude]). Unknown counts as running — a row only offers play
+    /// on evidence.
+    // [impl->dsn~task-row-hover-actions~7]
+    private boolean sessionStopped(Task task) {
+        return ownedSessionStopped(task) || lacksClaude(task);
+    }
+
+    // [impl->dsn~terminal-owned-session~4]
+    private boolean ownedSessionStopped(Task task) {
+        return task.status() == TaskStatus.ACTIVE
+                && com.contextswitcher.terminal.LocalClaudeLauncher.ownsSession(task)
+                && !terminal.isOwnedRunning(task.id());
+    }
+
     private boolean lacksClaude(Task task) {
         Task.TmuxConfig tmux = task.tmux();
         if (task.status() == TaskStatus.SUSPENDED
@@ -4204,6 +4224,13 @@ public class MainWindow {
     private void switchResolved(Task task) {
         if (task.status() == TaskStatus.SUSPENDED) {
             writeStatus(task, TaskStatus.ACTIVE);
+        }
+        // Play on a local task with no session running starts (or resumes)
+        // it, rather than leaving the user at the placeholder's button.
+        // [impl->dsn~terminal-owned-session~4]
+        if (com.contextswitcher.terminal.LocalClaudeLauncher.ownsSession(task)
+                && !terminal.isOwnedRunning(task.id())) {
+            terminal.requestOwnedStart(task.id());
         }
         onSwitch.accept(task);
         // A window the poll saw at a bare shell (Claude killed or exited) gets

@@ -144,6 +144,21 @@ public class TerminalPane {
     // [impl->dsn~terminal-owned-session~4]
     private final Map<String, OwnedSession> owned = new ConcurrentHashMap<>();
 
+    /// Called (FX thread) whenever an owned session starts or its process
+    /// exits, so the task rows can flip their pause/play toggle.
+    // [impl->dsn~terminal-owned-session~4]
+    private Runnable onOwnedChanged = () -> { };
+
+    /// The owned session play asked to start before its offer was on screen:
+    /// the offer for it then runs instead of showing ([#showActionMessage]).
+    // [impl->dsn~terminal-owned-session~4]
+    private @Nullable String autoStartKey;
+
+    /// The start/resume button on screen and the session it is for.
+    // [impl->dsn~terminal-owned-session~4]
+    private @Nullable Button ownedOffer;
+    private @Nullable String ownedOfferKey;
+
     /// Every widget this pane built and still holds, so a `Ctrl`+wheel zoom
     /// reaches the sessions kept alive off-screen too ([#refreshFonts]).
     /// Weak: a widget is dropped with the session that owned it, and nothing
@@ -1347,6 +1362,21 @@ public class TerminalPane {
         return true;
     }
 
+    /// Whether the app-owned session `key` has a live process — false is
+    /// knowledge, not a guess: the app owns these processes, so none runs
+    /// that the pane does not hold.
+    // [impl->dsn~terminal-owned-session~4]
+    public boolean isOwnedRunning(String key) {
+        OwnedSession running = owned.get(key);
+        return running != null && running.isAlive();
+    }
+
+    /// Installs the hook [#onOwnedChanged] calls.
+    // [impl->dsn~terminal-owned-session~4]
+    public void setOnOwnedChanged(Runnable handler) {
+        this.onOwnedChanged = handler;
+    }
+
     /// Starts a Claude session the **app** owns in a ConPTY rooted at `cwd`
     /// ([OwnedSession#start]) and shows it.
     // [impl->dsn~terminal-owned-session~4]
@@ -1357,6 +1387,8 @@ public class TerminalPane {
         try {
             OwnedSession started = OwnedSession.start(key, command, cwd, view);
             owned.put(key, started);
+            started.onExit(() -> Platform.runLater(() -> onOwnedChanged.run()));
+            onOwnedChanged.run();
             showOwned(started);
             focusTerminal();
         } catch (IOException | RuntimeException e) {
@@ -1409,8 +1441,16 @@ public class TerminalPane {
     /// A placeholder with one button under it — the owned session's "start" /
     /// "resume" offer, the same shape [#showStartWindowMessage] uses for the
     /// remote window choice.
+    /// Play on a row whose owned session `key` is known stopped
+    /// ([#requestOwnedStart]) skips the offer and runs it straight away.
     // [impl->dsn~terminal-owned-session~4]
-    public void showActionMessage(String text, String label, Runnable action) {
+    public void showActionMessage(String key, String text, String label, Runnable action) {
+        if (key.equals(autoStartKey)) {
+            autoStartKey = null;
+            action.run();
+            return;
+        }
+        autoStartKey = null;
         showMessage(text);
         Button button = new Button(label);
         button.setId("owned-session-button");
@@ -1422,6 +1462,22 @@ public class TerminalPane {
         VBox box = new VBox(8, message, button);
         box.setAlignment(Pos.CENTER);
         center.getChildren().setAll(box);
+        ownedOffer = button;
+        ownedOfferKey = key;
+    }
+
+    /// Starts (or resumes) the owned session `key` — play on its row. The
+    /// offer is pressed when it is already on screen; otherwise the switch's
+    /// preview, which is still on its way, runs it instead of showing it.
+    // [impl->dsn~terminal-owned-session~4]
+    public void requestOwnedStart(String key) {
+        Button offer = ownedOffer;
+        if (offer != null && key.equals(ownedOfferKey) && !offer.isDisabled()
+                && offer.getParent() != null && center.getChildren().contains(offer.getParent())) {
+            offer.fire();
+            return;
+        }
+        autoStartKey = key;
     }
 
     /// Forwards keys JediTermFX drops to the tty: `Ctrl`+letter as the matching
