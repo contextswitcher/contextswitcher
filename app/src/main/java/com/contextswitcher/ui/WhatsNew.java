@@ -292,7 +292,7 @@ public final class WhatsNew {
     private static final Pattern INLINE =
             Pattern.compile("\\*\\*(.+?)\\*\\*|`([^`]+)`|(https?://\\S+?)(?=[\\s)\\]]|$)");
 
-    private static TextFlow inline(String line, Consumer<String> openUrl) {
+    static TextFlow inline(String line, Consumer<String> openUrl) {
         TextFlow flow = new TextFlow();
         Matcher m = INLINE.matcher(line);
         int pos = 0;
