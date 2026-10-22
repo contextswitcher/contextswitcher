@@ -85,7 +85,7 @@ class ExtensionProtocolTest {
                 .isEqualTo("{\"type\":\"tab-count\",\"url\":\"https://example.org/\",\"tasks\":[]}");
     }
 
-    // [utest->dsn~browser-tab-task-popup~1]
+    // [utest->dsn~browser-tab-task-popup~2]
     @Test
     void openLinkParses() {
         assertThat(ExtensionProtocol.parse(
@@ -93,7 +93,7 @@ class ExtensionProtocolTest {
                 .isEqualTo(new ExtensionProtocol.OpenLink("contextswitcher://switch/jabref/fix-npe"));
     }
 
-    // [utest->dsn~browser-tab-task-popup~1]
+    // [utest->dsn~browser-tab-task-popup~2]
     @Test
     void openLinkWithoutUrlRejected() {
         assertThatThrownBy(() -> ExtensionProtocol.parse("{\"type\":\"open-link\"}"))

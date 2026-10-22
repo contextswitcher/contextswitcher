@@ -1349,7 +1349,7 @@ Do this in both browsers.
 - [ ] Restart the browser → still disabled.
 - [ ] Click *✗ Disabled* → the icon turns grey (or blue on a listed page) within a second or two and the app sees the extension again.
 
-## The icon's popup names the tasks and acts on one (`dsn~browser-tab-task-popup~1`)
+## The icon's popup names the tasks and acts on one (`dsn~browser-tab-task-popup~2`)
 
 - [ ] Click the icon on a page two tasks list → the popup names both, the better match first, statuses shown for the ones that are not active.
 - [ ] Click a task's title → the popup closes, ContextSwitcher comes to the front with that task selected; nothing else is switched.

@@ -2,7 +2,7 @@
 // task selects it and raises ContextSwitcher; the ▶ next to it runs the full
 // switch. Both go out as the `contextswitcher://` links the app's own URL
 // scheme already handles.
-// [impl->dsn~browser-tab-task-popup~1]
+// [impl->dsn~browser-tab-task-popup~2]
 
 const browser = globalThis.browser ?? globalThis.chrome;
 
@@ -120,6 +120,11 @@ async function showToggle() {
   };
 }
 showToggle();
+
+// The installed version, so a stale install (an xpi not reinstalled after a
+// pull, a temporary add-on gone with the last Firefox restart) is told apart
+// from the one the app expects.
+document.getElementById("version").textContent = "v" + browser.runtime.getManifest().version;
 
 // The token is what a fresh install lacks, so its page is one click away.
 document.getElementById("options").addEventListener("click", () => {

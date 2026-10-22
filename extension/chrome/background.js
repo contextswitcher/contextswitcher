@@ -509,7 +509,7 @@ async function showTabCount(url, tasks) {
 // The popup's view of the answer: the task list for `url`, or null when the
 // app has not answered for that URL (yet). Only the tab in view can be shown,
 // so one answer is kept rather than a map that grows all session.
-// [impl->dsn~browser-tab-task-popup~1]
+// [impl->dsn~browser-tab-task-popup~2]
 function tasksForUrl(url) {
   return url && url === answered.url ? answered.tasks : null;
 }
@@ -521,7 +521,7 @@ function isConnected() {
 // An MV3 popup cannot reach into the service worker the way an MV2 popup
 // reached the background page, so its three needs — the state, a re-render on
 // a late answer, and running a link — go over runtime messages.
-// [impl->dsn~browser-tab-task-popup~1]
+// [impl->dsn~browser-tab-task-popup~2]
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "popup-state") {
     browser.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
@@ -545,7 +545,7 @@ function notifyPopup() {
 }
 
 // Runs a `contextswitcher://` link in the app — the popup's task rows.
-// [impl->dsn~browser-tab-task-popup~1]
+// [impl->dsn~browser-tab-task-popup~2]
 function openLink(url) {
   if (isConnected()) {
     socket.send(JSON.stringify({ type: "open-link", url }));

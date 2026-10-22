@@ -51,7 +51,7 @@ public final class ExtensionProtocol {
     /// A `contextswitcher://` URL the extension's popup wants run — the same
     /// links a note carries, arriving on the already authenticated connection
     /// (so no token, and no close: the extension keeps its socket).
-    // [impl->dsn~browser-tab-task-popup~1]
+    // [impl->dsn~browser-tab-task-popup~2]
     public record OpenLink(String url) implements Incoming {
     }
 
@@ -137,7 +137,7 @@ public final class ExtensionProtocol {
 
     /// One task in a `tab-count`: enough for the popup to show a row and to
     /// build the `contextswitcher://` link that acts on it.
-    // [impl->dsn~browser-tab-task-popup~1]
+    // [impl->dsn~browser-tab-task-popup~2]
     public record TabTask(String id, String title, String status) {
     }
 

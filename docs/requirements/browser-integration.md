@@ -506,7 +506,7 @@ Covers:
 Needs: impl, utest
 
 ### Tab task popup
-`dsn~browser-tab-task-popup~1`
+`dsn~browser-tab-task-popup~2`
 
 `popup.html`/`popup.js` are the icon's `default_popup` and list the tasks of the kept `tab-count` answer, one row each: the title (plus the status when it is not `active`) selects the task, the `▶` beside it switches to it.
 Both send `{"type":"open-link","url":"contextswitcher://task|switch/<id>"}` on the already authenticated socket; `ExtensionServer` hands the URL to the very `deepLinkHandler` the URL scheme uses — and, unlike the one-shot `deeplink` of a second app instance, leaves the connection open.
@@ -515,6 +515,8 @@ The popup reads the background page directly (`browser.extension.getBackgroundPa
 A task id carries `/` for its group folder, so the link encodes the segments and keeps the separators.
 No answer for the URL in view reads as "Asking ContextSwitcher…" or, with the socket down, "ContextSwitcher is not running" — never as an empty task list, which would be a lie about the page.
 There is deliberately no bare "show the application" button: with no task the application has nothing to show for the page.
+The state line also names the installed extension version (`runtime.getManifest().version`), so a stale install — an xpi not reinstalled after an update, a temporary add-on gone with the last Firefox restart — is told apart from the one the app's `extension/` directory holds.
+The Firefox popup additionally says when an environment profile marked the bookmarks bar hidden (`dsn~environment-profile-bookmarks-bar~1`), with a pointer at the `userChrome.css` setup: the mark is all the extension can do, and a bar still showing means that rule is missing, not that the switch failed.
 
 Tags: windows, linux
 

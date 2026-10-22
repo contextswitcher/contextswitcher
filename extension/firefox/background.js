@@ -457,7 +457,7 @@ const answered = { url: null, tasks: [] };
 // The popup, while it is open, so a late answer reaches the list on screen.
 // Set through a function rather than assigned: a top-level `let` is no
 // property of the background page's window, so the popup cannot reach it.
-// [impl->dsn~browser-tab-task-popup~1]
+// [impl->dsn~browser-tab-task-popup~2]
 let tabCountListener = null;
 
 function setTabCountListener(listener) {
@@ -489,7 +489,7 @@ async function showTabCount(url, tasks) {
 // The popup's view of the answer: the task list for `url`, or null when the
 // app has not answered for that URL (yet). Only the tab in view can be shown,
 // so one answer is kept rather than a map that grows all session.
-// [impl->dsn~browser-tab-task-popup~1]
+// [impl->dsn~browser-tab-task-popup~2]
 function tasksForUrl(url) {
   return url && url === answered.url ? answered.tasks : null;
 }
@@ -505,7 +505,7 @@ function stateOfConnection() {
 }
 
 // Runs a `contextswitcher://` link in the app — the popup's task rows.
-// [impl->dsn~browser-tab-task-popup~1]
+// [impl->dsn~browser-tab-task-popup~2]
 function openLink(url) {
   if (isConnected()) {
     socket.send(JSON.stringify({ type: "open-link", url }));

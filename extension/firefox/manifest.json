@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "ContextSwitcher",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Focuses, opens, and closes task tabs and windows on ContextSwitcher context switches.",
   "permissions": ["tabs", "tabGroups", "storage"],
   "icons": {
