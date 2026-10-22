@@ -32,11 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// The window choice play and the terminal placeholder share asks for the
 /// model and effort of the Claude session it starts, remembers the pick, and
-/// starts nothing when cancelled (`dsn~remote-window-choice~6`,
+/// starts nothing when cancelled (`dsn~remote-window-choice~7`,
 /// `dsn~claude-mode-select~3`).
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~remote-window-choice~6]
+// [utest->dsn~remote-window-choice~7]
 // [utest->dsn~claude-mode-select~3]
 @Tag("ui")
 @TestFxApplication(RemoteWindowModeUiTest.TestApp.class)

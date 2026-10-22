@@ -955,27 +955,25 @@ public class Main extends Application {
         });
         window.setOnStartClaude((task, onSettled) ->
                 startClaude(ssh, settings.claudeAuto(), task, onSettled));
-        // The same window choice play makes, from the terminal placeholder.
-        // The `tmux` button fires straight away — a plain shell has no model to
-        // pick; `claude` opens play's dialog for the model and effort instead of
-        // taking the remote CLI's defaults — but without its `tmux` button, which
-        // would only undo the choice just made, and with the *resolved* host in
-        // the text (`taskRemote`), since a task that borrows its category's
-        // `remote:` read "Open one on null?". A cancelled dialog re-draws the
-        // placeholder, whose buttons went dead for the round-trip that never
-        // started.
-        // [impl->dsn~remote-window-choice~6]
+        // The Claude half of the window choice play makes, from the terminal
+        // placeholder's `Start Claude` button: it opens play's dialog for the
+        // model and effort instead of taking the remote CLI's defaults — but
+        // without its `tmux` button, which would only undo the choice just
+        // made, and with the *resolved* host in the text (`taskRemote`), since
+        // a task that borrows its category's `remote:` read "Open one on
+        // null?". A cancelled dialog re-draws the placeholder, whose button
+        // went dead for the round-trip that never started.
+        // [impl->dsn~remote-window-choice~7]
         // [impl->dsn~claude-mode-select~3]
-        terminalPane.setWindowStarter((task, withClaude) -> {
-            MainWindow.RemoteWindowChoice choice = withClaude
-                    ? MainWindow.askRemoteWindow(dialogOwner(), task, taskRemote(files, task), false)
-                    : new MainWindow.RemoteWindowChoice(false, ClaudeMode.DEFAULT);
+        terminalPane.setWindowStarter(task -> {
+            MainWindow.RemoteWindowChoice choice =
+                    MainWindow.askRemoteWindow(dialogOwner(), task, taskRemote(files, task), false);
             if (choice == null) {
                 window.refreshPreview(task.id());
                 return;
             }
             startRemoteWindow(orchestrator, repository, files, ssh, messageSender, settings,
-                    task, choice.withClaude(), choice.mode());
+                    task, true, choice.mode());
         });
         // A key sent into, or a restart during, a session that is still being
         // started breaks that start. [impl->dsn~busy-while-creating~2]
@@ -2194,8 +2192,8 @@ public class Main extends Application {
     /// deliberately moved to another host must not be pulled back by the
     /// category it sits in — and the category's is what makes "claude" mean
     /// "tmux + claude" for a task that never recorded a host of its own
-    /// (`dsn~remote-window-choice~6`).
-    // [impl->dsn~remote-window-choice~6]
+    /// (`dsn~remote-window-choice~7`).
+    // [impl->dsn~remote-window-choice~7]
     static @Nullable String taskRemote(MainWindow.TaskFileAccess files, Task task) {
         return task.remote() != null ? task.remote()
                 : groupLink(files, taskGroup(task),
@@ -3882,11 +3880,11 @@ public class Main extends Application {
     /// new window id is written back as a real `tmux:` section (and, for Claude,
     /// a `claude:` cwd section) so the next play focuses it; then the task is
     /// selected and switched to, focusing the window and attaching the mirror.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     private void startRemoteWindow(SwitchOrchestrator orchestrator, TaskRepository repository,
             MainWindow.TaskFileAccess files, SshCommandRunner ssh, MessageSender sender,
             AppSettings settings, Task task, boolean withClaude, ClaudeMode mode) {
-        // The category's host when the task names none (`dsn~remote-window-choice~6`).
+        // The category's host when the task names none (`dsn~remote-window-choice~7`).
         String remote = taskRemote(files, task);
         ExecutorService executor = this.actionExecutor;
         MainWindow window = this.window;
@@ -3930,7 +3928,7 @@ public class Main extends Application {
         // 2026-09-12: "I clicked 'Claude' on this task and it just stalled. I
         // was expecting the 'usual' progress bar" — on a creation that had in
         // fact succeeded while the screenshot was being taken.
-        // [impl->dsn~remote-window-choice~6]
+        // [impl->dsn~remote-window-choice~7]
         // Counted in, because the shared `finishCreation` below counts out:
         // without this the in-flight counter went negative and the *next*
         // Add-task creation announced "Creating 0 tasks …".
@@ -3965,10 +3963,10 @@ public class Main extends Application {
             Platform.runLater(() -> {
                 // Clears the bar and reports the outcome exactly as the
                 // Add-task flow does, the failure alert included.
-                // [impl->dsn~remote-window-choice~6]
+                // [impl->dsn~remote-window-choice~7]
                 // A failure re-draws the placeholder (in `finishCreation`), so
                 // its buttons — dead for the round-trip — can be pressed again.
-                // [impl->dsn~remote-window-choice~6]
+                // [impl->dsn~remote-window-choice~7]
                 finishCreation(window, task.id(), created, remote, reason);
                 if (created == null) {
                     return;
@@ -4388,7 +4386,7 @@ public class Main extends Application {
     /// Writes the freshly created window's `tmux:` (and, for Claude, `claude:`
     /// cwd) section back into the task file, then selects and switches to the
     /// task so the window is focused and the mirror attaches. FX thread.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     private void writeRemoteWindowBack(SwitchOrchestrator orchestrator, TaskRepository repository,
             AppSettings settings, MainWindow.TaskFileAccess files, String taskId, String session,
             String windowId, @Nullable String claudeCwd, @Nullable String adoptedRemote) {
@@ -4413,7 +4411,7 @@ public class Main extends Application {
         // A host borrowed from the category becomes the task's own: the window
         // now really is there, and every later action (mirror, focus, queue)
         // addresses a task by its `remote:`.
-        // [impl->dsn~remote-window-choice~6]
+        // [impl->dsn~remote-window-choice~7]
         if (adoptedRemote != null) {
             updated = TaskFileParser.withScalar(updated, "remote", adoptedRemote);
         }
@@ -4883,7 +4881,7 @@ public class Main extends Application {
                 // one whose creation died before it recorded a host) has none
                 // of its own, and asking the user to add a line to the file
                 // first is the dead end this placeholder exists to remove.
-                // [impl->dsn~remote-window-choice~6]
+                // [impl->dsn~remote-window-choice~7]
                 // A failed creation's cause stands in for the placeholder text.
                 // [impl->dsn~task-create-progress~6]
                 terminal.showStartWindowMessage(failure != null ? failure : "No tmux configured for this task.", task);

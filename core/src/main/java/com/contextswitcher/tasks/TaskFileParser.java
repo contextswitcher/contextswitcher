@@ -472,7 +472,7 @@ public class TaskFileParser {
     /// from a task file, or null when the file is not fenced frontmatter, the
     /// YAML does not parse, or the key is absent. Used to resolve a
     /// remote-only task's working directory when auto-creating its window.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     public @Nullable String frontmatterString(String content, String key) {
         String normalized = content.replace("\r\n", "\n");
         if (normalized.startsWith("﻿")) {
@@ -1046,7 +1046,7 @@ public class TaskFileParser {
     /// template block (all `#`) is left in place — [#withTmuxWindow] cannot
     /// touch it, so we add real keys instead. No-op when the content is not
     /// fenced frontmatter.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     public static String withTmuxSection(String content, String session, String windowId, String note) {
         String normalized = content.replace("\r\n", "\n");
         String[] lines = normalized.split("\n", -1);
@@ -1076,7 +1076,7 @@ public class TaskFileParser {
     /// (a commented template block does not count) or the content is not
     /// fenced frontmatter — so a real session's recorded context is never
     /// overwritten.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     public static String withClaudeSection(String content, String cwd) {
         String normalized = content.replace("\r\n", "\n");
         String[] lines = normalized.split("\n", -1);

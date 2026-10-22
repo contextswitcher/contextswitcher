@@ -1031,46 +1031,36 @@ public class TerminalPane {
         center.getChildren().setAll(message);
     }
 
-    /// Opens a tmux or Claude window for a task that has none — the recovery
-    /// buttons of [#showMessage]. A no-op until [#setWindowStarter] wires
+    /// Opens a Claude window for a task that has none — the recovery button
+    /// of [#showMessage]. A no-op until [#setWindowStarter] wires
     /// `Main.startRemoteWindow` up.
-    // [impl->dsn~remote-window-choice~6]
-    private BiConsumer<Task, Boolean> windowStarter = (task, withClaude) -> { };
+    // [impl->dsn~remote-window-choice~7]
+    private Consumer<Task> windowStarter = task -> { };
 
-    /// Hands the pane the window starter its recovery buttons call.
-    // [impl->dsn~remote-window-choice~6]
-    public void setWindowStarter(BiConsumer<Task, Boolean> starter) {
+    /// Hands the pane the window starter its recovery button calls.
+    // [impl->dsn~remote-window-choice~7]
+    public void setWindowStarter(Consumer<Task> starter) {
         this.windowStarter = starter;
     }
 
-    /// [#showMessage] with the **tmux** / **claude** buttons under the text:
-    /// the choice play offers for a task that has a remote but no window
-    /// (`dsn~remote-window-choice~6`), offered here as well because the
+    /// [#showMessage] with a **Start Claude** button under the text: the Claude
+    /// half of the choice play offers for a task that has a remote but no
+    /// window (`dsn~remote-window-choice~7`), offered here as well because the
     /// placeholder is where a creation that died halfway is actually seen.
-    /// Both buttons go dead for the round-trip; the window written back (or
+    /// The button goes dead for the round-trip; the window written back (or
     /// the failure's preview refresh) replaces the placeholder.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     public void showStartWindowMessage(String text, Task task) {
         showMessage(text);
-        HBox actions = new HBox(6,
-                startWindowButton("tmux", task, false),
-                startWindowButton("claude", task, true));
-        actions.setAlignment(Pos.CENTER);
-        VBox box = new VBox(8, message, actions);
+        Button start = new Button("Start Claude");
+        start.getStyleClass().add(Styles.SMALL);
+        start.setOnAction(event -> {
+            start.setDisable(true);
+            windowStarter.accept(task);
+        });
+        VBox box = new VBox(8, message, start);
         box.setAlignment(Pos.CENTER);
         center.getChildren().setAll(box);
-    }
-
-    // [impl->dsn~remote-window-choice~6]
-    private Button startWindowButton(String label, Task task, boolean withClaude) {
-        Button button = new Button(label);
-        button.getStyleClass().add(Styles.SMALL);
-        button.setOnAction(event -> {
-            HBox row = (HBox) button.getParent();
-            row.getChildren().forEach(node -> node.setDisable(true));
-            windowStarter.accept(task, withClaude);
-        });
-        return button;
     }
 
     /// Where a hovered link's URL is reported (the status bar); a no-op until
