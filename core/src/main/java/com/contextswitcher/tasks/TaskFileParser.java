@@ -376,6 +376,7 @@ public class TaskFileParser {
                     # mainCheckout: /data/koppor/%1$s-workspaces/%1$s
                     # repo: https://github.com/owner/%1$s
                     %3$s
+                    # profile: lecture
                     # tags: [needs-review]
                     # auto: {query: "repo:owner/%1$s review-requested:@me", maxSloc: 50, deleteHours: 24}
                     # intellij: {projectPath: /data/koppor/%1$s}
@@ -416,6 +417,10 @@ public class TaskFileParser {
                 #   additionally stores and closes every Firefox window on that
                 #   desktop when a task of this category is suspended, and reopens
                 #   the stored tabs on resume — a clean desktop in between.
+                # profile: lecture
+                #   Environment profile from settings.yaml's profiles: (resolution,
+                #   projector mode, taskbar, bookmarks bar) applied on every switch to
+                #   a task of this category. Omit for the default profile.
                 # tags: [needs-review]
                 #   Tags inherited by every task in this group (as if each task
                 #   carried them); colors are configured in settings.yaml.
@@ -966,6 +971,14 @@ public class TaskFileParser {
     // [impl->dsn~chat-focus-action~2]
     public static @Nullable String groupChat(String content) {
         return groupString(content, "chat");
+    }
+
+    /// The `profile:` name from a group's `CONTEXTSWITCHER.md` frontmatter —
+    /// which of `settings.yaml`'s environment profiles a switch to one of the
+    /// group's tasks applies; null means the `default` profile.
+    // [impl->dsn~environment-profiles~1]
+    public static @Nullable String groupProfile(String content) {
+        return groupString(content, "profile");
     }
 
     /// A top-level string key of a group's `CONTEXTSWITCHER.md` frontmatter,

@@ -141,6 +141,13 @@ class ExtensionProtocolTest {
                 .isEqualTo("{\"type\":\"close-window\",\"id\":\"abc-4\",\"windowId\":17}");
     }
 
+    // [utest->dsn~environment-profile-bookmarks-bar~1]
+    @Test
+    void bookmarksBarEncodesAllFields() {
+        assertThat(ExtensionProtocol.encodeBookmarksBar("abc-5", true))
+                .isEqualTo("{\"type\":\"bookmarks-bar\",\"id\":\"abc-5\",\"hidden\":true}");
+    }
+
     @Test
     void resultWithWindowsParses() {
         assertThat(ExtensionProtocol.parse("{\"type\":\"result\",\"id\":\"abc-3\",\"ok\":true,"

@@ -193,6 +193,17 @@ public final class ExtensionProtocol {
         return node.toString();
     }
 
+    /// Shows or hides the browser's bookmarks toolbar in every window — an
+    /// environment profile's `bookmarksBar` key.
+    // [impl->dsn~environment-profile-bookmarks-bar~1]
+    public static String encodeBookmarksBar(String id, boolean hidden) {
+        ObjectNode node = MAPPER.createObjectNode();
+        node.put("type", "bookmarks-bar");
+        node.put("id", id);
+        node.put("hidden", hidden);
+        return node.toString();
+    }
+
     /// Parses a message from the extension.
     ///
     /// @throws IllegalArgumentException on malformed JSON, a missing/unknown
