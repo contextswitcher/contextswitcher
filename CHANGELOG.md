@@ -11,6 +11,7 @@ The topmost section is the day in progress — its link points at `main` until t
 ### Fixed
 
 - On Windows, two tasks working in the same folder each resume their own Claude conversation. Before, both showed the folder's newest conversation. A task that recorded no conversation yet now skips the ones other tasks own.
+- A task row shows play instead of pause when its Claude is known not to run: on Windows when the task has no session running, or on a remote when the window was last seen at a bare shell. On Windows, play starts or resumes the session directly. The button switches as soon as a session starts or exits.
 
 ## [2026-10-19] - 2026-10-19
 
