@@ -191,6 +191,54 @@ class AddTaskDialogUiTest {
         FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
     }
 
+    /// The category combo groups the active desktop's categories under a
+    /// disabled heading ahead of the others, and the host picker next to it
+    /// narrows the list to the local categories.
+    // [utest->dsn~task-create-category-pick~1]
+    @Test
+    void categoriesComeGroupedByDesktopAndFilteredByHost() throws Exception {
+        Path dir = UiTestSupport.tasksDir;
+        for (String name : java.util.List.of("alpha", "beta", "gamma")) {
+            Files.createDirectories(dir.resolve(name));
+        }
+        Files.writeString(dir.resolve("alpha").resolve("CONTEXTSWITCHER.md"),
+                "---\ndesktop: Work\n---\n");
+        Files.writeString(dir.resolve("beta").resolve("CONTEXTSWITCHER.md"),
+                "---\nworkdir: " + dir.resolve("beta") + "\n---\n");
+        ListView<Object> list = awaitPresent(() -> FX_ROBOT.selectNodes(ListView.class).fromAll()
+                .<ListView<Object>>map(view -> (ListView<Object>) view).findFirst(),
+                "the task ListView");
+        awaitPresent(() -> list.getItems().stream().filter(TaskListCell.GroupHeader.class::isInstance).count() == 3
+                ? Optional.of(true) : Optional.empty(), "the three categories to load");
+        Platform.runLater(() -> mainWindow().updateActiveDesktop("Work"));
+        openAddTask();
+        ComboBox<String> category = awaitPresent(() -> FX_ROBOT.selectNodes(ComboBox.class).fromAll()
+                .filter(box -> "add-task-category".equals(box.getId()))
+                .<ComboBox<String>>map(box -> (ComboBox<String>) box).findFirst(),
+                "the add-task category combo");
+        assertThat(category.getItems()).containsExactly("", "This desktop (Work)", "alpha",
+                "Other desktops", "beta", "gamma");
+        ComboBox<String> host = (ComboBox<String>) category.getScene().lookup("#add-task-host");
+        assertThat(host.getItems()).containsExactly("(all hosts)", "local");
+        Platform.runLater(() -> host.setValue("local"));
+        // The category the dialog was opened for (alpha, the one in view) stays
+        // listed, so the filter never takes the pre-selection away.
+        awaitPresent(() -> category.getItems().equals(java.util.List.of("", "Other desktops", "beta", "alpha"))
+                ? Optional.of(true) : Optional.empty(), "the list narrowed to the local category");
+        assertThat(category.getValue()).isEqualTo("alpha");
+        FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
+    }
+
+    private static MainWindow mainWindow() {
+        try {
+            java.lang.reflect.Field field = com.contextswitcher.Main.class.getDeclaredField("window");
+            field.setAccessible(true);
+            return (MainWindow) field.get(UiTestSupport.app);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     /// The dialog pre-fills from the system clipboard — whatever the display
     /// happens to hold. Select-all + delete makes each test start blank.
     private static void clearPrefill() {

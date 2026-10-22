@@ -10,6 +10,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Added
 
+- The Add-task dialog's category list shows the current desktop's categories first, under a heading, and a host picker next to it narrows the list to the local categories or to those of one remote.
 - Environment profiles: `settings.yaml` can define named looks for the machine (`profiles:` with a `resolution` per screen — picked by monitor name, `internal`, `external` or `primary` —, projector mode `displays`, `taskbar: autohide`, Firefox `bookmarksBar: hidden`), and a category picks one with `profile:` in its `CONTEXTSWITCHER.md`. Switching to a task applies its category's profile, and a task of a category without one restores the `default` profile. A status-bar menu lays an override such as `screenshare` on top until switched back. Hiding the bookmarks bar needs a one-time `userChrome.css` rule (see the Firefox extension README).
 - Browser extensions 0.8.0: the icon's popup names the installed extension version, and in Firefox says when a profile marked the bookmarks bar hidden, pointing at the `userChrome.css` setup when the bar still shows.
 ### Fixed

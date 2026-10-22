@@ -1516,6 +1516,7 @@ the queue boxes' compose chords, installed by the shared `QueuePane.installCompo
 The field also takes the queue boxes' attachment affordances (`QueuePane.installAttachments`, `dsn~message-queue-ui~26`): files dragged from the OS and pasted clipboard images are stored under the local attachments dir and referenced as `[file: …]`/`[image: …]` markers in the description — the live-task prompt delivery uploads them and rewrites the markers to their remote paths like any queued message (`dsn~task-from-pr~6`), so Claude can read an attached spec right from the initial prompt; in the task file's title and Notes the markers keep pointing at the local copies.
 `Ctrl+T` opens the same dialog from anywhere in the main window (a capture-phase scene filter like `Ctrl+F`'s, `dsn~task-find~9`, so the terminal pane does not swallow it as ^T).
 A **Category** combo box at the top of the dialog picks the group the task lands in, pre-selected with the group it was opened for; choosing another re-evaluates the hints, the enabled buttons and the default button below for that group.
+Its entries are grouped by desktop and narrowed by host (`dsn~task-create-category-pick~1`).
 The add-menu item and `Ctrl+T` target the category in view (`MainWindow.selectedGroup`): the group of the current selection while it is on screen — a selected group header's own name, a selected task's folder — else the group of the topmost visible row, else the root — so adding a task while a category is in view files it into that category (with that group's workdir defaults) rather than always the root.
 A list scrolled away from the selection, or with none, pre-selects the category shown at its top, not the one that sorts first (`~15`, 2026-09-18).
 The per-group affordances still pass their own group explicitly.
@@ -1539,6 +1540,22 @@ Tags: windows, linux
 Covers:
 - req~task-create~1
 - req~compose-key-conventions~5
+
+Needs: impl, utest
+
+### The category combo lists the active desktop first and filters by host
+`dsn~task-create-category-pick~1`
+
+With a few dozen categories the Add-task dialog's flat, alphabetical category combo (`dsn~task-create-ui~15`) makes the one wanted a scroll away, although it is almost always one of the active virtual desktop's (Oliver, 2026-10-22).
+The combo therefore lists its entries like the `Ctrl+J` popup does (`CategoryJump.rows`, `dsn~category-jump~1`): `(no category)` first, then the active desktop's categories under a `This desktop (<name>)` heading, then the rest under `Other desktops` — each group alphabetical; with the active desktop unknown (non-Windows, no desktop watch running) the list is flat.
+A heading is a disabled, caption-styled cell; the arrow keys step over it in the direction they were going instead of landing on it.
+A host picker right of the combo (`add-task-host`) narrows the list: `(all hosts)` (the default), `local` for the local categories (a CS config with a directory and no `remote:`, `dsn~task-create-local~4`) and one entry per remote some category resolves to (`CategoryJump.hosts`/`onHost`; a category's host is what `Add remote Claude` would use — its own `remote:`, else the settings fallback).
+A pick that the filter removes falls back to the category the dialog was opened for, which is always listed.
+
+Tags: windows, linux
+
+Covers:
+- req~task-create~1
 
 Needs: impl, utest
 
