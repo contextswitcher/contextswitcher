@@ -7,6 +7,7 @@ import com.contextswitcher.config.EnvironmentProfile;
 import com.contextswitcher.config.EnvironmentProfile.BookmarksBar;
 import com.contextswitcher.config.EnvironmentProfile.Displays;
 import com.contextswitcher.config.EnvironmentProfile.Resolution;
+import com.contextswitcher.config.EnvironmentProfile.Screen;
 import com.contextswitcher.config.EnvironmentProfile.Taskbar;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +19,7 @@ class WindowsEnvironmentTest {
     @Test
     void scriptChecksEachKeyBeforeChangingIt() {
         String script = WindowsEnvironment.script(new EnvironmentProfile(
-                Map.of("primary", new Resolution(1920, 1080)), Displays.CLONE, Taskbar.AUTOHIDE, null));
+                Map.of("primary", new Screen(new Resolution(1920, 1080))), Displays.CLONE, Taskbar.AUTOHIDE, null));
 
         assertThat(script)
                 .contains("if ([CsEnv]::Topology() -ne 2)")
@@ -32,9 +33,9 @@ class WindowsEnvironmentTest {
 
     @Test
     void screenSelectorsBecomeQuotedLiteralsInOrder() {
-        Map<String, Resolution> screens = new LinkedHashMap<>();
-        screens.put("internal", new Resolution(1920, 1200));
-        screens.put("Oliver's DELL", new Resolution(5120, 2160, 125));
+        Map<String, Screen> screens = new LinkedHashMap<>();
+        screens.put("internal", new Screen(new Resolution(1920, 1200)));
+        screens.put("Oliver's DELL", new Screen(new Resolution(5120, 2160), 125));
 
         assertThat(WindowsEnvironment.script(new EnvironmentProfile(screens, null, null, null)))
                 .contains("[CsScreens]::Apply(@('internal', 'Oliver''s DELL'), @(1920, 5120), @(1200, 2160), @(100, 125))");
@@ -43,7 +44,7 @@ class WindowsEnvironmentTest {
     @Test
     void scaleFollowsTheModesCountedFromTheRecommendedScale() {
         String script = WindowsEnvironment.script(new EnvironmentProfile(
-                Map.of("internal", new Resolution(2880, 1800, 125)), null, null, null));
+                Map.of("internal", new Screen(new Resolution(2880, 1800), 125)), null, null, null));
 
         assertThat(script)
                 .contains("var changes = Modes(keys, widths, heights);")
@@ -53,9 +54,19 @@ class WindowsEnvironmentTest {
     }
 
     @Test
+    void scaleOnlyRuleLeavesTheModeAlone() {
+        String script = WindowsEnvironment.script(new EnvironmentProfile(
+                Map.of("DEL4308", new Screen(null, 150)), null, null, null));
+
+        assertThat(script)
+                .contains("[CsScreens]::Apply(@('DEL4308'), @(0), @(0), @(150))")
+                .contains("if (widths[rule] == 0 ||");
+    }
+
+    @Test
     void screensMatchByNameOrCodeBeforePrimaryBeforeInternalOrExternal() {
         String script = WindowsEnvironment.script(new EnvironmentProfile(
-                Map.of("external", new Resolution(1920, 1080)), null, null, null));
+                Map.of("external", new Screen(new Resolution(1920, 1080))), null, null, null));
 
         assertThat(script)
                 .contains("foreach (string want in new[] { s.Name, s.Code })")

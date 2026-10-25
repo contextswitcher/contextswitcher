@@ -490,15 +490,20 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                     color: "#bf3989"
                 profiles:                    # how the machine looks per situation; a category picks one with `profile:`, the status bar can override it
                   default:                   # the system's normal look: every category without `profile:`, and the fallback for keys a profile leaves out
-                    resolution:              # per screen, <width>x<height>[@<scale>%] (Windows' "Scale", 100% when left out); a bare `resolution: 2560x1440` means the primary screen
-                      internal: 2880x1800@125%   # the laptop panel
-                      DELL U4025QW: 5120x2160   # a monitor by EDID name or product code (DEL4308); name/code beats primary beats internal/external
-                      external: 2560x1440    # any other external screen; screens no rule matches are left alone
+                    screens:                 # per screen: resolution <width>x<height> (omitted = left alone) and scale in percent (Windows' "Scale"; omitted = 100)
+                      internal:              # the laptop panel
+                        resolution: 2880x1800
+                        scale: 125
+                      DELL U4025QW:          # a monitor by EDID name or product code (DEL4308); name/code beats primary beats internal/external
+                        resolution: 5120x2160
+                      external:              # any other external screen; screens no rule matches are left alone
+                        resolution: 2560x1440
                     displays: extend         # Win+P mode: internal (PC screen only), clone (duplicate), extend, external (second screen only)
                     taskbar: visible         # visible or autohide
                     bookmarksBar: visible    # Firefox bookmarks toolbar: visible or hidden (needs the userChrome.css rule, see README)
                   lecture:
-                    resolution: {external: 1920x1080}   # the projector; merged per screen over default's
+                    screens:                 # merged per screen over default's
+                      external: {resolution: 1920x1080}   # the projector
                     displays: clone
                     taskbar: autohide
                     bookmarksBar: hidden

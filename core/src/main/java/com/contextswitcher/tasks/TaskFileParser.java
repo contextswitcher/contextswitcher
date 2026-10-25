@@ -418,7 +418,7 @@ public class TaskFileParser {
                 #   desktop when a task of this category is suspended, and reopens
                 #   the stored tabs on resume — a clean desktop in between.
                 # profile: lecture
-                #   Environment profile from settings.yaml's profiles: (resolution,
+                #   Environment profile from settings.yaml's profiles: (screens,
                 #   projector mode, taskbar, bookmarks bar) applied on every switch to
                 #   a task of this category. Omit for the default profile.
                 # tags: [needs-review]

@@ -8,7 +8,7 @@ import java.util.List;
 import com.contextswitcher.config.EnvironmentProfile;
 
 /// Puts the machine-level keys of an [EnvironmentProfile] into effect —
-/// projection mode (`displays`), per-screen `resolution`, and taskbar
+/// projection mode (`displays`), per-screen resolution and scale (`screens`), and taskbar
 /// auto-hide — through one `powershell` script with inline C# P/Invoke, the
 /// same shape as the other Windows integrations.
 ///
@@ -19,15 +19,15 @@ import com.contextswitcher.config.EnvironmentProfile;
 ///   documented call behind Win+P (`DisplaySwitch.exe`, whose switches moved
 ///   between Windows 11 builds). It runs first and the script then waits for
 ///   the mode set to settle, since duplicating picks a common resolution of
-///   its own that the `resolution` step is to override.
-/// - `resolution`: `QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS)` lists the
+///   its own that the `screens` step is to override.
+/// - `screens`: `QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS)` lists the
 ///   active screens; `DisplayConfigGetDeviceInfo` names each (EDID friendly
 ///   name, the product code from its device path, the output technology that
 ///   tells the laptop panel from an external screen, its GDI source). Each
 ///   screen takes the rule for its name or code, else `primary` (the screen
 ///   at 0,0), else `internal`/`external`; a screen no rule matches is left
 ///   alone, and so is a rule for a screen that is not connected. Changed
-///   modes are staged with `ChangeDisplaySettingsEx(CDS_UPDATEREGISTRY |
+///   modes (of rules with a `resolution`) are staged with `ChangeDisplaySettingsEx(CDS_UPDATEREGISTRY |
 ///   CDS_NORESET)` and applied together — persisted, so a projector hot-plug
 ///   (which re-applies the stored mode) does not undo them; the `default`
 ///   profile is what puts them back. Each matched screen's scale (the
@@ -228,7 +228,8 @@ public class WindowsEnvironment {
                   string label = s.Name != "" ? s.Name : (s.Code != "" ? s.Code : s.Gdi);
                   if (rule < 0 || done.Contains(s.Gdi)) { continue; }
                   done.Add(s.Gdi);
-                  if (s.Width == widths[rule] && s.Height == heights[rule]) { continue; }
+                  // 0x0: the rule only sets the scale
+                  if (widths[rule] == 0 || (s.Width == widths[rule] && s.Height == heights[rule])) { continue; }
                   var dm = new DEVMODE(); dm.dmSize = (short) Marshal.SizeOf(typeof(DEVMODE));
                   EnumDisplaySettings(s.Gdi, -1, ref dm);
                   dm.dmPelsWidth = widths[rule]; dm.dmPelsHeight = heights[rule]; dm.dmFields = 0x80000 | 0x100000;
@@ -286,7 +287,7 @@ public class WindowsEnvironment {
     /// Whether `profile` has anything for this class to do — the
     /// `bookmarksBar` key is the browser extension's.
     public static boolean handles(EnvironmentProfile profile) {
-        return profile.displays() != null || !profile.resolution().isEmpty() || profile.taskbar() != null;
+        return profile.displays() != null || !profile.screens().isEmpty() || profile.taskbar() != null;
     }
 
     /// The PowerShell script putting the machine-level keys of `profile` into
@@ -310,22 +311,22 @@ public class WindowsEnvironment {
                     }
                     """.formatted(topology, key));
         }
-        if (!profile.resolution().isEmpty()) {
-            List<String> screens = new ArrayList<>();
+        if (!profile.screens().isEmpty()) {
+            List<String> selectors = new ArrayList<>();
             List<String> widths = new ArrayList<>();
             List<String> heights = new ArrayList<>();
             List<String> scales = new ArrayList<>();
-            profile.resolution().forEach((screen, mode) -> {
-                screens.add("'" + screen.replace("'", "''") + "'");
-                widths.add(Integer.toString(mode.width()));
-                heights.add(Integer.toString(mode.height()));
-                scales.add(Integer.toString(mode.scale()));
+            profile.screens().forEach((selector, screen) -> {
+                selectors.add("'" + selector.replace("'", "''") + "'");
+                widths.add(screen.resolution() == null ? "0" : Integer.toString(screen.resolution().width()));
+                heights.add(screen.resolution() == null ? "0" : Integer.toString(screen.resolution().height()));
+                scales.add(Integer.toString(screen.scale()));
             });
             script.append("""
                     foreach ($c in [CsScreens]::Apply(@(%s), @(%s), @(%s), @(%s))) {
                       if ($c.StartsWith('!')) { $failures += $c.Substring(1) } else { $changes += $c }
                     }
-                    """.formatted(String.join(", ", screens), String.join(", ", widths),
+                    """.formatted(String.join(", ", selectors), String.join(", ", widths),
                     String.join(", ", heights), String.join(", ", scales)));
         }
         if (profile.taskbar() != null) {

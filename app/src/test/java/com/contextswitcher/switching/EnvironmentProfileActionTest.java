@@ -19,8 +19,8 @@ class EnvironmentProfileActionTest {
 
     private static final EnvironmentProfiles PROFILES = EnvironmentProfiles.parse("""
             profiles:
-              default: {resolution: 2560x1440, taskbar: visible, bookmarksBar: visible}
-              lecture: {resolution: 1920x1080, taskbar: autohide, bookmarksBar: hidden}
+              default: {screens: {primary: {resolution: 2560x1440}}, taskbar: visible, bookmarksBar: visible}
+              lecture: {screens: {primary: {resolution: 1920x1080}}, taskbar: autohide, bookmarksBar: hidden}
               screenshare: {bookmarksBar: hidden}
             """);
 
@@ -59,7 +59,7 @@ class EnvironmentProfileActionTest {
         ActionResult lecture = action.run(task("teaching/slides"));
         assertThat(lecture.ok()).isTrue();
         assertThat(lecture.detail()).startsWith("lecture: ");
-        assertThat(machine.getLast().resolution().get("primary")).hasToString("1920x1080");
+        assertThat(machine.getLast().screens().get("primary").resolution()).hasToString("1920x1080");
         assertThat(bars).containsExactly(true);
 
         ActionResult desk = action.run(task("work/fix"));
@@ -90,7 +90,7 @@ class EnvironmentProfileActionTest {
 
         assertThat(result.detail()).startsWith("default + screenshare: ");
         assertThat(bars).containsExactly(false, true);
-        assertThat(machine.getLast().resolution().get("primary")).hasToString("2560x1440");
+        assertThat(machine.getLast().screens().get("primary").resolution()).hasToString("2560x1440");
     }
 
     @Test
