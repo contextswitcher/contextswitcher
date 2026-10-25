@@ -69,7 +69,7 @@ class LiveTaskStarterTest {
         assertThat(createdIds).containsExactly(taskId)
         assertThat(remote.commands).anyMatch { it.contains("new-window -t 'main:' -c '/ws'") }
         assertThat(remote.commands).anyMatch { it.contains("claude --dangerously-skip-permissions") }
-        assertThat(remote.pasted.joinToString()).contains("Fix the build").contains("git worktree for this task from the work subdirectory")
+        assertThat(remote.pasted.joinToString()).contains("Fix the build").contains("git worktree for this task from the primary clone at /ws/r")
 
         val check = File(tmp, "check")
         Git.cloneRepository().setURI(bare.absolutePath).setDirectory(check).call().close()
