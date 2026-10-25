@@ -1392,6 +1392,16 @@ Needs the debug APK on a phone with synced tasks, and a car or the Desktop Head 
 - [ ] Without network, *Send “yes”* → toast *Not sent, kept on the phone*; the phone lists it under *Sent when Claude is idle*.
 - [ ] After picking a task, the phone shows *Watching: <task>* (if not: Android refused the service start from the car — note it).
 
+## Voice tour (`dsn~android-voice-tour~1`)
+
+Needs the debug APK on a phone with synced tasks of a category whose tasks record `claude.sessionId`, a Claude session or two in that category, and the phone's audio on a speaker (the car's Bluetooth does).
+
+- [ ] Task list, *Tour* → the dialog lists only categories with a reachable task; pick one → the phone says "<category>: N tasks. Waiting for you: …" and then the first task's title, status and Claude's last answer, as prose, not as terminal lines.
+- [ ] *Next* / *Previous* step and speak; *Repeat* speaks the card again; the last task has *Next* disabled.
+- [ ] *Dictate* → the first time Android asks for the microphone; the spoken sentence appears under *Heard:*; *Send* delivers it, the session's reply comes in a few sentences without tables, and within about ten seconds of Claude finishing the phone reads it out.
+- [ ] Without network, *Send* → "Not sent, kept on the phone"; the message is in the task's enqueued list.
+- [ ] Head unit: *Tour* in the header → category list → the same card as a message screen with *Dictate* and *Next*; *Previous* and *Repeat* in the header. Dictation from the tour sends with the voice-mode hint.
+
 ## Android update hint (`dsn~android-update-hint~3`)
 
 Needs the debug APK on a phone, an *Update token* (or a *Token*) with read access to the ContextSwitcher repository, and a finished run of *Publish Android dev build* (`gh workflow run android-dev.yml`) for a newer commit.

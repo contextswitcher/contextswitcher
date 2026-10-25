@@ -8,6 +8,10 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ## [2026-10-25] - 2026-10-25
 
+### Added
+
+- Android: a voice tour through a category's tasks — *Tour* in the task list (and on the Android Auto head unit) reads out how many tasks wait, then task by task the title, status and Claude's last answer, takes a dictated reply into the task's session and reads the finished answer; the reply asks Claude for a few spoken sentences instead of tables or diffs.
+
 ### Fixed
 
 - A live task of a category that was renamed out of a name clash (`contextswitcher` → `contextswitcher-swkgpu1`) tells Claude to branch from the clone's actual path instead of a subdirectory named after the new category, which did not exist. The rename now also records `mainCheckout:` in the category's `CONTEXTSWITCHER.md`.

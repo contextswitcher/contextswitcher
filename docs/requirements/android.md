@@ -179,6 +179,21 @@ Covers:
 
 Needs: dsn
 
+### Walk through a category's tasks by voice
+`req~android-voice-tour~1`
+
+On the road, the user can ask what is up in a category and have the phone walk through its tasks aloud: how many tasks, which wait for the user; then task by task the title, the status and Claude's last answer as spoken text, not a terminal snapshot.
+A dictated reply goes into the task's own Claude session, asking for an answer that reads well aloud, and the finished answer is read out; *Next* moves on, *Previous* back.
+Every task keeps its own session: the tour steps through them, it does not merge them.
+Works on the phone (mounted, over the car's audio) and on the Android Auto head unit.
+
+Tags: android
+
+Covers:
+- feat~android-companion-app~1
+
+Needs: dsn
+
 ## Design
 
 ### `TaskRepoSync`
@@ -521,5 +536,23 @@ Tags: android
 
 Covers:
 - req~android-auto~1
+
+Needs: impl, utest
+
+### Voice tour
+`dsn~android-voice-tour~1`
+
+`com.contextswitcher.android.voice.VoiceTour` is the tour's logic, shared by the phone's `VoiceTourScreen` and the head unit's `CarTourScreen` (reached from *Tour* in the car's task list, after picking a category in `CarTourCategoryScreen`; on the phone from *Tour* in the task list's top bar).
+`VoiceTour.of(category, groups, ssh)` takes the category's reachable tasks in `carTasks` order (`dsn~android-auto-tasks~1`: waiting first) with one status poll; `overview()` is "what is up" — the count, the waiting tasks' titles, how many work — and `announcement()` the current task's card: position, title, status, and Claude's last answer.
+That answer comes from :core's `ClaudeTranscript`: one ssh call reads the last five assistant lines of `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` (the task's `claude.cwd` and `claude.sessionId`; the encoding of `dsn~claude-session-capture~3`) and takes the text blocks of the newest line that has any — the API-request blobs on other lines never travel; a task without a session id has no answer.
+`Speaker` wraps Android's on-device `TextToSpeech`; `Dictation` is the former `CarDictation`, with the car's microphone optional: on the phone it listens through `SpeechRecognizer` directly.
+A dictated reply is sent as `VoiceTour.spokenReply(text)`, the text behind a hint asking for a few spoken sentences without tables, code or diffs, through the same path as a head-unit message (`dsn~android-auto-message~1`: sent at once, kept on the phone on failure), and only after the recognized text was shown.
+Both screens re-read the statuses every ten seconds (`refreshStatuses`) and read the current task's card again when its status leaves `working`, so a finished turn is heard without touching anything.
+Ceiling: one TTS voice for English and German text; the tour over several categories at once is a loop the user runs by hand.
+
+Tags: android
+
+Covers:
+- req~android-voice-tour~1
 
 Needs: impl, utest

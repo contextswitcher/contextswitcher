@@ -1,0 +1,63 @@
+package com.contextswitcher.android.voice
+
+import com.contextswitcher.android.car.CarTask
+import com.contextswitcher.ssh.SshCommandRunner
+import com.contextswitcher.tasks.Task
+import com.contextswitcher.tasks.TaskStatus
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+
+/// The overview names the waiting tasks, the card reads Claude's last
+/// answer from the transcript, and a dictated reply carries the spoken hint.
+// [utest->dsn~android-voice-tour~1]
+class VoiceTourTest {
+
+    private val ssh = object : SshCommandRunner {
+        val commands = ArrayList<String>()
+        override fun run(host: String, remoteCommand: List<String>): SshCommandRunner.SshResult {
+            commands += host + ": " + remoteCommand.joinToString(" ")
+            return SshCommandRunner.SshResult(0,
+                """{"type":"assistant","message":{"content":[{"type":"text","text":"Tests pass."}]}}""" + "\n", "")
+        }
+
+        override fun runWithInput(host: String, remoteCommand: List<String>, input: ByteArray) = run(host, remoteCommand)
+    }
+
+    private fun task(id: String, title: String, session: String? = "s-$id") = Task(id, title, TaskStatus.ACTIVE, "devbox",
+        Task.TmuxConfig("jabref", "@1"), null, null, null, Task.ClaudeConfig("/home/o/jabref", session, null),
+        null, emptyList(), emptyList(), emptyList(), null, null, "")
+
+    private val tour = VoiceTour("jabref", listOf(
+        CarTask(task("a", "Fix the NPE"), "waiting"),
+        CarTask(task("b", "Bump Gradle"), "working"),
+        CarTask(task("c", "Docs typo", session = null), null),
+    ), ssh)
+
+    @Test
+    fun `the overview counts and names what waits`() {
+        assertThat(tour.overview()).isEqualTo("jabref: 3 tasks. Waiting for you: Fix the NPE. Working: 1.")
+        assertThat(VoiceTour("jabref", emptyList(), ssh).overview()).isEqualTo("jabref: no task with a Claude session.")
+    }
+
+    @Test
+    fun `the card reads the last answer from the task's transcript`() {
+        assertThat(tour.announcement()).isEqualTo("Task 1 of 3: Fix the NPE. Status: waiting. Claude said: Tests pass.")
+        assertThat(ssh.commands).containsExactly(
+            "devbox: grep -F '\"type\":\"assistant\"' ~/.claude/projects/-home-o-jabref/s-a.jsonl | tail -5")
+    }
+
+    @Test
+    fun `stepping stays within the list and a task without a session has no answer`() {
+        assertThat(tour.next()).isTrue()
+        assertThat(tour.next()).isTrue()
+        assertThat(tour.next()).isFalse()
+        assertThat(tour.announcement()).isEqualTo("Task 3 of 3: Docs typo. Status: unknown. No answer from Claude yet.")
+        assertThat(tour.previous()).isTrue()
+        assertThat(tour.index).isEqualTo(1)
+    }
+
+    @Test
+    fun `a dictated reply asks for a spoken answer`() {
+        assertThat(VoiceTour.spokenReply("merge it")).startsWith("(Voice mode:").endsWith(") merge it")
+    }
+}

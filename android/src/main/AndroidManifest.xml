@@ -18,7 +18,7 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
-    <!-- The head-unit app's dictation (car/CarDictation): the car's microphone,
+    <!-- Dictation (voice/Dictation): the phone's or the car's microphone,
          and sight of the phone's speech recognition service. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <queries>
