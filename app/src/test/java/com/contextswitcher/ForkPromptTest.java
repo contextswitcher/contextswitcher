@@ -10,7 +10,7 @@ class ForkPromptTest {
     @Test
     void namesTheSourceTaskAndFencesTheInstructionVerbatim() {
         String prompt = Main.forkPrompt("Fix the NPE when saving twice", "also add a test",
-                null, "/home/carl/jabref", null, false, "jabref");
+                null, "/home/carl/jabref", null, false, "jabref", null);
         assertThat(prompt)
                 .contains("a fork of the conversation of task \"Fix the NPE when saving twice\"")
                 .contains("\n-----\nalso add a test\n-----")
@@ -21,34 +21,43 @@ class ForkPromptTest {
     @Test
     void checksTheRecordedWorkspaceOverTheCwd() {
         String prompt = Main.forkPrompt("t", "do x", "/home/carl/jabref/worktrees/t",
-                "/home/carl/jabref", null, false, "jabref");
+                "/home/carl/jabref", null, false, "jabref", null);
         assertThat(prompt).contains("Then check the workspace /home/carl/jabref/worktrees/t");
     }
 
     @Test
     void fallsBackToTheCwdWhenNoWorkspaceWasRecorded() {
-        String prompt = Main.forkPrompt("t", "do x", null, "/home/carl/jabref", null, false, "jabref");
+        String prompt = Main.forkPrompt("t", "do x", null, "/home/carl/jabref", null, false, "jabref", null);
         assertThat(prompt).contains("Then check the workspace /home/carl/jabref");
     }
 
     @Test
     void blankWorkspaceAlsoFallsBackToTheCwd() {
-        String prompt = Main.forkPrompt("t", "do x", "   ", "/home/carl/jabref", null, false, "jabref");
+        String prompt = Main.forkPrompt("t", "do x", "   ", "/home/carl/jabref", null, false, "jabref", null);
         assertThat(prompt).contains("Then check the workspace /home/carl/jabref");
     }
 
     @Test
     void bootstrapPointsAtThePrimaryCloneAndNamesTheRepository() {
         String prompt = Main.forkPrompt("t", "do x", null, "/data/jabref",
-                "https://github.com/JabRef/jabref", true, "jabref");
+                "https://github.com/JabRef/jabref", true, "jabref", null);
         assertThat(prompt)
                 .contains("git worktree for this task from the jabref subdirectory")
                 .contains("The GitHub repository is https://github.com/JabRef/jabref.");
     }
 
     @Test
+    void bootstrapNamesTheMainCheckoutWhenTheCategoryHasOne() {
+        String prompt = Main.forkPrompt("t", "do x", null, "/data/jabref-workspaces",
+                null, true, "jabref-swkgpu1", "/data/jabref-workspaces/jabref");
+        assertThat(prompt)
+                .contains("git worktree for this task from the primary clone at /data/jabref-workspaces/jabref")
+                .doesNotContain("subdirectory");
+    }
+
+    @Test
     void noBootstrapAddsNoWorktreeClause() {
-        String prompt = Main.forkPrompt("t", "do x", null, "/data/jabref", null, false, "jabref");
+        String prompt = Main.forkPrompt("t", "do x", null, "/data/jabref", null, false, "jabref", null);
         assertThat(prompt).doesNotContain("worktree");
     }
 }

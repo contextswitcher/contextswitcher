@@ -204,6 +204,15 @@ public record GroupConfig(
                 .toList();
     }
 
+    /// The category's primary clone: the `mainCheckout:` it spells, else the
+    /// [#conventionalMainCheckout], else null. The live-task prompt names it
+    /// so a renamed category (`dsn~category-name-clash~1`) still points
+    /// Claude at the clone that kept the old name.
+    // [impl->dsn~task-create-live~8]
+    public @Nullable String effectiveMainCheckout() {
+        return mainCheckout != null ? mainCheckout : conventionalMainCheckout();
+    }
+
     /// The primary clone a category has even when it spells no
     /// `mainCheckout:` — `<workspacesRoot>/<repo name>`, the very path
     /// [TaskFileParser#groupConfigForRepo] writes. The hand-edited skeleton

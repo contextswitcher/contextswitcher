@@ -443,4 +443,17 @@ class GroupConfigTest {
         assertThat(config.repo()).isEqualTo("https://github.com/owner/tools");
         assertThat(config.tags()).containsExactly("needs-review");
     }
+
+    // [utest->dsn~task-create-live~8]
+    @Test
+    void effectiveMainCheckoutIsTheSpelledOneElseTheConventionalOne() {
+        assertThat(new GroupConfig("r", "/data/kopp/contextswitcher-workspaces", null,
+                "https://github.com/contextswitcher/contextswitcher", null, "/data/kopp/cs", null, java.util.List.of())
+                .effectiveMainCheckout()).isEqualTo("/data/kopp/cs");
+        assertThat(new GroupConfig("r", "/data/kopp/contextswitcher-workspaces/", null,
+                "https://github.com/contextswitcher/contextswitcher", null, null, null, java.util.List.of())
+                .effectiveMainCheckout()).isEqualTo("/data/kopp/contextswitcher-workspaces/contextswitcher");
+        assertThat(new GroupConfig("r", "/data/kopp/contextswitcher-workspaces", null, null).effectiveMainCheckout())
+                .isNull();
+    }
 }

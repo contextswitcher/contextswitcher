@@ -4648,7 +4648,30 @@ public class MainWindow {
         if (dialog.showAndWait().orElse(back) != rename) {
             return false;
         }
+        pinMainCheckout(name);
         return renameGroupTo(name, TaskFileParser.slug(newName.getText()));
+    }
+
+    /// Writes the category's conventional `mainCheckout:` (`<workspacesRoot>/<repo
+    /// name>`) into its `CONTEXTSWITCHER.md` before a clash rename when it
+    /// spells none: the clone on the host keeps the old name, and the
+    /// live-task prompt would otherwise send Claude to a `<new name>`
+    /// subdirectory that does not exist (field report 2026-10-22). A
+    /// category that already names one, or has no root/repo to derive it
+    /// from, is left alone.
+    // [impl->dsn~category-name-clash~1]
+    private void pinMainCheckout(String group) {
+        GroupConfig config = groupDefaults(group);
+        String checkout = config.effectiveMainCheckout();
+        if (config.mainCheckout() != null || checkout == null) {
+            return;
+        }
+        String configFile = groupConfigFileName(group);
+        if (!files.exists(configFile)) {
+            return;
+        }
+        files.save(configFile, TaskFileParser.withScalar(files.load(configFile), "mainCheckout", checkout));
+        groupConfigCache.remove(group);
     }
 
     /// The proposed new name of an existing category whose name a new one

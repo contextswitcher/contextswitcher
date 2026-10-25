@@ -55,7 +55,7 @@ class LiveTaskStarter(
         val remote = remoteOf(dir, category) ?: return Outcome.Failed("No remote: none in the category's ${TaskRepository.GROUP_CONFIG_FILE_NAME}, none on any task")
         val workdir = config.resolveWorkdir()
         val session = usualSession(dir, remote)
-        val prompt = ClaudeWindowLauncher.liveTaskPrompt(description, config.repo(), config.bootstrapWorktree(), category, null)
+        val prompt = ClaudeWindowLauncher.liveTaskPrompt(description, config.repo(), config.bootstrapWorktree(), category, config.effectiveMainCheckout(), null)
         if (workdir != null) {
             onStep("Preparing the workspace …")
             // So `tmux new-window -c` succeeds on a fresh workspaces root.

@@ -2270,11 +2270,14 @@ public class Main extends Application {
     }
 
     /// A category's permanent checkout: the `mainCheckout:` from its
-    /// `CONTEXTSWITCHER.md`, or null when the group is the root, has no config,
-    /// or names none. Read fresh (like [#groupDesktop]) so an edited value
-    /// takes effect without a restart. "Show diff" falls back to it when the
-    /// task's own worktree is already deleted.
+    /// `CONTEXTSWITCHER.md` — else the conventional `<workspacesRoot>/<repo
+    /// name>` (`GroupConfig.effectiveMainCheckout`) — or null when the group
+    /// is the root, has no config, or names none. Read fresh (like
+    /// [#groupDesktop]) so an edited value takes effect without a restart.
+    /// "Show diff" falls back to it when the task's own worktree is already
+    /// deleted; the live-task prompt names it as the clone to branch from.
     // [impl->dsn~diff-after-worktree-removal~1]
+    // [impl->dsn~task-create-live~8]
     private static @Nullable String groupMainCheckout(MainWindow.TaskFileAccess files,
             @Nullable String group) {
         if (group == null || group.isEmpty()) {
@@ -2282,7 +2285,7 @@ public class Main extends Application {
         }
         String fileName = group + "/" + TaskRepository.GROUP_CONFIG_FILE_NAME;
         return files.exists(fileName)
-                ? new TaskFileParser().parseGroupConfig(files.load(fileName)).mainCheckout()
+                ? new TaskFileParser().parseGroupConfig(files.load(fileName)).effectiveMainCheckout()
                 : null;
     }
 
@@ -3680,7 +3683,8 @@ public class Main extends Application {
         creationStarted(window);
         // The description travels verbatim: the prompt goes over ssh
         // stdin into a tmux buffer (no argv quoting limits).
-        String prompt = ClaudeWindowLauncher.liveTaskPrompt(title, repo, bootstrapWorktree, group, appendix);
+        String prompt = ClaudeWindowLauncher.liveTaskPrompt(title, repo, bootstrapWorktree, group,
+                groupMainCheckout(files, group), appendix);
         // The file is written first, without the `tmux:` section the launcher
         // has yet to produce, so the row is in the list from the first second —
         // showing its creation progress — instead of appearing only when the
@@ -3761,13 +3765,13 @@ public class Main extends Application {
     /// same worktree-bootstrap clause [ClaudeWindowLauncher#liveTaskPrompt] does.
     // [impl->dsn~task-fork~1]
     static String forkPrompt(String sourceTitle, String instruction, @Nullable String workspace, String cwd,
-            @Nullable String repo, boolean bootstrapWorktree, String group) {
+            @Nullable String repo, boolean bootstrapWorktree, String group, @Nullable String mainCheckout) {
         String checkTarget = workspace == null || workspace.isBlank() ? cwd : workspace;
         return "You are a fork of the conversation of task \"" + sourceTitle.strip() + "\". " + ClaudeWindowLauncher.TITLE_CLAUSE
                 + " Then check the workspace " + checkTarget.strip()
                 + " — its state may have moved on since the conversation you remember"
                 + " — and do what is between the ----- lines below."
-                + ClaudeWindowLauncher.worktreeClause(bootstrapWorktree, repo, group)
+                + ClaudeWindowLauncher.worktreeClause(bootstrapWorktree, repo, group, mainCheckout)
                 + "\n-----\n" + instruction.strip() + "\n-----";
     }
 
@@ -3808,7 +3812,7 @@ public class Main extends Application {
         String session = usualSession(repository, remote);
         boolean claudeAuto = settings.claudeAuto();
         String prompt = forkPrompt(source.title(), instruction, claude.workspace(), cwd,
-                repo, bootstrapWorktree, group);
+                repo, bootstrapWorktree, group, groupConfig.effectiveMainCheckout());
         String content = """
                 ---
                 title: %s
@@ -3946,7 +3950,7 @@ public class Main extends Application {
             if (withClaude) {
                 String description = task.notes().isBlank() ? task.title() : task.notes().strip();
                 String prompt = ClaudeWindowLauncher.liveTaskPrompt(description, repo, bootstrapWorktree && cwd != null,
-                        group, null);
+                        group, groupConfig.effectiveMainCheckout(), null);
                 ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
                 windowId = launcher
                         .launch(remote, session, task.title(), prompt, cwd, mode,

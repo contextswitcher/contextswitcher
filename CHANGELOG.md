@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub once the day is over.
 The topmost section is the day in progress — its link points at `main` until that tag exists.
 
+## [2026-10-25] - 2026-10-25
+
+### Fixed
+
+- A live task of a category that was renamed out of a name clash (`contextswitcher` → `contextswitcher-swkgpu1`) tells Claude to branch from the clone's actual path instead of a subdirectory named after the new category, which did not exist. The rename now also records `mainCheckout:` in the category's `CONTEXTSWITCHER.md`.
+
 ## [2026-10-22] - 2026-10-22
 
 ### Added
@@ -152,7 +158,8 @@ The topmost section is the day in progress — its link points at `main` until t
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
-[2026-10-22]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-19...main
+[2026-10-25]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-22...main
+[2026-10-22]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-19...v2026-10-22
 [2026-10-19]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-18...v2026-10-19
 [2026-10-18]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-12...v2026-10-18
 [2026-10-12]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-11...v2026-10-12
