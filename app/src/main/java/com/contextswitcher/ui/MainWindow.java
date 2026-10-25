@@ -2002,12 +2002,13 @@ public class MainWindow {
     /// only appears on evidence, never on silence.
     // [impl->dsn~start-claude-button~2]
     /// Whether the task's Claude is *known* not to run: an app-owned session
-    /// with no live process, or a window the poll saw at a bare shell
-    /// ([#lacksClaude]). Unknown counts as running — a row only offers play
-    /// on evidence.
+    /// with no live process, a window the poll saw at a bare shell
+    /// ([#lacksClaude]), or no window recorded at all (switch resurrects it).
+    /// Unknown counts as running — a row only offers play on evidence.
     // [impl->dsn~task-row-hover-actions~7]
     private boolean sessionStopped(Task task) {
-        return ownedSessionStopped(task) || lacksClaude(task);
+        return ownedSessionStopped(task) || lacksClaude(task)
+                || com.contextswitcher.switching.TmuxFocusAction.windowGone(task);
     }
 
     // [impl->dsn~terminal-owned-session~4]
