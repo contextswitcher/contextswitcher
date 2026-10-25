@@ -24,9 +24,13 @@ const STATES = {
   "no-token": { icon: "icon-red.svg", title: "ContextSwitcher: no token configured" },
   disconnected: { icon: "icon-orange.svg", title: "ContextSwitcher: not connected to the app" },
   connected: { icon: "icon-gray.svg", title: "ContextSwitcher: connected" },
-  // [impl->dsn~extension-enable-toggle~1]
+  // [impl->dsn~extension-enable-toggle~2]
   disabled: { icon: "icon-disabled.svg", title: "ContextSwitcher: disabled" },
 };
+// The count badge, in the icon's own blue.
+const FOUND_COLOR = "#0077BB";
+// The "OFF" badge while disabled, Tampermonkey-style red.
+const OFF_COLOR = "#CC3311";
 // Null until the first state is painted, so the very first setState is
 // never mistaken for a no-op repaint.
 let connectionState = null;
@@ -40,6 +44,11 @@ function setState(state) {
   // No tabId: while connected, a page the app has answered for keeps the
   // per-tab tooltip naming its count, which says more about that tab.
   browser.browserAction.setTitle({ title: STATES[state].title });
+  // Switched off says so in words too, as Tampermonkey does — the faded icon
+  // alone is easy to miss. Global, so every tab without a count of its own
+  // (all of them, after the sweep below) shows it. [impl->dsn~extension-enable-toggle~2]
+  browser.browserAction.setBadgeText({ text: state === "disabled" ? "OFF" : "" });
+  browser.browserAction.setBadgeBackgroundColor({ color: state === "disabled" ? OFF_COLOR : FOUND_COLOR });
   sweepTabs(state);
 }
 
@@ -53,7 +62,7 @@ async function sweepTabs(state) {
   for (const tab of await browser.tabs.query({})) {
     browser.browserAction.setIcon({ tabId: tab.id, path: STATES[state].icon });
     if (state !== "connected") {
-      browser.browserAction.setBadgeText({ tabId: tab.id, text: "" });
+      browser.browserAction.setBadgeText({ tabId: tab.id, text: null });
       browser.browserAction.setTitle({ tabId: tab.id, title: STATES[state].title });
     }
   }
@@ -63,7 +72,7 @@ async function sweepTabs(state) {
 // asynchronously, so a connect() that finds a newer number after the read lost
 // a race — to a parallel start-up call, or to the popup's switch landing
 // mid-read — and must not dial with what it read: that socket would outlive
-// the switch. [impl->dsn~extension-enable-toggle~1]
+// the switch. [impl->dsn~extension-enable-toggle~2]
 let generation = 0;
 
 async function loadSettings() {
@@ -80,7 +89,7 @@ async function connect() {
   if (!enabled) {
     // Switched off in the popup: stay silent until it is switched on again,
     // which the storage listener turns into a reconnect.
-    // [impl->dsn~extension-enable-toggle~1]
+    // [impl->dsn~extension-enable-toggle~2]
     setState("disabled");
     return;
   }
@@ -529,7 +538,7 @@ async function reportCurrentTab() {
 }
 
 // The badge in the icon's own blue, set once for every tab.
-browser.browserAction.setBadgeBackgroundColor({ color: "#0077BB" });
+browser.browserAction.setBadgeBackgroundColor({ color: FOUND_COLOR });
 browser.browserAction.setBadgeTextColor({ color: "#FFFFFF" });
 
 // A tab opened on a page some other tab already shows is closed again and the
@@ -551,7 +560,7 @@ async function closeIfDuplicate(tab) {
   if (!freshTabs.has(tab.id) || !/^https?:/.test(tab.url)) {
     return false;
   }
-  // A disabled extension leaves the browser alone. [impl->dsn~extension-enable-toggle~1]
+  // A disabled extension leaves the browser alone. [impl->dsn~extension-enable-toggle~2]
   if (!(await loadSettings()).enabled) {
     return false;
   }

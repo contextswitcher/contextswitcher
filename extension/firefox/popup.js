@@ -98,7 +98,7 @@ if (bg) {
 // The on/off switch, as Tampermonkey has one. Saving the flag reaches the
 // background's storage listener, which drops or dials the connection; the
 // icon fading or coming back is the feedback, so the popup just closes.
-// [impl->dsn~extension-enable-toggle~1]
+// [impl->dsn~extension-enable-toggle~2]
 async function showToggle() {
   const { enabled } = await browser.storage.local.get({ enabled: true });
   const toggle = document.getElementById("toggle");

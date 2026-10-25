@@ -1341,14 +1341,14 @@ Do this in both browsers — Firefox from `about:debugging`, Chrome from `chrome
 - [ ] Through all of that, the per-tab task count badge keeps working: with the app running, a tab one task lists still carries `1`.
 - [ ] Stop the app while such a tab is in view — the `1` disappears and the icon turns orange with the connection and the tooltip says "not connected to the app"; it does not sit there as a count nothing is refreshing.
 
-## The extension can be switched off from its popup (`dsn~extension-enable-toggle~1`)
+## The extension can be switched off from its popup (`dsn~extension-enable-toggle~2`)
 
 Do this in both browsers.
 
-- [ ] With the app running, click the icon → the popup shows *✓ Enabled*; click it → the popup closes, the icon fades, the app's globe shows no extension connected.
+- [ ] With the app running, click the icon → the popup shows *✓ Enabled*; click it → the popup closes, the icon fades and shows a red *OFF* badge on every tab, the app's globe shows no extension connected.
 - [ ] Open the popup again → *✗ Disabled*, the state line says disabled; activating a task's tab selects nothing in the app, and opening an already open page a second time keeps both tabs.
 - [ ] Restart the browser → still disabled.
-- [ ] Click *✗ Disabled* → the icon turns grey (or blue on a listed page) within a second or two and the app sees the extension again.
+- [ ] Click *✗ Disabled* → the *OFF* badge goes, the icon turns grey (or blue on a listed page) within a second or two and the app sees the extension again.
 
 ## The icon's popup names the tasks and acts on one (`dsn~browser-tab-task-popup~2`)
 

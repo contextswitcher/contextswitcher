@@ -351,7 +351,7 @@ Covers:
 Needs: impl
 
 ### Extension enable toggle
-`dsn~extension-enable-toggle~1`
+`dsn~extension-enable-toggle~2`
 
 An `enabled` flag (default true) sits next to port and token in `storage.local`, so it survives a browser restart and the storage listener that already reconnects on an options save also reacts to it.
 The popup's first row below the task list shows it as "✓ Enabled" / "✗ Disabled" and flips it on a click, then closes — the icon changing is the feedback.
@@ -359,6 +359,7 @@ The popup's first row below the task list shows it as "✓ Enabled" / "✗ Disab
 The socket's `close` handler reads the flag too, so a close the switch caused paints `disabled` rather than orange "not connected".
 The flag is read asynchronously, so every `connect()` and every storage change bumps a counter, and a `connect()` that finds it moved after the read gives up instead of dialing — otherwise parallel start-up calls, or the switch landing mid-read, leave a socket open that the switch never closes.
 The icon is the grey rings faded to 40 % opacity, like a disabled toolbar button — Firefox via `icon-disabled.svg`, Chrome by fading the drawn canvas — and the popup's state line reads "Disabled".
+The badge reads "OFF" on red, as Tampermonkey's does, since a faded icon alone is easy to overlook; it is the global badge text, and the sweep drops each tab's own text so every tab shows it.
 `closeIfDuplicate` returns early while disabled; tab reports need an open socket and stop by themselves.
 
 Tags: windows, linux
