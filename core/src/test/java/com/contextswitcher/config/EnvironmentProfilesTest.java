@@ -81,6 +81,26 @@ class EnvironmentProfilesTest {
     }
 
     @Test
+    void scaleFollowsTheModeAndDefaultsTo100() {
+        EnvironmentProfiles profiles = EnvironmentProfiles.parse("""
+                profiles:
+                  default:
+                    resolution:
+                      internal: 2880x1800@125%
+                      external: 2560 x 1440 @ 150
+                      projector: 1920x1080
+                      odd: 1920x1080@110%
+                """);
+
+        assertThat(profiles.byName().get("default").resolution()).containsExactly(
+                Map.entry("internal", new Resolution(2880, 1800, 125)),
+                Map.entry("external", new Resolution(2560, 1440, 150)),
+                Map.entry("projector", new Resolution(1920, 1080, 100)));
+        assertThat(new Resolution(2880, 1800, 125)).hasToString("2880x1800@125%");
+        assertThat(new Resolution(1920, 1080)).hasToString("1920x1080");
+    }
+
+    @Test
     void unknownProfileNameIsAnError() {
         assertThatThrownBy(() -> EnvironmentProfiles.parse(SETTINGS).effective("lectrue", null))
                 .isInstanceOf(IllegalArgumentException.class)

@@ -30,7 +30,12 @@ import com.contextswitcher.config.EnvironmentProfile;
 ///   modes are staged with `ChangeDisplaySettingsEx(CDS_UPDATEREGISTRY |
 ///   CDS_NORESET)` and applied together — persisted, so a projector hot-plug
 ///   (which re-applies the stored mode) does not undo them; the `default`
-///   profile is what puts them back.
+///   profile is what puts them back. Each matched screen's scale (the
+///   Settings app's "Scale", 100% unless the rule says otherwise) follows
+///   once the modes are in place, through the undocumented
+///   `DisplayConfigGet/SetDeviceInfo` DPI-scale requests the Settings app
+///   uses: they count steps of the Windows scale list from the screen's
+///   recommended scale, which depends on the resolution just set.
 /// - `taskbar`: `SHAppBarMessage(ABM_GETSTATE/ABM_SETSTATE)` on
 ///   `Shell_TrayWnd` — the auto-hide checkbox of the taskbar settings, which
 ///   ExplorerPatcher's Windows 10 taskbar honours as well.
@@ -138,11 +143,20 @@ public class WindowsEnvironment {
               [DllImport("user32.dll")] static extern int QueryDisplayConfig(uint flags, ref uint paths, [Out] PATH[] pathArray, ref uint modes, IntPtr modeArray, IntPtr topology);
               [DllImport("user32.dll")] static extern int DisplayConfigGetDeviceInfo(ref TARGET_NAME info);
               [DllImport("user32.dll")] static extern int DisplayConfigGetDeviceInfo(ref SOURCE_NAME info);
+              // Undocumented DISPLAYCONFIG_DEVICE_INFO_GET/SET_DPI_SCALE (-3/-4), what the Settings
+              // app's "Scale" uses: steps relative to the screen's recommended scale.
+              [StructLayout(LayoutKind.Sequential)]
+              public struct DPI_GET { public int type; public uint size; public LUID adapter; public uint id; public int minRel, curRel, maxRel; }
+              [StructLayout(LayoutKind.Sequential)]
+              public struct DPI_SET { public int type; public uint size; public LUID adapter; public uint id; public int rel; }
+              [DllImport("user32.dll")] static extern int DisplayConfigGetDeviceInfo(ref DPI_GET info);
+              [DllImport("user32.dll")] static extern int DisplayConfigSetDeviceInfo(ref DPI_SET info);
+              static readonly int[] Scales = { 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500 };
               [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool EnumDisplaySettings(string dev, int mode, ref DEVMODE dm);
               [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int ChangeDisplaySettingsEx(string dev, ref DEVMODE dm, IntPtr hwnd, uint flags, IntPtr param);
               [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int ChangeDisplaySettingsEx(string dev, IntPtr dm, IntPtr hwnd, uint flags, IntPtr param);
 
-              public class Screen { public string Gdi, Name, Code; public bool Internal, Primary; public int Width, Height; }
+              public class Screen { public string Gdi, Name, Code; public bool Internal, Primary; public int Width, Height; public LUID Adapter; public uint Source; }
 
               // One entry per active target (a cloned source appears once per screen).
               public static List<Screen> Active() {
@@ -169,7 +183,8 @@ public class WindowsEnvironment {
                     // LVDS, embedded DisplayPort, embedded UDI, or the generic internal flag
                     Internal = tech == 6 || tech == 11 || tech == 13 || tech == 0x80000000,
                     Primary = dm.dmPositionX == 0 && dm.dmPositionY == 0,
-                    Width = dm.dmPelsWidth, Height = dm.dmPelsHeight });
+                    Width = dm.dmPelsWidth, Height = dm.dmPelsHeight,
+                    Adapter = pathArray[i].sourceAdapter, Source = pathArray[i].sourceId });
                 }
                 return result;
               }
@@ -197,8 +212,14 @@ public class WindowsEnvironment {
               }
 
               // Sets each matched screen's mode (staged with CDS_UPDATEREGISTRY | CDS_NORESET,
-              // then applied at once); returns the changes, failures prefixed with "!".
-              public static List<string> Apply(string[] keys, int[] widths, int[] heights) {
+              // then applied at once), then its scale; returns the changes, failures prefixed with "!".
+              public static List<string> Apply(string[] keys, int[] widths, int[] heights, int[] scales) {
+                var changes = Modes(keys, widths, heights);
+                changes.AddRange(Scale(keys, scales));
+                return changes;
+              }
+
+              static List<string> Modes(string[] keys, int[] widths, int[] heights) {
                 var changes = new List<string>();
                 var done = new HashSet<string>();
                 bool staged = false;
@@ -217,6 +238,37 @@ public class WindowsEnvironment {
                   changes.Add(string.Format("{0} {1}x{2}", label, widths[rule], heights[rule]));
                 }
                 if (staged) { ChangeDisplaySettingsEx(null, IntPtr.Zero, IntPtr.Zero, 0, IntPtr.Zero); }
+                return changes;
+              }
+
+              // Runs after the modes are in place: the recommended scale the steps count
+              // from depends on the resolution.
+              static List<string> Scale(string[] keys, int[] scales) {
+                var changes = new List<string>();
+                var done = new HashSet<string>();
+                foreach (var s in Active()) {
+                  int rule = Pick(s, keys);
+                  string label = s.Name != "" ? s.Name : (s.Code != "" ? s.Code : s.Gdi);
+                  if (rule < 0 || done.Contains(s.Gdi)) { continue; }
+                  done.Add(s.Gdi);
+                  var get = new DPI_GET(); get.type = -3; get.size = (uint) Marshal.SizeOf(typeof(DPI_GET));
+                  get.adapter = s.Adapter; get.id = s.Source;
+                  int rc = DisplayConfigGetDeviceInfo(ref get);
+                  if (rc != 0) { changes.Add(string.Format("!{0} scale unreadable ({1})", label, rc)); continue; }
+                  int recommended = -get.minRel;
+                  int target = Array.IndexOf(Scales, scales[rule]) - recommended;
+                  if (target == get.curRel) { continue; }
+                  if (target < get.minRel || target > get.maxRel) {
+                    int max = Scales[Math.Min(Scales.Length - 1, recommended + get.maxRel)];
+                    changes.Add(string.Format("!{0} scale {1}% not offered (100-{2}%)", label, scales[rule], max));
+                    continue;
+                  }
+                  var set = new DPI_SET(); set.type = -4; set.size = (uint) Marshal.SizeOf(typeof(DPI_SET));
+                  set.adapter = s.Adapter; set.id = s.Source; set.rel = target;
+                  rc = DisplayConfigSetDeviceInfo(ref set);
+                  if (rc != 0) { changes.Add(string.Format("!{0} scale {1}% failed ({2})", label, scales[rule], rc)); continue; }
+                  changes.Add(string.Format("{0} {1}%", label, scales[rule]));
+                }
                 return changes;
               }
             }
@@ -262,17 +314,19 @@ public class WindowsEnvironment {
             List<String> screens = new ArrayList<>();
             List<String> widths = new ArrayList<>();
             List<String> heights = new ArrayList<>();
+            List<String> scales = new ArrayList<>();
             profile.resolution().forEach((screen, mode) -> {
                 screens.add("'" + screen.replace("'", "''") + "'");
                 widths.add(Integer.toString(mode.width()));
                 heights.add(Integer.toString(mode.height()));
+                scales.add(Integer.toString(mode.scale()));
             });
             script.append("""
-                    foreach ($c in [CsScreens]::Apply(@(%s), @(%s), @(%s))) {
+                    foreach ($c in [CsScreens]::Apply(@(%s), @(%s), @(%s), @(%s))) {
                       if ($c.StartsWith('!')) { $failures += $c.Substring(1) } else { $changes += $c }
                     }
                     """.formatted(String.join(", ", screens), String.join(", ", widths),
-                    String.join(", ", heights)));
+                    String.join(", ", heights), String.join(", ", scales)));
         }
         if (profile.taskbar() != null) {
             boolean autoHide = profile.taskbar() == EnvironmentProfile.Taskbar.AUTOHIDE;
