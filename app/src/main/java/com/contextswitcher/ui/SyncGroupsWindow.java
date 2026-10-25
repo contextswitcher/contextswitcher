@@ -73,6 +73,7 @@ final class SyncGroupsWindow {
         }
         Stage window = new Stage();
         window.initOwner(owner);
+        AppIcon.applyTo(window);
         window.setTitle("Sync groups");
         window.setScene(new Scene(content(), 560, 480));
         window.setOnHidden(event -> stage = null);

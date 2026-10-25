@@ -139,7 +139,7 @@ dependencies {
 
 // One raster of the target-rings mark for the whole product: the Chrome
 // extension's icon is copied into the app jar next to `AppIcon`, which loads
-// it for the window and the Settings dialog. [impl->dsn~app-icon~4]
+// it for the window and the Settings dialog. [impl->dsn~app-icon~5]
 tasks.processResources {
     from(rootProject.file("extension/chrome/icon-128.png")) {
         into("com/contextswitcher/ui")

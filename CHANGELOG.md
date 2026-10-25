@@ -11,6 +11,7 @@ The topmost section is the day in progress — its link points at `main` until t
 ### Fixed
 
 - A live task of a category that was renamed out of a name clash (`contextswitcher` → `contextswitcher-swkgpu1`) tells Claude to branch from the clone's actual path instead of a subdirectory named after the new category, which did not exist. The rename now also records `mainCheckout:` in the category's `CONTEXTSWITCHER.md`.
+- The "What's new", sync groups and diff windows show the app's icon in the title bar and taskbar instead of Java's default.
 
 ## [2026-10-22] - 2026-10-22
 

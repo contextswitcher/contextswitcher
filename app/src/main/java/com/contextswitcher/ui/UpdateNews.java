@@ -220,6 +220,7 @@ final class UpdateNews {
         }
         Stage dialog = new Stage();
         dialog.initOwner(owner.get());
+        AppIcon.applyTo(dialog);
         Button later = new Button("Later");
         later.getStyleClass().add(Styles.SMALL);
         later.setCancelButton(true);

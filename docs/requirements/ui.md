@@ -2256,9 +2256,10 @@ Covers:
 Needs: impl, utest
 
 ### The app has an icon
-`dsn~app-icon~4`
+`dsn~app-icon~5`
 
-The stage carries the browser extension's target-rings mark at 16/32/64/128 px, so the title bar and the taskbar button show it, and the Settings dialog shows the same mark at 48 px beside its header text.
+Every stage the app opens — the main window, the "What's new" window, the sync groups window, the diff viewer — carries the browser extension's target-rings mark at 16/32/64/128 px, so the title bar and the taskbar button show it, and the Settings dialog shows the same mark at 48 px beside its header text.
+A `Stage` does not inherit its owner's icons, so each one sets them itself; a stage without them showed the toolkit's default Duke in the taskbar (2026-10-25).
 `AppIcon` loads the extension's `icon-128.png`, which `processResources` copies into the app jar — one raster for the whole product, and no second drawing to keep in sync.
 Loading rather than drawing is what makes the window icon appear at all: `WindowStage.findBestImage` accepts only byte-based pixels (`BYTE_RGB`, `BYTE_BGRA_PRE`, `BYTE_GRAY`) and silently ignores the rest, so the `INT_ARGB_PRE` image a canvas snapshot produces was dropped and the window kept the toolkit's default icon — twice (2026-09-09, 2026-09-12).
 One mark for the app and its extension is what makes it recognizable as the same tool as the browser toolbar button.

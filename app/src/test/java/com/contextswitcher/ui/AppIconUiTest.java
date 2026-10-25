@@ -14,14 +14,14 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// The app mark comes from the extension's PNG through `processResources`
-/// (`dsn~app-icon~4`), so this check stands between a missed copy step and a
+/// (`dsn~app-icon~5`), so this check stands between a missed copy step and a
 /// window that silently falls back to the toolkit's default icon. It also
 /// pins the pixel format: JavaFX drops a stage icon that is not byte-based,
 /// which is how the drawn version failed. Image loading needs the toolkit,
 /// hence a (windowless) TestFX application rather than a plain unit test.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~app-icon~4]
+// [utest->dsn~app-icon~5]
 @Tag("ui")
 @TestFxApplication(AppIconUiTest.TestApp.class)
 class AppIconUiTest {

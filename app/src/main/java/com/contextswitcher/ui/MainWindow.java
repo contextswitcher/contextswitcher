@@ -1407,11 +1407,8 @@ public class MainWindow {
             Themes.addToEveryWindow(sheet);
         }
         stage.setScene(scene);
-        // The extension's target rings as the window/taskbar icon, in the sizes
-        // a window manager picks from (JavaFX asks for 32 on Windows, 128 on
-        // Linux and macOS); 128 is the raster's own size, so nothing is
-        // upscaled. [impl->dsn~app-icon~4]
-        stage.getIcons().setAll(AppIcon.image(16), AppIcon.image(32), AppIcon.image(64), AppIcon.image(128));
+        // [impl->dsn~app-icon~5]
+        AppIcon.applyTo(stage);
         stage.show();
         // The shell's scene is on screen now, and JavaFX will not restyle it
         // for a stylesheet it already holds: force the restyle a theme switch

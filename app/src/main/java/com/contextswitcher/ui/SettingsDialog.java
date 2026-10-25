@@ -107,7 +107,7 @@ final class SettingsDialog {
         dialog.initOwner(owner.get());
         dialog.setTitle("Settings");
         // The app mark next to the header text — the one place the icon is
-        // visible without hunting for a taskbar button. [impl->dsn~app-icon~4]
+        // visible without hunting for a taskbar button. [impl->dsn~app-icon~5]
         dialog.setGraphic(new ImageView(AppIcon.image(48)));
         dialog.setHeaderText("settings.yaml is the source of truth — the form patches only the "
                 + "fields you change, keeping comments and unknown keys. Restart to apply "
