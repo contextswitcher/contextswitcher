@@ -1,6 +1,7 @@
 package com.contextswitcher.config;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -15,7 +16,8 @@ import org.jspecify.annotations.Nullable;
 /// Every key is optional; an absent one (null, an empty `resolution` map) is
 /// "not this profile's business" and is filled from the layer below ([#over]).
 ///
-/// `resolution` maps a screen selector to its mode: a monitor's EDID name
+/// `resolution` maps a screen selector to its mode, `<w>x<h>` with an
+/// optional scale (`2880x1800@125%`; 100% when left out): a monitor's EDID name
 /// (`DELL U4025QW`) or product code (`DEL4308`), `primary`, `internal` (the
 /// laptop panel) or `external` (any other screen — the lecture-hall
 /// projector), case-insensitive. The scalar form `resolution: 1920x1080` is
@@ -37,10 +39,21 @@ public record EnvironmentProfile(
         resolution = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(resolution));
     }
 
-    /// A screen mode, `<width>x<height>` in the YAML.
-    public record Resolution(int width, int height) {
+    /// A screen mode, `<width>x<height>[@<scale>%]` in the YAML. `scale` is
+    /// the percentage of Windows' per-screen "Scale" setting, 100 when the
+    /// suffix is left out — a resolution rule always states the scale too,
+    /// so a projector is not left at whatever zoom it was last given.
+    public record Resolution(int width, int height, int scale) {
 
-        private static final Pattern FORM = Pattern.compile("\\s*(\\d{3,5})\\s*[xX×]\\s*(\\d{3,5})\\s*");
+        /// The percentages Windows' "Scale" setting offers, in order.
+        public static final List<Integer> SCALES = List.of(100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500);
+
+        private static final Pattern FORM = Pattern.compile(
+                "\\s*(\\d{3,5})\\s*[xX×]\\s*(\\d{3,5})\\s*(?:@\\s*(\\d{3})\\s*%?\\s*)?");
+
+        public Resolution(int width, int height) {
+            this(width, height, 100);
+        }
 
         /// The `resolution:` value, either form; entries that do not parse
         /// are dropped.
@@ -67,14 +80,18 @@ public record EnvironmentProfile(
                 return null;
             }
             Matcher m = FORM.matcher(value.toString());
-            return m.matches()
-                    ? new Resolution(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)))
+            if (!m.matches()) {
+                return null;
+            }
+            int scale = m.group(3) == null ? 100 : Integer.parseInt(m.group(3));
+            return SCALES.contains(scale)
+                    ? new Resolution(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)), scale)
                     : null;
         }
 
         @Override
         public String toString() {
-            return width + "x" + height;
+            return width + "x" + height + (scale == 100 ? "" : "@" + scale + "%");
         }
     }
 

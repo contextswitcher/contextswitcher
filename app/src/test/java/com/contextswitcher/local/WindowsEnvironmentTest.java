@@ -23,7 +23,7 @@ class WindowsEnvironmentTest {
         assertThat(script)
                 .contains("if ([CsEnv]::Topology() -ne 2)")
                 .contains("[CsEnv]::SetTopology(2)")
-                .contains("[CsScreens]::Apply(@('primary'), @(1920), @(1080))")
+                .contains("[CsScreens]::Apply(@('primary'), @(1920), @(1080), @(100))")
                 .contains("if ([CsEnv]::AutoHide() -ne $true)")
                 .contains("[CsEnv]::SetAutoHide($true)");
         // The projection mode settles before the resolutions are set on top.
@@ -34,10 +34,22 @@ class WindowsEnvironmentTest {
     void screenSelectorsBecomeQuotedLiteralsInOrder() {
         Map<String, Resolution> screens = new LinkedHashMap<>();
         screens.put("internal", new Resolution(1920, 1200));
-        screens.put("Oliver's DELL", new Resolution(5120, 2160));
+        screens.put("Oliver's DELL", new Resolution(5120, 2160, 125));
 
         assertThat(WindowsEnvironment.script(new EnvironmentProfile(screens, null, null, null)))
-                .contains("[CsScreens]::Apply(@('internal', 'Oliver''s DELL'), @(1920, 5120), @(1200, 2160))");
+                .contains("[CsScreens]::Apply(@('internal', 'Oliver''s DELL'), @(1920, 5120), @(1200, 2160), @(100, 125))");
+    }
+
+    @Test
+    void scaleFollowsTheModesCountedFromTheRecommendedScale() {
+        String script = WindowsEnvironment.script(new EnvironmentProfile(
+                Map.of("internal", new Resolution(2880, 1800, 125)), null, null, null));
+
+        assertThat(script)
+                .contains("var changes = Modes(keys, widths, heights);")
+                .contains("changes.AddRange(Scale(keys, scales));")
+                .contains("int recommended = -get.minRel;")
+                .contains("set.type = -4;");
     }
 
     @Test
