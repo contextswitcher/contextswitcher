@@ -119,6 +119,25 @@ class SshjCommandRunnerTest {
     }
 
     @Test
+    fun `a key pasted with indentation and blank lines still authenticates`() {
+        val messy = privateKeyPem().lines().joinToString("\r\n\n") { "    $it  " }
+        val runner = SshjCommandRunner({ messy }, KnownHostsStore(hostKeysFile))
+
+        assertThat(runner.run("me@localhost:$port", listOf("echo", "ok")).stdout().trim()).isEqualTo("ok")
+    }
+
+    @Test
+    fun `the settings screen's key line says whether the key parses`() {
+        assertThat(SshKeys.describe(privateKeyPem())).isEqualTo("Key parses: ssh-rsa")
+        assertThat(SshKeys.describe("")).isNull()
+        assertThat(SshKeys.describe("-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXk oops\n"))
+            .startsWith("The SSH private key in settings does not parse (").contains("paste it again")
+        val runner = SshjCommandRunner({ "garbage" }, KnownHostsStore(hostKeysFile))
+        assertThat(runner.run("me@localhost:$port", listOf("true")).stderr())
+            .startsWith("Cannot connect to me@localhost:$port: The SSH private key in settings does not parse")
+    }
+
+    @Test
     fun `a name that does not resolve is explained, not echoed`() {
         val runner = SshjCommandRunner({ privateKeyPem() }, KnownHostsStore(hostKeysFile))
         val result = runner.run("me@nowhere.invalid", listOf("true"))

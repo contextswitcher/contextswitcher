@@ -58,6 +58,7 @@ import com.contextswitcher.android.settings.RepoSettings
 import com.contextswitcher.android.settings.SettingsStore
 import com.contextswitcher.android.ssh.JumpHosts
 import com.contextswitcher.android.ssh.KnownHostsStore
+import com.contextswitcher.android.ssh.SshKeys
 import com.contextswitcher.android.ssh.SshjCommandRunner
 import com.contextswitcher.android.sync.CreateResult
 import com.contextswitcher.android.sync.LiveTaskStarter
@@ -338,6 +339,9 @@ internal fun SettingsScreen(
             // field instead of pushing the save button off the screen.
             maxLines = 8,
         )
+        // Live: a key that does not parse would otherwise surface only at the
+        // first connection, as a rejected key.
+        remember(sshKey) { SshKeys.describe(sshKey) }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         OutlinedTextField(
             value = jumpHosts,
             onValueChange = { jumpHosts = it },

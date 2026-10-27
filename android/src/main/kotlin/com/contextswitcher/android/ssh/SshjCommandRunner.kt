@@ -13,6 +13,7 @@ import net.schmizz.sshj.DefaultConfig
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.common.SecurityUtils
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
+import net.schmizz.sshj.userauth.keyprovider.KeyProvider
 import net.schmizz.sshj.userauth.UserAuthException
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
@@ -140,8 +141,7 @@ class SshjCommandRunner(
     }
 
     private fun connect(host: String): SSHClient {
-        val key = privateKeyPem()?.takeIf { it.isNotBlank() }
-            ?: throw IllegalStateException("No SSH private key configured in settings")
+        val key = SshKeys.parse(privateKeyPem() ?: "")
         val jump = JumpHosts.forRemote(jumpHosts(), host)?.let { via ->
             val (user, hostname, port) = parseDestination(via)
             newClient().also { it.connect(hostname, port); authenticate(it, user, key, "jump host $via") }
@@ -163,12 +163,13 @@ class SshjCommandRunner(
     /// host nor the cure (field report 2026-10-27, first try with a jump
     /// host): say which hop refused the settings key and where its public
     /// half has to be.
-    private fun authenticate(client: SSHClient, user: String, key: String, where: String) {
+    private fun authenticate(client: SSHClient, user: String, key: KeyProvider, where: String) {
         try {
-            client.authPublickey(user, client.loadKeys(key, null, null))
+            client.authPublickey(user, key)
         } catch (e: UserAuthException) {
             throw IllegalStateException("$where rejected the SSH key from settings" +
-                " — its public key must be in ~/.ssh/authorized_keys of $user there (${e.message})", e)
+                " — its public key must be in ~/.ssh/authorized_keys of $user there (${e.message}" +
+                (e.cause?.message?.let { "; $it" } ?: "") + ")", e)
         }
     }
 
@@ -243,5 +244,42 @@ object JumpHosts {
         val table = parse(text)
         return table[remote] ?: table[remote.substringAfter('@')] ?: table[remote.substringBefore(':')]
             ?: table[remote.substringAfter('@').substringBefore(':')]
+    }
+}
+
+/// The private key as pasted into the settings. A phone paste picks up
+/// indentation, `\r` and stray blanks, and sshj parses the key only *at auth
+/// time*, where a broken one hides behind "Exhausted available
+/// authentication methods" (field report 2026-10-27: "maybe during fiddling
+/// around, something got messy? (linebreaks?)"). So: whitespace per line
+/// normalized, parsed up front with a message that says so, and the settings
+/// screen shows [describe] live under the field.
+// [impl->dsn~android-ssh-runner~2]
+object SshKeys {
+    private val config = DefaultConfig()
+
+    fun normalize(pem: String): String = pem.lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
+
+    /// The parsed key, or an `IllegalStateException` in the user's words.
+    fun parse(pem: String): KeyProvider {
+        val text = normalize(pem)
+        if (text.isEmpty()) throw IllegalStateException("No SSH private key configured in settings")
+        return try {
+            SSHClient(config).loadKeys(text, null, null).also { it.public }
+        } catch (e: Exception) {
+            throw IllegalStateException("The SSH private key in settings does not parse (${e.message ?: e.javaClass.simpleName})" +
+                " — paste it again, from -----BEGIN to -----END, e.g. from `cat ~/.ssh/id_ed25519`", e)
+        }
+    }
+
+    /// What the settings screen shows under the key field: the key's type
+    /// when it parses, else [parse]'s complaint; null for an empty field.
+    fun describe(pem: String): String? {
+        if (normalize(pem).isEmpty()) return null
+        return try {
+            "Key parses: ${parse(pem).type}"
+        } catch (e: IllegalStateException) {
+            e.message
+        }
     }
 }
