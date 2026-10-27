@@ -10,7 +10,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Added
 
-- Android: *Jump hosts* in the settings — `user@host via user@jump[:port]` per line — reach a remote through another ssh host, like `ProxyJump` on the desktop; the jump host then also resolves a short name the phone cannot.
+- Android: *Jump hosts* in the settings — `user@host via user@jump[:port]` per line — reach a remote through another ssh host, like `ProxyJump` on the desktop; the jump host then also resolves a short name the phone cannot. *Check connections* tries every listed remote through its jump host and reports each result; saving does not depend on it.
 
 ### Fixed
 

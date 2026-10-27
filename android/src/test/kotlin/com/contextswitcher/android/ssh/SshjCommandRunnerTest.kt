@@ -108,6 +108,17 @@ class SshjCommandRunnerTest {
     }
 
     @Test
+    fun `check connections reports every jump-host line, reachable or why not`() {
+        val text = "me@127.0.0.1:$port via me@localhost:$port\nlab via stranger@localhost:$port\n"
+        val lines = JumpHosts.check(text, privateKeyPem(), KnownHostsStore(hostKeysFile))
+
+        assertThat(lines).hasSize(2)
+        assertThat(lines[0]).isEqualTo("me@127.0.0.1:$port via me@localhost:$port: reachable")
+        assertThat(lines[1]).startsWith("lab via stranger@localhost:$port: Cannot connect to stranger@lab:")
+        assertThat(JumpHosts.check("", privateKeyPem(), KnownHostsStore(hostKeysFile))).containsExactly("No jump hosts entered")
+    }
+
+    @Test
     fun `a name that does not resolve is explained, not echoed`() {
         val runner = SshjCommandRunner({ privateKeyPem() }, KnownHostsStore(hostKeysFile))
         val result = runner.run("me@nowhere.invalid", listOf("true"))

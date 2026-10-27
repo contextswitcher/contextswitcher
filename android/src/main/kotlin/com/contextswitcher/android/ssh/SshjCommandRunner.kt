@@ -223,6 +223,22 @@ object JumpHosts {
     fun parse(text: String): Map<String, String> =
         text.lines().mapNotNull { LINE.matchEntire(it) }.associate { it.groupValues[1] to it.groupValues[2] }
 
+    /// The settings screen's *Check connections*: runs `true` on every
+    /// remote the (unsaved) text names, through its jump host, with the
+    /// (unsaved) key — one line per entry, "reachable" or the runner's
+    /// error. Saving is allowed regardless: a host may well be unreachable
+    /// from where the phone is right now.
+    fun check(text: String, key: String, knownHosts: KnownHostsStore): List<String> {
+        val table = parse(text)
+        if (table.isEmpty()) return listOf("No jump hosts entered")
+        val runner = SshjCommandRunner({ key }, knownHosts, jumpHosts = { text })
+        return table.map { (remote, via) ->
+            val target = if ('@' in remote) remote else "${via.substringBefore('@')}@$remote"
+            val result = runner.run(target, listOf("true"))
+            "$remote via $via: " + if (result.ok()) "reachable" else result.stderr().trim()
+        }
+    }
+
     fun forRemote(text: String, remote: String): String? {
         val table = parse(text)
         return table[remote] ?: table[remote.substringAfter('@')] ?: table[remote.substringBefore(':')]
