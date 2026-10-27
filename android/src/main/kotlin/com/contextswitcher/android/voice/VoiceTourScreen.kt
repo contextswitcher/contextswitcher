@@ -96,7 +96,7 @@ fun VoiceTourScreen(
         while (true) {
             delay(10_000)
             val changed = withContext(Dispatchers.IO) { loaded.refreshStatuses(groups) }
-            if (changed && loaded.current?.status?.lowercase() != "working") {
+            if (changed && TourCall.active == null && loaded.current?.status?.lowercase() != "working") {
                 announce()
             }
         }
@@ -169,6 +169,20 @@ fun VoiceTourScreen(
                 ) { Text("Dictate") }
                 OutlinedButton(onClick = { send("continue") }, enabled = t?.current != null, modifier = Modifier.weight(1f)) { Text("continue") }
             }
+            val inCall by TourCall.isActive
+            OutlinedButton(
+                onClick = {
+                    if (inCall) TourCall.hangUp()
+                    else {
+                        speaker.stop()
+                        dictation?.stop()
+                        notice = TourCall.start(context, TourCall.Setup(t!!, groups, ssh, messageSender))
+                            ?: "Calling. Say next, previous, repeat or hang up; anything else is sent as the reply."
+                    }
+                },
+                enabled = inCall || t?.current != null,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(if (inCall) "Hang up" else "Call (Android Auto)") }
         }
     }
 }

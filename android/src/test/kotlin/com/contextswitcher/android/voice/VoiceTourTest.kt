@@ -61,3 +61,24 @@ class VoiceTourTest {
         assertThat(VoiceTour.spokenReply("merge it")).startsWith("(Voice mode:").endsWith(") merge it")
     }
 }
+
+/// The call steers on exact command words in English or German and sends everything else;
+/// the speaker picks the voice by the text's language.
+// [utest->dsn~android-voice-tour~1]
+class TourCallTest {
+
+    @Test
+    fun commands() {
+        assertThat(TourCall.command("Next.")).isEqualTo(TourCall.Command.NEXT)
+        assertThat(TourCall.command("weiter")).isEqualTo(TourCall.Command.NEXT)
+        assertThat(TourCall.command("Zurück!")).isEqualTo(TourCall.Command.PREVIOUS)
+        assertThat(TourCall.command("hang up")).isEqualTo(TourCall.Command.HANG_UP)
+        assertThat(TourCall.command("next, please also fix the tests")).isNull()
+    }
+
+    @Test
+    fun voiceByLanguage() {
+        assertThat(Speaker.localeOf("Task 1 of 3: Fix the build. Status: waiting. Claude said: The tests pass and the branch is pushed.")).isEqualTo(java.util.Locale.ENGLISH)
+        assertThat(Speaker.localeOf("Task 1 of 3: Build fix. Status: waiting. Claude said: Die Tests laufen durch und der Branch ist gepusht, ich habe nichts weiter geändert.")).isEqualTo(java.util.Locale.GERMAN)
+    }
+}

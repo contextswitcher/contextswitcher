@@ -1400,6 +1400,8 @@ Needs the debug APK on a phone with synced tasks of a category whose tasks recor
 - [ ] *Next* / *Previous* step and speak; *Repeat* speaks the card again; the last task has *Next* disabled.
 - [ ] *Dictate* → the first time Android asks for the microphone; the spoken sentence appears under *Heard:*; *Send* delivers it, the session's reply comes in a few sentences without tables, and within about ten seconds of Claude finishing the phone reads it out.
 - [ ] Without network, *Send* → "Not sent, kept on the phone"; the message is in the task's enqueued list.
+- [ ] An English card is read by an English voice, a German answer by a German one.
+- [ ] *Call (Android Auto)* with the phone connected to the car → the car shows an ongoing call; the overview and the card come through the car's speakers; saying "next" steps, a sentence is sent as the reply, and the finished turn is read out; the car's hang-up (or *Hang up* on the phone) ends it.
 - [ ] Head unit: *Tour* in the header → category list → the same card as a message screen with *Dictate* and *Next*; *Previous* and *Repeat* in the header. Dictation from the tour sends with the voice-mode hint.
 
 ## Android update hint (`dsn~android-update-hint~3`)

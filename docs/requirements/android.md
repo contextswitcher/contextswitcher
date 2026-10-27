@@ -554,7 +554,10 @@ That answer comes from :core's `ClaudeTranscript`: one ssh call reads the last f
 `Speaker` wraps Android's on-device `TextToSpeech`; `Dictation` is the former `CarDictation`, with the car's microphone optional: on the phone it listens through `SpeechRecognizer` directly.
 A dictated reply is sent as `VoiceTour.spokenReply(text)`, the text behind a hint asking for a few spoken sentences without tables, code or diffs, through the same path as a head-unit message (`dsn~android-auto-message~1`: sent at once, kept on the phone on failure), and only after the recognized text was shown.
 Both screens re-read the statuses every ten seconds (`refreshStatuses`) and read the current task's card again when its status leaves `working`, so a finished turn is heard without touching anything.
-Ceiling: one TTS voice for English and German text; the tour over several categories at once is a loop the user runs by hand.
+*Call (Android Auto)* on the phone's tour screen runs the same tour as a self-managed Telecom call (`TourCall`, `TourCallService`): Android Auto shows it like a phone call with mute and hang-up and routes the car's microphone and speakers to it, and the phone's screen may stay off.
+The call speaks the overview and the card, then listens; "next", "previous", "repeat" and "hang up" (or their German words) steer, anything else is sent as the reply, and the finished turn is read out as on the screen.
+`Speaker` reads each text in English or German by counting function words, so an English card is no longer read by the German voice.
+Ceiling: the tour over several categories at once is a loop the user runs by hand.
 
 Tags: android
 
