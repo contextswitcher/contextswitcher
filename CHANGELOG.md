@@ -12,6 +12,12 @@ The topmost section is the day in progress — its link points at `main` until t
 
 - Android: when *Add task* cannot create the tmux window, the dialog shows the remote's error (a refused connection, a missing key, tmux's own message) under the headline instead of the headline alone.
 
+## [2026-10-27] - 2026-10-27
+
+### Changed
+
+- Android: the *Add task* dialog preselects the category scrolled to the top of the task list instead of the alphabetically first one.
+
 ## [2026-10-25] - 2026-10-25
 
 ### Added
@@ -175,6 +181,8 @@ The topmost section is the day in progress — its link points at `main` until t
 
 [2026-10-27]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-25...main
 [2026-10-25]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-22...v2026-10-25
+[2026-10-27]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-25...main
+[2026-10-25]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-22...main
 [2026-10-22]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-19...v2026-10-22
 [2026-10-19]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-18...v2026-10-19
 [2026-10-18]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-12...v2026-10-18
