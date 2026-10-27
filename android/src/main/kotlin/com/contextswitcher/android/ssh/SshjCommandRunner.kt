@@ -13,6 +13,7 @@ import net.schmizz.sshj.DefaultConfig
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.common.SecurityUtils
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
+import net.schmizz.sshj.userauth.UserAuthException
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 /// Thrown by [SshjCommandRunner]'s [HostKeyVerifier] when a host's offered
@@ -143,19 +144,32 @@ class SshjCommandRunner(
             ?: throw IllegalStateException("No SSH private key configured in settings")
         val jump = JumpHosts.forRemote(jumpHosts(), host)?.let { via ->
             val (user, hostname, port) = parseDestination(via)
-            newClient().also { it.connect(hostname, port); it.authPublickey(user, it.loadKeys(key, null, null)) }
+            newClient().also { it.connect(hostname, port); authenticate(it, user, key, "jump host $via") }
         }
         val (username, hostname, port) = parseDestination(host)
         val client = newClient()
         try {
             if (jump == null) client.connect(hostname, port) else client.connectVia(jump.newDirectConnection(hostname, port))
-            client.authPublickey(username, client.loadKeys(key, null, null))
+            authenticate(client, username, key, if (jump == null) host else "$host behind the jump host")
         } catch (e: Exception) {
             jump?.let { runCatching { it.disconnect() } }
             throw e
         }
         jump?.let { jumps[host] = it }
         return client
+    }
+
+    /// sshj's "Exhausted available authentication methods" names neither the
+    /// host nor the cure (field report 2026-10-27, first try with a jump
+    /// host): say which hop refused the settings key and where its public
+    /// half has to be.
+    private fun authenticate(client: SSHClient, user: String, key: String, where: String) {
+        try {
+            client.authPublickey(user, client.loadKeys(key, null, null))
+        } catch (e: UserAuthException) {
+            throw IllegalStateException("$where rejected the SSH key from settings" +
+                " — its public key must be in ~/.ssh/authorized_keys of $user there (${e.message})", e)
+        }
     }
 
     private fun newClient(): SSHClient {

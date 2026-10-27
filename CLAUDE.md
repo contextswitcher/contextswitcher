@@ -15,6 +15,7 @@
   Same rationale as MADR 0011: the merge commit keeps each session's state visible; concurrent Claude sessions push to `main`, and rebasing rewrites what another session may already have seen.
 * Changelog: `CHANGELOG.md` in Keep a Changelog format, CalVer date releases (MADR 0017).
   Every push to `main` that changes user-visible behavior adds a bullet under **today's** section (create it if the last section is an older day).
+  A released section is never touched: once `v<today>` exists (another session tagged the day), new bullets go into an `## [Unreleased]` section on top, linked `.../compare/v<today>...main`, and the next release renames it to its day (Oliver, 2026-10-27: "DO NOT TOUCH RELEASED THINGS").
   Today's section links to `.../compare/v<previous date>...main`; when a new day starts, retag the finished day — push `main` first (pull/merge if rejected), *then* `git tag v<that date> <last commit of that day> && git push origin v<that date>` — and rewrite its link to `.../compare/v<day before>...v<that date>`.
   Tagging before the push can land the tag on a commit another concurrent session's push then diverges from.
   The tag's GitHub pre-release takes the day's section as its notes (`build.yml`, `heylogs extract`), so the section must be complete when the tag is pushed.

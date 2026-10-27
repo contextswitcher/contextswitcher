@@ -35,7 +35,8 @@ class SshjCommandRunnerTest {
         server = SshServer.setUpDefaultServer()
         server.keyPairProvider = SimpleGeneratorHostKeyProvider(
             File(createTempDirectory("sshd-hostkey").toFile(), "hostkey.ser").toPath())
-        server.publickeyAuthenticator = { _, offered, _ -> offered == keyPair.public }
+        // "stranger" has no authorized key anywhere — the rejected-key tests.
+        server.publickeyAuthenticator = { user, offered, _ -> offered == keyPair.public && user != "stranger" }
         server.commandFactory = org.apache.sshd.server.command.CommandFactory { _, command -> ShellCommand(command) }
         server.forwardingFilter = org.apache.sshd.server.forward.AcceptAllForwardingFilter.INSTANCE
         server.start()
@@ -85,6 +86,25 @@ class SshjCommandRunnerTest {
         assertThat(JumpHosts.forRemote(text, "anyone@lab")).isEqualTo("me@gate.example.org:2222")
         assertThat(JumpHosts.forRemote(text, "anyone@lab:22")).isEqualTo("me@gate.example.org:2222")
         assertThat(JumpHosts.forRemote("", "koppor@devbox")).isNull()
+    }
+
+    @Test
+    fun `a rejected key names the host and the authorized_keys cure`() {
+        val runner = SshjCommandRunner({ privateKeyPem() }, KnownHostsStore(hostKeysFile))
+        val result = runner.run("stranger@localhost:$port", listOf("true"))
+
+        assertThat(result.ok()).isFalse()
+        assertThat(result.stderr()).startsWith("Cannot connect to stranger@localhost:$port: stranger@localhost:$port rejected the SSH key from settings")
+            .contains("~/.ssh/authorized_keys of stranger")
+    }
+
+    @Test
+    fun `a jump host that rejects the key is named as the one that did`() {
+        val runner = SshjCommandRunner({ privateKeyPem() }, KnownHostsStore(hostKeysFile),
+            jumpHosts = { "me@127.0.0.1:$port via stranger@localhost:$port" })
+        val result = runner.run("me@127.0.0.1:$port", listOf("true"))
+
+        assertThat(result.stderr()).contains("jump host stranger@localhost:$port rejected the SSH key")
     }
 
     @Test
