@@ -535,7 +535,7 @@ internal fun TaskListScreen(
             onDismissRequest = { pickingTour = false },
             title = { Text("Voice tour of …") },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     VoiceTour.categories(groups).forEach { category ->
                         TextButton(onClick = {
                             pickingTour = false
