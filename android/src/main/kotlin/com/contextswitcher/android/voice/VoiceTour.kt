@@ -44,8 +44,14 @@ class VoiceTour(val category: String, tasks: List<CarTask>, private val ssh: Ssh
     /// The current task's spoken card: position, title, status, last answer.
     fun announcement(): String {
         val entry = current ?: return overview()
-        return "Task ${index + 1} of ${tasks.size}: ${entry.task.title()}. Status: ${entry.status ?: "unknown"}. " +
+        return "Task ${index + 1} of ${tasks.size}${prLabel(entry.task)}: ${entry.task.title()}. Status: ${entry.status ?: "unknown"}. " +
             (lastAnswer(entry.task)?.let { "Claude said: $it" } ?: "No answer from Claude yet.")
+    }
+
+    /// ", PR 16245" for a task with a PR whose number is not in the title already.
+    private fun prLabel(task: Task): String {
+        val number = task.prUrl()?.trimEnd('/')?.substringAfterLast('/') ?: return ""
+        return if (number in task.title()) "" else ", PR $number"
     }
 
     /// Claude's last answer in the task's session, read from its transcript

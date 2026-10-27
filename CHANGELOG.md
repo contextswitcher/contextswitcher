@@ -18,6 +18,7 @@ The topmost section is the day in progress — its link points at `main` until t
 - Android: a host name that does not resolve on the phone's network is reported as such, with a VPN hint, instead of a bare "Cannot connect to user@host: host".
 - Android: a host that rejects the SSH key says which host (the remote or the jump host) and whose `authorized_keys` needs the public key, instead of "Exhausted available authentication methods".
 - Android: the voice tour read "Loading" instead of the first task's card after the overview; the card is now spoken.
+- Android: the voice tour's card names the task's PR number ("Task 1 of 3, PR 16245: …") when the title does not.
 - Android: the voice tour reads English text with an English voice and German with a German one, instead of everything in the phone's language.
 - Android: the SSH private key is checked as you paste it — the settings screen says "Key parses: ssh-ed25519" or why it does not — and indentation, stray blank lines and Windows line ends from a messy paste no longer break it; a key that does not parse is reported as such instead of as a rejected key.
 
