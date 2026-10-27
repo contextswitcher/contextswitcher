@@ -17,10 +17,10 @@ import org.junit.jupiter.api.io.TempDir
 /// A live task from the phone: window in the remote's usual session and the
 /// category's workspace, the task file pushed with that window, Claude
 /// started with the desktop's prompt.
-// [utest->dsn~android-live-task~2]
+// [utest->dsn~android-live-task~3]
 class LiveTaskStarterTest {
 
-    private class Remote : SshCommandRunner {
+    private class Remote(private val windowError: String? = null) : SshCommandRunner {
         val commands = CopyOnWriteArrayList<String>()
         val pasted = CopyOnWriteArrayList<String>()
 
@@ -28,6 +28,8 @@ class LiveTaskStarterTest {
             val line = remoteCommand.joinToString(" ")
             commands.add("$host: $line")
             return when {
+                windowError != null && ("new-window" in remoteCommand || "new-session" in remoteCommand) ->
+                    SshResult(1, "", windowError)
                 "new-window" in remoteCommand -> SshResult(0, "@77\n", "")
                 "capture-pane" in remoteCommand -> SshResult(0, pasted.joinToString("\n"), "")
                 else -> SshResult(0, "", "")
@@ -92,6 +94,23 @@ class LiveTaskStarterTest {
 
         assertThat(starter.remoteOf(tmp, "notes")).isEqualTo("me@box")
         assertThat(starter.remoteOf(tmp, "")).isEqualTo("me@box")
+    }
+
+    /// Field report 2026-10-27: the phone said only "Cannot create a tmux
+    /// window in session old-group on me@devbox" — the remote's error
+    /// output belongs in the dialog, as on the desktop.
+    @Test
+    fun `a window that cannot be created fails with the remote's error`(@TempDir tmp: File) {
+        File(tmp, ".git").mkdirs()
+        File(tmp, "work").mkdirs()
+        File(tmp, "work/CONTEXTSWITCHER.md").writeText("---\nremote: me@box\nworkspacesRoot: ~/ws\n---\n")
+        val remote = Remote(windowError = "can't find session: old-group\n")
+        val starter = LiveTaskStarter(TaskRepoSync(), remote, MessageSender(remote, tmp.toPath()))
+
+        val outcome = starter.start(tmp, "u", "t", "work", "x", ClaudeMode.DEFAULT, false, {}) {}
+
+        assertThat(outcome).isEqualTo(LiveTaskStarter.Outcome.Failed("Cannot create a tmux window on me@box:\ncan't find session: old-group"))
+        assertThat(remote.commands).anyMatch { it.endsWith("mkdir -p ~/'ws'") }
     }
 
     @Test

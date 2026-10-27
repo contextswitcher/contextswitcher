@@ -179,6 +179,17 @@ public class ClaudeWindowLauncher {
         return failure;
     }
 
+    /// The message for a window creation on `remote` that got no window:
+    /// the remote's own error output ([#failure]) when it gave one, else a
+    /// pointer to the log. Shared by the desktop and the phone, whose Add-task
+    /// dialog otherwise said only "Cannot create a tmux window …" (field
+    /// report 2026-10-27).
+    // [impl->dsn~task-create-progress~6]
+    public static String windowFailure(String remote, @Nullable String stderr) {
+        String head = "Cannot create a tmux window on " + remote;
+        return stderr == null || stderr.isBlank() ? head + " (see log)." : head + ":\n" + stderr.strip();
+    }
+
     /// Reads the remote's user settings, where `/model` and `/effort` save
     /// the default a fresh session starts with; ssh starts in the home.
     static final List<String> SETTINGS_COMMAND = List.of("cat", ".claude/settings.json");

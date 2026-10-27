@@ -3591,12 +3591,9 @@ public class Main extends Application {
         creationFinished(window, "Task created.");
     }
 
-    /// The failure message of a window creation on `remote`: the remote's own
-    /// error output when it gave one, else a pointer to the log.
-    // [impl->dsn~task-create-progress~6]
+    /// [ClaudeWindowLauncher#windowFailure], shared with the phone.
     static String windowFailure(String remote, @Nullable String stderr) {
-        String head = "Cannot create a tmux window on " + remote;
-        return stderr == null || stderr.isBlank() ? head + " (see log)." : head + ":\n" + stderr.strip();
+        return ClaudeWindowLauncher.windowFailure(remote, stderr);
     }
 
     /// `mkdir -p`s `dir` on `remote` so `tmux new-window -c` can start there,

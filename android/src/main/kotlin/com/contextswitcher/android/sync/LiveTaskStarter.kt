@@ -20,7 +20,10 @@ import java.time.LocalDate
 /// The task file — the desktop's live-task file plus the `tmux:` section — is
 /// pushed the moment the window exists ([onCreated]), before Claude is up, so
 /// the list shows it while the rest of the start runs (a quarter minute).
-// [impl->dsn~android-live-task~2]
+/// A window that cannot be created fails with the remote's error output
+/// (`ClaudeWindowLauncher.windowFailure`), so the dialog names the cause —
+/// a dead session, a refused connection — instead of only the fact.
+// [impl->dsn~android-live-task~3]
 class LiveTaskStarter(
     private val sync: TaskRepoSync,
     private val ssh: SshCommandRunner,
@@ -59,10 +62,11 @@ class LiveTaskStarter(
         if (workdir != null) {
             onStep("Preparing the workspace …")
             // So `tmux new-window -c` succeeds on a fresh workspaces root.
-            ssh.run(remote, listOf("mkdir", "-p", "'$workdir'"))
+            ssh.run(remote, listOf("mkdir", "-p", SshCommandRunner.quotePath(workdir)))
         }
         var created: CreateResult? = null
-        val windowId = ClaudeWindowLauncher(ssh, sender, skipPermissions).launch(
+        val launcher = ClaudeWindowLauncher(ssh, sender, skipPermissions)
+        val windowId = launcher.launch(
             remote, session, description, prompt, workdir, mode, onStep,
             { id ->
                 onStep("Pushing the task …")
@@ -77,7 +81,7 @@ class LiveTaskStarter(
                     onCreated(result.taskId)
                 }
             },
-        ) ?: return Outcome.Failed("Cannot create a tmux window in session $session on $remote")
+        ) ?: return Outcome.Failed(ClaudeWindowLauncher.windowFailure(remote, launcher.failure()))
         return when (val result = created) {
             is CreateResult.Created -> Outcome.Started(result.taskId, windowId)
             is CreateResult.Failed -> Outcome.Failed("Claude runs in window $windowId on $remote, but the task was not pushed: ${result.message}")
