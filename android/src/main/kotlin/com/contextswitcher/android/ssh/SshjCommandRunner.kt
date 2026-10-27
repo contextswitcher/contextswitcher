@@ -2,6 +2,7 @@ package com.contextswitcher.android.ssh
 
 import com.contextswitcher.ssh.SshCommandRunner
 import com.contextswitcher.ssh.SshCommandRunner.SshResult
+import java.net.UnknownHostException
 import java.security.PublicKey
 import java.security.Security
 import java.time.Duration
@@ -28,7 +29,11 @@ class HostKeyMismatchException(message: String) : RuntimeException(message)
 ///
 /// `host` must be `user@hostname` (optionally `:port`) — unlike the
 /// desktop's system `ssh`, there is no `~/.ssh/config` to resolve an alias
-/// or a bare hostname's default user.
+/// or a bare hostname's default user. What `ProxyJump` does there is the
+/// *Jump hosts* setting here ([JumpHosts]): a remote listed with a jump host
+/// is reached through an ssh-level `direct-tcpip` channel on a connection to
+/// the jump host (same key, same TOFU verification), and the jump host
+/// resolves the remote's name — a short LAN name the phone cannot.
 ///
 /// Auth is a single OpenSSH private key pasted into settings, held in
 /// app-private storage exactly like the task-repo sync's PAT
@@ -41,11 +46,12 @@ class HostKeyMismatchException(message: String) : RuntimeException(message)
 /// connection to a host records its fingerprint, every later one must match
 /// exactly or the connection hard-fails via [HostKeyMismatchException] —
 /// never an always-accept verifier, this is a security boundary.
-// [impl->dsn~android-ssh-runner~1]
+// [impl->dsn~android-ssh-runner~2]
 class SshjCommandRunner(
     private val privateKeyPem: () -> String?,
     private val knownHosts: KnownHostsStore,
     private val timeout: Duration = Duration.ofSeconds(10),
+    private val jumpHosts: () -> String = { "" },
 ) : SshCommandRunner {
 
     companion object {
@@ -66,6 +72,10 @@ class SshjCommandRunner(
     }
 
     private val clients = HashMap<String, SSHClient>()
+
+    /// The jump-host connection a client in [clients] runs through, by the
+    /// same key; dropped together with it.
+    private val jumps = HashMap<String, SSHClient>()
     private val io: ExecutorService = Executors.newCachedThreadPool()
 
     override fun run(host: String, remoteCommand: List<String>): SshResult =
@@ -77,6 +87,12 @@ class SshjCommandRunner(
     private fun execute(host: String, remoteCommand: List<String>, input: ByteArray?): SshResult {
         val client = try {
             clientFor(host)
+        } catch (e: UnknownHostException) {
+            // The exception's message is just the bare name (field report
+            // 2026-10-27: "Cannot connect to koppor@devbox: devbox"); say what
+            // it means — on a phone, nearly always the VPN that resolved it.
+            return SshResult(-1, "", "Cannot connect to $host: the name \"${e.message}\" does not resolve on this network" +
+                " (VPN such as Tailscale off? else use the full host name or IP)")
         } catch (e: Exception) {
             return SshResult(-1, "", "Cannot connect to $host: ${e.message}")
         }
@@ -99,8 +115,7 @@ class SshjCommandRunner(
             // The connection may be wedged (a dropped network, a timed-out
             // channel); drop it so the next call reconnects rather than
             // reusing a client stuck in a bad state.
-            synchronized(clients) { clients.remove(host) }
-            runCatching { client.disconnect() }
+            synchronized(clients) { drop(host) }
             SshResult(-1, "", "Command on $host failed: ${e.message}")
         }
     }
@@ -111,23 +126,43 @@ class SshjCommandRunner(
             if (existing != null && existing.isConnected) {
                 return existing
             }
-            existing?.let { runCatching { it.disconnect() } }
+            drop(host)
             val client = connect(host)
             clients[host] = client
             return client
         }
     }
 
+    private fun drop(host: String) {
+        clients.remove(host)?.let { runCatching { it.disconnect() } }
+        jumps.remove(host)?.let { runCatching { it.disconnect() } }
+    }
+
     private fun connect(host: String): SSHClient {
-        val (username, hostname, port) = parseDestination(host)
         val key = privateKeyPem()?.takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("No SSH private key configured in settings")
+        val jump = JumpHosts.forRemote(jumpHosts(), host)?.let { via ->
+            val (user, hostname, port) = parseDestination(via)
+            newClient().also { it.connect(hostname, port); it.authPublickey(user, it.loadKeys(key, null, null)) }
+        }
+        val (username, hostname, port) = parseDestination(host)
+        val client = newClient()
+        try {
+            if (jump == null) client.connect(hostname, port) else client.connectVia(jump.newDirectConnection(hostname, port))
+            client.authPublickey(username, client.loadKeys(key, null, null))
+        } catch (e: Exception) {
+            jump?.let { runCatching { it.disconnect() } }
+            throw e
+        }
+        jump?.let { jumps[host] = it }
+        return client
+    }
+
+    private fun newClient(): SSHClient {
         val client = SSHClient(DefaultConfig())
         client.connectTimeout = timeout.toMillis().toInt()
         client.timeout = timeout.toMillis().toInt()
         client.addHostKeyVerifier(tofuVerifier())
-        client.connect(hostname, port)
-        client.authPublickey(username, client.loadKeys(key, null, null))
         return client
     }
 
@@ -160,5 +195,23 @@ class SshjCommandRunner(
         } else {
             Destination(username, rest, 22)
         }
+    }
+}
+
+/// The *Jump hosts* setting: one remote per line, `user@host via user@jump[:port]`
+/// — the phone's stand-in for `~/.ssh/config`'s `ProxyJump`, per remote and
+/// Android-only (the desktop's system `ssh` reads the config). A line whose
+/// left side names only the host (`devbox via …`) matches any user on it.
+// [impl->dsn~android-ssh-runner~2]
+object JumpHosts {
+    private val LINE = Regex("""^\s*(\S+)\s+via\s+(\S+)\s*$""")
+
+    fun parse(text: String): Map<String, String> =
+        text.lines().mapNotNull { LINE.matchEntire(it) }.associate { it.groupValues[1] to it.groupValues[2] }
+
+    fun forRemote(text: String, remote: String): String? {
+        val table = parse(text)
+        return table[remote] ?: table[remote.substringAfter('@')] ?: table[remote.substringBefore(':')]
+            ?: table[remote.substringAfter('@').substringBefore(':')]
     }
 }

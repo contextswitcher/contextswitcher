@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test
 /// MINA sshd, test-scope only. Proves the exec channel and stdin-feeding
 /// [SshjCommandRunner.runWithInput] actually work end to end, not just
 /// against mocks.
-// [utest->dsn~android-ssh-runner~1]
+// [utest->dsn~android-ssh-runner~2]
 class SshjCommandRunnerTest {
 
     private lateinit var server: SshServer
@@ -37,6 +37,7 @@ class SshjCommandRunnerTest {
             File(createTempDirectory("sshd-hostkey").toFile(), "hostkey.ser").toPath())
         server.publickeyAuthenticator = { _, offered, _ -> offered == keyPair.public }
         server.commandFactory = org.apache.sshd.server.command.CommandFactory { _, command -> ShellCommand(command) }
+        server.forwardingFilter = org.apache.sshd.server.forward.AcceptAllForwardingFilter.INSTANCE
         server.start()
         port = server.port
         hostKeysFile = File(createTempDirectory("known-hosts").toFile(), "known_hosts.properties")
@@ -62,6 +63,37 @@ class SshjCommandRunnerTest {
         val result = runner.run("tester@127.0.0.1:$port", listOf("echo", "hello"))
         assertThat(result.ok()).isTrue()
         assertThat(result.stdout().trim()).isEqualTo("hello")
+    }
+
+    @Test
+    fun `a remote with a jump host is reached through it`() {
+        // The embedded sshd is its own jump host: the runner opens a
+        // direct-tcpip channel on the "jump" connection to the "remote".
+        val runner = SshjCommandRunner({ privateKeyPem() }, KnownHostsStore(hostKeysFile),
+            jumpHosts = { "me@127.0.0.1:$port via me@localhost:$port" })
+        val result = runner.run("me@127.0.0.1:$port", listOf("echo", "via"))
+
+        assertThat(result.ok()).isTrue()
+        assertThat(result.stdout().trim()).isEqualTo("via")
+    }
+
+    @Test
+    fun `jump hosts are looked up per remote, by full destination or host`() {
+        val text = "koppor@devbox via koppor@gate.example.org\nlab via me@gate.example.org:2222\nnonsense line\n"
+        assertThat(JumpHosts.forRemote(text, "koppor@devbox")).isEqualTo("koppor@gate.example.org")
+        assertThat(JumpHosts.forRemote(text, "other@devbox")).isNull()
+        assertThat(JumpHosts.forRemote(text, "anyone@lab")).isEqualTo("me@gate.example.org:2222")
+        assertThat(JumpHosts.forRemote(text, "anyone@lab:22")).isEqualTo("me@gate.example.org:2222")
+        assertThat(JumpHosts.forRemote("", "koppor@devbox")).isNull()
+    }
+
+    @Test
+    fun `a name that does not resolve is explained, not echoed`() {
+        val runner = SshjCommandRunner({ privateKeyPem() }, KnownHostsStore(hostKeysFile))
+        val result = runner.run("me@nowhere.invalid", listOf("true"))
+
+        assertThat(result.ok()).isFalse()
+        assertThat(result.stderr()).startsWith("Cannot connect to me@nowhere.invalid: the name \"nowhere.invalid\" does not resolve")
     }
 
     @Test

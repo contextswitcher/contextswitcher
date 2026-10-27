@@ -248,10 +248,12 @@ Covers:
 Needs: impl, utest
 
 ### `SshjCommandRunner`
-`dsn~android-ssh-runner~1`
+`dsn~android-ssh-runner~2`
 
 `com.contextswitcher.android.ssh.SshjCommandRunner` implements `:core`'s `SshCommandRunner` with sshj (MADR 0027) instead of a spawned process.
 `host` must be `user@hostname[:port]` — there is no `~/.ssh/config` to resolve an alias or a bare host's default user.
+A name that does not resolve (`UnknownHostException`, whose message is just the name) is reported as such, with the VPN hint: on the phone a short name resolves only while Tailscale's MagicDNS or a VPN's search domain is up.
+The *Jump hosts* setting (`SettingsStore`, one line per remote: `user@host via user@jump[:port]`, parsed by `JumpHosts`; a left side without a user matches any user on that host) is the phone's `ProxyJump`: such a remote is reached with `connectVia` over a `direct-tcpip` channel on a connection to the jump host, authenticated with the same key and verified by the same TOFU store, so the jump host resolves the remote's name; the jump connection is dropped together with the remote's.
 One connected `SSHClient` per host is kept in a synchronized map, reconnecting when a stored one has died (ceiling: no idle disconnect yet).
 Each `run`/`runWithInput` call is a fresh exec channel on that connection, with the command's argv joined by spaces (the same convention the desktop's `ProcessSshRunner` relies on: the remote shell reassembles the SSH exec string itself) and, for `runWithInput`, `input` written to the channel's stdin before it is read.
 Auth is a single OpenSSH private key pasted into settings and held in app-private storage (`SettingsStore`, same Keystore-later ceiling as the repo sync token); no passphrase support (ceiling).

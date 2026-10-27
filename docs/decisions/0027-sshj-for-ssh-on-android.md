@@ -29,3 +29,4 @@ Status `proposed` until a spike has run a real `tmux` command against a real rem
 * Good, because one `SshCommandRunner` interface with two implementations keeps all 42 call sites unchanged.
 * Bad, because key management (generation, storage in Android Keystore, host-key verification UX) becomes app code — exactly what 0003 avoided on the desktop.
 * Bad, because ProxyJump/ControlMaster conveniences from `~/.ssh/config` are gone on the phone; direct reachability (VPN/Tailscale) is the user's problem.
+  Mitigated 2026-10-27: a per-remote *Jump hosts* setting does what `ProxyJump` does (sshj's `connectVia` over a `direct-tcpip` channel).

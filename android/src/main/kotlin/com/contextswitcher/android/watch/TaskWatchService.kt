@@ -220,7 +220,8 @@ class TaskWatchService : Service() {
         /// Test seams: the SSH runner, and whether a scheduler polls at all.
         @Volatile internal var sshFactory: (Context) -> SshCommandRunner = { context ->
             SshjCommandRunner({ SettingsStore(context).loadSshPrivateKey() },
-                KnownHostsStore(File(context.filesDir, "known_hosts.properties")))
+                KnownHostsStore(File(context.filesDir, "known_hosts.properties")),
+                jumpHosts = { SettingsStore(context).loadJumpHosts() })
         }
         @Volatile internal var autoPoll = true
 

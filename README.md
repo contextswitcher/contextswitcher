@@ -514,7 +514,7 @@ The app never creates or configures the repository, and a failed sync never disr
 
 A native Android app reads the same task repository from your phone: the task list grouped by folder with status and tags, a terminal page showing the task's tmux window (`capture-pane`, refreshed while visible), and a queue page listing the pending messages and sending a new one straight into the chat over SSH ([`docs/requirements/android.md`](docs/requirements/android.md), MADR 0026–0028).
 
-The sync runs over HTTPS with a personal access token (a new task is the phone's only push); SSH uses an in-process client (no `ssh` binary on Android) with trust-on-first-use host keys and a single OpenSSH private key from the settings screen.
+The sync runs over HTTPS with a personal access token (a new task is the phone's only push); SSH uses an in-process client (no `ssh` binary on Android) with trust-on-first-use host keys and a single OpenSSH private key from the settings screen; a remote the phone cannot reach directly gets a jump host there (*Jump hosts*, `user@host via user@jump`, the phone's `ProxyJump`).
 Build it with `gradlew :android:assembleDebug`; the module is only included when an Android SDK is configured (`ANDROID_HOME` or `local.properties`), so SDK-less machines build exactly as before.
 Connected to a car, the same APK shows on the Android Auto head unit — the tasks with a Claude session, those waiting for you first, and per task a dictated or canned message; being sideloaded, it needs *Unknown sources* enabled in Android Auto's developer settings (tap the version there ten times).
 
