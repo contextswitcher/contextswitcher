@@ -1254,7 +1254,7 @@ The capture/store/reopen logic and the scripts' COM shape are unit-tested; what 
 - [ ] Suspend with Firefox closed (extension disconnected) → the chip fails with the extension detail, nothing is stored; the tmux teardown still runs.
 - [ ] On the category with the plain scalar `desktop:` form, suspend → behavior unchanged (only the task's own `browser.urls` close).
 
-## Download a generated file (`dsn~generated-file-download~2`)
+## Download a generated file (`dsn~generated-file-download~3`)
 
 The remote half is verified (the `find` listing and the base64 round-trip were run against devbox while building this); what needs a real desktop is the menu, the download folder, and the OS handing the file to an application — on Windows in particular, where `~/Downloads` is `%USERPROFILE%\Downloads`.
 

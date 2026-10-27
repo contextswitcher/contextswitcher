@@ -102,7 +102,7 @@ It prepends tmux's own directory to `PATH` (`RequiredTools.find`, `dsn~startup-t
 With that in place the local session joins the remote features unchanged:
 
 - **The mirror** (`dsn~terminal-pane~14`): `TmuxMirrorCommands.attachCommand` drops its `ssh -t <host>` prefix for the local host and hands the identical tmux command line to `sh -c`; the grouped mirror session (`cs-mirror-0` onto the local session `0`) works as remotely, so mirroring never moves the current window of a session the user has attached in a terminal of their own.
-  `Show diff` and `Files` are disabled while a local session is mirrored — both are ssh round-trips (`dsn~terminal-diff-window~2`, `dsn~generated-file-download~2`) with no host to reach; disabling them says so, rather than letting them fail against a host called `(local)`.
+  `Show diff` and `Files` are disabled while a local session is mirrored — both are ssh round-trips (`dsn~terminal-diff-window~2`, `dsn~generated-file-download~3`) with no host to reach; disabling them says so, rather than letting them fail against a host called `(local)`.
 - **Ending the window** (`dsn~task-suspend~6`, `dsn~claude-session-kill~6`): `TmuxKillAction` is configured for any task with a tmux host, so suspend, complete and the delete dialog's "End the tmux window" reach a local window too — and `MainWindow.hasLiveContext` counts such a task as running, which is what puts the checkbox in the dialog and the task into the category delete's one-by-one confirmation.
   The transcript and working-directory boxes stay remote-only: both are `remote:`-gated cleanups of a remote machine.
   The pane snapshot before the kill (`dsn~terminal-suspend-snapshot~3`) is taken over the same route.
@@ -240,7 +240,7 @@ Needs: impl, utest
 ### File paths in the terminal are clickable
 `dsn~terminal-file-links~1`
 
-A path Claude prints — the attachment an image paste uploaded, the report it just wrote into its scratchpad — is opened by clicking it, instead of retyping it into the "Files" menu's "Custom path…" dialog (`dsn~generated-file-download~2`).
+A path Claude prints — the attachment an image paste uploaded, the report it just wrote into its scratchpad — is opened by clicking it, instead of retyping it into the "Files" menu's "Custom path…" dialog (`dsn~generated-file-download~3`).
 `FileHyperlinkFilter` (package `terminal`) marks an absolute or `~`-rooted path whose last segment ends in an extension; a directory is nothing to open, and the extension is what keeps the slashes of ordinary prose out of the links.
 A click opens the file in its registered application when it is on *this* machine (the attachment case: the upload keeps the name, so `Attachments.localCopy` maps `…/.contextswitcher/attachments/<name>` to the local copy even when the remote home differs from the local one), and otherwise downloads it from the mirrored host first — the "Files" menu's own route, `RemoteFiles.stat` then `downloadGeneratedFile`, so the size limit and the "no readable file" alert apply unchanged.
 
@@ -606,7 +606,7 @@ Covers:
 Needs: dsn
 
 ### Generated files listed from the remote, not from the terminal
-`dsn~generated-file-download~2`
+`dsn~generated-file-download~3`
 
 A "Files" button right of "Show diff" opens a menu above itself: **"Custom path…"**, a separator, then the newest files under the remote user's Claude scratchpad directories, newest first.
 Choosing any of them downloads the file to `~/Downloads` (the home directory where no such folder exists) and hands it to the OS via AWT `Desktop.open` — the `Main.openTasksDir` shape, not `HostServices.showDocument`, whose `file://` URI would land in the browser.
@@ -628,6 +628,9 @@ The local name is the last path segment with every character outside `[A-Za-z0-9
 It asks for a path, `RemoteFiles.cleanPath` makes it fit for the transport, and `RemoteFiles.statCommand` — `find '<path>' -maxdepth 0 -type f -printf …`, the *same* format so `parseList` reads it — resolves it on the remote before anything is transferred.
 `find` rather than `stat` for one reason beyond the shared parser: `-type f` turns a directory or a missing path into no output at all, so an unusable answer needs no second check.
 Resolving first means a typo is one alert (`No readable file X on Y.`) instead of a failed transfer, and the size limit applies to a typed path exactly as it does to a listed one.
+A pasted path is unwrapped before anything else (`RemoteFiles.unwrap`, `~3`): Claude's TUI prints a long path across two lines with an indented continuation, and copied from the mirror it arrives as `…/3e78ee` + line break + `    4679ad/…` — or, once the single-line field has swallowed the break, as the blanks alone (field report 2026-10-27, a scratchpad PNG path).
+Every line break with its adjacent whitespace and every run of two or more blanks is removed; a single blank stays, since a path may contain one.
+The owned session's local "Custom path…" (`dsn~terminal-owned-session~4`) unwraps the same way.
 `cleanPath` strips a leading `~/` and refuses a bare `~`: the path travels single-quoted, so the remote shell would never expand a tilde, and the ssh exec channel already starts in the remote home — `~/x` and the relative `x` are the same file.
 A path containing a single quote is refused with the reason, the same character the listing drops.
 

@@ -13,7 +13,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-// [utest->dsn~generated-file-download~2]
+// [utest->dsn~generated-file-download~3]
 class RemoteFilesTest {
 
     // [utest->dsn~terminal-owned-session~4]
@@ -87,6 +87,17 @@ class RemoteFilesTest {
         assertEquals("notes/report.md", RemoteFiles.cleanPath("  ~/notes/report.md "));
         assertEquals("/tmp/x.txt", RemoteFiles.cleanPath("/tmp/x.txt"));
         assertEquals("relative.txt", RemoteFiles.cleanPath("relative.txt"));
+    }
+
+    @Test
+    void cleanPathUndoesTheTerminalWrap() {
+        // Claude prints a long path wrapped with an indented continuation;
+        // a single-line field has already dropped the break, leaving the blanks.
+        assertEquals("/tmp/claude-1001/x/249e1886-1733-4c43-8aa5-3e78ee4679ad/scratchpad/avatar/org-avatar-512.png",
+                RemoteFiles.cleanPath("/tmp/claude-1001/x/249e1886-1733-4c43-8aa5-3e78ee\n    4679ad/scratchpad/avatar/org-avatar-512.png"));
+        assertEquals("/tmp/a/bcd", RemoteFiles.cleanPath("/tmp/a/b\ncd"));
+        assertEquals("/tmp/a/bcd", RemoteFiles.cleanPath("/tmp/a/b    cd"));
+        assertEquals("/tmp/my file.txt", RemoteFiles.cleanPath("/tmp/my file.txt"));
     }
 
     @Test
