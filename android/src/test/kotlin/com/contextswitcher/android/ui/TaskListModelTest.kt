@@ -31,6 +31,20 @@ class TaskListModelTest {
         assertThat(beta.filterIsInstance<com.contextswitcher.tasks.TaskEntry.Failed>()).hasSize(1)
     }
 
+    // [utest->dsn~android-task-create~2]
+    @Test
+    fun `groupAtTop maps the list's first visible item to its group`() {
+        val entry = com.contextswitcher.tasks.TaskEntry.Failed("x", "x.md", "broken")
+        val groups = listOf(
+            TaskGroupUi("alpha", listOf(entry, entry)),
+            TaskGroupUi("beta", listOf(entry)),
+        )
+
+        assertThat((0..4).map { groupAtTop(groups, it) }).containsExactly("alpha", "alpha", "alpha", "beta", "beta")
+        assertThat(groupAtTop(groups, 99)).isEqualTo("beta")
+        assertThat(groupAtTop(emptyList(), 0)).isEmpty()
+    }
+
     private fun task(title: String, status: String) = """
         ---
         title: $title

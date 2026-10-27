@@ -17,10 +17,10 @@ import org.junit.jupiter.api.io.TempDir
 /// A live task from the phone: window in the remote's usual session and the
 /// category's workspace, the task file pushed with that window, Claude
 /// started with the desktop's prompt.
-// [utest->dsn~android-live-task~1]
+// [utest->dsn~android-live-task~3]
 class LiveTaskStarterTest {
 
-    private class Remote : SshCommandRunner {
+    private class Remote(val unreachable: String? = null) : SshCommandRunner {
         val commands = CopyOnWriteArrayList<String>()
         val pasted = CopyOnWriteArrayList<String>()
 
@@ -28,6 +28,7 @@ class LiveTaskStarterTest {
             val line = remoteCommand.joinToString(" ")
             commands.add("$host: $line")
             return when {
+                unreachable != null -> SshResult(-1, "", unreachable)
                 "new-window" in remoteCommand -> SshResult(0, "@77\n", "")
                 "capture-pane" in remoteCommand -> SshResult(0, pasted.joinToString("\n"), "")
                 else -> SshResult(0, "", "")
@@ -69,7 +70,7 @@ class LiveTaskStarterTest {
         assertThat(createdIds).containsExactly(taskId)
         assertThat(remote.commands).anyMatch { it.contains("new-window -t 'main:' -c '/ws'") }
         assertThat(remote.commands).anyMatch { it.contains("claude --dangerously-skip-permissions") }
-        assertThat(remote.pasted.joinToString()).contains("Fix the build").contains("git worktree for this task from the work subdirectory")
+        assertThat(remote.pasted.joinToString()).contains("Fix the build").contains("git worktree for this task from the primary clone at /ws/r")
 
         val check = File(tmp, "check")
         Git.cloneRepository().setURI(bare.absolutePath).setDirectory(check).call().close()
@@ -82,13 +83,44 @@ class LiveTaskStarterTest {
     }
 
     @Test
-    fun `a category without a remote starts nothing`(@TempDir tmp: File) {
+    fun `a category without a remote falls back to the first remote a task names`(@TempDir tmp: File) {
+        File(tmp, ".git").mkdirs()
+        File(tmp, "notes").mkdirs()
+        File(tmp, "notes/CONTEXTSWITCHER.md").writeText("---\nrepo: https://github.com/o/r\n---\n")
+        File(tmp, "work").mkdirs()
+        File(tmp, "work/older.md").writeText("---\ntitle: Older\nstatus: active\nremote: me@box\n---\n")
+        val starter = LiveTaskStarter(TaskRepoSync(), Remote(), MessageSender(Remote(), tmp.toPath()))
+
+        assertThat(starter.remoteOf(tmp, "notes")).isEqualTo("me@box")
+        assertThat(starter.remoteOf(tmp, "")).isEqualTo("me@box")
+    }
+
+    @Test
+    fun `without any remote the dialog has none and the start fails`(@TempDir tmp: File) {
         val remote = Remote()
         File(tmp, ".git").mkdirs()
-        val outcome = LiveTaskStarter(TaskRepoSync(), remote, MessageSender(remote, tmp.toPath()))
-            .start(tmp, "u", "t", "work", "x", ClaudeMode.DEFAULT, false, {}) {}
+        val starter = LiveTaskStarter(TaskRepoSync(), remote, MessageSender(remote, tmp.toPath()))
+        val outcome = starter.start(tmp, "u", "t", "work", "x", ClaudeMode.DEFAULT, false, {}) {}
 
+        assertThat(starter.remoteOf(tmp, "work")).isNull()
         assertThat(outcome).isInstanceOf(LiveTaskStarter.Outcome.Failed::class.java)
         assertThat(remote.commands).isEmpty()
+    }
+
+    @Test
+    fun `a window that cannot be created reports the remote's error, not just the headline`(@TempDir tmp: File) {
+        val remote = Remote(unreachable = "Cannot connect to me@box: Connection refused")
+        File(tmp, ".git").mkdirs()
+        File(tmp, "work").mkdirs()
+        File(tmp, "work/CONTEXTSWITCHER.md").writeText("---\nremote: me@box\nworkspacesRoot: ~/ws\n---\n")
+        val starter = LiveTaskStarter(TaskRepoSync(), remote, MessageSender(remote, tmp.toPath()))
+        val outcome = starter.start(tmp, "u", "t", "work", "x", ClaudeMode.DEFAULT, false, {}) {}
+
+        assertThat(outcome).isInstanceOf(LiveTaskStarter.Outcome.Failed::class.java)
+        assertThat((outcome as LiveTaskStarter.Outcome.Failed).message)
+            .isEqualTo("Cannot create a tmux window in session 0 on me@box:\nCannot connect to me@box: Connection refused")
+        // The workspaces root is `mkdir -p`ed with the tilde outside the quotes, so the
+        // remote shell expands it (the desktop's 2026-10-12 fix, `quotePath`).
+        assertThat(remote.commands).anyMatch { it.endsWith("mkdir -p ~/'ws'") }
     }
 }

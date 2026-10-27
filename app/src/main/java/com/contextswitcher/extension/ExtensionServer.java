@@ -140,7 +140,7 @@ public class ExtensionServer extends WebSocketServer implements TabCommands {
 
     /// Receives the URL of a tab the user activated in the browser; set by the
     /// app once its window exists.
-    // [impl->dsn~browser-tab-selects-task~6]
+    // [impl->dsn~browser-tab-selects-task~7]
     public void setTabActivatedHandler(Consumer<String> handler) {
         this.tabActivatedHandler = handler;
     }
@@ -217,6 +217,13 @@ public class ExtensionServer extends WebSocketServer implements TabCommands {
     public ExtensionProtocol.Result activeTab() {
         String id = UUID.randomUUID().toString();
         return request(id, ExtensionProtocol.encodeActiveTab(id));
+    }
+
+    /// Shows or hides the bookmarks toolbar of every browser window.
+    // [impl->dsn~environment-profile-bookmarks-bar~1]
+    public ExtensionProtocol.Result bookmarksBar(boolean hidden) {
+        String id = UUID.randomUUID().toString();
+        return request(id, ExtensionProtocol.encodeBookmarksBar(id, hidden));
     }
 
     /// Tells the extension which tasks list `url`, the answer to its

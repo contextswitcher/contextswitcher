@@ -26,6 +26,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.jspecify.annotations.Nullable;
@@ -219,6 +220,7 @@ final class UpdateNews {
         }
         Stage dialog = new Stage();
         dialog.initOwner(owner.get());
+        AppIcon.applyTo(dialog);
         Button later = new Button("Later");
         later.getStyleClass().add(Styles.SMALL);
         later.setCancelButton(true);
@@ -249,9 +251,8 @@ final class UpdateNews {
         buttons.setAlignment(Pos.CENTER_RIGHT);
         buttons.setPadding(new Insets(8, 16, 12, 16));
         BorderPane root = new BorderPane(newsBody(items));
-        Label hint = new Label(AppUpdate.actionHint(looped));
-        hint.getStyleClass().add(Styles.TEXT_MUTED);
-        hint.setWrapText(true);
+        TextFlow hint = WhatsNew.inline(AppUpdate.actionHint(looped), url -> {});
+        hint.getChildren().forEach(n -> n.getStyleClass().add(Styles.TEXT_MUTED));
         hint.setPadding(new Insets(8, 16, 0, 16));
         // Goes with the button: nothing to restart into, nothing to explain.
         hint.visibleProperty().bind(restart.visibleProperty());

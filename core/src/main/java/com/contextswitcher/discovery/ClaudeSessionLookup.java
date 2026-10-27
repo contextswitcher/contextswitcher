@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import com.contextswitcher.ssh.SshCommandRunner;
@@ -37,28 +38,35 @@ public class ClaudeSessionLookup {
     /// (`dsn~terminal-owned-session~4`) has no host to ask over ssh.
     /// The task's `recorded` id when its transcript is there (so one folder
     /// can hold several tasks, each resuming its own conversation), else the
-    /// newest transcript; null when the directory holds none.
-    public static @Nullable String localSessionToResume(String cwd, @Nullable String recorded) {
+    /// newest transcript no other task `claimed`; null when the directory
+    /// holds none. Without the claim check two tasks in one folder both fell
+    /// back to the same newest transcript and shared one conversation.
+    public static @Nullable String localSessionToResume(String cwd, @Nullable String recorded,
+            Set<String> claimed) {
         return sessionToResume(Path.of(System.getProperty("user.home"), ".claude", "projects",
-                encodeProjectDir(cwd)), recorded);
+                encodeProjectDir(cwd)), recorded, claimed);
     }
 
-    static @Nullable String sessionToResume(Path dir, @Nullable String recorded) {
+    static @Nullable String sessionToResume(Path dir, @Nullable String recorded,
+            Set<String> claimed) {
         if (recorded != null && Files.isRegularFile(dir.resolve(recorded + ".jsonl"))) {
             return recorded;
         }
         try (Stream<Path> files = Files.list(dir)) {
             return files.filter(file -> file.getFileName().toString().endsWith(".jsonl"))
+                    .filter(file -> !claimed.contains(sessionIdOf(file)))
                     .max(Comparator.comparing(ClaudeSessionLookup::modifiedAt))
-                    .map(file -> {
-                        String name = file.getFileName().toString();
-                        return name.substring(0, name.length() - ".jsonl".length());
-                    })
+                    .map(ClaudeSessionLookup::sessionIdOf)
                     .orElse(null);
         } catch (IOException e) {
             Logger.debug("No Claude transcripts in {}: {}", dir, e.getMessage());
             return null;
         }
+    }
+
+    private static String sessionIdOf(Path transcript) {
+        String name = transcript.getFileName().toString();
+        return name.substring(0, name.length() - ".jsonl".length());
     }
 
     private static FileTime modifiedAt(Path file) {

@@ -73,6 +73,22 @@ Covers:
 
 Needs: dsn
 
+### Environment profiles per category
+`req~environment-profiles~1`
+
+The machine itself looks different per situation: in a lecture hall the screen is duplicated to the projector at its resolution, the taskbar is out of the way, and the browser shows no bookmarks; at the desk everything is back to normal; during a screen share in a call, private toolbars are hidden whatever the task.
+`settings.yaml` names such looks as profiles — screen resolution, projection mode, taskbar auto-hide, browser bookmarks bar — one of them the `default`, the system's normal look.
+A category picks a profile; switching to one of its tasks puts the machine into it, and switching to a task of a category without one puts the default back.
+A profile only states the keys it cares about; the rest comes from the default.
+A manual override in the status bar (e.g. `screenshare`) is laid over whatever the category picked until it is switched back.
+
+Tags: windows, linux_later
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Open the task's note
 `req~open-task-note~1`
 
@@ -413,6 +429,78 @@ Tags: windows, linux
 
 Covers:
 - req~category-action-defaults~1
+
+Needs: impl, utest
+
+### Environment profiles
+`dsn~environment-profiles~1`
+
+`EnvironmentProfiles.parse` reads `settings.yaml`'s `profiles:` mapping (name → `EnvironmentProfile` with `screens` — a map from screen selector to an entry with an optional `resolution: <w>x<h>` (absent: the mode is left alone) and an optional `scale:` percentage (one of Windows' scale steps 100–500; 100 when left out, so a rule always pins the zoom too); an entry with a malformed value, or with neither key, is dropped whole —, `displays` `internal`/`clone`/`extend`/`external`, `taskbar` `visible`/`autohide`, `bookmarksBar` `visible`/`hidden`), leniently: a malformed value reads as unset, an unparseable file as no profiles.
+It is read on its own, fresh on every switch, rather than as an `AppSettings` field — an edited profile needs no restart, and the settings editor patches the file key by key (`YamlPatch`), so the section survives a form save.
+A category names its profile with `profile:` in `CONTEXTSWITCHER.md` (`TaskFileParser.groupProfile`); the group-config skeleton carries it as a commented example.
+
+`EnvironmentProfiles.effective(categoryProfile, override)` layers per key: the override over the category's profile over `default`, and `screens` per selector (case-insensitive), so a lecture profile that sets `external` keeps the default's `internal`; a name `settings.yaml` does not define throws, naming it.
+`EnvironmentProfileAction` (chip `profile`) is configured exactly when `settings.yaml` defines any profile — a category without `profile:` still applies `default`, which is what undoes a lecture-hall look.
+It hands the effective profile's machine keys to `WindowsEnvironment` (`dsn~environment-profile-windows~1`) and the bookmarks bar to the extension (`dsn~environment-profile-bookmarks-bar~1`); the latter only when it differs from the state last put into effect, so a session without a browser does not fail every switch over an unchanged bar, and a failed send is retried on the next switch.
+The chip names the layers (`lecture + screenshare: …`) and what changed, or `already in place`.
+
+Tags: windows
+
+Covers:
+- req~environment-profiles~1
+
+Needs: impl, utest
+
+### Environment profile on Windows
+`dsn~environment-profile-windows~1`
+
+`WindowsEnvironment` builds one PowerShell script (inline C# P/Invoke, run as `-EncodedCommand`) with a step per key the profile sets; each step reads the current state and changes only what differs, so switching between tasks of one category costs no flicker.
+`displays` goes first: `QueryDisplayConfig(QDC_DATABASE_CURRENT)` yields the topology, `SetDisplayConfig(SDC_APPLY | SDC_TOPOLOGY_INTERNAL/CLONE/EXTEND/EXTERNAL)` sets it (the documented call behind Win+P, rather than `DisplaySwitch.exe`, whose switches moved between Windows 11 builds), then the script waits 2.5 s for the mode set to settle.
+`screens`: `QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS)` lists the active screens and `DisplayConfigGetDeviceInfo` names each — EDID friendly name (`DELL U4025QW`; a laptop panel often has none), product code from the device path (`DEL4308`), output technology (LVDS/embedded DisplayPort/embedded UDI/internal = `internal`, anything else `external`), and its GDI source (`\\.\DISPLAYn`).
+Each screen takes the rule for its name or code, else `primary` (the screen at 0,0), else `internal`/`external`; a screen no rule matches is left alone, and a rule for a screen that is not connected is skipped silently — rooms differ in their screens.
+Once the modes are applied, each matched screen gets its rule's scale through the undocumented `DisplayConfigGetDeviceInfo`/`DisplayConfigSetDeviceInfo` DPI-scale requests (types -3/-4) behind the Settings app's "Scale": they count steps of the scale list from the screen's recommended scale, which depends on the resolution, hence the order; a scale beyond the screen's maximum is a failure naming the range.
+Display numbers are not a selector, since Windows renumbers them on docking and hot-plug.
+A screen whose rule has a `resolution` that differs from its current mode is staged with `ChangeDisplaySettingsEx(CDS_UPDATEREGISTRY | CDS_NORESET)` and all staged modes are applied together — persisted, so a projector hot-plug that re-applies the stored mode does not undo them.
+`taskbar` compares `SHAppBarMessage(ABM_GETSTATE)` and sets `ABM_SETSTATE` (`ABS_AUTOHIDE` or `ABS_ALWAYSONTOP`) on `Shell_TrayWnd` — the taskbar's auto-hide setting, which ExplorerPatcher's Windows 10 taskbar honours too.
+A mode the displays do not offer (`clone` with no projector plugged in, a resolution a screen lacks) does not stop the other steps; the script exits 3 with the failures listed first.
+A profile with only `bookmarksBar` spawns no `powershell`.
+
+Tags: windows
+
+Covers:
+- req~environment-profiles~1
+
+Needs: impl, utest
+
+### Bookmarks bar via title preface
+`dsn~environment-profile-bookmarks-bar~1`
+
+No WebExtension API shows or hides a browser toolbar, so the Firefox extension marks every normal window with an invisible `titlePreface` (U+2060 U+200B) for "hidden" and clears it for "visible", and a one-time `userChrome.css` rule keyed on the root's `titlepreface` attribute collapses `#PersonalToolbar` (`extension/firefox/README.md`).
+The app sends `{"type":"bookmarks-bar","id":…,"hidden":…}`; the extension answers with a `result` like any tab command, keeps the state in `storage.local` and applies it to windows opened later and after a browser restart.
+Its storage listener reconnects only for `port`/`token`/`enabled` changes, so writing that state mid-request does not drop the socket.
+The OS caption gains the invisible preface, which the containment matching of window captions (`windowIdFor`, `BrowserWindowFocus`) is unaffected by.
+The Chrome extension answers `bookmarks bar: Firefox only`.
+
+Tags: windows
+
+Covers:
+- req~environment-profiles~1
+
+Needs: impl, utest
+
+### Environment profile override
+`dsn~environment-profile-override~1`
+
+The bottom bar carries a flat `MenuButton` (MDI `monitor-share`) right of the switch chips, shown once `Main` wires it (`MainWindow.installProfileOverride`).
+Opening it lists "Category profile" (no override) and every profile name from `settings.yaml`, read at that moment, as radio items; the button shows the active override's name, so a forgotten `screenshare` stays in sight.
+A choice is kept in `Main.profileOverride` (session-only: a restart starts without override), is laid over every later switch, and takes effect right away through `EnvironmentProfileAction.reapply` — the profile of the category last switched to — with the outcome as a status-bar message.
+The button starts hidden from its construction on (`hiddenUntilInstalled`), not where the bottom bar is assembled: `Main` wires the override before `show` builds that bar, and hiding it there hid it for good.
+`ProfileOverrideUiTest` boots the real `Main` and checks the button is visible and lists the profiles; it opens the menu with `MenuButton.show`, since the robot's click did not open it in the test window.
+
+Tags: windows
+
+Covers:
+- req~environment-profiles~1
 
 Needs: impl, utest
 

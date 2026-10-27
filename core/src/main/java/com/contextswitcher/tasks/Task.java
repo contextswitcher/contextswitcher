@@ -314,7 +314,7 @@ public record Task(
     /// extension's `isSameOrSubUrl` applies when focusing a tab.
     /// A fragment on the task's URL only points into the page (a PR review
     /// comment), so the page itself and its sub-pages match it too.
-    // [impl->dsn~browser-tab-selects-task~6]
+    // [impl->dsn~browser-tab-selects-task~7]
     public int tabUrlMatch(String tabUrl) {
         if (browser == null) {
             return 0;

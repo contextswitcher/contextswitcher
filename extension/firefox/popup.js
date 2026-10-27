@@ -2,7 +2,7 @@
 // task selects it and raises ContextSwitcher; the ▶ next to it runs the full
 // switch. Both go out as the `contextswitcher://` links the app's own URL
 // scheme already handles.
-// [impl->dsn~browser-tab-task-popup~1]
+// [impl->dsn~browser-tab-task-popup~2]
 
 // A persistent background page (MV2) hands the popup its state directly —
 // no message passing. Null in a private window, where no background page is
@@ -98,7 +98,7 @@ if (bg) {
 // The on/off switch, as Tampermonkey has one. Saving the flag reaches the
 // background's storage listener, which drops or dials the connection; the
 // icon fading or coming back is the feedback, so the popup just closes.
-// [impl->dsn~extension-enable-toggle~1]
+// [impl->dsn~extension-enable-toggle~2]
 async function showToggle() {
   const { enabled } = await browser.storage.local.get({ enabled: true });
   const toggle = document.getElementById("toggle");
@@ -110,6 +110,25 @@ async function showToggle() {
   };
 }
 showToggle();
+
+// The bookmarks-bar mark an environment profile set. The extension can only
+// mark the windows; the hiding itself is the user's userChrome.css rule, so
+// a bar still showing is pointed at that setup rather than at the app.
+// [impl->dsn~environment-profile-bookmarks-bar~1]
+async function showBookmarksBar() {
+  const { bookmarksHidden } = await browser.storage.local.get({ bookmarksHidden: false });
+  const bar = document.getElementById("bar");
+  bar.hidden = !bookmarksHidden;
+  bar.textContent = bookmarksHidden
+    ? "Bookmarks bar hidden by the profile (still showing? userChrome.css rule missing, see README)."
+    : "";
+}
+showBookmarksBar();
+
+// The installed version, so a stale install (an xpi not reinstalled after a
+// pull, a temporary add-on gone with the last Firefox restart) is told apart
+// from the one the app expects.
+document.getElementById("version").textContent = "v" + browser.runtime.getManifest().version;
 
 // The token is what a fresh install lacks, so its page is one click away.
 document.getElementById("options").addEventListener("click", () => {

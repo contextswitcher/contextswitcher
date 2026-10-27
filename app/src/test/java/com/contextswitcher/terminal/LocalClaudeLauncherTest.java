@@ -12,36 +12,37 @@ class LocalClaudeLauncherTest {
     // [utest->dsn~terminal-owned-session~4]
     @Test
     void ownedSessionRunsClaudeWithThePromptAndNoWindowsTerminal() {
-        assertThat(LocalClaudeLauncher.ownedCommand("Fix the importer", "opus", null))
-                .containsExactly("cmd", "/k", "claude", "--model", "opus", "Fix the importer");
+        assertThat(LocalClaudeLauncher.ownedCommand("Fix the importer", "opus", "a1b2-c3", false))
+                .containsExactly("cmd", "/k", "claude", "--session-id", "a1b2-c3",
+                        "--model", "opus", "Fix the importer");
     }
 
     // [utest->dsn~terminal-owned-session~4]
     @Test
     void ownedSessionResumesATranscriptWithoutModelOrPrompt() {
-        assertThat(LocalClaudeLauncher.ownedCommand("Fix the importer", "opus", "a1b2-c3"))
+        assertThat(LocalClaudeLauncher.ownedCommand("Fix the importer", "opus", "a1b2-c3", true))
                 .containsExactly("cmd", "/k", "claude", "--resume", "a1b2-c3");
     }
 
     // [utest->dsn~terminal-owned-session~4]
     @Test
     void ownedSessionFoldsNewlinesSoTheCommandLineStaysOneLine() {
-        assertThat(LocalClaudeLauncher.ownedCommand("First\nsecond", null, null).getLast())
+        assertThat(LocalClaudeLauncher.ownedCommand("First\nsecond", null, "id", false).getLast())
                 .isEqualTo("First second");
     }
 
     // [utest->dsn~terminal-owned-session~4]
     @Test
     void ownedSessionTurnsDoubleQuotesSoCmdMetacharactersStayQuoted() {
-        assertThat(LocalClaudeLauncher.ownedCommand("chevron left \"<\" & more", null, null).getLast())
+        assertThat(LocalClaudeLauncher.ownedCommand("chevron left \"<\" & more", null, "id", false).getLast())
                 .isEqualTo("chevron left '<' & more");
     }
 
     // [utest->dsn~terminal-owned-session~4]
     @Test
     void omitsAnEmptyPrompt() {
-        assertThat(LocalClaudeLauncher.ownedCommand("   ", null, null))
-                .containsExactly("cmd", "/k", "claude");
+        assertThat(LocalClaudeLauncher.ownedCommand("   ", null, "id", false))
+                .containsExactly("cmd", "/k", "claude", "--session-id", "id");
     }
 
     // [utest->dsn~terminal-owned-session~4]

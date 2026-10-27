@@ -20,7 +20,7 @@ import java.time.LocalDate
 /// The task file — the desktop's live-task file plus the `tmux:` section — is
 /// pushed the moment the window exists ([onCreated]), before Claude is up, so
 /// the list shows it while the rest of the start runs (a quarter minute).
-// [impl->dsn~android-live-task~1]
+// [impl->dsn~android-live-task~3]
 class LiveTaskStarter(
     private val sync: TaskRepoSync,
     private val ssh: SshCommandRunner,
@@ -32,9 +32,13 @@ class LiveTaskStarter(
         data class Failed(val message: String) : Outcome
     }
 
-    /// The remote a live task in `category` would run on, or null when its
-    /// `CONTEXTSWITCHER.md` names none (then only a plain task is possible).
-    fun remoteOf(dir: File, category: String): String? = config(dir, category).remote()
+    /// The remote a live task in `category` would run on, like the desktop's
+    /// `effectiveRemote`: the category's `CONTEXTSWITCHER.md` `remote`, else
+    /// the first remote a task in the clone names (the phone has no `remotes`
+    /// setting). Null only when no remote is known anywhere — then only a
+    /// plain task is possible.
+    fun remoteOf(dir: File, category: String): String? =
+        config(dir, category).remote() ?: tasks(dir).mapNotNull { it.remote() }.firstOrNull()
 
     fun start(
         dir: File,
@@ -48,17 +52,18 @@ class LiveTaskStarter(
         onCreated: (taskId: String) -> Unit,
     ): Outcome {
         val config = config(dir, category)
-        val remote = config.remote() ?: return Outcome.Failed("The category names no remote in its ${TaskRepository.GROUP_CONFIG_FILE_NAME}")
+        val remote = remoteOf(dir, category) ?: return Outcome.Failed("No remote: none in the category's ${TaskRepository.GROUP_CONFIG_FILE_NAME}, none on any task")
         val workdir = config.resolveWorkdir()
         val session = usualSession(dir, remote)
-        val prompt = ClaudeWindowLauncher.liveTaskPrompt(description, config.repo(), config.bootstrapWorktree(), category, null)
+        val prompt = ClaudeWindowLauncher.liveTaskPrompt(description, config.repo(), config.bootstrapWorktree(), category, config.effectiveMainCheckout(), null)
         if (workdir != null) {
             onStep("Preparing the workspace …")
             // So `tmux new-window -c` succeeds on a fresh workspaces root.
-            ssh.run(remote, listOf("mkdir", "-p", "'$workdir'"))
+            ssh.run(remote, listOf("mkdir", "-p", SshCommandRunner.quotePath(workdir)))
         }
         var created: CreateResult? = null
-        val windowId = ClaudeWindowLauncher(ssh, sender, skipPermissions).launch(
+        val launcher = ClaudeWindowLauncher(ssh, sender, skipPermissions)
+        val windowId = launcher.launch(
             remote, session, description, prompt, workdir, mode, onStep,
             { id ->
                 onStep("Pushing the task …")
@@ -73,12 +78,21 @@ class LiveTaskStarter(
                     onCreated(result.taskId)
                 }
             },
-        ) ?: return Outcome.Failed("Cannot create a tmux window in session $session on $remote")
+        ) ?: return Outcome.Failed(windowFailure(session, remote, launcher.failure()))
         return when (val result = created) {
             is CreateResult.Created -> Outcome.Started(result.taskId, windowId)
             is CreateResult.Failed -> Outcome.Failed("Claude runs in window $windowId on $remote, but the task was not pushed: ${result.message}")
             null -> Outcome.Failed("Window $windowId on $remote was not reported")
         }
+    }
+
+    /// The desktop's `Main.windowFailure` wording: the remote's error output
+    /// (a refused connection, a missing key, tmux's own complaint) under the
+    /// headline — the phone has no log to point at (field report 2026-10-27:
+    /// only the headline, no way to tell why).
+    private fun windowFailure(session: String, remote: String, stderr: String?): String {
+        val head = "Cannot create a tmux window in session $session on $remote"
+        return if (stderr.isNullOrBlank()) head else "$head:\n${stderr.trim()}"
     }
 
     private fun config(dir: File, category: String): GroupConfig {
@@ -89,10 +103,11 @@ class LiveTaskStarter(
     /// The tmux session the remote's tasks live in, like the desktop's
     /// `usualSession`: the first task on `remote` with one, else `0`.
     private fun usualSession(dir: File, remote: String): String =
+        tasks(dir).firstOrNull { it.remote() == remote && it.tmux() != null }?.tmux()?.session() ?: "0"
+
+    private fun tasks(dir: File) =
         runCatching { buildTaskListModel(dir.toPath()) }.getOrDefault(emptyList())
             .flatMap { it.entries }
             .filterIsInstance<TaskEntry.Loaded>()
             .map { it.task() }
-            .firstOrNull { it.remote() == remote && it.tmux() != null }
-            ?.tmux()?.session() ?: "0"
 }

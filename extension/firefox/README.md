@@ -44,3 +44,25 @@ The file is **unsigned**, so release Firefox refuses a permanent install:
 
 The background script reconnects with exponential backoff (1 s doubling up to
 30 s), so Firefox and the app may start or restart in any order.
+
+## Hiding the bookmarks toolbar (environment profiles)
+
+An environment profile with `bookmarksBar: hidden` (`settings.yaml`, `profiles:`) needs a one-time setup, because no extension API can hide a toolbar.
+The extension marks each window with an invisible title preface; a `userChrome.css` rule hides the toolbar in marked windows.
+
+1. `about:config` → `toolkit.legacyUserProfileCustomizations.stylesheets` → `true`.
+2. `about:support` → *Profile Folder* → *Open Folder*; create `chrome/userChrome.css` there with:
+
+   ```css
+   :root[titlepreface*="\2060\200B"] #PersonalToolbar {
+     visibility: collapse !important;
+   }
+   ```
+
+3. Restart Firefox.
+
+`bookmarksBar: visible` clears the mark; the toolbar then follows Firefox's own *Bookmarks Toolbar* setting again (set it to *Always Show*).
+
+Still showing after a switch that reports `bookmarks bar hidden`?
+The icon's popup says *Bookmarks bar hidden by the profile* once the extension has marked the windows, and names the installed extension version at the bottom — an older version than `manifest.json` here has no marking at all; reinstall the xpi.
+With the mark in place, the remaining suspects are the three steps above (the `about:config` flag, the file's location and name, the restart).

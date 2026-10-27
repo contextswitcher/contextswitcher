@@ -18,7 +18,7 @@ Decisions follow [MADR](https://adr.github.io/madr/). New records: copy the curr
 | [0011](0011-task-backup-via-system-git.md) | Task directory backup via the system git CLI | accepted |
 | [0012](0012-testing-distribution-via-jpackage-app-image.md) | Testing distribution via jpackage app image and unsigned XPI | accepted |
 | [0013](0013-virtual-desktop-focus-via-keyboard-cycle.md) | Focus a named virtual desktop via registry lookup + keyboard cycle | superseded by [0019](0019-direct-virtual-desktop-switch-with-hotkey-walk-fallback.md) |
-| [0014](0014-ui-test-automation-via-testfx-on-a-real-display.md) | UI test automation via TestFX on a real (or Xvfb) display | accepted |
+| [0014](0014-ui-test-automation-via-testfx-on-a-real-display.md) | UI test automation via TestFX on JavaFX's headless glass platform (Xvfb as fallback) | accepted |
 | [0015](0015-catalog-driven-settings-form.md) | Catalog-driven settings form, raw YAML as the source of truth | accepted |
 | [0016](0016-deep-link-registration-and-ipc-via-extension-server.md) | Deep-link registration via per-OS scripts, single-instance IPC via the extension server | accepted |
 | [0017](0017-calver-changelog-verified-with-heylogs.md) | CalVer changelog, verified with heylogs | accepted |

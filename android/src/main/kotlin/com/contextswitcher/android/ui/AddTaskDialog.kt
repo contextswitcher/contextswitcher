@@ -34,8 +34,8 @@ import com.contextswitcher.queue.ClaudeMode
 /// The dialog stays open while [adding] and after a failure ([error]), so a
 /// title typed on a weak connection is never lost; the caller closes it on
 /// success. Input lives in `rememberSaveable` like the settings form.
-// [impl->dsn~android-task-create~1]
-// [impl->dsn~android-live-task~1]
+// [impl->dsn~android-task-create~2]
+// [impl->dsn~android-live-task~3]
 @Composable
 fun AddTaskDialog(
     categories: List<String>,

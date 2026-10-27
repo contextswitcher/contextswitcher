@@ -21,7 +21,7 @@ diagnosis: `%USERPROFILE%\.contextswitcher\logs\`.
 
 **Automated UI tests (MADR 0014).**
 Items that need no remote host and no human eye move into TestFX tests
-(`gradlew :app:uiTest`; headless Linux: `xvfb-run -a ./gradlew :app:uiTest`, CI runs them on every push).
+(`gradlew :app:uiTest`, headless on every OS; CI runs them on every push).
 An item covered there is marked *(automated: `<TestClass>`)* — re-check it manually only when the note says a variant stays manual.
 New checklist items for pure-UI behavior (dialogs, key chords, list filtering) should start as a UI test instead of growing this list.
 
@@ -61,7 +61,7 @@ New checklist items for pure-UI behavior (dialogs, key chords, list filtering) s
       written back to the task file. *(2026-07-14; exercised repeatedly via
       the suspend/resume flow, which shares the resurrect path.)*
 
-## Open a window on play for a remote-only task (`dsn~remote-window-choice~6`)
+## Open a window on play for a remote-only task (`dsn~remote-window-choice~7`)
 
 - [ ] A task with only `remote:` set and **no** live `tmux:` section (commented
       template block is fine) → press the **play icon** → a dialog offers
@@ -78,10 +78,10 @@ New checklist items for pure-UI behavior (dialogs, key chords, list filtering) s
       of the prompt), and the next start is pre-selected with them.
 - [ ] Cancel → nothing happens.
 - [ ] The same task's terminal pane reads "No tmux configured for this task."
-      with **tmux** / **claude** buttons under it; **tmux** creates the plain
-      window straight away, **claude** opens the dialog above, and a failure
-      leaves the buttons pressable.
-- [ ] Cancelling that dialog starts nothing and leaves both placeholder buttons
+      with a single **Start Claude** button under it (no tmux-only button);
+      it opens the dialog above without its **tmux** button, and a failure
+      leaves the button pressable.
+- [ ] Cancelling that dialog starts nothing and leaves the placeholder button
       pressable.
 - [ ] "Open in IntelliJ" on a remote-only task opens IntelliJ **without** the
       tmux/claude dialog.
@@ -1279,7 +1279,7 @@ The pane is now sized to its content (`Alerts.withContent`) and the dialog is re
 - [ ] The same with a long working-directory path → the label wraps onto a second line and the dialog grows to show it.
 - [ ] Delete a category with tasks in it → both lines of its confirmation are readable.
 
-## Browser tab selects task (`dsn~browser-tab-selects-task~6`)
+## Browser tab selects task (`dsn~browser-tab-selects-task~7`)
 
 Needs a real Firefox with the extension loaded — the reporting side lives in the browser.
 
@@ -1288,6 +1288,7 @@ Needs a real Firefox with the extension loaded — the reporting side lives in t
 - [ ] Activate a tab belonging to no task (a search result) → the selection stays where it was.
 - [ ] Switch between two Firefox windows showing different tasks' tabs → the selection follows the window switch.
 - [ ] Activate the tab of a **suspended** task's PR → the task is selected *and* resumed: its status goes back to `active`, its tmux window is recreated and its Claude session resumed, as if its play button had been pressed.
+- [ ] … and the browser is left alone: the tab you activated stays in front, none of the task's other `browser.urls` is opened, no tab group appears. With a second suspended task listing one of those other URLs, that task stays suspended.
 - [ ] Activate that same tab again once it is running → nothing is switched a second time, only the selection.
 - [ ] Activate the tab of a **done** task → it is selected and stays done.
 - [ ] With task A selected, move between the tabs of A's own tab group → the task list does not move at all: no scroll, no repaint, and a category collapsed over A's row stays collapsed.
@@ -1340,16 +1341,16 @@ Do this in both browsers — Firefox from `about:debugging`, Chrome from `chrome
 - [ ] Through all of that, the per-tab task count badge keeps working: with the app running, a tab one task lists still carries `1`.
 - [ ] Stop the app while such a tab is in view — the `1` disappears and the icon turns orange with the connection and the tooltip says "not connected to the app"; it does not sit there as a count nothing is refreshing.
 
-## The extension can be switched off from its popup (`dsn~extension-enable-toggle~1`)
+## The extension can be switched off from its popup (`dsn~extension-enable-toggle~2`)
 
 Do this in both browsers.
 
-- [ ] With the app running, click the icon → the popup shows *✓ Enabled*; click it → the popup closes, the icon fades, the app's globe shows no extension connected.
+- [ ] With the app running, click the icon → the popup shows *✓ Enabled*; click it → the popup closes, the icon fades and shows a red *OFF* badge on every tab, the app's globe shows no extension connected.
 - [ ] Open the popup again → *✗ Disabled*, the state line says disabled; activating a task's tab selects nothing in the app, and opening an already open page a second time keeps both tabs.
 - [ ] Restart the browser → still disabled.
-- [ ] Click *✗ Disabled* → the icon turns grey (or blue on a listed page) within a second or two and the app sees the extension again.
+- [ ] Click *✗ Disabled* → the *OFF* badge goes, the icon turns grey (or blue on a listed page) within a second or two and the app sees the extension again.
 
-## The icon's popup names the tasks and acts on one (`dsn~browser-tab-task-popup~1`)
+## The icon's popup names the tasks and acts on one (`dsn~browser-tab-task-popup~2`)
 
 - [ ] Click the icon on a page two tasks list → the popup names both, the better match first, statuses shown for the ones that are not active.
 - [ ] Click a task's title → the popup closes, ContextSwitcher comes to the front with that task selected; nothing else is switched.
@@ -1390,6 +1391,16 @@ Needs the debug APK on a phone with synced tasks, and a car or the Desktop Head 
 - [ ] *Dictate message* → the first time the phone asks for the microphone; then *Listening …*, the spoken sentence is shown, *Send* delivers it, *Retry* listens again.
 - [ ] Without network, *Send “yes”* → toast *Not sent, kept on the phone*; the phone lists it under *Sent when Claude is idle*.
 - [ ] After picking a task, the phone shows *Watching: <task>* (if not: Android refused the service start from the car — note it).
+
+## Voice tour (`dsn~android-voice-tour~1`)
+
+Needs the debug APK on a phone with synced tasks of a category whose tasks record `claude.sessionId`, a Claude session or two in that category, and the phone's audio on a speaker (the car's Bluetooth does).
+
+- [ ] Task list, *Tour* → the dialog lists only categories with a reachable task; pick one → the phone says "<category>: N tasks. Waiting for you: …" and then the first task's title, status and Claude's last answer, as prose, not as terminal lines.
+- [ ] *Next* / *Previous* step and speak; *Repeat* speaks the card again; the last task has *Next* disabled.
+- [ ] *Dictate* → the first time Android asks for the microphone; the spoken sentence appears under *Heard:*; *Send* delivers it, the session's reply comes in a few sentences without tables, and within about ten seconds of Claude finishing the phone reads it out.
+- [ ] Without network, *Send* → "Not sent, kept on the phone"; the message is in the task's enqueued list.
+- [ ] Head unit: *Tour* in the header → category list → the same card as a message screen with *Dictate* and *Next*; *Previous* and *Repeat* in the header. Dictation from the tour sends with the voice-mode hint.
 
 ## Android update hint (`dsn~android-update-hint~3`)
 

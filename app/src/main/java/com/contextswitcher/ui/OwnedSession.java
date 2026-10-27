@@ -73,6 +73,11 @@ final class OwnedSession implements TerminalSession {
         return process.isAlive();
     }
 
+    /// Runs `action` once the process has exited, on whatever thread notices.
+    void onExit(Runnable action) {
+        process.onExit().thenRun(action);
+    }
+
     /// Types `text` into the session and submits it — the message queue's
     /// delivery for a chat no tmux holds. Blocking, for the background
     /// executor: the text goes in as one bracketed paste, and the `Enter`

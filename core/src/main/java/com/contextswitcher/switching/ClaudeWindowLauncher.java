@@ -354,10 +354,12 @@ public class ClaudeWindowLauncher {
     /// window and rename the wrong task. When the group uses a shared
     /// `workspacesRoot` (`bootstrapWorktree`), a clause tells Claude to
     /// create the task's git worktree from the group's primary clone — the
-    /// `group` subdirectory of the workspace root — naming the GitHub `repo`
-    /// when the group configures one (else the clone's origin already knows
-    /// it, so nothing is asked). Deliberately terse so Claude starts on the
-    /// task instead of a setup conversation.
+    /// `mainCheckout` when the category has one (spelled out or by
+    /// convention, `GroupConfig.effectiveMainCheckout`), else the `group`
+    /// subdirectory of the workspace root — naming the GitHub `repo` when
+    /// the group configures one (else the clone's origin already knows it,
+    /// so nothing is asked). Deliberately terse so Claude starts on the task
+    /// instead of a setup conversation.
     /// `appendix` — reference material a caller wants the session to have,
     /// the workspace-root `CLAUDE.md` template of a category created from a
     /// URL (`dsn~claude-md-templates~1`) — follows the closing fence, so the
@@ -365,12 +367,12 @@ public class ClaudeWindowLauncher {
     /// short.
     // [impl->dsn~task-create-live~8]
     public static String liveTaskPrompt(String description, @Nullable String repo, boolean bootstrapWorktree,
-            String group, @Nullable String appendix) {
+            String group, @Nullable String mainCheckout, @Nullable String appendix) {
         String appendixClause = appendix == null || appendix.isBlank()
                 ? ""
                 : "\n\n" + appendix.strip();
         return "Your task description is between the ----- lines below. " + TITLE_CLAUSE
-                + worktreeClause(bootstrapWorktree, repo, group)
+                + worktreeClause(bootstrapWorktree, repo, group, mainCheckout)
                 + "\n-----\n" + description.strip() + "\n-----" + appendixClause;
     }
 
@@ -383,16 +385,26 @@ public class ClaudeWindowLauncher {
             + " for ContextSwitcher by running: tmux set -w -t \"$TMUX_PANE\" @cs_title 'the title'.";
 
     /// The worktree-bootstrap clause both prompts append when the category
-    /// uses a shared `workspacesRoot` — see [#liveTaskPrompt].
-    public static String worktreeClause(boolean bootstrapWorktree, @Nullable String repo, String group) {
+    /// uses a shared `workspacesRoot` — see [#liveTaskPrompt]. The clone is
+    /// named by its path (`mainCheckout`) when the category knows it: a
+    /// category renamed out of a name clash (`dsn~category-name-clash~1`,
+    /// `contextswitcher` → `contextswitcher-swkgpu1`) keeps its clone under
+    /// the old name, so "the `group` subdirectory" then names a directory
+    /// that does not exist (field report 2026-10-22). Only a category
+    /// without `workspacesRoot`+`repo` falls back to the group-named
+    /// subdirectory.
+    public static String worktreeClause(boolean bootstrapWorktree, @Nullable String repo, String group,
+            @Nullable String mainCheckout) {
         if (!bootstrapWorktree) {
             return "";
         }
         String repoClause = repo == null || repo.isBlank()
                 ? ""
                 : " The GitHub repository is " + repo.strip() + ".";
-        return " Create a git worktree for this task from the " + group.strip()
-                + " subdirectory of the current directory and work in it." + repoClause;
+        String clone = mainCheckout == null || mainCheckout.isBlank()
+                ? "the " + group.strip() + " subdirectory of the current directory"
+                : "the primary clone at " + mainCheckout.strip();
+        return " Create a git worktree for this task from " + clone + " and work in it." + repoClause;
     }
 
     /// A live task's file before its window exists: title (the description

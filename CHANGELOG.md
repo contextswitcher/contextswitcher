@@ -6,6 +6,47 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub once the day is over.
 The topmost section is the day in progress — its link points at `main` until that tag exists.
 
+## [2026-10-27] - 2026-10-27
+
+### Changed
+
+- Android: the *Add task* dialog preselects the category scrolled to the top of the task list instead of the alphabetically first one.
+
+### Fixed
+
+- Android: when *Add task* cannot create the tmux window, the dialog shows the remote's error (a refused connection, a missing key, tmux's own message) under the headline instead of the headline alone.
+- Android: a category's `~/…` workspaces root is created in the home directory before the window starts there, rather than a directory literally named `~`.
+
+## [2026-10-25] - 2026-10-25
+
+### Added
+
+- Android: a voice tour through a category's tasks — *Tour* in the task list (and on the Android Auto head unit) reads out how many tasks wait, then task by task the title, status and Claude's last answer, takes a dictated reply into the task's session and reads the finished answer; the reply asks Claude for a few spoken sentences instead of tables or diffs.
+
+### Changed
+
+- The browser extension, switched off in its popup, shows a red *OFF* badge on its toolbar icon in addition to the faded icon.
+
+### Fixed
+
+- A live task of a category that was renamed out of a name clash (`contextswitcher` → `contextswitcher-swkgpu1`) tells Claude to branch from the clone's actual path instead of a subdirectory named after the new category, which did not exist. The rename now also records `mainCheckout:` in the category's `CONTEXTSWITCHER.md`.
+- The "What's new", sync groups and diff windows show the app's icon in the title bar and taskbar instead of Java's default.
+
+## [2026-10-22] - 2026-10-22
+
+### Added
+
+- The Add-task dialog's category list shows the current desktop's categories first, under a heading, and a host picker next to it narrows the list to the local categories or to those of one remote.
+- Environment profiles: `settings.yaml` can define named looks for the machine (`profiles:` with a `resolution` and Windows `scale` per screen under `screens:` — picked by monitor name, `internal`, `external` or `primary`; the scale is 100% when left out —, projector mode `displays`, `taskbar: autohide`, Firefox `bookmarksBar: hidden`), and a category picks one with `profile:` in its `CONTEXTSWITCHER.md`. Switching to a task applies its category's profile, and a task of a category without one restores the `default` profile. A status-bar menu lays an override such as `screenshare` on top until switched back. Hiding the bookmarks bar needs a one-time `userChrome.css` rule (see the Firefox extension README).
+- Browser extensions 0.8.0: the icon's popup names the installed extension version, and in Firefox says when a profile marked the bookmarks bar hidden, pointing at the `userChrome.css` setup when the bar still shows.
+### Fixed
+
+- Android: the Add-task dialog offers *Start Claude on …* with the model and effort pickers for a category whose `CONTEXTSWITCHER.md` names no remote, like the desktop: the remote then is the first one a task in the synced repository names.
+- The update window's hint shows `just run-loop` in a monospaced font.
+- Activating the browser tab of a suspended task resumes the task without touching the browser: the tab stays in front, and the task's other pages are no longer opened in a tab group with the first of them activated (which could resume a second suspended task listing that page).
+- On Windows, two tasks working in the same folder each resume their own Claude conversation. Before, both showed the folder's newest conversation. A task that recorded no conversation yet now skips the ones other tasks own.
+- A task row shows play instead of pause when its Claude is known not to run: on Windows when the task has no session running, or on a remote when the window was last seen at a bare shell. On Windows, play starts or resumes the session directly. The button switches as soon as a session starts or exits.
+
 ## [2026-10-19] - 2026-10-19
 
 ### Added
@@ -137,6 +178,9 @@ The topmost section is the day in progress — its link points at `main` until t
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-10-27]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-25...v2026-10-27
+[2026-10-25]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-22...v2026-10-25
+[2026-10-22]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-19...v2026-10-22
 [2026-10-19]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-18...v2026-10-19
 [2026-10-18]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-12...v2026-10-18
 [2026-10-12]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-11...v2026-10-12

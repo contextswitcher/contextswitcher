@@ -144,6 +144,21 @@ public class TerminalPane {
     // [impl->dsn~terminal-owned-session~4]
     private final Map<String, OwnedSession> owned = new ConcurrentHashMap<>();
 
+    /// Called (FX thread) whenever an owned session starts or its process
+    /// exits, so the task rows can flip their pause/play toggle.
+    // [impl->dsn~terminal-owned-session~4]
+    private Runnable onOwnedChanged = () -> { };
+
+    /// The owned session play asked to start before its offer was on screen:
+    /// the offer for it then runs instead of showing ([#showActionMessage]).
+    // [impl->dsn~terminal-owned-session~4]
+    private @Nullable String autoStartKey;
+
+    /// The start/resume button on screen and the session it is for.
+    // [impl->dsn~terminal-owned-session~4]
+    private @Nullable Button ownedOffer;
+    private @Nullable String ownedOfferKey;
+
     /// Every widget this pane built and still holds, so a `Ctrl`+wheel zoom
     /// reaches the sessions kept alive off-screen too ([#refreshFonts]).
     /// Weak: a widget is dropped with the session that owned it, and nothing
@@ -1016,46 +1031,36 @@ public class TerminalPane {
         center.getChildren().setAll(message);
     }
 
-    /// Opens a tmux or Claude window for a task that has none — the recovery
-    /// buttons of [#showMessage]. A no-op until [#setWindowStarter] wires
+    /// Opens a Claude window for a task that has none — the recovery button
+    /// of [#showMessage]. A no-op until [#setWindowStarter] wires
     /// `Main.startRemoteWindow` up.
-    // [impl->dsn~remote-window-choice~6]
-    private BiConsumer<Task, Boolean> windowStarter = (task, withClaude) -> { };
+    // [impl->dsn~remote-window-choice~7]
+    private Consumer<Task> windowStarter = task -> { };
 
-    /// Hands the pane the window starter its recovery buttons call.
-    // [impl->dsn~remote-window-choice~6]
-    public void setWindowStarter(BiConsumer<Task, Boolean> starter) {
+    /// Hands the pane the window starter its recovery button calls.
+    // [impl->dsn~remote-window-choice~7]
+    public void setWindowStarter(Consumer<Task> starter) {
         this.windowStarter = starter;
     }
 
-    /// [#showMessage] with the **tmux** / **claude** buttons under the text:
-    /// the choice play offers for a task that has a remote but no window
-    /// (`dsn~remote-window-choice~6`), offered here as well because the
+    /// [#showMessage] with a **Start Claude** button under the text: the Claude
+    /// half of the choice play offers for a task that has a remote but no
+    /// window (`dsn~remote-window-choice~7`), offered here as well because the
     /// placeholder is where a creation that died halfway is actually seen.
-    /// Both buttons go dead for the round-trip; the window written back (or
+    /// The button goes dead for the round-trip; the window written back (or
     /// the failure's preview refresh) replaces the placeholder.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     public void showStartWindowMessage(String text, Task task) {
         showMessage(text);
-        HBox actions = new HBox(6,
-                startWindowButton("tmux", task, false),
-                startWindowButton("claude", task, true));
-        actions.setAlignment(Pos.CENTER);
-        VBox box = new VBox(8, message, actions);
+        Button start = new Button("Start Claude");
+        start.getStyleClass().add(Styles.SMALL);
+        start.setOnAction(event -> {
+            start.setDisable(true);
+            windowStarter.accept(task);
+        });
+        VBox box = new VBox(8, message, start);
         box.setAlignment(Pos.CENTER);
         center.getChildren().setAll(box);
-    }
-
-    // [impl->dsn~remote-window-choice~6]
-    private Button startWindowButton(String label, Task task, boolean withClaude) {
-        Button button = new Button(label);
-        button.getStyleClass().add(Styles.SMALL);
-        button.setOnAction(event -> {
-            HBox row = (HBox) button.getParent();
-            row.getChildren().forEach(node -> node.setDisable(true));
-            windowStarter.accept(task, withClaude);
-        });
-        return button;
     }
 
     /// Where a hovered link's URL is reported (the status bar); a no-op until
@@ -1347,6 +1352,21 @@ public class TerminalPane {
         return true;
     }
 
+    /// Whether the app-owned session `key` has a live process — false is
+    /// knowledge, not a guess: the app owns these processes, so none runs
+    /// that the pane does not hold.
+    // [impl->dsn~terminal-owned-session~4]
+    public boolean isOwnedRunning(String key) {
+        OwnedSession running = owned.get(key);
+        return running != null && running.isAlive();
+    }
+
+    /// Installs the hook [#onOwnedChanged] calls.
+    // [impl->dsn~terminal-owned-session~4]
+    public void setOnOwnedChanged(Runnable handler) {
+        this.onOwnedChanged = handler;
+    }
+
     /// Starts a Claude session the **app** owns in a ConPTY rooted at `cwd`
     /// ([OwnedSession#start]) and shows it.
     // [impl->dsn~terminal-owned-session~4]
@@ -1357,6 +1377,8 @@ public class TerminalPane {
         try {
             OwnedSession started = OwnedSession.start(key, command, cwd, view);
             owned.put(key, started);
+            started.onExit(() -> Platform.runLater(() -> onOwnedChanged.run()));
+            onOwnedChanged.run();
             showOwned(started);
             focusTerminal();
         } catch (IOException | RuntimeException e) {
@@ -1409,8 +1431,16 @@ public class TerminalPane {
     /// A placeholder with one button under it — the owned session's "start" /
     /// "resume" offer, the same shape [#showStartWindowMessage] uses for the
     /// remote window choice.
+    /// Play on a row whose owned session `key` is known stopped
+    /// ([#requestOwnedStart]) skips the offer and runs it straight away.
     // [impl->dsn~terminal-owned-session~4]
-    public void showActionMessage(String text, String label, Runnable action) {
+    public void showActionMessage(String key, String text, String label, Runnable action) {
+        if (key.equals(autoStartKey)) {
+            autoStartKey = null;
+            action.run();
+            return;
+        }
+        autoStartKey = null;
         showMessage(text);
         Button button = new Button(label);
         button.setId("owned-session-button");
@@ -1422,6 +1452,22 @@ public class TerminalPane {
         VBox box = new VBox(8, message, button);
         box.setAlignment(Pos.CENTER);
         center.getChildren().setAll(box);
+        ownedOffer = button;
+        ownedOfferKey = key;
+    }
+
+    /// Starts (or resumes) the owned session `key` — play on its row. The
+    /// offer is pressed when it is already on screen; otherwise the switch's
+    /// preview, which is still on its way, runs it instead of showing it.
+    // [impl->dsn~terminal-owned-session~4]
+    public void requestOwnedStart(String key) {
+        Button offer = ownedOffer;
+        if (offer != null && key.equals(ownedOfferKey) && !offer.isDisabled()
+                && offer.getParent() != null && center.getChildren().contains(offer.getParent())) {
+            offer.fire();
+            return;
+        }
+        autoStartKey = key;
     }
 
     /// Forwards keys JediTermFX drops to the tty: `Ctrl`+letter as the matching

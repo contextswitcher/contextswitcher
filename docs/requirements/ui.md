@@ -851,7 +851,7 @@ Tags: windows, linux
 
 Covers:
 - req~task-status-toggle~2
-- req~browser-tab-selects-task~2
+- req~browser-tab-selects-task~3
 
 Needs: impl, utest
 
@@ -905,6 +905,7 @@ Needs: impl, utest
 `MainWindow.freeCategoryName(name, dismiss)` is asked before a category from a repository URL is created — by `createCategoryFromRepo` (with *Cancel*) and by the setup wizard's *Finish* / *Finish and check up* on its last page (with *Back*; `SetupWizard.show`'s `freeCategoryName` predicate).
 When no category has the name it answers true at once; otherwise a popup *Category exists* shows "Rename the existing category to:" with a text field pre-filled by `MainWindow.clashRenameProposal`: `<name>-<host>`, the host taken from the existing category's `remote` with user (`me@`) and domain (`.example.org`, not for an IP address) dropped and a WSL host's `:` made a `-`, and `<name>-local` for a category without a remote — the usual clash is the same repository on a second machine.
 *Rename* (disabled while the slugged field is empty or names another existing category, which is shown under the field) runs the group rename (`dsn~group-rename~1`) and answers true, so the creation goes on under the freed name; the dismiss button answers false: the wizard stays on its last page, the dialog flow ends.
+Before the rename, `MainWindow.pinMainCheckout` writes the conventional `mainCheckout: <workspacesRoot>/<repo name>` into the category's `CONTEXTSWITCHER.md` when it spells none (`TaskFileParser.withScalar`): the clone on the host keeps the old name, and the renamed category's live tasks must keep branching from it (`dsn~task-create-live~8`).
 On the very first start the main window is not up yet, so the wizard's predicate answers true and a category a cloned task repository brings is caught by `createCategoryFromRepo` instead.
 
 Tags: windows, linux
@@ -1457,7 +1458,7 @@ Needs: impl
 
 A task row's actions sit in an **action gutter** at its right end, shown only while the mouse is on the row (`visibleProperty` bound to the cell's `hoverProperty`) — there is no separate Switch button.
 The gutter is laid over the row rather than into it (`~7`, Carl, 2026-09-16): an unmanaged `HBox` the row's `layoutChildren` places just left of the row's always-visible trailing icons (refactoring count, links, note), so hovering never reflows or re-truncates the title; it spans the row's full height and has no frame: its background (`task-action-gutter`) fades from transparent into the row's own colour over 24 px and stays that colour behind the buttons, so the title and second line fade out under it instead of being cut; a hovered task row takes `-color-accent-subtle` across its whole width (a selected one keeps its selection colour), named `-cs-row-bg` on the cell so the fade matches it.
-Left to right: **one toggle** — pause on an active task (suspend, with its confirmation), play on a suspended or done task (tooltip "Resume and switch"; the regular switch resurrects) — its glyph in the accent colour as the row's main action; `Add link…`; the refactoring view (`dsn~refactoring-web-view~1`, only when the task has a remote and a Claude section); a thin vertical divider; and delete (confirmed) at the far right, away from the toggle a row is reached for.
+Left to right: **one toggle** — pause on an active task (suspend, with its confirmation), play on a suspended or done task (tooltip "Resume and switch"; the regular switch resurrects), and also on an active task whose Claude is known not to run — including one with no tmux window recorded, where the mirror says "Switch resurrects it" — its glyph in the accent colour as the row's main action; `Add link…`; the refactoring view (`dsn~refactoring-web-view~1`, only when the task has a remote and a Claude section); a thin vertical divider; and delete (confirmed) at the far right, away from the toggle a row is reached for.
 Until `~6` play and pause were two buttons in a strip that pushed the title aside; an active task is now switched to by double-click or the context menu's `Switch`, which remain the keyboard and mouse paths for that.
 Icons are Material Design SVG paths rendered by `SvgNode` (MADR 0010) — unicode symbol glyphs render as empty boxes in JavaFX on Windows. An invisible button is unreachable — becoming visible requires the very hover that reaches it.
 They reuse the exact handlers of the status-label toggle (`dsn~task-status-cycle~2`, including the suspend confirmation) and the context menu's delete (`dsn~task-delete~6`, including its confirmation). The buttons are not focus-traversable — the context menu remains the keyboard path; double-clicking the row still switches.
@@ -1516,6 +1517,7 @@ the queue boxes' compose chords, installed by the shared `QueuePane.installCompo
 The field also takes the queue boxes' attachment affordances (`QueuePane.installAttachments`, `dsn~message-queue-ui~26`): files dragged from the OS and pasted clipboard images are stored under the local attachments dir and referenced as `[file: …]`/`[image: …]` markers in the description — the live-task prompt delivery uploads them and rewrites the markers to their remote paths like any queued message (`dsn~task-from-pr~6`), so Claude can read an attached spec right from the initial prompt; in the task file's title and Notes the markers keep pointing at the local copies.
 `Ctrl+T` opens the same dialog from anywhere in the main window (a capture-phase scene filter like `Ctrl+F`'s, `dsn~task-find~9`, so the terminal pane does not swallow it as ^T).
 A **Category** combo box at the top of the dialog picks the group the task lands in, pre-selected with the group it was opened for; choosing another re-evaluates the hints, the enabled buttons and the default button below for that group.
+Its entries are grouped by desktop and narrowed by host (`dsn~task-create-category-pick~1`).
 The add-menu item and `Ctrl+T` target the category in view (`MainWindow.selectedGroup`): the group of the current selection while it is on screen — a selected group header's own name, a selected task's folder — else the group of the topmost visible row, else the root — so adding a task while a category is in view files it into that category (with that group's workdir defaults) rather than always the root.
 A list scrolled away from the selection, or with none, pre-selects the category shown at its top, not the one that sorts first (`~15`, 2026-09-18).
 The per-group affordances still pass their own group explicitly.
@@ -1539,6 +1541,22 @@ Tags: windows, linux
 Covers:
 - req~task-create~1
 - req~compose-key-conventions~5
+
+Needs: impl, utest
+
+### The category combo lists the active desktop first and filters by host
+`dsn~task-create-category-pick~1`
+
+With a few dozen categories the Add-task dialog's flat, alphabetical category combo (`dsn~task-create-ui~15`) makes the one wanted a scroll away, although it is almost always one of the active virtual desktop's (Oliver, 2026-10-22).
+The combo therefore lists its entries like the `Ctrl+J` popup does (`CategoryJump.rows`, `dsn~category-jump~1`): `(no category)` first, then the active desktop's categories under a `This desktop (<name>)` heading, then the rest under `Other desktops` — each group alphabetical; with the active desktop unknown (non-Windows, no desktop watch running) the list is flat.
+A heading is a disabled, caption-styled cell; the arrow keys step over it in the direction they were going instead of landing on it.
+A host picker right of the combo (`add-task-host`) narrows the list: `(all hosts)` (the default), `local` for the local categories (a CS config with a directory and no `remote:`, `dsn~task-create-local~4`) and one entry per remote some category resolves to (`CategoryJump.hosts`/`onHost`; a category's host is what `Add remote Claude` would use — its own `remote:`, else the settings fallback).
+A pick that the filter removes falls back to the category the dialog was opened for, which is always listed.
+
+Tags: windows, linux
+
+Covers:
+- req~task-create~1
 
 Needs: impl, utest
 
@@ -1575,7 +1593,7 @@ From that moment the creation is in `Main.windowedCreations` and its remaining s
 `Main.finishCreation` then only clears the row's progress and reports the outcome.
 A failed creation ends on the failure alert, and the terminal lane would be left on the last step ("Creating the tmux window …") as if still running.
 So the failure goes there too, with its **cause**: `ClaudeWindowLauncher.failure()` (and `TmuxResurrect.failure()` for the plain-shell choice) hands over the remote's error output that the log line carries, `Main.windowFailure` makes it "Cannot create a tmux window on &lt;remote&gt;:" plus that output ("(see log)" only when the remote said nothing), and `Main.creationFailures` holds it per task.
-`finishCreation` puts it into the alert and re-draws the preview, where `previewTask` shows it in place of "No tmux configured for this task." — above the tmux/claude retry buttons (`dsn~remote-window-choice~6`) — until a later creation of the task gets its window; a failed fork stores it the same way, for when its row is selected.
+`finishCreation` puts it into the alert and re-draws the preview, where `previewTask` shows it in place of "No tmux configured for this task." — above the **Start Claude** retry button (`dsn~remote-window-choice~7`) — until a later creation of the task gets its window; a failed fork stores it the same way, for when its row is selected.
 The lane's message label wraps, as the remote's output can run longer than the lane is wide.
 
 While the remote half runs, the row's second line is a `ProgressBar` plus the step currently running: "Preparing the workspace …" (the `mkdir -p` of a group's workspaces root), then "Creating the tmux window …", "Starting Claude …", then "Switching the model …" and "Switching the effort …" (each only when picked — one step per slash command, so the row names the round-trip that is slow), "Sending the prompt …" — reported by `ClaudeWindowLauncher.launch`'s `onStep` consumer, held in `MainWindow.creations` (`creationProgress`/`creationDone`, FX thread), and rendered by `TaskListCell.Creation`.
@@ -1629,7 +1647,8 @@ The `Add task…` dialog's `Add remote Claude` button (enabled whenever a remote
 The dialog input is the task **description**, not a polished title: the prompt (`Main.liveTaskPrompt`) carries it verbatim between `-----` fence lines (delivery over ssh stdin into a tmux buffer, `dsn~task-from-pr~6`, so quotes and newlines survive — no stripping) and first asks Claude to derive a short task title and publish it as the `@cs_title` window option, which is synced back into the task file (`dsn~claude-title-sync~3`).
 `Main.createLiveTask` writes the task file on the FX thread first (`dsn~task-create-progress~6`) and then runs off it: it `mkdir -p`s the working directory on the remote (so a fresh `workspacesRoot` exists — Claude then makes the per-task worktree under it) and stops there with the remote's error when that fails (`Main.makeDirectory`: `tmux new-window -c` on a missing directory silently starts in the home directory, where the session then set up the workspace), creates a fresh tmux window in the remote's usual session (`usualSession` — the session of the remote's first tmux task, else `0`), started in the group's `workspacesRoot` (or the fixed `workdir`, resolved by `GroupConfig` — no task suffix) via `ClaudeWindowLauncher.launch(…, cwd)`, and launches Claude with that prompt.
 The task file's `# Notes` carry the whole prompt text — the description and, for a category setup, the CLAUDE.md template appended after it (`ClaudeWindowLauncher.liveTaskContent` with the appendix; the local path appends it the same way): the description says "from the template at the end", so a task whose first launch failed can be done again from its own file (field report 2026-10-11).
-When the group uses a shared `workspacesRoot` (`GroupConfig.bootstrapWorktree`), a prompt clause tells Claude to create the task's git worktree from the group's primary clone — the `group`-named subdirectory of the workspace root — and work in it, naming the group's GitHub `repo` when configured (when not, nothing is asked: the clone's origin already knows the URL); a fixed `workdir` (an existing checkout) keeps the plain prompt.
+When the group uses a shared `workspacesRoot` (`GroupConfig.bootstrapWorktree`), a prompt clause tells Claude to create the task's git worktree from the group's primary clone and work in it, naming the group's GitHub `repo` when configured (when not, nothing is asked: the clone's origin already knows the URL); a fixed `workdir` (an existing checkout) keeps the plain prompt.
+The clone is named by its path — the category's `mainCheckout:`, else the conventional `<workspacesRoot>/<repo name>` (`GroupConfig.effectiveMainCheckout`) — and only a category that can derive neither gets "the `<group>` subdirectory of the current directory": a category renamed out of a name clash (`dsn~category-name-clash~1`, `contextswitcher` → `contextswitcher-swkgpu1`) keeps its clone under the old name, so the group-named subdirectory sent Claude to a directory that did not exist (field report 2026-10-22).
 The instruction part is deliberately terse — conventions live in the workspace root's `CLAUDE.md` (auto-loaded) — so Claude starts on the task instead of a setup conversation.
 A caller may hand `liveTaskPrompt` an `appendix`: reference material appended after the description's closing fence, used by the category-from-URL flow for the workspace-root `CLAUDE.md` template (`dsn~claude-md-templates~1`).
 It is a separate parameter rather than part of the description because the description also becomes the task's `title:`, its file name and the tmux window name, all of which a multi-kilobyte multi-line value would wreck.
@@ -1719,7 +1738,7 @@ Covers:
 Needs: impl, utest
 
 ### Open a window on play for a remote-only task
-`dsn~remote-window-choice~6`
+`dsn~remote-window-choice~7`
 
 Pressing play on a task that carries a `remote:` but no `tmux:` section has nothing to focus yet, so `MainWindow.switchTask` intercepts it (`task.remote() != null && task.tmux() == null`) and asks — a confirmation alert with **tmux** and **claude** buttons (plus Cancel) — whether to open a plain shell or a Claude session on the remote.
 That alert also carries the **model and effort pickers** (`dsn~claude-mode-select~3`), pre-filled from the last pick and remembered on a **claude** choice, so the session starts at the model the task needs instead of whatever the remote CLI defaults to — "I always want to set model and effort, because it differs from task to task" (field report 2026-09-12).
@@ -1727,18 +1746,19 @@ The **tmux** choice ignores them: a plain shell has no model to pick.
 `MainWindow.askRemoteWindow` is the dialog, static and shared, because both entry points that create a session show it — the same widget, so there is no second copy of the choice to keep in agreement.
 The `Claude` button next to `IDEA` (`dsn~start-claude-button~2`) deliberately asks **nothing**: it resumes an existing session that already runs at some model and effort, and offering to override them would work against a repair whose whole point is getting that conversation back.
 The intercept is only on the play path: `openInIntellij` reuses the shared switch core (`switchResolved`), so opening a remote-only task in IntelliJ is never sidetracked into the window dialog.
-The **terminal pane** offers the same two buttons under its "No tmux configured for this task." placeholder (`TerminalPane.showStartWindowMessage`, added in `~2`), for the same tasks (a `remote:`, no window, and no creation step still running — a creation still on its way shows its progress instead).
+The **terminal pane** offers a single **Start Claude** button under its "No tmux configured for this task." placeholder (`TerminalPane.showStartWindowMessage`, added in `~2`), for the same tasks (a `remote:`, no window, and no creation step still running — a creation still on its way shows its progress instead).
 That placeholder is where a task creation that died halfway is actually seen, and before this the only way on from it was to guess that play — of a task that visibly has nothing to play — would offer the choice.
-Its **claude** button opens the dialog above rather than firing straight away, and its **tmux** button keeps firing straight away; the pickers stay out of the placeholder itself, which is a message with two buttons in the middle of the terminal lane, not a form.
-Opened that way the dialog shows **no tmux button** (`askRemoteWindow`'s `offerTmux`, false from `Main`'s window starter): the choice has already been made by the button that opened it, and a second **tmux** next to the pickers would only undo it — "tmux is not required here, because we start claude" (field report 2026-09-12).
+Up to `~6` the placeholder carried play's **tmux** / **claude** pair; the bare words read like a choice of *where* ("isn't 'claude' local?") when both open a window on the remote and differ only in whether Claude is started, and a plain shell is not what anyone recovers a dead creation into — "we don't need tmux only" (field report 2026-10-22). One button, named for what it does.
+The button opens the dialog above rather than firing straight away; the pickers stay out of the placeholder itself, which is a message with a button in the middle of the terminal lane, not a form.
+Opened that way the dialog shows **no tmux button** (`askRemoteWindow`'s `offerTmux`, false from `Main`'s window starter): the choice has already been made by the button that opened it, and a **tmux** next to the pickers would only undo it — "tmux is not required here, because we start claude" (field report 2026-09-12).
 It also asks with the Claude wording ("Start a Claude session for … on <host>?") rather than play's "has a remote but no tmux window yet", which is not the question being asked there.
-A cancelled dialog starts nothing and re-draws the placeholder (`MainWindow.refreshPreview`), so the two buttons — dead for a round-trip that never began — can be pressed again.
-Both buttons go dead for the round-trip, and the row shows the **same progress bar an Add-task creation shows** (`dsn~task-create-progress~6`): `Main.startRemoteWindow` reports "Creating the tmux window …", then for the claude choice the launcher's own steps ("Starting Claude …", "Switching the model …", "Switching the effort …", "Sending the prompt …"), and ends through `finishCreation` — which clears the bar, says "Task created." or raises the failure alert, exactly as the Add-task flow does.
+A cancelled dialog starts nothing and re-draws the placeholder (`MainWindow.refreshPreview`), so the button — dead for a round-trip that never began — can be pressed again.
+The button goes dead for the round-trip, and the row shows the **same progress bar an Add-task creation shows** (`dsn~task-create-progress~6`): `Main.startRemoteWindow` reports "Creating the tmux window …", then for the claude choice the launcher's own steps ("Starting Claude …", "Switching the model …", "Switching the effort …", "Sending the prompt …"), and ends through `finishCreation` — which clears the bar, says "Task created." or raises the failure alert, exactly as the Add-task flow does.
 Disabled buttons alone were not feedback for ten seconds of ssh: "I clicked 'Claude' on this task and it just stalled. I was expecting the 'usual' progress bar" (field report 2026-09-12, on a creation that had in fact succeeded while the screenshot was taken).
-The window written back replaces the placeholder, and a failure re-draws it (`MainWindow.refreshPreview`) so the buttons live again.
+The window written back replaces the placeholder, and a failure re-draws it (`MainWindow.refreshPreview`) so the button lives again.
 The host may be the **category's** (`~3`): `Main.taskRemote` reads the task's own `remote:` first and falls back to the `remote:` of its `CONTEXTSWITCHER.md`, both for offering the buttons and for running the choice.
 That resolved host is what the dialog **names**, passed in as `askRemoteWindow`'s `remote` parameter: the dialog used to print `task.remote()`, so a task borrowing its category's host asked "Open one on null?" (field report 2026-09-12). A null there — no host anywhere — reads "the remote", like the IntelliJ project-path prompt's.
-A task written by hand, or one whose creation died before it recorded a host, therefore reaches the same two buttons instead of a dead end that asks the user to add a frontmatter line first — "claude" is meant to mean "tmux + claude", not "tmux + claude, once you have configured a host" (field report 2026-09-12).
+A task written by hand, or one whose creation died before it recorded a host, therefore reaches the same button instead of a dead end that asks the user to add a frontmatter line first — "claude" is meant to mean "tmux + claude", not "tmux + claude, once you have configured a host" (field report 2026-09-12).
 The task's own `remote:` always wins, so a task deliberately moved to another host is never pulled back to its category's.
 A host borrowed this way is written into the task file alongside the new window (`withScalar`, in the same save): the window really is on that host now, and every later action — the mirror, the focus, the queue — addresses a task by its `remote:`.
 Only a task whose category names no host either keeps the bare message: `Main.startRemoteWindow` still needs one.
@@ -2236,9 +2256,10 @@ Covers:
 Needs: impl, utest
 
 ### The app has an icon
-`dsn~app-icon~4`
+`dsn~app-icon~5`
 
-The stage carries the browser extension's target-rings mark at 16/32/64/128 px, so the title bar and the taskbar button show it, and the Settings dialog shows the same mark at 48 px beside its header text.
+Every stage the app opens — the main window, the "What's new" window, the sync groups window, the diff viewer — carries the browser extension's target-rings mark at 16/32/64/128 px, so the title bar and the taskbar button show it, and the Settings dialog shows the same mark at 48 px beside its header text.
+A `Stage` does not inherit its owner's icons, so each one sets them itself; a stage without them showed the toolkit's default Duke in the taskbar (2026-10-25).
 `AppIcon` loads the extension's `icon-128.png`, which `processResources` copies into the app jar — one raster for the whole product, and no second drawing to keep in sync.
 Loading rather than drawing is what makes the window icon appear at all: `WindowStage.findBestImage` accepts only byte-based pixels (`BYTE_RGB`, `BYTE_BGRA_PRE`, `BYTE_GRAY`) and silently ignores the rest, so the `INT_ARGB_PRE` image a canvas snapshot produces was dropped and the window kept the toolkit's default icon — twice (2026-09-09, 2026-09-12).
 One mark for the app and its extension is what makes it recognizable as the same tool as the browser toolbar button.
@@ -2545,7 +2566,7 @@ The task-list selection listener calls `recordHistory(id)` for every loaded task
 `navigateHistory(±1)` first drops every entry whose task no longer exists in `entries` (deleted or renamed since the visit), adjusting the cursor for each removal below it, then moves the cursor one step and hands the id to `selectTask` — which already reveals a row a collapsed group or a find query hides.
 Back is therefore never a no-op that looks like a dead button; `updateHistoryButtons` disables each arrow at its end of the trail.
 A visit replaced within `TRANSIENT_VISIT_NANOS` (1 s) of being appended is no visit: the next task takes its entry instead of being appended after it.
-A desktop switch re-selects that desktop's last task (`dsn~desktop-last-task-selection~4`) and the browser window it activates reports its tab a moment later (`dsn~browser-tab-selects-task~6`); Back then landed on the task that had only flashed, not on the one worked on before (field report 2026-09-13).
+A desktop switch re-selects that desktop's last task (`dsn~desktop-last-task-selection~4`) and the browser window it activates reports its tab a moment later (`dsn~browser-tab-selects-task~7`); Back then landed on the task that had only flashed, not on the one worked on before (field report 2026-09-13).
 Only an append stamps the time and `navigateHistory` clears it, so the replaced entry is always the newest one and a step taken with the arrows is never overwritten.
 
 The two icon buttons (`ARROW_LEFT`, `ARROW_RIGHT`) sit at the **left** end of the list toolbar (`dsn~task-list-toolbar~3`), before the add menu, where a browser puts them.
@@ -3099,7 +3120,7 @@ Needs: impl, utest
 ### A filter never costs a task its selection
 `dsn~selection-survives-a-filter~2`
 
-Every row rebuild replaces the list's items, which clears the `ListView` selection, so `MainWindow.rebuildRows` turns the task on screen into the pending selection first and re-applies it afterwards (`dsn~browser-tab-selects-task~6`).
+Every row rebuild replaces the list's items, which clears the `ListView` selection, so `MainWindow.rebuildRows` turns the task on screen into the pending selection first and re-applies it afterwards (`dsn~browser-tab-selects-task~7`).
 That preservation skipped a task the rebuilt rows do not contain, and the reason given was a **search**: a query that hides the selected task must not leave its id pending, or clearing the query would jump back to the pre-search task instead of the one the user just found.
 The guard, however, read `narrowed` — search *and* the tag, awaits-input, running and active-desktop filters.
 So a filter that hid the selected task for a moment dropped its selection for good: the row came back, the highlight did not, and no later rebuild had anything left to restore.

@@ -130,16 +130,16 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core:3.27.7")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    // UI automation (MADR 0014): drives the real app on a display — a real
-    // desktop, or Xvfb on headless Linux (`xvfb-run -a ./gradlew :app:uiTest`).
-    // fx-labs fork of TestFX (maintained, JavaFX-25-era, AssertJ instead of
-    // hamcrest). EUPL-1.2 (weak copyleft), test-scope only.
+    // UI automation (MADR 0014): drives the real app on JavaFX's headless glass
+    // platform (no display, no Xvfb). fx-labs fork of TestFX (maintained,
+    // JavaFX-25-era, AssertJ instead of hamcrest). EUPL-1.2 (weak copyleft),
+    // test-scope only.
     testImplementation("io.gitlab.fx-labs:testfx-junit:0.2.0")
 }
 
 // One raster of the target-rings mark for the whole product: the Chrome
 // extension's icon is copied into the app jar next to `AppIcon`, which loads
-// it for the window and the Settings dialog. [impl->dsn~app-icon~4]
+// it for the window and the Settings dialog. [impl->dsn~app-icon~5]
 tasks.processResources {
     from(rootProject.file("extension/chrome/icon-128.png")) {
         into("com/contextswitcher/ui")
@@ -214,10 +214,12 @@ tasks.test {
 }
 
 // UI automation (MADR 0014): TestFX tests driving the real app against a temp
-// config dir. Needs a display: any desktop, or `xvfb-run -a ./gradlew :app:uiTest`.
+// config dir on JavaFX 26's headless glass platform — no display needed, and
+// the robot never touches the developer's real desktop. Fallback on a display:
+// `just uitest-xvfb`, or `-Dglass.platform=` to use the native platform.
 tasks.register<Test>("uiTest") {
     group = "verification"
-    description = "Runs the TestFX UI tests (needs a display or Xvfb)"
+    description = "Runs the TestFX UI tests on JavaFX's headless glass platform"
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform {
@@ -226,6 +228,11 @@ tasks.register<Test>("uiTest") {
     // The tests boot the real main window, whose ShellFX shell needs the
     // HeaderBar preview API, as the app does (QueueTabFocusUiTest and every other UI test).
     jvmArgs("--enable-native-access=ALL-UNNAMED", "-Djavafx.enablePreview=true")
+    // JavaFX 26's headless glass platform (JDK 24+): a pure-Java screen of
+    // 1000x1000 with its own robot. A prototype with two quirks the tests work
+    // around (`UiTestSupport.emulateWindowFocusChanges`, MADR 0014). Passed on
+    // the command line it overrides this (`-Dglass.platform=gtk` for a display).
+    systemProperty("glass.platform", System.getProperty("glass.platform", "headless"))
     // The app's remembered state (filters, sort, model/effort pick) goes through
     // Java Preferences; an in-memory store keeps the tests off the developer's
     // own on every OS (a `userRoot` redirect does not reach the Windows registry).

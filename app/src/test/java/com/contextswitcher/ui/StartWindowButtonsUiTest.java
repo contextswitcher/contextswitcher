@@ -30,17 +30,17 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The terminal pane's "No tmux configured" placeholder carries the same
-/// **tmux** / **claude** window choice play offers (`dsn~remote-window-choice~6`),
-/// so a task creation that died before it got a window can be finished from
-/// where it is seen.
+/// The terminal pane's "No tmux configured" placeholder carries a **Start
+/// Claude** button — the Claude half of the window choice play offers
+/// (`dsn~remote-window-choice~7`) — so a task creation that died before it got
+/// a window can be finished from where it is seen.
 ///
-/// Drives [TerminalPane] directly — the buttons are fired rather than clicked,
+/// Drives [TerminalPane] directly — the button is fired rather than clicked,
 /// which is what a robot would end up doing to a placeholder that owns no
 /// remote.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~remote-window-choice~6]
+// [utest->dsn~remote-window-choice~7]
 @Tag("ui")
 @TestFxApplication(StartWindowButtonsUiTest.TestApp.class)
 class StartWindowButtonsUiTest {
@@ -58,25 +58,23 @@ class StartWindowButtonsUiTest {
     }
 
     @Test
-    void claudeButtonStartsAClaudeWindowAndBothButtonsGoDead() {
+    void startClaudeButtonStartsAClaudeWindowAndGoesDead() {
         List<String> started = new ArrayList<>();
         AtomicReference<List<Button>> buttons = new AtomicReference<>();
         onFxThread(() -> {
             TerminalPane pane = new TerminalPane(
                     Executors.newSingleThreadExecutor(), new ProcessSshRunner());
-            pane.setWindowStarter((task, withClaude) ->
-                    started.add(task.id() + (withClaude ? " claude" : " tmux")));
+            pane.setWindowStarter(task -> started.add(task.id()));
             Region root = showPlaceholder(pane);
             List<Button> found = buttonsOf(root);
-            found.stream().filter(button -> "claude".equals(button.getText()))
-                    .forEach(Button::fire);
+            found.forEach(Button::fire);
             buttons.set(found);
         });
 
         assertThat(buttons.get()).extracting(Button::getText)
-                .as("the placeholder's recovery buttons")
-                .containsExactly("tmux", "claude");
-        assertThat(started).containsExactly("t claude");
+                .as("the placeholder's recovery button")
+                .containsExactly("Start Claude");
+        assertThat(started).containsExactly("t");
         assertThat(buttons.get()).as("dead for the round-trip").allMatch(Button::isDisabled);
     }
 
@@ -103,8 +101,8 @@ class StartWindowButtonsUiTest {
         return root;
     }
 
-    /// The placeholder's own buttons below `root`, in scene-graph order — the
-    /// pane's bar (Clear input, Jump to bottom, …) holds buttons too.
+    /// The placeholder's own button below `root` — the pane's bar (Clear
+    /// input, Jump to bottom, …) holds buttons too.
     private static List<Button> buttonsOf(Parent root) {
         List<Button> found = new ArrayList<>();
         Deque<Node> pending = new ArrayDeque<>();
@@ -112,7 +110,7 @@ class StartWindowButtonsUiTest {
         while (!pending.isEmpty()) {
             Node node = pending.removeFirst();
             if (node instanceof Button button
-                    && List.of("tmux", "claude").contains(button.getText())) {
+                    && "Start Claude".equals(button.getText())) {
                 found.add(button);
             }
             if (node instanceof Parent parent) {

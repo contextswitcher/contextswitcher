@@ -64,19 +64,24 @@ pull-run: && run
 run-debug: whats-new
     ./gradlew run
 
-# The screen size is explicit: `xvfb-run`'s default is the distribution's, and
-# nixpkgs ships 640x480 — too small for the app window, so clicks aimed at
-# controls that got pushed off the visible area silently do nothing.
-#
-# Run the TestFX UI tests (MADR 0014) on a virtual display.
+# Run the TestFX UI tests (MADR 0014) on JavaFX's headless glass platform — no
+# display, no Xvfb, nothing on the real desktop is touched.
 [unix]
 uitest:
-    xvfb-run -a -s "-screen 0 1920x1200x24" ./gradlew :app:uiTest
+    ./gradlew :app:uiTest
 
-# Run the TestFX UI tests (MADR 0014) on the real desktop (Windows has no Xvfb).
 [windows]
 uitest:
     gradlew.bat :app:uiTest
+
+# Fallback: the same tests on the native GTK platform under Xvfb, should the
+# headless platform (a JavaFX 26 prototype) misbehave. The screen size is
+# explicit: `xvfb-run`'s default is the distribution's, and nixpkgs ships
+# 640x480 — too small for the app window, so clicks aimed at controls that got
+# pushed off the visible area silently do nothing.
+[unix]
+uitest-xvfb:
+    xvfb-run -a -s "-screen 0 1920x1200x24" ./gradlew :app:uiTest -Dglass.platform=gtk
 
 [windows]
 run-debug: whats-new

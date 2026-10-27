@@ -36,6 +36,7 @@ public final class AnsiTextWindow {
         view.start();
         Stage stage = new Stage();
         stage.setTitle(title);
+        AppIcon.applyTo(stage);
         stage.setScene(new Scene(new BorderPane(view.getPane()), 1100, 750));
         stage.setOnHidden(event -> view.close());
         stage.show();

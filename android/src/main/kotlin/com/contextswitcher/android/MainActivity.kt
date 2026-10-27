@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
@@ -67,7 +68,10 @@ import com.contextswitcher.android.ui.EXPANDED_WIDTH
 import com.contextswitcher.android.ui.TaskDetailScreen
 import com.contextswitcher.android.ui.TaskGroupUi
 import com.contextswitcher.android.ui.TaskListBody
+import com.contextswitcher.android.ui.groupAtTop
 import com.contextswitcher.android.ui.buildTaskListModel
+import com.contextswitcher.android.voice.VoiceTour
+import com.contextswitcher.android.voice.VoiceTourScreen
 import com.contextswitcher.android.update.ApkInstaller
 import com.contextswitcher.android.update.AppUpdates
 import com.contextswitcher.android.watch.TaskWatchService
@@ -85,6 +89,7 @@ internal sealed interface Screen {
     data object Settings : Screen
     data object TaskList : Screen
     data class TaskDetail(val task: Task) : Screen
+    data class VoiceTour(val category: String) : Screen
 }
 
 /// Saves the open screen across Android killing the backgrounded app. A
@@ -96,12 +101,14 @@ internal fun screenSaver(repoDir: File): Saver<Screen, String> = Saver(
             Screen.Settings -> "settings"
             Screen.TaskList -> "tasklist"
             is Screen.TaskDetail -> "task:" + it.task.id()
+            is Screen.VoiceTour -> "tour:" + it.category
         }
     },
     restore = { saved ->
         when {
             saved == "settings" -> Screen.Settings
             saved.startsWith("task:") -> findTask(repoDir, saved.removePrefix("task:"))?.let { Screen.TaskDetail(it) } ?: Screen.TaskList
+            saved.startsWith("tour:") -> Screen.VoiceTour(saved.removePrefix("tour:"))
             else -> Screen.TaskList
         }
     },
@@ -205,6 +212,13 @@ private fun ContextSwitcherApp(
             // Nothing to go back to before the first save: back leaves the app then.
             onCancel = if (settingsStore.load() == null) null else ({ screen = Screen.TaskList }),
         )
+        is Screen.VoiceTour -> VoiceTourScreen(
+            category = current.category,
+            repoDir = repoDir,
+            ssh = ssh,
+            messageSender = messageSender,
+            onBack = { screen = Screen.TaskList },
+        )
         Screen.TaskList, is Screen.TaskDetail -> {
             val detailTask = (current as? Screen.TaskDetail)?.task
             val list: @Composable (Modifier) -> Unit = { modifier ->
@@ -214,6 +228,7 @@ private fun ContextSwitcherApp(
                         repoDir = repoDir,
                         onOpenSettings = { screen = Screen.Settings },
                         onOpenTask = { task -> screen = Screen.TaskDetail(task) },
+                        onStartTour = { category -> screen = Screen.VoiceTour(category) },
                         updates = updates,
                         liveTasks = remember { LiveTaskStarter(TaskRepoSync(), ssh, messageSender) },
                         listState = taskListState,
@@ -333,6 +348,7 @@ internal fun TaskListScreen(
     repoDir: File,
     onOpenSettings: () -> Unit,
     onOpenTask: (Task) -> Unit,
+    onStartTour: ((String) -> Unit)? = null,
     updates: AppUpdates? = null,
     liveTasks: LiveTaskStarter? = null,
     listState: LazyListState = rememberLazyListState(),
@@ -345,6 +361,7 @@ internal fun TaskListScreen(
     var syncing by remember { mutableStateOf(false) }
     var lastError by remember { mutableStateOf<String?>(null) }
     var addingTask by rememberSaveable { mutableStateOf(false) }
+    var pickingTour by rememberSaveable { mutableStateOf(false) }
     var taskBeingAdded by remember { mutableStateOf(false) }
     var addTaskError by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -394,7 +411,7 @@ internal fun TaskListScreen(
         }
     }
 
-    // [impl->dsn~android-task-create~1]
+    // [impl->dsn~android-task-create~2]
     fun addTask(category: String, title: String) {
         val settings = settingsStore.load() ?: return
         taskBeingAdded = true
@@ -421,7 +438,7 @@ internal fun TaskListScreen(
 
     var addProgress by remember { mutableStateOf<String?>(null) }
 
-    // [impl->dsn~android-live-task~1]
+    // [impl->dsn~android-live-task~3]
     fun startClaudeTask(category: String, title: String, mode: ClaudeMode, skipPermissions: Boolean) {
         val settings = settingsStore.load() ?: return
         val starter = liveTasks ?: return
@@ -497,6 +514,9 @@ internal fun TaskListScreen(
                         TextButton(onClick = { installUpdate() }, enabled = !updating) { Text(if (updating) "Updating…" else "Update") }
                     }
                     TextButton(onClick = { sync() }, enabled = !syncing) { Text(if (syncing) "Syncing…" else "Sync") }
+                    if (onStartTour != null && VoiceTour.categories(groups).isNotEmpty()) {
+                        TextButton(onClick = { pickingTour = true }) { Text("Tour") }
+                    }
                     TextButton(onClick = onOpenSettings) { Text("Settings") }
                 },
             )
@@ -509,11 +529,31 @@ internal fun TaskListScreen(
         }
     }
 
+    if (pickingTour && onStartTour != null) {
+        // [impl->dsn~android-voice-tour~1]
+        AlertDialog(
+            onDismissRequest = { pickingTour = false },
+            title = { Text("Voice tour of …") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    VoiceTour.categories(groups).forEach { category ->
+                        TextButton(onClick = {
+                            pickingTour = false
+                            onStartTour(category)
+                        }, modifier = Modifier.fillMaxWidth()) { Text(category) }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { pickingTour = false }) { Text("Cancel") } },
+        )
+    }
+
     if (addingTask) {
         val categories = groups.map { it.name }.ifEmpty { listOf("") }
         AddTaskDialog(
             categories = categories,
-            initialCategory = categories.firstOrNull { it.isNotEmpty() } ?: categories.first(),
+            initialCategory = groupAtTop(groups, listState.firstVisibleItemIndex)
+                .ifEmpty { categories.firstOrNull { it.isNotEmpty() } ?: "" },
             adding = taskBeingAdded,
             error = addTaskError,
             onAdd = { category, title -> addTask(category, title) },

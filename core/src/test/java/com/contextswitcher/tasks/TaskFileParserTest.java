@@ -673,7 +673,7 @@ class TaskFileParserTest {
         assertThat(updated).contains("  session: \"2\"\n  window: \"@25\"   # resurrected 2026-07-13");
     }
 
-    // [utest->dsn~remote-window-choice~6]
+    // [utest->dsn~remote-window-choice~7]
     @Test
     void withTmuxSectionAddsBothKeysToARemoteOnlyTask() throws Exception {
         String content = """
@@ -696,7 +696,7 @@ class TaskFileParserTest {
         assertThat(updated).contains("# tmux:");
     }
 
-    // [utest->dsn~remote-window-choice~6]
+    // [utest->dsn~remote-window-choice~7]
     @Test
     void withTmuxSectionSkipsContentWithoutFrontmatter() {
         String content = "no frontmatter here\n";
@@ -704,7 +704,7 @@ class TaskFileParserTest {
         assertThat(TaskFileParser.withTmuxSection(content, "0", "@42", "n")).isEqualTo(content);
     }
 
-    // [utest->dsn~remote-window-choice~6]
+    // [utest->dsn~remote-window-choice~7]
     @Test
     void withClaudeSectionAddsCwdWhenAbsent() throws Exception {
         String content = """
@@ -758,7 +758,7 @@ class TaskFileParserTest {
         assertThat(updated).contains("# Notes");
     }
 
-    // [utest->dsn~remote-window-choice~6]
+    // [utest->dsn~remote-window-choice~7]
     @Test
     void withClaudeSectionLeavesAnExistingSectionUntouched() {
         String content = """
@@ -773,7 +773,7 @@ class TaskFileParserTest {
         assertThat(TaskFileParser.withClaudeSection(content, "/data/other")).isEqualTo(content);
     }
 
-    // [utest->dsn~remote-window-choice~6]
+    // [utest->dsn~remote-window-choice~7]
     @Test
     void frontmatterStringReadsATopLevelScalar() {
         String content = """

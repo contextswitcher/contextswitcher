@@ -390,7 +390,7 @@ public class MainWindow {
     /// Claude session over a plain shell; both start in the task's workspace
     /// on the remote and write the resulting `tmux:` (and `claude:`) section
     /// back to the file.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     public interface RemoteWindowStarter {
         void start(Task task, boolean withClaude, ClaudeMode mode);
     }
@@ -398,7 +398,7 @@ public class MainWindow {
     /// What [#askRemoteWindow] came back with: a Claude session or a plain
     /// tmux shell, and — for the Claude one — the model and effort to start it
     /// with.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     public record RemoteWindowChoice(boolean withClaude, ClaudeMode mode) {
     }
 
@@ -577,6 +577,17 @@ public class MainWindow {
     // [impl->dsn~extension-connection-indicator~2]
     public void setOnBrowserSwitch(Consumer<Task> handler) {
         this.onBrowserSwitch = handler;
+    }
+
+    /// The resurrecting switch of a task resumed from its browser tab — every
+    /// action but the browser one; set by `Main`, a no-op until then.
+    /// [impl->dsn~browser-tab-selects-task~7]
+    private Consumer<Task> onTabResume = task -> { };
+
+    /// Installs the browser-less resume switch (see [#onTabResume]).
+    // [impl->dsn~browser-tab-selects-task~7]
+    public void setOnTabResume(Consumer<Task> handler) {
+        this.onTabResume = handler;
     }
 
     /// The globe's context menu: which browsers are connected, which one is
@@ -1032,6 +1043,11 @@ public class MainWindow {
     }
 
     private final SwitchStatusBar statusBar = new SwitchStatusBar();
+    /// The environment-profile override (screen share, …) next to the chips;
+    /// hidden until [#installProfileOverride] wires it.
+    // [impl->dsn~environment-profile-override~1]
+    private final MenuButton profileOverride = hiddenUntilInstalled(iconMenuButton(MDITechnology.MONITOR_SHARE,
+            "Environment profile override — laid over the category's profile until switched back"));
     /// The commit the running app was built from, in the status bar's right
     /// corner — empty until [#showCommit] fills it (git is asked off the FX
     /// thread), and empty forever when the app runs out of a zip.
@@ -1087,6 +1103,48 @@ public class MainWindow {
         return statusBar;
     }
 
+    /// Wires the status bar's environment-profile override: its menu offers
+    /// "Category profile" (no override) and every profile `names` returns —
+    /// read when the menu opens, so a profile added to `settings.yaml` shows
+    /// without a restart — and hands the choice (null: none) to `onChoose`.
+    /// The button shows the active override's name, so a forgotten
+    /// "screenshare" stays in sight.
+    // [impl->dsn~environment-profile-override~1]
+    public void installProfileOverride(Supplier<List<String>> names, Consumer<@Nullable String> onChoose) {
+        profileOverride.setVisible(true);
+        profileOverride.setOnShowing(event -> {
+            String active = profileOverride.getText();
+            ToggleGroup group = new ToggleGroup();
+            RadioMenuItem none = new RadioMenuItem("Category profile");
+            none.setToggleGroup(group);
+            none.setSelected(active == null || active.isEmpty());
+            none.setOnAction(e -> {
+                profileOverride.setText(null);
+                onChoose.accept(null);
+            });
+            List<MenuItem> items = new ArrayList<>(List.of(none, new SeparatorMenuItem()));
+            for (String name : names.get()) {
+                RadioMenuItem item = new RadioMenuItem(name);
+                item.setToggleGroup(group);
+                item.setSelected(name.equals(active));
+                item.setOnAction(e -> {
+                    profileOverride.setText(name);
+                    onChoose.accept(name);
+                });
+                items.add(item);
+            }
+            if (items.size() == 2) {
+                MenuItem empty = new MenuItem("No profiles: in settings.yaml");
+                empty.setDisable(true);
+                items.add(empty);
+            }
+            profileOverride.getItems().setAll(items);
+        });
+        // A MenuButton with no items never opens, so the showing handler
+        // would never run.
+        profileOverride.getItems().setAll(new MenuItem());
+    }
+
     public void show(Stage stage, Application application) {
         this.stage = stage;
         ListView<Object> list = new ListView<>(visibleRows);
@@ -1120,7 +1178,11 @@ public class MainWindow {
                 this::refactoringSummaryFor, this::showRefactorings,
                 task -> creations.get(task.id()),
                 this::groupAutoQuery, this::openAutoSearch,
-                this::toggleCategoryScope, this::groupPath, this::isCurrentGroup, this::syncGroupsMenu));
+                this::toggleCategoryScope, this::groupPath, this::isCurrentGroup, this::syncGroupsMenu,
+                this::sessionStopped));
+        // A session started or ended flips its row's pause/play toggle.
+        // [impl->dsn~task-row-hover-actions~7]
+        terminal.setOnOwnedChanged(list::refresh);
         list.setPlaceholder(emptyStatePlaceholder());
         installDragAutoScroll(list);
         // Fallback menu for the empty area below the last row (cells with
@@ -1260,7 +1322,7 @@ public class MainWindow {
             Clipboard.getSystemClipboard().setContent(content);
             statusBar().message("Commit " + sha + " copied.");
         });
-        HBox bottomBar = new HBox(statusBar, commitLabel, openLog);
+        HBox bottomBar = new HBox(statusBar, profileOverride, commitLabel, openLog);
         bottomBar.setAlignment(Pos.CENTER_LEFT);
         bottomBar.setPadding(new Insets(0, 6, 0, 0));
         // The panes as ShellFX dock tabs (MADR 0032). The raw frontmatter editor
@@ -1345,11 +1407,8 @@ public class MainWindow {
             Themes.addToEveryWindow(sheet);
         }
         stage.setScene(scene);
-        // The extension's target rings as the window/taskbar icon, in the sizes
-        // a window manager picks from (JavaFX asks for 32 on Windows, 128 on
-        // Linux and macOS); 128 is the raster's own size, so nothing is
-        // upscaled. [impl->dsn~app-icon~4]
-        stage.getIcons().setAll(AppIcon.image(16), AppIcon.image(32), AppIcon.image(64), AppIcon.image(128));
+        // [impl->dsn~app-icon~5]
+        AppIcon.applyTo(stage);
         stage.show();
         // The shell's scene is on screen now, and JavaFX will not restyle it
         // for a stylesheet it already holds: force the restyle a theme switch
@@ -1939,6 +1998,23 @@ public class MainWindow {
     /// (the poll has not seen the window) counts as "has Claude": the button
     /// only appears on evidence, never on silence.
     // [impl->dsn~start-claude-button~2]
+    /// Whether the task's Claude is *known* not to run: an app-owned session
+    /// with no live process, a window the poll saw at a bare shell
+    /// ([#lacksClaude]), or no window recorded at all (switch resurrects it).
+    /// Unknown counts as running — a row only offers play on evidence.
+    // [impl->dsn~task-row-hover-actions~7]
+    private boolean sessionStopped(Task task) {
+        return ownedSessionStopped(task) || lacksClaude(task)
+                || com.contextswitcher.switching.TmuxFocusAction.windowGone(task);
+    }
+
+    // [impl->dsn~terminal-owned-session~4]
+    private boolean ownedSessionStopped(Task task) {
+        return task.status() == TaskStatus.ACTIVE
+                && com.contextswitcher.terminal.LocalClaudeLauncher.ownsSession(task)
+                && !terminal.isOwnedRunning(task.id());
+    }
+
     private boolean lacksClaude(Task task) {
         Task.TmuxConfig tmux = task.tmux();
         if (task.status() == TaskStatus.SUSPENDED
@@ -2837,7 +2913,7 @@ public class MainWindow {
         // at all, and only a click brought the highlight back (field report
         // 2026-09-10). The task still on screen keeps it instead; the id
         // stays pending and wins as soon as it has a row.
-        // [impl->dsn~browser-tab-selects-task~6]
+        // [impl->dsn~browser-tab-selects-task~7]
         if (onScreenId != null && list != null) {
             int row = rowOf(onScreenId);
             if (row >= 0) {
@@ -3135,16 +3211,67 @@ public class MainWindow {
         dialog.setHeaderText("Enter a title or description, or paste a GitHub PR or GitLab MR URL.");
         // The category the task lands in, pre-selected with the one it was
         // opened for; picking another re-evaluates hints and buttons.
+        // Listed like the Ctrl+J popup: the active desktop's categories under
+        // a heading first, the rest under another — and narrowed by the host
+        // picker to its right (`(all hosts)`, `local`, each remote).
+        // [impl->dsn~task-create-category-pick~1]
         ComboBox<String> categoryBox = new ComboBox<>();
         categoryBox.setId("add-task-category");
         categoryBox.getStyleClass().add(Styles.SMALL);
-        categoryBox.getItems().add("");
-        categoryBox.getItems().addAll(folders.stream()
-                .sorted(String.CASE_INSENSITIVE_ORDER).toList());
-        if (!categoryBox.getItems().contains(initialGroup)) {
-            categoryBox.getItems().add(initialGroup);
+        Map<String, @Nullable String> hostOf = new LinkedHashMap<>();
+        for (String group : folders) {
+            AddTarget target = addTarget(group);
+            hostOf.put(group, target.localWorkdir() != null ? CategoryJump.LOCAL_HOST : target.remote());
         }
+        ComboBox<String> hostBox = new ComboBox<>();
+        hostBox.setId("add-task-host");
+        hostBox.getStyleClass().add(Styles.SMALL);
+        hostBox.getItems().addAll(CategoryJump.hosts(hostOf.values()));
+        hostBox.setValue(CategoryJump.ALL_HOSTS);
+        Set<String> headers = new HashSet<>();
+        Runnable refillCategories = () -> {
+            List<CategoryJump.Row> rows = CategoryJump.rows(
+                    CategoryJump.onHost(folders, hostOf::get, hostBox.getValue()),
+                    this::groupDesktop, activeDesktop, "");
+            headers.clear();
+            rows.stream().filter(CategoryJump.Row::header).map(CategoryJump.Row::text).forEach(headers::add);
+            List<String> items = new ArrayList<>();
+            items.add("");
+            rows.stream().map(CategoryJump.Row::text).forEach(items::add);
+            if (!items.contains(initialGroup)) {
+                items.add(initialGroup);
+            }
+            String picked = categoryBox.getValue();
+            categoryBox.getItems().setAll(items);
+            categoryBox.setValue(items.contains(picked) ? picked : initialGroup);
+        };
         categoryBox.setValue(initialGroup);
+        refillCategories.run();
+        hostBox.valueProperty().addListener((obs, old, value) -> refillCategories.run());
+        categoryBox.setCellFactory(view -> new ListCell<>() {
+            @Override
+            protected void updateItem(@Nullable String item, boolean empty) {
+                super.updateItem(item, empty);
+                boolean header = !empty && item != null && headers.contains(item);
+                setText(empty || item == null ? null : categoryBox.getConverter().toString(item));
+                setDisable(header);
+                getStyleClass().remove(Styles.TEXT_CAPTION);
+                if (header) {
+                    getStyleClass().add(Styles.TEXT_CAPTION);
+                }
+            }
+        });
+        // A disabled cell still takes the arrow keys' selection: step over a
+        // heading in the direction the keys were going.
+        categoryBox.valueProperty().addListener((obs, old, value) -> {
+            if (value == null || !headers.contains(value)) {
+                return;
+            }
+            List<String> items = categoryBox.getItems();
+            int at = items.indexOf(value);
+            int next = old != null && items.indexOf(old) > at ? at - 1 : at + 1;
+            categoryBox.setValue(next >= 0 && next < items.size() ? items.get(next) : old);
+        });
         categoryBox.setConverter(new javafx.util.StringConverter<>() {
             @Override
             public String toString(@Nullable String group) {
@@ -3156,7 +3283,7 @@ public class MainWindow {
                 return text;
             }
         });
-        HBox categoryRow = new HBox(6, new Label("Category:"), categoryBox);
+        HBox categoryRow = new HBox(6, new Label("Category:"), categoryBox, new Label("on"), hostBox);
         categoryRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         ButtonType plainType = new ButtonType("Add plain task", ButtonBar.ButtonData.OK_DONE);
         ButtonType remoteType = new ButtonType("Add remote Claude", ButtonBar.ButtonData.OTHER);
@@ -4050,6 +4177,25 @@ public class MainWindow {
         setStatus(task, TaskStatus.ACTIVE);
     }
 
+    /// Resumes a suspended task whose browser tab the user just activated:
+    /// the same status flip as [#resumeTask], but the resurrecting switch
+    /// runs through [#onTabResume] and leaves the browser alone — the user is
+    /// already in the browser, on the page they chose, and the task's other
+    /// pages opening in front of it is what they did not ask for. The status
+    /// on disk decides: a task no longer suspended (a second report of the
+    /// same tab while the resume is in flight) is left as it is.
+    // [impl->dsn~browser-tab-selects-task~7]
+    public void resumeTaskFromTab(Task staleTask) {
+        Task task = freshTask(staleTask);
+        if (task.status() != TaskStatus.SUSPENDED) {
+            return;
+        }
+        writeStatus(task, TaskStatus.ACTIVE);
+        // The pre-flip task, as `setStatus` hands it to the switch: the tmux
+        // action reads `suspended` as "recreate, do not focus the bare session".
+        onTabResume.accept(task);
+    }
+
     /// Pins or unpins a task by writing (or removing) the `pinned:` line of
     /// its file — the watcher's reload re-sorts the list, like a status flip.
     // [impl->dsn~pinned-tasks~2]
@@ -4205,6 +4351,13 @@ public class MainWindow {
         if (task.status() == TaskStatus.SUSPENDED) {
             writeStatus(task, TaskStatus.ACTIVE);
         }
+        // Play on a local task with no session running starts (or resumes)
+        // it, rather than leaving the user at the placeholder's button.
+        // [impl->dsn~terminal-owned-session~4]
+        if (com.contextswitcher.terminal.LocalClaudeLauncher.ownsSession(task)
+                && !terminal.isOwnedRunning(task.id())) {
+            terminal.requestOwnedStart(task.id());
+        }
         onSwitch.accept(task);
         // A window the poll saw at a bare shell (Claude killed or exited) gets
         // its Claude back as part of the switch — the same repair the `Claude`
@@ -4222,7 +4375,7 @@ public class MainWindow {
     /// **claude** session — both started in the task's workspace on the remote.
     /// Once created, the file gains the `tmux:` (and, for claude, `claude:`)
     /// section, so the next play focuses it normally.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     private void promptRemoteWindow(Task task) {
         RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, task.remote(), true);
         if (choice != null) {
@@ -4246,7 +4399,7 @@ public class MainWindow {
     /// caller already knows it wants Claude (the placeholder's `claude`
     /// button): the dialog is then only there to pick model and effort, and a
     /// **tmux** button next to it would undo the choice just made.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     // [impl->dsn~claude-mode-select~3]
     public static @Nullable RemoteWindowChoice askRemoteWindow(@Nullable Window owner,
             Task task, @Nullable String remote, boolean offerTmux) {
@@ -4492,7 +4645,30 @@ public class MainWindow {
         if (dialog.showAndWait().orElse(back) != rename) {
             return false;
         }
+        pinMainCheckout(name);
         return renameGroupTo(name, TaskFileParser.slug(newName.getText()));
+    }
+
+    /// Writes the category's conventional `mainCheckout:` (`<workspacesRoot>/<repo
+    /// name>`) into its `CONTEXTSWITCHER.md` before a clash rename when it
+    /// spells none: the clone on the host keeps the old name, and the
+    /// live-task prompt would otherwise send Claude to a `<new name>`
+    /// subdirectory that does not exist (field report 2026-10-22). A
+    /// category that already names one, or has no root/repo to derive it
+    /// from, is left alone.
+    // [impl->dsn~category-name-clash~1]
+    private void pinMainCheckout(String group) {
+        GroupConfig config = groupDefaults(group);
+        String checkout = config.effectiveMainCheckout();
+        if (config.mainCheckout() != null || checkout == null) {
+            return;
+        }
+        String configFile = groupConfigFileName(group);
+        if (!files.exists(configFile)) {
+            return;
+        }
+        files.save(configFile, TaskFileParser.withScalar(files.load(configFile), "mainCheckout", checkout));
+        groupConfigCache.remove(group);
     }
 
     /// The proposed new name of an existing category whose name a new one
@@ -7088,6 +7264,17 @@ public class MainWindow {
         return new CustomMenuItem(label);
     }
 
+    /// `button`, invisible and taking no room until made visible. Hidden here,
+    /// at construction, rather than where the bottom bar is assembled: `Main`
+    /// wires (and reveals) the override before [#show] builds that bar.
+    // [impl->dsn~environment-profile-override~1]
+    private static MenuButton hiddenUntilInstalled(MenuButton button) {
+        button.setId("profile-override");
+        button.setVisible(false);
+        button.managedProperty().bind(button.visibleProperty());
+        return button;
+    }
+
     /// A flat icon-only `MenuButton` for the toolbar — the [#iconButton] shape
     /// for a drop-down control (filter, sort, tags, add). The `.small`
     /// menu-button sizing AtlantaFX lacks is patched in `main.css`.
@@ -7133,7 +7320,7 @@ public class MainWindow {
     /// selection is a header, a corrupt file, or nothing. Survives the
     /// transient clear a row rebuild causes, so it answers "is this task
     /// already the one in view" even while a collapsed category hides its row.
-    // [impl->dsn~browser-tab-selects-task~6]
+    // [impl->dsn~browser-tab-selects-task~7]
     public @Nullable String selectedTaskId() {
         Task previewed = previewedTask;
         return previewed == null ? null : previewed.id();
@@ -7270,7 +7457,7 @@ public class MainWindow {
         // see is no selection, and the browser-tab reporter has no other way
         // to say "this task". `rebuildRows` applies the pending selection
         // itself, so each step only has to reveal.
-        // [impl->dsn~browser-tab-selects-task~6]
+        // [impl->dsn~browser-tab-selects-task~7]
         if (collapsedGroups.remove(groupOf(taskId))) {
             rebuildRows();
         }

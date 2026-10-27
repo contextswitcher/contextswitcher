@@ -3,7 +3,6 @@ package com.contextswitcher.android.car
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.car.app.CarAppService
 import androidx.car.app.CarContext
 import androidx.car.app.CarToast
@@ -22,6 +21,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.contextswitcher.android.ui.buildTaskListModel
+import com.contextswitcher.android.voice.Dictation
+import com.contextswitcher.android.voice.VoiceTour
 import com.contextswitcher.android.watch.TaskWatchService
 import com.contextswitcher.tasks.Task
 import java.io.File
@@ -70,6 +71,9 @@ class CarTaskListScreen(carContext: CarContext, private val io: Executor = carIo
 
     override fun onGetTemplate(): Template {
         val header = Header.Builder().setTitle("ContextSwitcher").setStartHeaderAction(Action.APP_ICON)
+            .addEndHeaderAction(Action.Builder().setTitle("Tour").setOnClickListener {
+                screenManager.push(CarTourCategoryScreen(carContext, io))
+            }.build())
             .addEndHeaderAction(Action.Builder().setTitle("Refresh").setOnClickListener {
                 load()
                 invalidate()
@@ -144,11 +148,17 @@ internal fun sendFromCar(carContext: CarContext, task: Task, text: String, io: E
 /// only on *Send* — a misheard sentence must not reach a Claude session that
 /// may run without permission prompts.
 // [impl->dsn~android-auto-message~1]
-class CarDictationScreen(carContext: CarContext, private val task: Task, private val io: Executor = carIo) : Screen(carContext) {
+class CarDictationScreen(
+    carContext: CarContext,
+    private val task: Task,
+    private val io: Executor = carIo,
+    /// Shapes the dictated text before it is sent (the voice tour's spoken-reply hint).
+    private val transform: (String) -> String = { it },
+) : Screen(carContext) {
 
     private var heard: String? = null
     private var problem: String? = null
-    private var dictation: CarDictation? = null
+    private var dictation: Dictation? = null
 
     init {
         lifecycle.addObserver(object : DefaultLifecycleObserver {
@@ -162,13 +172,11 @@ class CarDictationScreen(carContext: CarContext, private val task: Task, private
     private fun listen() {
         heard = null
         problem = null
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            problem = "Dictation needs Android 13 or later."
-        } else if (ContextCompat.checkSelfPermission(carContext, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(carContext, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             problem = "Allow the microphone on the phone, then retry."
             carContext.requestPermissions(listOf(Manifest.permission.RECORD_AUDIO)) { _, _ -> }
         } else {
-            dictation = CarDictation(carContext) { text, error ->
+            dictation = Dictation(carContext, carContext) { text, error ->
                 heard = text
                 problem = error
                 invalidate()
@@ -187,7 +195,7 @@ class CarDictationScreen(carContext: CarContext, private val task: Task, private
         return when {
             text != null -> MessageTemplate.Builder(text).setHeader(header)
                 .addAction(Action.Builder().setTitle("Send").setOnClickListener {
-                    sendFromCar(carContext, task, text, io)
+                    sendFromCar(carContext, task, transform(text), io)
                     screenManager.pop()
                 }.build())
                 .addAction(retry).build()

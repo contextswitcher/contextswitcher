@@ -39,7 +39,7 @@ public final class ExtensionProtocol {
     /// The user activated a browser tab; the app selects the task owning the
     /// URL. Unsolicited (no correlation id) and only honoured on the already
     /// authenticated extension connection.
-    // [impl->dsn~browser-tab-selects-task~6]
+    // [impl->dsn~browser-tab-selects-task~7]
     public record TabActivated(String url) implements Incoming {
     }
 
@@ -51,7 +51,7 @@ public final class ExtensionProtocol {
     /// A `contextswitcher://` URL the extension's popup wants run — the same
     /// links a note carries, arriving on the already authenticated connection
     /// (so no token, and no close: the extension keeps its socket).
-    // [impl->dsn~browser-tab-task-popup~1]
+    // [impl->dsn~browser-tab-task-popup~2]
     public record OpenLink(String url) implements Incoming {
     }
 
@@ -137,7 +137,7 @@ public final class ExtensionProtocol {
 
     /// One task in a `tab-count`: enough for the popup to show a row and to
     /// build the `contextswitcher://` link that acts on it.
-    // [impl->dsn~browser-tab-task-popup~1]
+    // [impl->dsn~browser-tab-task-popup~2]
     public record TabTask(String id, String title, String status) {
     }
 
@@ -190,6 +190,17 @@ public final class ExtensionProtocol {
         node.put("type", "close-window");
         node.put("id", id);
         node.put("windowId", windowId);
+        return node.toString();
+    }
+
+    /// Shows or hides the browser's bookmarks toolbar in every window — an
+    /// environment profile's `bookmarksBar` key.
+    // [impl->dsn~environment-profile-bookmarks-bar~1]
+    public static String encodeBookmarksBar(String id, boolean hidden) {
+        ObjectNode node = MAPPER.createObjectNode();
+        node.put("type", "bookmarks-bar");
+        node.put("id", id);
+        node.put("hidden", hidden);
         return node.toString();
     }
 

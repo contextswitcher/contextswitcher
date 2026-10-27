@@ -179,6 +179,21 @@ Covers:
 
 Needs: dsn
 
+### Walk through a category's tasks by voice
+`req~android-voice-tour~1`
+
+On the road, the user can ask what is up in a category and have the phone walk through its tasks aloud: how many tasks, which wait for the user; then task by task the title, the status and Claude's last answer as spoken text, not a terminal snapshot.
+A dictated reply goes into the task's own Claude session, asking for an answer that reads well aloud, and the finished answer is read out; *Next* moves on, *Previous* back.
+Every task keeps its own session: the tour steps through them, it does not merge them.
+Works on the phone (mounted, over the car's audio) and on the Android Auto head unit.
+
+Tags: android
+
+Covers:
+- feat~android-companion-app~1
+
+Needs: dsn
+
 ## Design
 
 ### `TaskRepoSync`
@@ -333,11 +348,11 @@ Covers:
 Needs: impl, utest
 
 ### Start Claude for a new task from the phone
-`dsn~android-live-task~1`
+`dsn~android-live-task~3`
 
-`AddTaskDialog` offers *Start Claude on <remote>* (checked by default) when the picked category's `CONTEXTSWITCHER.md` names a `remote`, with *Model* and *Effort* pickers (`ClaudeMode.MODELS`/`EFFORTS`, "as is" leaves the session's) and *Skip permission prompts* (the desktop's `claudeAuto`, remembered in `SettingsStore`); *Start* runs `LiveTaskStarter.start`, the dialog showing each step. Without a remote the dialog adds a plain task as before (`dsn~android-task-create~1`).
+`AddTaskDialog` offers *Start Claude on <remote>* (checked by default) when a remote is known for the picked category — its `CONTEXTSWITCHER.md` `remote`, else (the desktop's `effectiveRemote` rule, with the clone's tasks standing in for the desktop's `remotes` setting) the first remote any task in the clone names —, with *Model* and *Effort* pickers (`ClaudeMode.MODELS`/`EFFORTS`, "as is" leaves the session's) and *Skip permission prompts* (the desktop's `claudeAuto`, remembered in `SettingsStore`); *Start* runs `LiveTaskStarter.start`, the dialog showing each step. Without a remote the dialog adds a plain task as before (`dsn~android-task-create~2`).
 `LiveTaskStarter` does the desktop's live-task creation (`dsn~task-create-live~8`) with the same `:core` code, moved there from `:app` for it: `ClaudeWindowLauncher` (window, Claude start, trust dialog, model/effort, prompt paste with the visibility retries), `ClaudeWindowLauncher.liveTaskPrompt` and `liveTaskContent`. Remote, working directory (`resolveWorkdir`, `mkdir -p`ed first), repository and worktree bootstrap come from the category config; the tmux session is the first one a task on that remote uses, else `0`.
-The task file — `liveTaskContent` plus `addUrlsFrom`, named `<date>-<description>` like the desktop's, with `TaskFileParser.withTmuxSection` for the fresh window — is pushed through `TaskRepoSync.createTaskFile` from the launcher's window callback, before Claude is up; the dialog closes then and the list shows the task, while the start continues and ends in a Snackbar. A window that cannot be created leaves the dialog open with the error; a push that fails after the window exists is reported with the window id.
+The task file — `liveTaskContent` plus `addUrlsFrom`, named `<date>-<description>` like the desktop's, with `TaskFileParser.withTmuxSection` for the fresh window — is pushed through `TaskRepoSync.createTaskFile` from the launcher's window callback, before Claude is up; the dialog closes then and the list shows the task, while the start continues and ends in a Snackbar. A window that cannot be created leaves the dialog open with the error — the headline plus the remote's error output (`ClaudeWindowLauncher.failure()`: a refused connection, a missing key, tmux's complaint), as the desktop's `windowFailure` shows it; a push that fails after the window exists is reported with the window id.
 The desktop adopts the task — its title from `@cs_title`, its session id — once its periodic sync (`dsn~task-git-backup~5`) has pulled the file.
 
 Tags: android
@@ -365,7 +380,7 @@ Needs: impl, utest
 `dsn~android-queue-delete~1`
 
 The desktop deletes a queued message through a hover button; a touch screen has none, so `QueuePage` gives every message under *Queued on the desktop* a *Delete* button next to *Edit*, confirmed in a dialog and reading *Deleting…* during the round-trip.
-`TaskRepoSync.deleteQueuedMessage(dir, username, token, taskId, message)` removes the first equal message from `.queues/<task>.yaml` (`QueueFile.save`, which deletes an emptied file) and pushes it through the same write-back as `dsn~android-task-create~1` (fetch + reset, commit, push, one retry after a non-fast-forward, reset on any failure); a message already gone from the fetched queue — sent or deleted on the desktop meanwhile — needs no commit.
+`TaskRepoSync.deleteQueuedMessage(dir, username, token, taskId, message)` removes the first equal message from `.queues/<task>.yaml` (`QueueFile.save`, which deletes an emptied file) and pushes it through the same write-back as `dsn~android-task-create~2` (fetch + reset, commit, push, one retry after a non-fast-forward, reset on any failure); a message already gone from the fetched queue — sent or deleted on the desktop meanwhile — needs no commit.
 `TaskDetailScreen` reloads the queue from the clone afterwards, success or not, and a failure shows in the Snackbar.
 The desktop pulls the deletion within its periodic sync (`dsn~task-git-backup~5`, five minutes); a desktop that changed the same queue meanwhile meets it in that pull, where git's line merge usually keeps both.
 
@@ -479,9 +494,10 @@ Covers:
 Needs: impl, utest
 
 ### Add a task from the phone
-`dsn~android-task-create~1`
+`dsn~android-task-create~2`
 
-The task list's floating *+* button (shown once a clone exists) opens `com.contextswitcher.android.ui.AddTaskDialog`: a category picker over the list's groups (default: the first named one) and a title; *Add* is disabled while the title is blank and reads *Adding…* during the round-trip. The dialog stays open on failure with the error under the field, so a title typed on a weak connection survives; its input is `rememberSaveable`.
+The task list's floating *+* button (shown once a clone exists) opens `com.contextswitcher.android.ui.AddTaskDialog`: a category picker over the list's groups and a title; *Add* is disabled while the title is blank and reads *Adding…* during the round-trip. The dialog stays open on failure with the error under the field, so a title typed on a weak connection survives; its input is `rememberSaveable`.
+The picker defaults to the group whose header is pinned at the top of the scrolled list (`groupAtTop`, from the `LazyListState`'s first visible item), falling back to the first named group, so a list scrolled to a category adds there.
 `TaskRepoSync.createTask(dir, username, token, category, title)` fetches and hard-resets the clone, writes `<category>/<slug(title)>.md` (`-2`, `-3`… when taken; `slug`, not `newTaskFileName`, so a `/` in the title picks no folder) with `TaskFileParser.newTaskContent(title, remote, null, false)` + `addUrlsFrom` — the desktop's title task in compact form, `remote` from the category's `CONTEXTSWITCHER.md`, no `workdir`, whose paths are per machine — commits it as *ContextSwitcher Android* and pushes.
 A push rejected as non-fast-forward (the desktop pushed in between) is retried once from the fetch: a new file cannot conflict, so no `TaskMerge` is needed. Any failure hard-resets to `origin/<branch>` again, so the clone stays a mirror and the next sync's reset loses nothing.
 The desktop pulls the task within its periodic sync (`req~task-git-backup~4`, every five minutes).
@@ -521,5 +537,23 @@ Tags: android
 
 Covers:
 - req~android-auto~1
+
+Needs: impl, utest
+
+### Voice tour
+`dsn~android-voice-tour~1`
+
+`com.contextswitcher.android.voice.VoiceTour` is the tour's logic, shared by the phone's `VoiceTourScreen` and the head unit's `CarTourScreen` (reached from *Tour* in the car's task list, after picking a category in `CarTourCategoryScreen`; on the phone from *Tour* in the task list's top bar).
+`VoiceTour.of(category, groups, ssh)` takes the category's reachable tasks in `carTasks` order (`dsn~android-auto-tasks~1`: waiting first) with one status poll; `overview()` is "what is up" — the count, the waiting tasks' titles, how many work — and `announcement()` the current task's card: position, title, status, and Claude's last answer.
+That answer comes from :core's `ClaudeTranscript`: one ssh call reads the last five assistant lines of `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` (the task's `claude.cwd` and `claude.sessionId`; the encoding of `dsn~claude-session-capture~3`) and takes the text blocks of the newest line that has any — the API-request blobs on other lines never travel; a task without a session id has no answer.
+`Speaker` wraps Android's on-device `TextToSpeech`; `Dictation` is the former `CarDictation`, with the car's microphone optional: on the phone it listens through `SpeechRecognizer` directly.
+A dictated reply is sent as `VoiceTour.spokenReply(text)`, the text behind a hint asking for a few spoken sentences without tables, code or diffs, through the same path as a head-unit message (`dsn~android-auto-message~1`: sent at once, kept on the phone on failure), and only after the recognized text was shown.
+Both screens re-read the statuses every ten seconds (`refreshStatuses`) and read the current task's card again when its status leaves `working`, so a finished turn is heard without touching anything.
+Ceiling: one TTS voice for English and German text; the tour over several categories at once is a loop the user runs by hand.
+
+Tags: android
+
+Covers:
+- req~android-voice-tour~1
 
 Needs: impl, utest

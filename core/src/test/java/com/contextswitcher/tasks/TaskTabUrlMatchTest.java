@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// Matching an activated browser tab against a task's `browser.urls`.
-// [utest->dsn~browser-tab-selects-task~6]
+// [utest->dsn~browser-tab-selects-task~7]
 class TaskTabUrlMatchTest {
 
     private static final String PR = "https://github.com/JabRef/jabref/pull/16659";

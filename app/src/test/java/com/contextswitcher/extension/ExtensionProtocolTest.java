@@ -85,7 +85,7 @@ class ExtensionProtocolTest {
                 .isEqualTo("{\"type\":\"tab-count\",\"url\":\"https://example.org/\",\"tasks\":[]}");
     }
 
-    // [utest->dsn~browser-tab-task-popup~1]
+    // [utest->dsn~browser-tab-task-popup~2]
     @Test
     void openLinkParses() {
         assertThat(ExtensionProtocol.parse(
@@ -93,7 +93,7 @@ class ExtensionProtocolTest {
                 .isEqualTo(new ExtensionProtocol.OpenLink("contextswitcher://switch/jabref/fix-npe"));
     }
 
-    // [utest->dsn~browser-tab-task-popup~1]
+    // [utest->dsn~browser-tab-task-popup~2]
     @Test
     void openLinkWithoutUrlRejected() {
         assertThatThrownBy(() -> ExtensionProtocol.parse("{\"type\":\"open-link\"}"))
@@ -141,6 +141,13 @@ class ExtensionProtocolTest {
                 .isEqualTo("{\"type\":\"close-window\",\"id\":\"abc-4\",\"windowId\":17}");
     }
 
+    // [utest->dsn~environment-profile-bookmarks-bar~1]
+    @Test
+    void bookmarksBarEncodesAllFields() {
+        assertThat(ExtensionProtocol.encodeBookmarksBar("abc-5", true))
+                .isEqualTo("{\"type\":\"bookmarks-bar\",\"id\":\"abc-5\",\"hidden\":true}");
+    }
+
     @Test
     void resultWithWindowsParses() {
         assertThat(ExtensionProtocol.parse("{\"type\":\"result\",\"id\":\"abc-3\",\"ok\":true,"
@@ -160,7 +167,7 @@ class ExtensionProtocolTest {
                 .isEqualTo(new ExtensionProtocol.Result("abc-1", false, ""));
     }
 
-    // [utest->dsn~browser-tab-selects-task~6]
+    // [utest->dsn~browser-tab-selects-task~7]
     @Test
     void tabActivatedParses() {
         assertThat(ExtensionProtocol.parse(

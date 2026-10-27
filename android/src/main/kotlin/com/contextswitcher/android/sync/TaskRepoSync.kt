@@ -92,7 +92,7 @@ class TaskRepoSync(private val beforePush: () -> Unit = {}) {
     /// File name and content follow the desktop's *Add task…* for a title: the
     /// slugged title (`-2`, `-3`… when taken) and compact frontmatter carrying
     /// the category's `remote` default.
-    // [impl->dsn~android-task-create~1]
+    // [impl->dsn~android-task-create~2]
     fun createTask(dir: File, username: String, token: String, category: String, title: String): CreateResult =
         createTaskFile(dir, username, token, category, title) { prefix ->
             val configFile = File(dir, prefix + TaskRepository.GROUP_CONFIG_FILE_NAME)
@@ -103,8 +103,8 @@ class TaskRepoSync(private val beforePush: () -> Unit = {}) {
     /// As [createTask], but with the file's `name` (slugged; `-2`… when taken)
     /// and `content` (given the category's folder prefix, read after the
     /// clone was brought to the remote) chosen by the caller — the live task
-    /// of `dsn~android-live-task~1` writes the desktop's live-task file.
-    // [impl->dsn~android-task-create~1]
+    /// of `dsn~android-live-task~3` writes the desktop's live-task file.
+    // [impl->dsn~android-task-create~2]
     fun createTaskFile(
         dir: File,
         username: String,

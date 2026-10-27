@@ -32,11 +32,12 @@ Covers:
 Needs: dsn
 
 ### Browser tab selects task
-`req~browser-tab-selects-task~2`
+`req~browser-tab-selects-task~3`
 
 Activating a Firefox tab whose address belongs to a task — one of the task's `browser.urls`, or a page under it — selects that task in ContextSwitcher, the reverse direction of `req~focus-browser-tab~2`.
 For a task that is not suspended, that is all that happens: the application is not raised and no switch is run, since the user is working in the browser and the selection is only there when they look back at the app.
-A **suspended** task is resumed as well, exactly as its row's play button resumes it (`req~task-suspend-resume~2`): its tmux window is recreated and its Claude session resumed, so opening the task's pull request lands on the same live context a running task offers instead of a dead row.
+A **suspended** task is resumed as well, as its row's play button resumes it (`req~task-suspend-resume~2`): its tmux window is recreated and its Claude session resumed, so opening the task's pull request lands on the same live context a running task offers instead of a dead row.
+That resume leaves the browser alone: the user is already in the browser, on the page they chose, so none of the task's other URLs is opened and no tab is activated — a tab-triggered resume never pulls the user away from the tab they activated (field report 2026-10-22: opening a suspended task's page opened its dozen other pages in a tab group and switched to the first of them, which belonged to a second suspended task that resumed in turn).
 A tab belonging to no task leaves the selection alone.
 
 Tags: windows, linux
@@ -246,7 +247,7 @@ Tags: windows, linux
 Covers:
 - req~focus-browser-tab~2
 - req~extension-reconnect~1
-- req~browser-tab-selects-task~2
+- req~browser-tab-selects-task~3
 - req~browser-tab-context-count~1
 - req~browser-tab-task-popup~1
 - req~browser-tab-group~3
@@ -350,7 +351,7 @@ Covers:
 Needs: impl
 
 ### Extension enable toggle
-`dsn~extension-enable-toggle~1`
+`dsn~extension-enable-toggle~2`
 
 An `enabled` flag (default true) sits next to port and token in `storage.local`, so it survives a browser restart and the storage listener that already reconnects on an options save also reacts to it.
 The popup's first row below the task list shows it as "✓ Enabled" / "✗ Disabled" and flips it on a click, then closes — the icon changing is the feedback.
@@ -358,6 +359,7 @@ The popup's first row below the task list shows it as "✓ Enabled" / "✗ Disab
 The socket's `close` handler reads the flag too, so a close the switch caused paints `disabled` rather than orange "not connected".
 The flag is read asynchronously, so every `connect()` and every storage change bumps a counter, and a `connect()` that finds it moved after the read gives up instead of dialing — otherwise parallel start-up calls, or the switch landing mid-read, leave a socket open that the switch never closes.
 The icon is the grey rings faded to 40 % opacity, like a disabled toolbar button — Firefox via `icon-disabled.svg`, Chrome by fading the drawn canvas — and the popup's state line reads "Disabled".
+The badge reads "OFF" on red, as Tampermonkey's does, since a faded icon alone is easy to overlook; it is the global badge text, and the sweep drops each tab's own text so every tab shows it.
 `closeIfDuplicate` returns early while disabled; tab reports need an open socket and stop by themselves.
 
 Tags: windows, linux
@@ -386,14 +388,17 @@ Covers:
 Needs: impl, utest
 
 ### Browser tab selection
-`dsn~browser-tab-selects-task~6`
+`dsn~browser-tab-selects-task~7`
 
 The extension listens on `tabs.onActivated`, `tabs.onUpdated` (a URL change in the active tab) and `windows.onFocusChanged` (switching windows fires no `onActivated`) and sends an unsolicited `{"type":"tab-activated","url":…}` — no correlation id, no reply — deduplicated against the last reported URL, since `onUpdated` fires repeatedly per navigation.
 `ExtensionServer` honours the message only on the connection that passed `hello` and hands the URL to `Main.selectTaskForTab`, which picks the task with the best `Task.tabUrlMatch` (2 exact `browser.urls` hit, 1 page under one of them — same `/`, `#`, `?` boundary rule as the extension's `isSameOrSubUrl`, 0 no match) and selects its row.
 A fragment on a task's URL (a PR review comment, `…/pull/1#pullrequestreview-2`) only points into the page, so the page without it and its sub-pages score 1 as well (field report 2026-09-28: a task listing a review comment did not own the PR's `/changes` tab).
 No match, or no window yet, does nothing.
-A match whose status is `suspended` is additionally handed to `MainWindow.resumeTask` — the same `setStatus(task, ACTIVE)` the row's play button and the queue's send-into-a-suspended-chat run (`dsn~task-suspend~6`), so the status write and the resurrecting switch come for free and no confirmation appears.
-It is the status *on disk* that decides, and `resumeTask` re-reads it, so a second `tab-activated` for the same tab arriving while the resume is in flight finds the task already `active` and only rewrites the status it already has.
+A match whose status is `suspended` is additionally handed to `MainWindow.resumeTaskFromTab`: the same status write to `active` as the row's play button and the queue's send-into-a-suspended-chat (`setStatus`, `dsn~task-suspend~6`), with no confirmation, followed by the resurrecting switch through the `onTabResume` hook instead of `onSwitch`.
+`Main` wires that hook to `switchToExceptBrowser`: the task's configured actions (category defaults folded in, as every switch does) minus `browser`, run through the same narrowed `switchTo` the toolbar globe uses with `only = {browser}` — so the tmux window is recreated and Claude resumed, but no `focus-url` is sent: no tab of the task is opened or activated, and the tab group is not assembled.
+A task whose only configured action is the browser has nothing to resurrect; the status flip alone is its resume and no switch chips appear.
+Before (field report 2026-10-22) the tab resume was the full play: `BrowserFocusAction` opened every URL of the task and activated the first, and that first page, listed by a second suspended task, reported itself and resumed that one too — a chain of resumes started by opening one page.
+It is the status *on disk* that decides, and `resumeTaskFromTab` re-reads it, so a second `tab-activated` for the same tab arriving while the resume is in flight finds the task already `active` and does nothing.
 A `done` task is never resumed: completing it ended its context on purpose.
 Several tasks can list the same URL — one implementing a PR, one checking why a check of it fails — and then score alike; `Main.rankTabMatches` breaks that tie in favour of the **currently selected** task, so activating the PR's tab keeps the task the user is on instead of switching the app (and the terminal mirror) to the other one, which reads as the app switching tasks by itself (field report 2026-09-09).
 A better score still wins over the selection: an exact hit is about *this* tab, a selected task matching only a parent page is not.
@@ -408,7 +413,7 @@ The id stays pending regardless and wins as soon as it has a row.
 Tags: windows, linux
 
 Covers:
-- req~browser-tab-selects-task~2
+- req~browser-tab-selects-task~3
 
 Needs: impl, utest
 
@@ -506,7 +511,7 @@ Covers:
 Needs: impl, utest
 
 ### Tab task popup
-`dsn~browser-tab-task-popup~1`
+`dsn~browser-tab-task-popup~2`
 
 `popup.html`/`popup.js` are the icon's `default_popup` and list the tasks of the kept `tab-count` answer, one row each: the title (plus the status when it is not `active`) selects the task, the `▶` beside it switches to it.
 Both send `{"type":"open-link","url":"contextswitcher://task|switch/<id>"}` on the already authenticated socket; `ExtensionServer` hands the URL to the very `deepLinkHandler` the URL scheme uses — and, unlike the one-shot `deeplink` of a second app instance, leaves the connection open.
@@ -515,6 +520,8 @@ The popup reads the background page directly (`browser.extension.getBackgroundPa
 A task id carries `/` for its group folder, so the link encodes the segments and keeps the separators.
 No answer for the URL in view reads as "Asking ContextSwitcher…" or, with the socket down, "ContextSwitcher is not running" — never as an empty task list, which would be a lie about the page.
 There is deliberately no bare "show the application" button: with no task the application has nothing to show for the page.
+The state line also names the installed extension version (`runtime.getManifest().version`), so a stale install — an xpi not reinstalled after an update, a temporary add-on gone with the last Firefox restart — is told apart from the one the app's `extension/` directory holds.
+The Firefox popup additionally says when an environment profile marked the bookmarks bar hidden (`dsn~environment-profile-bookmarks-bar~1`), with a pointer at the `userChrome.css` setup: the mark is all the extension can do, and a bar still showing means that rule is missing, not that the switch failed.
 
 Tags: windows, linux
 

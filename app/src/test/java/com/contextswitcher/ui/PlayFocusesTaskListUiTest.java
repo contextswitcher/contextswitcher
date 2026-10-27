@@ -55,11 +55,13 @@ class PlayFocusesTaskListUiTest {
         // sits after typing a task's notes.
         Node editor = awaitPresent(() -> FX_ROBOT.selectNodes(RichTextArea.class).fromAll()
                 .<Node>map(area -> area).findFirst(), "the editor");
-        FX_ROBOT.mouse().moveTo(editor).click();
+        // Asked for directly rather than clicked: JavaFX 26's headless glass
+        // platform flags every mouse press as a popup trigger, which
+        // RichTextArea's behavior ignores (MADR 0014).
+        runFx(editor::requestFocus);
         // `Node.isFocused` stays false while no window manager focuses the
-        // stage (the headless run), so the scene's focus owner is what counts.
-        // By type, not by identity: the click re-selects the previewed task
-        // (`dsn~pane-click-selects-task~1`), which can rebuild the editor lane.
+        // stage, so the scene's focus owner is what counts. By type, not by
+        // identity: selecting the previewed task can rebuild the editor lane.
         awaitPresent(() -> focusOwner(list) instanceof RichTextArea
                 ? Optional.of(true) : Optional.empty(), "the editor to hold the keyboard focus");
 

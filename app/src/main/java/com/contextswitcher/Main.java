@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -42,6 +43,7 @@ import com.contextswitcher.analysis.RefactoringMinerCommands;
 import com.contextswitcher.analysis.RefactoringMinerPoller;
 import com.contextswitcher.analysis.RefactoringMinerView;
 import com.contextswitcher.config.AppSettings;
+import com.contextswitcher.config.EnvironmentProfiles;
 import com.contextswitcher.config.HostSettings;
 import com.contextswitcher.config.InstalledExtension;
 import com.contextswitcher.config.EnergySaver;
@@ -68,6 +70,7 @@ import com.contextswitcher.local.BrowserWindowFocus;
 import com.contextswitcher.local.JetBrainsClientFocus;
 import com.contextswitcher.local.WindowsDesktopPin;
 import com.contextswitcher.local.LocalFolderFocus;
+import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
 import com.contextswitcher.local.ClaudeCliSummarizer;
 import com.contextswitcher.local.LocalCommandRunner;
@@ -91,6 +94,7 @@ import com.contextswitcher.switching.BrowserCloseAction;
 import com.contextswitcher.switching.ChatFocusAction;
 import com.contextswitcher.switching.ClaudeWindowLauncher;
 import com.contextswitcher.switching.BrowserFocusAction;
+import com.contextswitcher.switching.EnvironmentProfileAction;
 import com.contextswitcher.switching.ExplorerFolderAction;
 import com.contextswitcher.switching.IntellijGatewayAction;
 import com.contextswitcher.switching.LocalDiff;
@@ -318,6 +322,11 @@ public class Main extends Application {
     private @Nullable RefactoringMinerPoller refactoringPoller;
     private @Nullable RefactoringMinerView refactoringView;
     private @Nullable ExtensionServer extensionServer;
+    /// The status bar's environment-profile override (null: none), laid over
+    /// the category's profile on every switch. Session-only on purpose: a
+    /// restart starts in the plain category look.
+    // [impl->dsn~environment-profile-override~1]
+    private volatile @Nullable String profileOverride;
     private @Nullable TerminalPane terminalPane;
     private @Nullable PaneSnapshots paneSnapshots;
 
@@ -596,6 +605,21 @@ public class Main extends Application {
         // Held on its own too: the category header's folder button opens the
         // same folders the switch action does, without a task in between.
         // [impl->dsn~category-folders-button~1]
+        // Read fresh per switch, like the category config: an edited profile
+        // needs no restart. [impl->dsn~environment-profiles~1]
+        WindowsEnvironment windowsEnvironment = new WindowsEnvironment(new LocalCommandRunner());
+        EnvironmentProfileAction environmentProfile = new EnvironmentProfileAction(
+                () -> EnvironmentProfiles.parse(readSettingsFile(configDir())),
+                group -> groupLink(files, group, TaskFileParser::groupProfile),
+                () -> profileOverride,
+                profile -> {
+                    WindowsEnvironment.ApplyResult result = windowsEnvironment.apply(profile);
+                    return new ActionResult(result.ok(), result.detail());
+                },
+                hidden -> {
+                    ExtensionProtocol.Result result = extensionServer.bookmarksBar(hidden);
+                    return new ActionResult(result.ok(), result.detail());
+                });
         ExplorerFolderAction explorerFolders =
                 new ExplorerFolderAction(new LocalFolderFocus(new LocalCommandRunner()));
         SwitchOrchestrator orchestrator = new SwitchOrchestrator(
@@ -631,7 +655,8 @@ public class Main extends Application {
                         new NoteFocusAction(this::openUrl,
                                 group -> groupLink(files, group, TaskFileParser::groupNote)),
                         new ChatFocusAction(this::openUrl,
-                                group -> groupLink(files, group, TaskFileParser::groupChat))),
+                                group -> groupLink(files, group, TaskFileParser::groupChat)),
+                        environmentProfile),
                 actionExecutor, Platform::runLater);
         // Suspend teardown reuses the orchestrator machinery (concurrent
         // actions + chips) with the ending counterpart of each action.
@@ -884,6 +909,9 @@ public class Main extends Application {
         // The toolbar globe: the browser action alone, otherwise a plain play.
         // [impl->dsn~extension-connection-indicator~2]
         window.setOnBrowserSwitch(task -> switchTo(orchestrator, files, task, Set.of("browser")));
+        // A resume the browser triggered: everything but the browser action.
+        // [impl->dsn~browser-tab-selects-task~7]
+        window.setOnTabResume(task -> switchToExceptBrowser(orchestrator, files, task));
         // The globe's right-click: the chosen browser drives while connected
         // and is the one launched while not; saved as `browser`, so it lasts.
         // [impl->dsn~prefer-chosen-browser~1]
@@ -927,32 +955,43 @@ public class Main extends Application {
         });
         window.setOnStartClaude((task, onSettled) ->
                 startClaude(ssh, settings.claudeAuto(), task, onSettled));
-        // The same window choice play makes, from the terminal placeholder.
-        // The `tmux` button fires straight away — a plain shell has no model to
-        // pick; `claude` opens play's dialog for the model and effort instead of
-        // taking the remote CLI's defaults — but without its `tmux` button, which
-        // would only undo the choice just made, and with the *resolved* host in
-        // the text (`taskRemote`), since a task that borrows its category's
-        // `remote:` read "Open one on null?". A cancelled dialog re-draws the
-        // placeholder, whose buttons went dead for the round-trip that never
-        // started.
-        // [impl->dsn~remote-window-choice~6]
+        // The Claude half of the window choice play makes, from the terminal
+        // placeholder's `Start Claude` button: it opens play's dialog for the
+        // model and effort instead of taking the remote CLI's defaults — but
+        // without its `tmux` button, which would only undo the choice just
+        // made, and with the *resolved* host in the text (`taskRemote`), since
+        // a task that borrows its category's `remote:` read "Open one on
+        // null?". A cancelled dialog re-draws the placeholder, whose button
+        // went dead for the round-trip that never started.
+        // [impl->dsn~remote-window-choice~7]
         // [impl->dsn~claude-mode-select~3]
-        terminalPane.setWindowStarter((task, withClaude) -> {
-            MainWindow.RemoteWindowChoice choice = withClaude
-                    ? MainWindow.askRemoteWindow(dialogOwner(), task, taskRemote(files, task), false)
-                    : new MainWindow.RemoteWindowChoice(false, ClaudeMode.DEFAULT);
+        terminalPane.setWindowStarter(task -> {
+            MainWindow.RemoteWindowChoice choice =
+                    MainWindow.askRemoteWindow(dialogOwner(), task, taskRemote(files, task), false);
             if (choice == null) {
                 window.refreshPreview(task.id());
                 return;
             }
             startRemoteWindow(orchestrator, repository, files, ssh, messageSender, settings,
-                    task, choice.withClaude(), choice.mode());
+                    task, true, choice.mode());
         });
         // A key sent into, or a restart during, a session that is still being
         // started breaks that start. [impl->dsn~busy-while-creating~2]
         terminalPane.disableBarWhile(creationsInFlight.greaterThan(0));
         window.disableRestartWhile(creationsInFlight.greaterThan(0));
+        // [impl->dsn~environment-profile-override~1]
+        window.installProfileOverride(
+                () -> EnvironmentProfiles.parse(readSettingsFile(configDir())).names(),
+                choice -> {
+                    profileOverride = choice;
+                    window.statusBar().message("Applying "
+                            + (choice == null ? "the category profile" : "profile " + choice) + " …");
+                    actionExecutor.execute(() -> {
+                        ActionResult result = environmentProfile.reapply();
+                        Platform.runLater(() -> window.statusBar().message(
+                                (result.ok() ? "Profile " : "Profile failed — ") + result.detail()));
+                    });
+                });
         this.window = window;
         this.stage = stage;
         this.windowPositions = new WindowPositions(configDir());
@@ -1003,7 +1042,7 @@ public class Main extends Application {
                 () -> handleDeepLink(orchestrator, repository, files, stage, url)));
         // Clicking a task's tab in the browser selects that task: the
         // extension reports the activated tab, the app follows.
-        // [impl->dsn~browser-tab-selects-task~6]
+        // [impl->dsn~browser-tab-selects-task~7]
         extensionServer.setTabActivatedHandler(url -> Platform.runLater(() -> {
             // Closing a tab activates its neighbour: during a teardown that is
             // the app's own doing, not the user's, and would resume the task
@@ -2153,8 +2192,8 @@ public class Main extends Application {
     /// deliberately moved to another host must not be pulled back by the
     /// category it sits in — and the category's is what makes "claude" mean
     /// "tmux + claude" for a task that never recorded a host of its own
-    /// (`dsn~remote-window-choice~6`).
-    // [impl->dsn~remote-window-choice~6]
+    /// (`dsn~remote-window-choice~7`).
+    // [impl->dsn~remote-window-choice~7]
     static @Nullable String taskRemote(MainWindow.TaskFileAccess files, Task task) {
         return task.remote() != null ? task.remote()
                 : groupLink(files, taskGroup(task),
@@ -2231,11 +2270,14 @@ public class Main extends Application {
     }
 
     /// A category's permanent checkout: the `mainCheckout:` from its
-    /// `CONTEXTSWITCHER.md`, or null when the group is the root, has no config,
-    /// or names none. Read fresh (like [#groupDesktop]) so an edited value
-    /// takes effect without a restart. "Show diff" falls back to it when the
-    /// task's own worktree is already deleted.
+    /// `CONTEXTSWITCHER.md` — else the conventional `<workspacesRoot>/<repo
+    /// name>` (`GroupConfig.effectiveMainCheckout`) — or null when the group
+    /// is the root, has no config, or names none. Read fresh (like
+    /// [#groupDesktop]) so an edited value takes effect without a restart.
+    /// "Show diff" falls back to it when the task's own worktree is already
+    /// deleted; the live-task prompt names it as the clone to branch from.
     // [impl->dsn~diff-after-worktree-removal~1]
+    // [impl->dsn~task-create-live~8]
     private static @Nullable String groupMainCheckout(MainWindow.TaskFileAccess files,
             @Nullable String group) {
         if (group == null || group.isEmpty()) {
@@ -2243,7 +2285,7 @@ public class Main extends Application {
         }
         String fileName = group + "/" + TaskRepository.GROUP_CONFIG_FILE_NAME;
         return files.exists(fileName)
-                ? new TaskFileParser().parseGroupConfig(files.load(fileName)).mainCheckout()
+                ? new TaskFileParser().parseGroupConfig(files.load(fileName)).effectiveMainCheckout()
                 : null;
     }
 
@@ -2427,10 +2469,11 @@ public class Main extends Application {
     /// (or no window yet) does nothing — the user is working in the browser,
     /// and neither a status message nor a raise of the app is wanted there.
     /// A **suspended** match is resumed on top of the selection
-    /// (`dsn~browser-tab-selects-task~6`): its row alone shows nothing to work
+    /// (`dsn~browser-tab-selects-task~7`): its row alone shows nothing to work
     /// with, so the tab opens the same live context a running task's row
-    /// already has.
-    // [impl->dsn~browser-tab-selects-task~6]
+    /// already has — minus the browser action, since the user is already on
+    /// the page they chose.
+    // [impl->dsn~browser-tab-selects-task~7]
     // [impl->dsn~browser-tab-context-count~2]
     private void selectTaskForTab(TaskRepository repository, String url, boolean resume) {
         MainWindow window = this.window;
@@ -2465,14 +2508,18 @@ public class Main extends Application {
             if (!task.id().equals(window.selectedTaskId())) {
                 window.selectTask(task.id());
             }
-            // The regular resume (status back to `active`, then the switch
-            // that resurrects the tmux window and resumes Claude) — the very
-            // path the row's play button runs. A second activation of the same
-            // tab while that is in flight sees the task already `active` and
-            // does nothing.
+            // The resume (status back to `active`, then the switch that
+            // resurrects the tmux window and resumes Claude) — the row's play
+            // button minus the browser action: the user is in the browser on
+            // the page they chose, and a switch that opens the task's other
+            // pages on top of it (and activates the first, which may belong to
+            // yet another suspended task that then resumes too) is the
+            // opposite of what the click meant (field report 2026-10-22). A
+            // second activation of the same tab while that is in flight sees
+            // the task already `active` and does nothing.
             if (resume && task.status() == TaskStatus.SUSPENDED) {
-                Logger.info("Tab activated a suspended task, resuming {}", task.id());
-                window.resumeTask(task);
+                Logger.info("Tab activated a suspended task, resuming {} (browser left alone)", task.id());
+                window.resumeTaskFromTab(task);
             }
         });
     }
@@ -3636,7 +3683,8 @@ public class Main extends Application {
         creationStarted(window);
         // The description travels verbatim: the prompt goes over ssh
         // stdin into a tmux buffer (no argv quoting limits).
-        String prompt = ClaudeWindowLauncher.liveTaskPrompt(title, repo, bootstrapWorktree, group, appendix);
+        String prompt = ClaudeWindowLauncher.liveTaskPrompt(title, repo, bootstrapWorktree, group,
+                groupMainCheckout(files, group), appendix);
         // The file is written first, without the `tmux:` section the launcher
         // has yet to produce, so the row is in the list from the first second —
         // showing its creation progress — instead of appearing only when the
@@ -3717,13 +3765,13 @@ public class Main extends Application {
     /// same worktree-bootstrap clause [ClaudeWindowLauncher#liveTaskPrompt] does.
     // [impl->dsn~task-fork~1]
     static String forkPrompt(String sourceTitle, String instruction, @Nullable String workspace, String cwd,
-            @Nullable String repo, boolean bootstrapWorktree, String group) {
+            @Nullable String repo, boolean bootstrapWorktree, String group, @Nullable String mainCheckout) {
         String checkTarget = workspace == null || workspace.isBlank() ? cwd : workspace;
         return "You are a fork of the conversation of task \"" + sourceTitle.strip() + "\". " + ClaudeWindowLauncher.TITLE_CLAUSE
                 + " Then check the workspace " + checkTarget.strip()
                 + " — its state may have moved on since the conversation you remember"
                 + " — and do what is between the ----- lines below."
-                + ClaudeWindowLauncher.worktreeClause(bootstrapWorktree, repo, group)
+                + ClaudeWindowLauncher.worktreeClause(bootstrapWorktree, repo, group, mainCheckout)
                 + "\n-----\n" + instruction.strip() + "\n-----";
     }
 
@@ -3764,7 +3812,7 @@ public class Main extends Application {
         String session = usualSession(repository, remote);
         boolean claudeAuto = settings.claudeAuto();
         String prompt = forkPrompt(source.title(), instruction, claude.workspace(), cwd,
-                repo, bootstrapWorktree, group);
+                repo, bootstrapWorktree, group, groupConfig.effectiveMainCheckout());
         String content = """
                 ---
                 title: %s
@@ -3836,11 +3884,11 @@ public class Main extends Application {
     /// new window id is written back as a real `tmux:` section (and, for Claude,
     /// a `claude:` cwd section) so the next play focuses it; then the task is
     /// selected and switched to, focusing the window and attaching the mirror.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     private void startRemoteWindow(SwitchOrchestrator orchestrator, TaskRepository repository,
             MainWindow.TaskFileAccess files, SshCommandRunner ssh, MessageSender sender,
             AppSettings settings, Task task, boolean withClaude, ClaudeMode mode) {
-        // The category's host when the task names none (`dsn~remote-window-choice~6`).
+        // The category's host when the task names none (`dsn~remote-window-choice~7`).
         String remote = taskRemote(files, task);
         ExecutorService executor = this.actionExecutor;
         MainWindow window = this.window;
@@ -3884,7 +3932,7 @@ public class Main extends Application {
         // 2026-09-12: "I clicked 'Claude' on this task and it just stalled. I
         // was expecting the 'usual' progress bar" — on a creation that had in
         // fact succeeded while the screenshot was being taken.
-        // [impl->dsn~remote-window-choice~6]
+        // [impl->dsn~remote-window-choice~7]
         // Counted in, because the shared `finishCreation` below counts out:
         // without this the in-flight counter went negative and the *next*
         // Add-task creation announced "Creating 0 tasks …".
@@ -3902,7 +3950,7 @@ public class Main extends Application {
             if (withClaude) {
                 String description = task.notes().isBlank() ? task.title() : task.notes().strip();
                 String prompt = ClaudeWindowLauncher.liveTaskPrompt(description, repo, bootstrapWorktree && cwd != null,
-                        group, null);
+                        group, groupConfig.effectiveMainCheckout(), null);
                 ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
                 windowId = launcher
                         .launch(remote, session, task.title(), prompt, cwd, mode,
@@ -3919,10 +3967,10 @@ public class Main extends Application {
             Platform.runLater(() -> {
                 // Clears the bar and reports the outcome exactly as the
                 // Add-task flow does, the failure alert included.
-                // [impl->dsn~remote-window-choice~6]
+                // [impl->dsn~remote-window-choice~7]
                 // A failure re-draws the placeholder (in `finishCreation`), so
                 // its buttons — dead for the round-trip — can be pressed again.
-                // [impl->dsn~remote-window-choice~6]
+                // [impl->dsn~remote-window-choice~7]
                 finishCreation(window, task.id(), created, remote, reason);
                 if (created == null) {
                     return;
@@ -4059,14 +4107,19 @@ public class Main extends Application {
             // Windows has no tmux to run the session in, so the **app** hosts
             // it in the terminal pane's own ConPTY — a Windows Terminal tab
             // could not be typed into from here (`dsn~terminal-owned-session~4`).
+            // The session id is chosen here and pinned with `--session-id`, so
+            // the task file names its own transcript: the cwd alone is shared
+            // by every task started in the same folder.
+            String sessionId = UUID.randomUUID().toString();
             terminal.startOwned(taskId,
-                    LocalClaudeLauncher.ownedCommand(description, mode.model(), null), workdir);
+                    LocalClaudeLauncher.ownedCommand(description, mode.model(), sessionId, false),
+                    workdir);
             if (currentWindow != null) {
                 currentWindow.statusBar().message("Claude started in " + workdir + ".");
             }
-            // No tmux window to record — only the cwd, which is what finds the
-            // transcript again when the app is restarted.
-            writeLocalWindowBack(files, taskId, null, workdir);
+            // No tmux window to record — the cwd and the session id, which is
+            // what finds the transcript again when the app is restarted.
+            writeLocalWindowBack(files, taskId, null, workdir, sessionId);
             return;
         }
         executor.execute(() -> {
@@ -4079,7 +4132,7 @@ public class Main extends Application {
                             : "Cannot start Claude in " + workdir + ": " + launch.error());
                 }
                 if (launch.window() != null) {
-                    writeLocalWindowBack(files, taskId, launch.window(), workdir);
+                    writeLocalWindowBack(files, taskId, launch.window(), workdir, null);
                 }
             });
         });
@@ -4089,10 +4142,11 @@ public class Main extends Application {
     /// in — `tmux:` (session `0` plus the window id) and `claude.cwd`, the same
     /// sections the remote flow writes, minus a `remote:`: that absence is
     /// what marks the session as local, and the mirror addresses it as
-    /// `TmuxHost.LOCAL` instead of over ssh. FX thread.
+    /// `TmuxHost.LOCAL` instead of over ssh. An app-owned session records its
+    /// `sessionId` too (`dsn~terminal-owned-session~4`). FX thread.
     // [impl->dsn~terminal-local-mirror~2]
     private void writeLocalWindowBack(MainWindow.TaskFileAccess files, String taskId,
-            @Nullable String windowId, String workdir) {
+            @Nullable String windowId, String workdir, @Nullable String sessionId) {
         MainWindow window = this.window;
         if (window == null) {
             return;
@@ -4110,6 +4164,9 @@ public class Main extends Application {
                         : TaskFileParser.withTmuxSection(content, LocalClaudeLauncher.SESSION,
                                 windowId, "created " + LocalDate.now()),
                 workdir);
+        if (sessionId != null) {
+            updated = TaskFileParser.withClaudeSessionId(updated, sessionId);
+        }
         String error = files.save(fileName, updated);
         if (error != null) {
             Logger.warn("Cannot record the local tmux window in {}: {}", fileName, error);
@@ -4333,7 +4390,7 @@ public class Main extends Application {
     /// Writes the freshly created window's `tmux:` (and, for Claude, `claude:`
     /// cwd) section back into the task file, then selects and switches to the
     /// task so the window is focused and the mirror attaches. FX thread.
-    // [impl->dsn~remote-window-choice~6]
+    // [impl->dsn~remote-window-choice~7]
     private void writeRemoteWindowBack(SwitchOrchestrator orchestrator, TaskRepository repository,
             AppSettings settings, MainWindow.TaskFileAccess files, String taskId, String session,
             String windowId, @Nullable String claudeCwd, @Nullable String adoptedRemote) {
@@ -4358,7 +4415,7 @@ public class Main extends Application {
         // A host borrowed from the category becomes the task's own: the window
         // now really is there, and every later action (mirror, focus, queue)
         // addresses a task by its `remote:`.
-        // [impl->dsn~remote-window-choice~6]
+        // [impl->dsn~remote-window-choice~7]
         if (adoptedRemote != null) {
             updated = TaskFileParser.withScalar(updated, "remote", adoptedRemote);
         }
@@ -4809,7 +4866,7 @@ public class Main extends Application {
         // owned branch answers *before* the remote offers below — those two
         // buttons open a window on a remote, which such a task does not have.
         // [impl->dsn~terminal-owned-session~4]
-        if (LocalClaudeLauncher.ownsSession(task) && showOwnedSession(terminal, task)) {
+        if (LocalClaudeLauncher.ownsSession(task) && showOwnedSession(files, terminal, task)) {
             return;
         }
         Task.TmuxConfig tmux = task.tmux();
@@ -4828,7 +4885,7 @@ public class Main extends Application {
                 // one whose creation died before it recorded a host) has none
                 // of its own, and asking the user to add a line to the file
                 // first is the dead end this placeholder exists to remove.
-                // [impl->dsn~remote-window-choice~6]
+                // [impl->dsn~remote-window-choice~7]
                 // A failed creation's cause stands in for the placeholder text.
                 // [impl->dsn~task-create-progress~6]
                 terminal.showStartWindowMessage(failure != null ? failure : "No tmux configured for this task.", task);
@@ -4888,13 +4945,16 @@ public class Main extends Application {
     /// Shows the task's app-owned session, or — when no process of the app's
     /// is running for it — offers to start one. After an app restart the
     /// offer is a **resume**: the task's `claude.sessionId` (else the newest
-    /// transcript for its `cwd`) continues the same conversation, which is
-    /// what replaces the detach a
+    /// transcript for its `cwd` that no other task claims) continues the same
+    /// conversation, which is what replaces the detach a
     /// tmux mirror would have given (`dsn~terminal-owned-session~4`).
+    /// Whichever id is started or resumed is written to the task file, so the
+    /// transcript is claimed and no other task in the folder falls back to it.
     /// False when the task names no directory to run in, the one case that
     /// falls through to the ordinary "No tmux configured" placeholder.
     // [impl->dsn~terminal-owned-session~4]
-    private boolean showOwnedSession(TerminalPane terminal, Task task) {
+    private boolean showOwnedSession(MainWindow.TaskFileAccess files, TerminalPane terminal,
+            Task task) {
         if (terminal.showOwnedIfRunning(task.id())) {
             return true;
         }
@@ -4902,16 +4962,66 @@ public class Main extends Application {
         if (cwd == null) {
             return false;
         }
-        String session = ClaudeSessionLookup.localSessionToResume(cwd,
-                task.claude() == null ? null : task.claude().sessionId());
-        terminal.showActionMessage(
-                session == null
-                        ? "No session running — start Claude in " + cwd + "."
-                        : "No session running — resume the last one in " + cwd + ".",
-                session == null ? "start" : "resume",
-                () -> terminal.startOwned(task.id(),
-                        LocalClaudeLauncher.ownedCommand("", null, session), cwd));
+        String recorded = task.claude() == null ? null : task.claude().sessionId();
+        String found = ClaudeSessionLookup.localSessionToResume(cwd, recorded,
+                sessionIdsClaimedByOthers(task.id()));
+        boolean resume = found != null;
+        String session = found != null ? found : UUID.randomUUID().toString();
+        terminal.showActionMessage(task.id(),
+                resume
+                        ? "No session running — resume the last one in " + cwd + "."
+                        : "No session running — start Claude in " + cwd + ".",
+                resume ? "resume" : "start",
+                () -> {
+                    terminal.startOwned(task.id(),
+                            LocalClaudeLauncher.ownedCommand("", null, session, resume), cwd);
+                    if (!session.equals(recorded)) {
+                        recordOwnedSession(files, task.id(), cwd, session);
+                    }
+                });
         return true;
+    }
+
+    /// The `claude.sessionId`s every task but `taskId` records — the
+    /// transcripts an owned session must not fall back to.
+    // [impl->dsn~terminal-owned-session~4]
+    private Set<String> sessionIdsClaimedByOthers(String taskId) {
+        TaskRepository repository = this.repository;
+        if (repository == null) {
+            return Set.of();
+        }
+        return repository.entries().stream()
+                .filter(entry -> entry instanceof TaskEntry.Loaded loaded
+                        && !loaded.id().equals(taskId))
+                .map(entry -> ((TaskEntry.Loaded) entry).task().claude())
+                .filter(Objects::nonNull)
+                .map(Task.ClaudeConfig::sessionId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /// Writes the id an owned session was started or resumed with into the
+    /// task file — the claim [#sessionIdsClaimedByOthers] reads. FX thread.
+    // [impl->dsn~terminal-owned-session~4]
+    private void recordOwnedSession(MainWindow.TaskFileAccess files, String taskId, String cwd,
+            String sessionId) {
+        String fileName = taskId + ".md";
+        String content = files.read(fileName);
+        if (content == null) {
+            Logger.warn("Owned session {} started but {} is unreadable; not recorded",
+                    sessionId, fileName);
+            return;
+        }
+        String error = files.save(fileName, TaskFileParser.withClaudeSessionId(
+                TaskFileParser.withClaudeSection(content, cwd), sessionId));
+        if (error != null) {
+            Logger.warn("Cannot record session {} in {}: {}", sessionId, fileName, error);
+            return;
+        }
+        MainWindow window = this.window;
+        if (window != null) {
+            window.reloadEditorIfShowing(fileName);
+        }
     }
 
     /// Moves the list to the task owning the window the **mirror says it is
@@ -4946,7 +5056,7 @@ public class Main extends Application {
     /// task won, so opening the PR tab of the task you just selected switched
     /// the app (and the terminal mirror) to the *other* one, which reads as
     /// the app switching tasks by itself (field report 2026-09-09).
-    // [impl->dsn~browser-tab-selects-task~6]
+    // [impl->dsn~browser-tab-selects-task~7]
     static java.util.List<Task> rankTabMatches(java.util.List<Task> matches, String url,
             @Nullable String selectedId) {
         return matches.stream()
@@ -5083,6 +5193,26 @@ public class Main extends Application {
 
     private void switchTo(SwitchOrchestrator orchestrator, MainWindow.TaskFileAccess files, Task task) {
         switchTo(orchestrator, files, task, null);
+    }
+
+    /// The resurrecting switch of a task resumed from its browser tab: every
+    /// configured action except the browser one. The user is already in the
+    /// browser, on the page they chose; opening the task's other pages over
+    /// it — and activating the first, which may belong to another suspended
+    /// task that then resumes in turn — is not what the click meant. A task
+    /// whose only configured action is the browser has nothing to resurrect,
+    /// and the status flip alone is its resume.
+    // [impl->dsn~browser-tab-selects-task~7]
+    private void switchToExceptBrowser(SwitchOrchestrator orchestrator,
+            MainWindow.TaskFileAccess files, Task task) {
+        Set<String> only = new java.util.HashSet<>(
+                orchestrator.configuredActions(withCategoryDefaults(files, task)));
+        only.remove("browser");
+        if (only.isEmpty()) {
+            Logger.debug("Tab resume of {}: only the browser is configured, nothing to resurrect", task.id());
+            return;
+        }
+        switchTo(orchestrator, files, task, only);
     }
 
     /// A play, optionally narrowed to the actions named in `only` (`null`: all

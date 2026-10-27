@@ -15,6 +15,9 @@ import com.contextswitcher.Main;
 import java.util.concurrent.FutureTask;
 
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.collections.ListChangeListener;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.geometry.Point2D;
@@ -29,6 +32,8 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ContextMenuEvent;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+
+import com.sun.javafx.stage.WindowHelper;
 
 import io.gitlab.fxlabs.testfx.api.NoNodeFoundException;
 
@@ -73,6 +78,7 @@ final class UiTestSupport {
                     """.formatted(tasksDir, freePort()));
             System.setProperty("contextswitcher.configDir", configDir.toString());
             app = this;
+            emulateWindowFocusChanges();
             seedTasks(tasksDir);
             super.start(stage);
         }
@@ -81,6 +87,55 @@ final class UiTestSupport {
         /// needed. No-op by default.
         protected void seedTasks(Path tasksDir) throws Exception {
         }
+    }
+
+    private static boolean focusEmulated;
+
+    /// JavaFX 26's headless glass platform (`-Dglass.platform=headless`, a
+    /// prototype) tells a window it gained focus but never tells the previous
+    /// one it lost it, and never hands focus back when a window closes
+    /// (`HeadlessWindow._requestFocus`/`_close`). So once a dialog opens two
+    /// windows report `isFocused()` — and the fork's `print` refuses to pick
+    /// one — and after it closes no window would. Emulate what a window
+    /// manager does: one focused stage at a time, the owner regains focus
+    /// when a stage hides. Popups are left alone — on a real display too a
+    /// popup and its stage both report focused (see `CategoryJumpUiTest`).
+    /// Installed once per JVM; a no-op elsewhere.
+    private static void emulateWindowFocusChanges() {
+        if (focusEmulated || !"headless".equals(System.getProperty("glass.platform"))) {
+            return;
+        }
+        focusEmulated = true;
+        ChangeListener<Boolean> onFocus = (prop, was, focused) -> {
+            Window gained = (Window) ((ReadOnlyProperty<?>) prop).getBean();
+            if (!focused || !(gained instanceof Stage)) {
+                return;
+            }
+            for (Window other : List.copyOf(Window.getWindows())) {
+                if (other != gained && other instanceof Stage && other.isFocused()) {
+                    WindowHelper.setFocused(other, false);
+                }
+            }
+        };
+        ChangeListener<Boolean> onShowing = (prop, was, showing) -> {
+            Window hidden = (Window) ((ReadOnlyProperty<?>) prop).getBean();
+            if (showing || !(hidden instanceof Stage stage) || !stage.isFocused()) {
+                return;
+            }
+            WindowHelper.setFocused(stage, false);
+            Window owner = stage.getOwner();
+            if (owner != null && owner.isShowing()) {
+                WindowHelper.setFocused(owner, true);
+            }
+        };
+        Window.getWindows().addListener((ListChangeListener<Window>) change -> {
+            while (change.next()) {
+                for (Window window : change.getAddedSubList()) {
+                    window.focusedProperty().addListener(onFocus);
+                    window.showingProperty().addListener(onShowing);
+                }
+            }
+        });
     }
 
     static Optional<Button> findButton(String text) {
