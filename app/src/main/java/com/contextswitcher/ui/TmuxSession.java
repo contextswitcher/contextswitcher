@@ -496,7 +496,7 @@ final class TmuxSession implements TerminalSession {
         view.openDiff(remote, tmux);
     }
 
-    // [impl->dsn~generated-file-download~2]
+    // [impl->dsn~generated-file-download~3]
     @Override
     public void showFiles(Button source) {
         view.showRemoteFiles(source, remote);

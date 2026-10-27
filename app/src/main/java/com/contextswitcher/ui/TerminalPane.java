@@ -182,7 +182,7 @@ public class TerminalPane {
     /// Lists and fetches the mirrored host's generated files. Its own runner:
     /// the side channel's 10 s timeout fits a `tmux` round-trip, not a
     /// megabyte of base64 over a slow link.
-    // [impl->dsn~generated-file-download~2]
+    // [impl->dsn~generated-file-download~3]
     private final RemoteFiles remoteFiles =
             new RemoteFiles(new ProcessSshRunner(Duration.ofMinutes(2)));
 
@@ -292,7 +292,7 @@ public class TerminalPane {
     /// Last path typed into "Custom path…", pre-filled and pre-selected on the
     /// next open: the same file is usually wanted again, and a selected value
     /// is one keystroke from being replaced.
-    // [impl->dsn~generated-file-download~2]
+    // [impl->dsn~generated-file-download~3]
     private String lastCustomPath = "";
     public TerminalPane(ExecutorService executor, SshCommandRunner ssh) {
         this.executor = executor;
@@ -374,7 +374,7 @@ public class TerminalPane {
         diff.setTooltip(new Tooltip("The workspace's uncommitted changes — or its last commit "
                 + "when clean — in a throwaway tmux window (q, then Enter, closes it)"));
         diff.setOnAction(event -> withSession(TerminalSession::showDiff));
-        // [impl->dsn~generated-file-download~2]
+        // [impl->dsn~generated-file-download~3]
         Button files = new Button("Files");
         files.setId("generated-files-button");
         files.getStyleClass().add(Styles.SMALL);
@@ -467,7 +467,7 @@ public class TerminalPane {
     ///
     /// The button is disabled for the ssh round-trip so a slow remote does
     /// not read as a dead button.
-    // [impl->dsn~generated-file-download~2]
+    // [impl->dsn~generated-file-download~3]
     private void showRemoteFiles(Button source, String remote) {
         source.setDisable(true);
         executor.execute(() -> {
@@ -715,7 +715,7 @@ public class TerminalPane {
         dialog.getEditor().setPrefColumnCount(60);
         dialog.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
         dialog.setOnShown(event -> Platform.runLater(dialog.getEditor()::selectAll));
-        String typed = dialog.showAndWait().orElse("").strip();
+        String typed = RemoteFiles.unwrap(dialog.showAndWait().orElse(""));
         if (typed.isEmpty()) {
             return;
         }
@@ -749,7 +749,7 @@ public class TerminalPane {
     /// named. The path is resolved on the remote first ([RemoteFiles#stat]),
     /// so a typo is one alert rather than a failed transfer, and so the size
     /// limit applies to a typed path as well.
-    // [impl->dsn~generated-file-download~2]
+    // [impl->dsn~generated-file-download~3]
     private void askForCustomPath(String remote) {
         TextInputDialog dialog = Alerts.owned(Alerts.windowOf(root), new TextInputDialog(lastCustomPath));
         dialog.setTitle("Download from " + remote);
@@ -789,7 +789,7 @@ public class TerminalPane {
     /// Downloads one listed file into the user's download folder and hands it
     /// to the OS. When the OS cannot open it, an alert names the local path —
     /// the file did arrive, and a silent nothing would suggest otherwise.
-    // [impl->dsn~generated-file-download~2]
+    // [impl->dsn~generated-file-download~3]
     private void downloadGeneratedFile(String remote, RemoteFiles.RemoteFile file) {
         executor.execute(() -> {
             Path local;
@@ -814,7 +814,7 @@ public class TerminalPane {
     /// `HostServices.showDocument`, whose `file://` URI lands in the browser —
     /// the `Main.openTasksDir` shape). False when the platform or the OS
     /// refused; call off the FX thread, the dispatch can block.
-    // [impl->dsn~generated-file-download~2]
+    // [impl->dsn~generated-file-download~3]
     private static boolean open(Path file) {
         if (!Desktop.isDesktopSupported()
                 || !Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {

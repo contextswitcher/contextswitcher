@@ -29,7 +29,7 @@ import org.tinylog.Logger;
 /// The counterpart of `QueueSendCommands.uploadCommand`, and it uses the same
 /// transport: base64 over the ssh channel, so the bytes stay ASCII and no
 /// quoting rule can mangle them.
-// [impl->dsn~generated-file-download~2]
+// [impl->dsn~generated-file-download~3]
 public class RemoteFiles {
 
     /// One file offered for download; `modified` is whole seconds since the
@@ -135,9 +135,10 @@ public class RemoteFiles {
     /// remote shell would not expand a tilde anyway, and a bare `~/x` is the
     /// same file as the relative `x` — the ssh exec channel starts in the
     /// remote home. A single quote is refused for the reason
-    /// [#parseList] drops such a path from the listing.
+    /// [#parseList] drops such a path from the listing. Terminal wrapping is
+    /// undone first ([#unwrap]).
     public static @Nullable String cleanPath(String typed) {
-        String path = typed.strip();
+        String path = unwrap(typed);
         if (path.isEmpty() || path.indexOf('\'') >= 0) {
             return null;
         }
@@ -145,6 +146,17 @@ public class RemoteFiles {
             return null;
         }
         return path.startsWith("~/") ? path.substring(2) : path;
+    }
+
+    /// A pasted path with the whitespace a terminal wrap put into it removed:
+    /// a long path Claude prints arrives as `…/3e78ee` + line break + an
+    /// indented `4679ad/…`, and a single-line field has already turned the
+    /// break into the indentation alone. Every line break with its adjacent
+    /// whitespace goes, as does any run of two or more blanks; a lone blank
+    /// stays, since a path may contain one.
+    // [impl->dsn~generated-file-download~3]
+    public static String unwrap(String typed) {
+        return typed.replaceAll("\\s*\\R\\s*|\\s{2,}", "").strip();
     }
 
     /// The named file on `host`, or null when it does not exist, is not a
