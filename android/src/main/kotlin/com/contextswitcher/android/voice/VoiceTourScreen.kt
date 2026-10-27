@@ -91,8 +91,8 @@ fun VoiceTourScreen(
             VoiceTour.of(category, groups, ssh)
         }
         tour = loaded
-        val overview = loaded.overview()
-        show(withContext(Dispatchers.IO) { loaded.announcement() }, speak = overview + " " + card)
+        val first = withContext(Dispatchers.IO) { loaded.announcement() }
+        show(first, speak = loaded.overview() + " " + first)
         while (true) {
             delay(10_000)
             val changed = withContext(Dispatchers.IO) { loaded.refreshStatuses(groups) }
