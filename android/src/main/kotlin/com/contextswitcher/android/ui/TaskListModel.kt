@@ -44,3 +44,18 @@ fun buildTaskListModel(tasksDir: Path): List<TaskGroupUi> {
         .filter { (name, groupEntries) -> groupEntries.isNotEmpty() || name.isNotEmpty() }
         .map { (name, groupEntries) -> TaskGroupUi(name, groupEntries.sortedWith(comparator)) }
 }
+
+/// The group whose header is pinned at the top of [TaskListBody] when its
+/// `LazyColumn`'s first visible item is [firstVisibleItemIndex]: each group
+/// occupies one header slot plus one per entry, in `groups` order. The
+/// *Add task* dialog preselects it, so a long list scrolled to a category
+/// adds there and not to the alphabetically first one. `""` for no groups.
+// [impl->dsn~android-task-create~2]
+fun groupAtTop(groups: List<TaskGroupUi>, firstVisibleItemIndex: Int): String {
+    var index = firstVisibleItemIndex
+    for (group in groups) {
+        index -= 1 + group.entries.size
+        if (index < 0) return group.name
+    }
+    return groups.lastOrNull()?.name ?: ""
+}

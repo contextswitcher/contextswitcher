@@ -17,7 +17,7 @@ import org.robolectric.annotation.Config
 
 /// The picked category and the typed title reach [AddTaskDialog]'s `onAdd`,
 /// and a failure keeps the title in the dialog for another try.
-// [utest->dsn~android-task-create~1]
+// [utest->dsn~android-task-create~2]
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class AddTaskDialogTest {
