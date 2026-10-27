@@ -60,7 +60,7 @@ class TaskRepoSyncTest {
         assertThat(result).isInstanceOf(SyncResult.Failed::class.java)
     }
 
-    // [utest->dsn~android-task-create~1]
+    // [utest->dsn~android-task-create~2]
     @Test
     fun `creating a task pushes it with the category's remote default`(@TempDir tmp: File) {
         val bare = pushFixture(tmp,
@@ -83,7 +83,7 @@ class TaskRepoSyncTest {
         assertThat(tasks.getValue("jabref/fix-the-build-ci").remote()).isEqualTo("devbox")
     }
 
-    // [utest->dsn~android-task-create~1]
+    // [utest->dsn~android-task-create~2]
     @Test
     fun `a push rejected because the desktop pushed meanwhile is retried on top of it`(@TempDir tmp: File) {
         val bare = pushFixture(tmp, "work/first.md" to taskFixture("First"))
@@ -106,7 +106,7 @@ class TaskRepoSyncTest {
         assertThat(ids).containsExactlyInAnyOrder("work/first", "work/from-desktop", "work/from-phone")
     }
 
-    // [utest->dsn~android-task-create~1]
+    // [utest->dsn~android-task-create~2]
     @Test
     fun `a failed push leaves the clone a mirror of the remote`(@TempDir tmp: File) {
         val bare = pushFixture(tmp, "work/first.md" to taskFixture("First"))

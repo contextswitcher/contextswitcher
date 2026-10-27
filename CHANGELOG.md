@@ -8,9 +8,14 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ## [2026-10-27] - 2026-10-27
 
+### Changed
+
+- Android: the *Add task* dialog preselects the category scrolled to the top of the task list instead of the alphabetically first one.
+
 ### Fixed
 
-- Android: a task whose tmux window could not be created reports the remote's error output in the Add-task dialog, like the desktop, instead of only "Cannot create a tmux window"; a category's `~/…` workspaces root is now created in the home directory rather than a directory literally named `~`.
+- Android: when *Add task* cannot create the tmux window, the dialog shows the remote's error (a refused connection, a missing key, tmux's own message) under the headline instead of the headline alone.
+- Android: a category's `~/…` workspaces root is created in the home directory before the window starts there, rather than a directory literally named `~`.
 
 ## [2026-10-25] - 2026-10-25
 

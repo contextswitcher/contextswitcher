@@ -68,6 +68,7 @@ import com.contextswitcher.android.ui.EXPANDED_WIDTH
 import com.contextswitcher.android.ui.TaskDetailScreen
 import com.contextswitcher.android.ui.TaskGroupUi
 import com.contextswitcher.android.ui.TaskListBody
+import com.contextswitcher.android.ui.groupAtTop
 import com.contextswitcher.android.ui.buildTaskListModel
 import com.contextswitcher.android.voice.VoiceTour
 import com.contextswitcher.android.voice.VoiceTourScreen
@@ -410,7 +411,7 @@ internal fun TaskListScreen(
         }
     }
 
-    // [impl->dsn~android-task-create~1]
+    // [impl->dsn~android-task-create~2]
     fun addTask(category: String, title: String) {
         val settings = settingsStore.load() ?: return
         taskBeingAdded = true
@@ -534,7 +535,7 @@ internal fun TaskListScreen(
             onDismissRequest = { pickingTour = false },
             title = { Text("Voice tour of …") },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     VoiceTour.categories(groups).forEach { category ->
                         TextButton(onClick = {
                             pickingTour = false
@@ -551,7 +552,8 @@ internal fun TaskListScreen(
         val categories = groups.map { it.name }.ifEmpty { listOf("") }
         AddTaskDialog(
             categories = categories,
-            initialCategory = categories.firstOrNull { it.isNotEmpty() } ?: categories.first(),
+            initialCategory = groupAtTop(groups, listState.firstVisibleItemIndex)
+                .ifEmpty { categories.firstOrNull { it.isNotEmpty() } ?: "" },
             adding = taskBeingAdded,
             error = addTaskError,
             onAdd = { category, title -> addTask(category, title) },

@@ -20,7 +20,7 @@ import org.junit.jupiter.api.io.TempDir
 // [utest->dsn~android-live-task~3]
 class LiveTaskStarterTest {
 
-    private class Remote(private val windowError: String? = null) : SshCommandRunner {
+    private class Remote(val unreachable: String? = null) : SshCommandRunner {
         val commands = CopyOnWriteArrayList<String>()
         val pasted = CopyOnWriteArrayList<String>()
 
@@ -28,8 +28,7 @@ class LiveTaskStarterTest {
             val line = remoteCommand.joinToString(" ")
             commands.add("$host: $line")
             return when {
-                windowError != null && ("new-window" in remoteCommand || "new-session" in remoteCommand) ->
-                    SshResult(1, "", windowError)
+                unreachable != null -> SshResult(-1, "", unreachable)
                 "new-window" in remoteCommand -> SshResult(0, "@77\n", "")
                 "capture-pane" in remoteCommand -> SshResult(0, pasted.joinToString("\n"), "")
                 else -> SshResult(0, "", "")
@@ -96,23 +95,6 @@ class LiveTaskStarterTest {
         assertThat(starter.remoteOf(tmp, "")).isEqualTo("me@box")
     }
 
-    /// Field report 2026-10-27: the phone said only "Cannot create a tmux
-    /// window in session old-group on me@devbox" — the remote's error
-    /// output belongs in the dialog, as on the desktop.
-    @Test
-    fun `a window that cannot be created fails with the remote's error`(@TempDir tmp: File) {
-        File(tmp, ".git").mkdirs()
-        File(tmp, "work").mkdirs()
-        File(tmp, "work/CONTEXTSWITCHER.md").writeText("---\nremote: me@box\nworkspacesRoot: ~/ws\n---\n")
-        val remote = Remote(windowError = "can't find session: old-group\n")
-        val starter = LiveTaskStarter(TaskRepoSync(), remote, MessageSender(remote, tmp.toPath()))
-
-        val outcome = starter.start(tmp, "u", "t", "work", "x", ClaudeMode.DEFAULT, false, {}) {}
-
-        assertThat(outcome).isEqualTo(LiveTaskStarter.Outcome.Failed("Cannot create a tmux window on me@box:\ncan't find session: old-group"))
-        assertThat(remote.commands).anyMatch { it.endsWith("mkdir -p ~/'ws'") }
-    }
-
     @Test
     fun `without any remote the dialog has none and the start fails`(@TempDir tmp: File) {
         val remote = Remote()
@@ -123,5 +105,22 @@ class LiveTaskStarterTest {
         assertThat(starter.remoteOf(tmp, "work")).isNull()
         assertThat(outcome).isInstanceOf(LiveTaskStarter.Outcome.Failed::class.java)
         assertThat(remote.commands).isEmpty()
+    }
+
+    @Test
+    fun `a window that cannot be created reports the remote's error, not just the headline`(@TempDir tmp: File) {
+        val remote = Remote(unreachable = "Cannot connect to me@box: Connection refused")
+        File(tmp, ".git").mkdirs()
+        File(tmp, "work").mkdirs()
+        File(tmp, "work/CONTEXTSWITCHER.md").writeText("---\nremote: me@box\nworkspacesRoot: ~/ws\n---\n")
+        val starter = LiveTaskStarter(TaskRepoSync(), remote, MessageSender(remote, tmp.toPath()))
+        val outcome = starter.start(tmp, "u", "t", "work", "x", ClaudeMode.DEFAULT, false, {}) {}
+
+        assertThat(outcome).isInstanceOf(LiveTaskStarter.Outcome.Failed::class.java)
+        assertThat((outcome as LiveTaskStarter.Outcome.Failed).message)
+            .isEqualTo("Cannot create a tmux window in session 0 on me@box:\nCannot connect to me@box: Connection refused")
+        // The workspaces root is `mkdir -p`ed with the tilde outside the quotes, so the
+        // remote shell expands it (the desktop's 2026-10-12 fix, `quotePath`).
+        assertThat(remote.commands).anyMatch { it.endsWith("mkdir -p ~/'ws'") }
     }
 }
