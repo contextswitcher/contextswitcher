@@ -1,4 +1,4 @@
-# ContextSwitcher
+# <img src="extension/firefox/icon.svg" alt="" width="32" align="top"> ContextSwitcher
 
 [![Build](https://github.com/contextswitcher/contextswitcher/actions/workflows/build.yml/badge.svg)](https://github.com/contextswitcher/contextswitcher/actions/workflows/build.yml)
 
