@@ -348,11 +348,11 @@ Covers:
 Needs: impl, utest
 
 ### Start Claude for a new task from the phone
-`dsn~android-live-task~2`
+`dsn~android-live-task~3`
 
 `AddTaskDialog` offers *Start Claude on <remote>* (checked by default) when a remote is known for the picked category — its `CONTEXTSWITCHER.md` `remote`, else (the desktop's `effectiveRemote` rule, with the clone's tasks standing in for the desktop's `remotes` setting) the first remote any task in the clone names —, with *Model* and *Effort* pickers (`ClaudeMode.MODELS`/`EFFORTS`, "as is" leaves the session's) and *Skip permission prompts* (the desktop's `claudeAuto`, remembered in `SettingsStore`); *Start* runs `LiveTaskStarter.start`, the dialog showing each step. Without a remote the dialog adds a plain task as before (`dsn~android-task-create~1`).
 `LiveTaskStarter` does the desktop's live-task creation (`dsn~task-create-live~8`) with the same `:core` code, moved there from `:app` for it: `ClaudeWindowLauncher` (window, Claude start, trust dialog, model/effort, prompt paste with the visibility retries), `ClaudeWindowLauncher.liveTaskPrompt` and `liveTaskContent`. Remote, working directory (`resolveWorkdir`, `mkdir -p`ed first), repository and worktree bootstrap come from the category config; the tmux session is the first one a task on that remote uses, else `0`.
-The task file — `liveTaskContent` plus `addUrlsFrom`, named `<date>-<description>` like the desktop's, with `TaskFileParser.withTmuxSection` for the fresh window — is pushed through `TaskRepoSync.createTaskFile` from the launcher's window callback, before Claude is up; the dialog closes then and the list shows the task, while the start continues and ends in a Snackbar. A window that cannot be created leaves the dialog open with the error; a push that fails after the window exists is reported with the window id.
+The task file — `liveTaskContent` plus `addUrlsFrom`, named `<date>-<description>` like the desktop's, with `TaskFileParser.withTmuxSection` for the fresh window — is pushed through `TaskRepoSync.createTaskFile` from the launcher's window callback, before Claude is up; the dialog closes then and the list shows the task, while the start continues and ends in a Snackbar. A window that cannot be created leaves the dialog open with the error — the headline plus the remote's error output (`ClaudeWindowLauncher.failure()`: a refused connection, a missing key, tmux's complaint), as the desktop's `windowFailure` shows it; a push that fails after the window exists is reported with the window id.
 The desktop adopts the task — its title from `@cs_title`, its session id — once its periodic sync (`dsn~task-git-backup~5`) has pulled the file.
 
 Tags: android

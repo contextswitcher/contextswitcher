@@ -103,7 +103,7 @@ class TaskRepoSync(private val beforePush: () -> Unit = {}) {
     /// As [createTask], but with the file's `name` (slugged; `-2`… when taken)
     /// and `content` (given the category's folder prefix, read after the
     /// clone was brought to the remote) chosen by the caller — the live task
-    /// of `dsn~android-live-task~2` writes the desktop's live-task file.
+    /// of `dsn~android-live-task~3` writes the desktop's live-task file.
     // [impl->dsn~android-task-create~1]
     fun createTaskFile(
         dir: File,

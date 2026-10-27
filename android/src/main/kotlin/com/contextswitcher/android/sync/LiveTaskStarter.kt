@@ -20,7 +20,7 @@ import java.time.LocalDate
 /// The task file — the desktop's live-task file plus the `tmux:` section — is
 /// pushed the moment the window exists ([onCreated]), before Claude is up, so
 /// the list shows it while the rest of the start runs (a quarter minute).
-// [impl->dsn~android-live-task~2]
+// [impl->dsn~android-live-task~3]
 class LiveTaskStarter(
     private val sync: TaskRepoSync,
     private val ssh: SshCommandRunner,
@@ -62,7 +62,8 @@ class LiveTaskStarter(
             ssh.run(remote, listOf("mkdir", "-p", "'$workdir'"))
         }
         var created: CreateResult? = null
-        val windowId = ClaudeWindowLauncher(ssh, sender, skipPermissions).launch(
+        val launcher = ClaudeWindowLauncher(ssh, sender, skipPermissions)
+        val windowId = launcher.launch(
             remote, session, description, prompt, workdir, mode, onStep,
             { id ->
                 onStep("Pushing the task …")
@@ -77,12 +78,21 @@ class LiveTaskStarter(
                     onCreated(result.taskId)
                 }
             },
-        ) ?: return Outcome.Failed("Cannot create a tmux window in session $session on $remote")
+        ) ?: return Outcome.Failed(windowFailure(session, remote, launcher.failure()))
         return when (val result = created) {
             is CreateResult.Created -> Outcome.Started(result.taskId, windowId)
             is CreateResult.Failed -> Outcome.Failed("Claude runs in window $windowId on $remote, but the task was not pushed: ${result.message}")
             null -> Outcome.Failed("Window $windowId on $remote was not reported")
         }
+    }
+
+    /// The desktop's `Main.windowFailure` wording: the remote's error output
+    /// (a refused connection, a missing key, tmux's own complaint) under the
+    /// headline — the phone has no log to point at (field report 2026-10-27:
+    /// only the headline, no way to tell why).
+    private fun windowFailure(session: String, remote: String, stderr: String?): String {
+        val head = "Cannot create a tmux window in session $session on $remote"
+        return if (stderr.isNullOrBlank()) head else "$head:\n${stderr.trim()}"
     }
 
     private fun config(dir: File, category: String): GroupConfig {
