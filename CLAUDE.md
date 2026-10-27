@@ -17,6 +17,7 @@
   Every push to `main` that changes user-visible behavior adds a bullet under **today's** section (create it if the last section is an older day).
   Today's section links to `.../compare/v<previous date>...main`; when a new day starts, retag the finished day — push `main` first (pull/merge if rejected), *then* `git tag v<that date> <last commit of that day> && git push origin v<that date>` — and rewrite its link to `.../compare/v<day before>...v<that date>`.
   Tagging before the push can land the tag on a commit another concurrent session's push then diverges from.
+  The tag's GitHub pre-release takes the day's section as its notes (`build.yml`, `heylogs extract`), so the section must be complete when the tag is pushed.
   Verify before committing: `jbang heylogs@nbbrd check CHANGELOG.md` (rules come from `heylogs.properties`); CI runs the same check.
 * Requirements: OpenFastTrace in `docs/requirements/` — chain `feat → req → dsn → [impl->dsn~…~1]`/`[utest->dsn~…~1]` tags in code. A `dsn` item gains `Needs: impl` (and `utest` where sensible) in the same commit as the covering code. New behavior = new/updated spec item + tags in the same commit.
   Platform tags (`docs/requirements/README.md`, *Platform targets*): a `dsn` names the targets it implements (`Tags: windows, linux` / `Tags: android`), a `req` holds per target `<t>`, `<t>_later`, `<t>_no` or nothing (undecided) — underscores, never hyphens; `gradlew requirementReportAndroid` lists what is still missing there.
