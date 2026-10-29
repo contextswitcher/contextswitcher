@@ -414,9 +414,9 @@ public class TaskFileParser {
                 #   the Windows Task View). The header's ▶ button focuses it — nothing
                 #   else. Omit for no desktop button. The nested form
                 #   desktop: {name: %1$s, completeControl: true}
-                #   additionally stores and closes every Firefox window on that
+                #   additionally stores and closes every Firefox tab on that
                 #   desktop when a task of this category is suspended, and reopens
-                #   the stored tabs on resume — a clean desktop in between.
+                #   them on resume — a clean desktop in between.
                 # profile: lecture
                 #   Environment profile from settings.yaml's profiles: (screens,
                 #   projector mode, taskbar, bookmarks bar) applied on every switch to

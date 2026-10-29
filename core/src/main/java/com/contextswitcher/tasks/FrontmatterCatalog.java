@@ -140,8 +140,8 @@ public final class FrontmatterCatalog {
             // [impl->dsn~complete-control-desktop~1]
             new Field("completeControl", "Clear that desktop on suspend", "Category",
                     Type.BOOLEAN,
-                    "Suspending a task stores and closes every Firefox window on the desktop; "
-                            + "resuming reopens the stored tabs."),
+                    "Suspending a task stores and closes every Firefox tab on the desktop; "
+                            + "resuming reopens them."),
             new Field("note", "Note link", "Category", Type.STRING,
                     "Opened by the header's \"Open note\"; for OneNote use the onenote:… form."),
             new Field("chat", "Chat room", "Category", Type.STRING,

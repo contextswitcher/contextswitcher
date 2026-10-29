@@ -665,7 +665,7 @@ public class Main extends Application {
         PaneSnapshots snapshots = new PaneSnapshots(ssh, configDir().resolve("snapshots"));
         this.paneSnapshots = snapshots;
         // On a complete-control category the browser close also stores and
-        // closes every Firefox window on the category's desktop.
+        // closes every Firefox tab on the category's desktop.
         // [impl->dsn~complete-control-desktop~1]
         SwitchOrchestrator suspendOrchestrator = new SwitchOrchestrator(
                 List.of(new TmuxKillAction(ssh, snapshots),
