@@ -61,6 +61,9 @@ It was announced as [complete desktop task-focused interface for everyone](https
 
 * [Orca](https://github.com/stablyai/orca) - desktop app for running several coding agents (Claude Code, Codex, ...) side by side, each in its own git worktree, tracked in one place, with a mobile companion.
   It covers the agent-and-worktree slice of a task only; browser tabs, IDE windows, and other applications stay outside.
+* [Paradev](https://github.com/paradevai/paradev) (formerly Superset) - Electron desktop app (macOS first, Elastic License 2.0) that runs many CLI coding agents in parallel, one git worktree per workspace, with a built-in diff viewer, in-app browser for dev servers, PR review comments sent straight to an agent, scheduled automations, a CLI/SDK/MCP server, and an iPhone app.
+  Agent status comes from hooks it installs into each agent's config; remote hosts, mobile and automations go through its relay and a paid account.
+  Like Orca it stays inside the app: the context it switches is the worktree, its terminals and its browser pane, not the desktop around them.
 
 ## Research Papers
 
