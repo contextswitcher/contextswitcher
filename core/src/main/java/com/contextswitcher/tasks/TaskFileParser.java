@@ -66,7 +66,7 @@ public class TaskFileParser {
     /// Parses `file`, using its path relative to `tasksDir` (forward-slash
     /// separated, `.md` stripped) as id — e.g. `jabref/fix-npe` for a task
     /// grouped under the `jabref` subfolder.
-    // [impl->dsn~task-repository-watching~6]
+    // [impl->dsn~task-repository-watching~7]
     public Task parse(Path tasksDir, Path file) throws TaskParseException {
         return parse(relativeId(tasksDir, file), readContent(file));
     }

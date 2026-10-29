@@ -5461,7 +5461,7 @@ public class MainWindow {
     /// Re-renders the task list after a group's `CONTEXTSWITCHER.md` changed
     /// on disk, so the headers pick up the fresh defaults (remote glyph, tags)
     /// without a restart.
-    // [impl->dsn~task-repository-watching~6]
+    // [impl->dsn~task-repository-watching~7]
     /// Wires the repository's in-place rename (see [#taskRenamer]).
     public void setTaskRenamer(BiConsumer<String, String> renamer) {
         this.taskRenamer = renamer;
@@ -5881,7 +5881,12 @@ public class MainWindow {
     }
 
     private static void setText(RichTextArea area, String text) {
-        area.getModel().replace(null, TextPos.ZERO, area.getModel().getDocumentEnd(), text, true);
+        // Four arguments: that is what the org.openjfx 26.0.2 jar the packaged
+        // app runs on has. A JDK that bundles its own JavaFX (Liberica "Full")
+        // shadows the jar for javac and shows a different overload — compile
+        // against such a JDK and the packaged app throws NoSuchMethodError on
+        // every editor load (2026-10-29).
+        area.getModel().replace(null, TextPos.ZERO, area.getModel().getDocumentEnd(), text);
         area.select(TextPos.ZERO);
     }
 

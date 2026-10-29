@@ -2024,7 +2024,7 @@ Needs: impl, utest
 `dsn~group-config-cache~1`
 
 `MainWindow.groupDefaults` memoizes the parsed `CONTEXTSWITCHER.md` per group in a map that is cleared at the start of every `rebuildRows`. Every reader — the tag filter, the row and header "Tags" submenus (which collect the effective tags of *all* tasks per rendered cell), the desktop filter, the remote/repo/folder lookups — otherwise hit the disk once per call, and one list refresh became tasks² `exists`+read+parse calls on the FX thread: a 62 s freeze with 46 tasks on a slow Windows drive (logged by `dsn~fx-stall-log~1`), triggered by any list change (a Qodo sync's queue write, a tmux reconcile).
-Freshness is unchanged: every create/modify/delete of a config reaches `rebuildRows` through the repository watcher (`dsn~task-repository-watching~6`), which drops the cache before the rows are rebuilt.
+Freshness is unchanged: every create/modify/delete of a config reaches `rebuildRows` through the repository watcher (`dsn~task-repository-watching~7`), which drops the cache before the rows are rebuilt.
 
 Tags: windows, linux
 
@@ -3197,7 +3197,7 @@ Needs: impl
 `dsn~startup-background~1`
 
 Two pieces of `Main.start` leave the FX thread.
-The task-directory scan, watcher registration and startup git pull run as one background job on the action executor (in that order — the pull stays behind the watcher start so the files it merges in are seen; the scan itself parses off-thread per `dsn~task-repository-watching~6` and entries stream into the list as they parse).
+The task-directory scan, watcher registration and startup git pull run as one background job on the action executor (in that order — the pull stays behind the watcher start so the files it merges in are seen; the scan itself parses off-thread per `dsn~task-repository-watching~7` and entries stream into the list as they parse).
 And a `class-warmup` daemon thread started first thing `Class.forName`-loads the heavyweight UI classes (the JediTermFX widget, the incubator `RichTextArea`, `TerminalPane`, `MainWindow`): their classpath scanning cost over a second on a cold Windows drive and showed up as an FX stall inside the `TerminalPane` constructor (`dsn~fx-stall-log~1`); loading them concurrently, the FX thread later finds them loaded, or waits only for the one still in flight.
 The synchronous remainder of startup is deliberate: settings must exist before anything is built, the clone offer is a modal decision the scan depends on, and the stored-geometry read must precede `show`.
 

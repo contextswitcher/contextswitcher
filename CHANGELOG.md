@@ -22,6 +22,8 @@ The topmost section is the day in progress — its link points at `main` until t
 - Android: the voice tour reads English text with an English voice and German with a German one, instead of everything in the phone's language.
 - Android: the SSH private key is checked as you paste it — the settings screen says "Key parses: ssh-ed25519" or why it does not — and indentation, stray blank lines and Windows line ends from a messy paste no longer break it; a key that does not parse is reported as such instead of as a rejected key.
 - Settings: the help text of *Clear that desktop on suspend* said Firefox *windows* are closed; it now says *tabs* are stored and closed, which is what resuming reopens.
+- A task no longer vanishes from the list (and from search) until the next restart when a background write to its file coincides with an error in the task list's UI: the file watcher applies the rest of its batch even when one step throws, and logs the error instead.
+- The task editor failed with `NoSuchMethodError` on every task selection in the packaged app since this morning's build (a JDK bundling its own JavaFX had misled the compile); the editor loads again.
 
 ## [2026-10-27] - 2026-10-27
 

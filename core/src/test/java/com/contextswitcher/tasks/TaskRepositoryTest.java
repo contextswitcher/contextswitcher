@@ -12,7 +12,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~task-repository-watching~6]
+// [utest->dsn~task-repository-watching~7]
 class TaskRepositoryTest {
 
     private static TaskRepository repositoryFor(Path dir) {
@@ -255,7 +255,7 @@ class TaskRepositoryTest {
         }
     }
 
-    // [utest->dsn~task-repository-watching~6]
+    // [utest->dsn~task-repository-watching~7]
     @Test
     void groupConfigChangeNotifiesListener(@TempDir Path dir) throws Exception {
         Files.createDirectory(dir.resolve("jabref"));
@@ -287,7 +287,7 @@ class TaskRepositoryTest {
     /// A rename is a DELETE plus a CREATE, and a save several MODIFYs: the
     /// watcher must hand them to the UI as one mutation, or the task list
     /// rebuilds once per event and the renamed row blinks away and back.
-    // [utest->dsn~task-repository-watching~6]
+    // [utest->dsn~task-repository-watching~7]
     @Test
     void oneRenameReachesTheUiAsOneMutation(@TempDir Path dir) throws Exception {
         Files.writeString(dir.resolve("alpha.md"), """
@@ -322,6 +322,58 @@ class TaskRepositoryTest {
             assertThat(mutations.get())
                     .as("write + rename reach the UI as a single batch")
                     .isEqualTo(1);
+        }
+    }
+
+    /// An atomic save (temp file renamed over the task file) is a DELETE plus
+    /// a CREATE. The UI's list listeners run inside the removal; when one of
+    /// them throws, the re-add must still be applied — or the task is gone
+    /// from the list until the next restart.
+    // [utest->dsn~task-repository-watching~7]
+    @Test
+    void aThrowingListListenerDoesNotLoseTheRestOfTheBatch(@TempDir Path dir) throws Exception {
+        Files.writeString(dir.resolve("alpha.md"), """
+                ---
+                title: Alpha
+                ---
+                """);
+        // Mirrors an ObservableList whose change listener blows up once, after
+        // the removal itself went through.
+        class ListenerBlowsUp extends ArrayList<TaskEntry> {
+            boolean armed = true;
+
+            @Override
+            public boolean removeIf(java.util.function.Predicate<? super TaskEntry> filter) {
+                boolean removed = super.removeIf(filter);
+                if (removed && armed) {
+                    armed = false;
+                    throw new IllegalStateException("UI listener failed");
+                }
+                return removed;
+            }
+        }
+        List<TaskEntry> entries = java.util.Collections.synchronizedList(new ListenerBlowsUp());
+        try (TaskRepository repository = new TaskRepository(dir, new TaskFileParser(), Runnable::run,
+                entries, new HashSet<>())) {
+            repository.scan();
+            repository.startWatching();
+
+            Path tmp = dir.resolve("alpha.md.tmp");
+            Files.writeString(tmp, """
+                    ---
+                    title: Alpha rewritten
+                    ---
+                    """);
+            Files.move(tmp, dir.resolve("alpha.md"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            long deadline = System.currentTimeMillis() + 10_000;
+            while (System.currentTimeMillis() < deadline && entries.stream().noneMatch(
+                    entry -> entry instanceof TaskEntry.Loaded loaded
+                            && loaded.task().title().equals("Alpha rewritten"))) {
+                Thread.sleep(20);
+            }
+            assertThat(entries).extracting(TaskEntry::id).containsExactly("alpha");
+            assertThat(((TaskEntry.Loaded) entries.getFirst()).task().title()).isEqualTo("Alpha rewritten");
         }
     }
 

@@ -1006,7 +1006,7 @@ public class Main extends Application {
         // on or off; the per-desktop entries take over once the desktop poll
         // reports a name. [impl->dsn~window-position-per-desktop~2]
         applyStoredGeometry(stage, windowPositions, WindowPositions.STARTUP);
-        // [impl->dsn~task-repository-watching~6]
+        // [impl->dsn~task-repository-watching~7]
         repository.setOnGroupConfigChange(window::groupConfigChanged);
         // The shell needs the Application for its host services (MADR 0032).
         window.show(stage, this);

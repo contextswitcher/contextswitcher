@@ -2,7 +2,7 @@ package com.contextswitcher.tasks;
 
 /// One entry in the task list: a successfully parsed task or a parse failure
 /// (shown as an error row, so a broken file never hides or crashes anything).
-// [impl->dsn~task-repository-watching~6]
+// [impl->dsn~task-repository-watching~7]
 public sealed interface TaskEntry {
 
     /// The task file's path relative to the task directory, without the
@@ -12,7 +12,7 @@ public sealed interface TaskEntry {
 
     /// The task's group: its containing subfolder name, or `""` for a
     /// root-level task.
-    // [impl->dsn~task-repository-watching~6]
+    // [impl->dsn~task-repository-watching~7]
     default String group() {
         int slash = id().lastIndexOf('/');
         return slash < 0 ? "" : id().substring(0, slash);

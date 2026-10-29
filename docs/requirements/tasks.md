@@ -458,7 +458,7 @@ Covers:
 Needs: impl, utest
 
 ### Task repository with directory watching
-`dsn~task-repository-watching~6`
+`dsn~task-repository-watching~7`
 
 `TaskRepository` scans the task directory and its immediate subdirectories (one level deep; a subfolder is a task group/project) on startup and registers a JDK `WatchService` key per directory (root plus each subfolder) — a subfolder created later is picked up and watched automatically. File events re-parse the affected file and update an `ObservableList` on the JavaFX application thread.
 All file IO (existence check, read, parse) runs on the calling thread — the watcher's daemon thread, or the background thread `Main` runs the startup scan on (`dsn~startup-background~1`) — and only the list mutation hops to the FX executor: parsing every task file inside `Platform.runLater` blocked the FX thread for the whole scan on a slow drive. A task's id is its file path relative to the task directory with the `.md` extension stripped, forward-slash separated regardless of platform (e.g. `jabref/fix-npe`); `TaskEntry.group()` derives the owning subfolder name from it, empty for a root-level task.
@@ -467,6 +467,9 @@ Every wake-up of the watcher thread is applied as **one** list mutation: it drai
 One logical change is several events — a save fires several MODIFYs, a rename a DELETE plus a CREATE, a group removal a burst — and one mutation per event means one full task-list rebuild per event: a renamed task visibly blinked out of the list and back, and a busy write stalled the FX thread.
 A re-parse that yields an entry equal to the one already listed is **not** republished (`Task` and the `TaskEntry` variants are records, so equality is by value):
 the watcher fires several MODIFY events per write — and for pure mtime touches — and every list `set()` costs a full task-list rebuild in the UI, which transiently clears the selection and re-fires the preview.
+Each step of a batch is applied under its own exception guard: a list mutation runs the UI's list listeners synchronously (row rebuild, selection, editor load), and an exception escaping one of them must not skip the steps after it.
+An atomic save (write to a temp file, rename over the task file) is a DELETE plus a CREATE — with the DELETE's removal applied and the CREATE's re-add skipped, the task vanished from the list and from search until the next restart (2026-10-29: an editor `NoSuchMethodError` on the selection the removal moved did exactly that).
+The exception is logged with the step's file and the batch goes on; the UI's own uncaught-exception reporting is not relied on because it ends the whole batch.
 
 Tags: windows, linux
 
