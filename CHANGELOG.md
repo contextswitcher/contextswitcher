@@ -14,7 +14,7 @@ The topmost section is the day in progress — its link points at `main` until t
 - Android: *Jump hosts* in the settings — `user@host via user@jump[:port]` per line — reach a remote through another ssh host, like `ProxyJump` on the desktop; the jump host then also resolves a short name the phone cannot. *Check connections* tries every listed remote through its jump host and reports each result; saving does not depend on it.
 
 ### Fixed
-
+- The remote-window dialog no longer shows a scrollbar next to a short two-line question; only an overlong pasted title scrolls.
 - Android: a host name that does not resolve on the phone's network is reported as such, with a VPN hint, instead of a bare "Cannot connect to user@host: host".
 - Android: a host that rejects the SSH key says which host (the remote or the jump host) and whose `authorized_keys` needs the public key, instead of "Exhausted available authentication methods".
 - Android: the voice tour read "Loading" instead of the first task's card after the overview; the card is now spoken.

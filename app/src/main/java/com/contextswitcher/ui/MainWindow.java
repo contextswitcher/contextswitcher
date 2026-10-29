@@ -100,6 +100,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.geometry.Side;
 import javafx.scene.Node;
+import javafx.scene.text.Text;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -4424,14 +4425,25 @@ public class MainWindow {
         message.setWrapText(true);
         // A title may be a whole pasted task description: wrap it at a fixed
         // width and scroll past 40 % of the screen, so the pickers and the
-        // buttons stay on screen.
+        // buttons stay on screen. A short message gets no ScrollPane at all —
+        // a viewport sized from the measured text came out a few pixels short
+        // and showed a scrollbar on a two-line question. The label has no skin
+        // yet (it is not in a scene), so its own prefHeight reads 0: measure
+        // the text with a plain Text node instead.
         double width = 480;
-        ScrollPane messageScroll = new ScrollPane(message);
-        messageScroll.setFitToWidth(true);
-        messageScroll.setPrefViewportWidth(width);
-        messageScroll.setPrefViewportHeight(Math.min(message.prefHeight(width) + 4,
-                Screen.getPrimary().getVisualBounds().getHeight() * 0.4));
-        alert.getDialogPane().setContent(new VBox(8, messageScroll, new HBox(6, modelBox, effortBox)));
+        double cap = Screen.getPrimary().getVisualBounds().getHeight() * 0.4;
+        message.setPrefWidth(width);
+        Text measure = new Text(message.getText());
+        measure.setWrappingWidth(width);
+        Node messageNode = message;
+        if (measure.getLayoutBounds().getHeight() > cap) {
+            ScrollPane messageScroll = new ScrollPane(message);
+            messageScroll.setFitToWidth(true);
+            messageScroll.setPrefViewportWidth(width);
+            messageScroll.setPrefViewportHeight(cap);
+            messageNode = messageScroll;
+        }
+        alert.getDialogPane().setContent(new VBox(8, messageNode, new HBox(6, modelBox, effortBox)));
         ButtonType picked = alert.showAndWait().orElse(ButtonType.CANCEL);
         if (picked != tmux && picked != claude) {
             return null;

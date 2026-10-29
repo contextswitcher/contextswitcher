@@ -102,6 +102,18 @@ class RemoteWindowModeUiTest {
         clickDialogButton("Cancel");
     }
 
+    /// A short question is shown plainly: no ScrollPane, hence no scrollbar
+    /// next to two lines of text.
+    @Test
+    void aShortTitleGetsNoScrollPane() {
+        ask("devbox", false);
+
+        DialogPane pane = findDialog().orElseThrow();
+        assertThat(FX_ROBOT.selectNodes(ScrollPane.class).from(pane).findFirst())
+                .as("a scroll pane around a short message").isEmpty();
+        clickDialogButton("Cancel");
+    }
+
     /// A task whose title is a whole pasted description still fits on screen:
     /// the text scrolls, the pickers and buttons stay reachable.
     @Test
