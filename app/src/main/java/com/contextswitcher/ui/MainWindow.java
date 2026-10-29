@@ -5881,7 +5881,7 @@ public class MainWindow {
     }
 
     private static void setText(RichTextArea area, String text) {
-        area.getModel().replace(null, TextPos.ZERO, area.getModel().getDocumentEnd(), text);
+        area.getModel().replace(null, TextPos.ZERO, area.getModel().getDocumentEnd(), text, true);
         area.select(TextPos.ZERO);
     }
 
