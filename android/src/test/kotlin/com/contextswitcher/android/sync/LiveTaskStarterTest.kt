@@ -17,7 +17,7 @@ import org.junit.jupiter.api.io.TempDir
 /// A live task from the phone: window in the remote's usual session and the
 /// category's workspace, the task file pushed with that window, Claude
 /// started with the desktop's prompt.
-// [utest->dsn~android-live-task~3]
+// [utest->dsn~android-live-task~4]
 class LiveTaskStarterTest {
 
     private class Remote(val unreachable: String? = null) : SshCommandRunner {

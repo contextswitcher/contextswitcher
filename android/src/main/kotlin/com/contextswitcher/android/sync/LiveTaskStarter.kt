@@ -20,7 +20,7 @@ import java.time.LocalDate
 /// The task file — the desktop's live-task file plus the `tmux:` section — is
 /// pushed the moment the window exists ([onCreated]), before Claude is up, so
 /// the list shows it while the rest of the start runs (a quarter minute).
-// [impl->dsn~android-live-task~3]
+// [impl->dsn~android-live-task~4]
 class LiveTaskStarter(
     private val sync: TaskRepoSync,
     private val ssh: SshCommandRunner,

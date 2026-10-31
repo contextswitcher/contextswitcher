@@ -52,7 +52,7 @@ class AddTaskDialogTest {
         composeRule.onNodeWithText("Buy tickets ").assertExists()
     }
 
-    // [utest->dsn~android-live-task~3]
+    // [utest->dsn~android-live-task~4]
     @Test
     fun `a category with a remote starts Claude with the picked model`() {
         val started = mutableListOf<String>()
