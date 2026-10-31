@@ -9,7 +9,7 @@
 
 * Build: `gradlew build traceRequirements` must be green before every commit.
   On NixOS, run it inside `nix-shell` (`shell.nix`) — anything that starts JavaFX (the app, the UI tests) needs the GTK/X11 libraries it puts on `LD_LIBRARY_PATH`.
-* Branches: work is committed and pushed to `experimental`; once it works, `experimental` is merged into `main` (a merge commit, `git merge --no-ff`).
+* Branches: work is committed and pushed to `experimental` only; the daily release workflow (below) merges it into `main` (`--no-ff`) every morning — sessions do not merge into `main` by hand.
   CalVer day tags (below) go on `main` only.
 * Git: when the push is rejected, `git pull --no-rebase` (merge) — **never rebase**.
   Same rationale as MADR 0011: the merge commit keeps each session's state visible; concurrent Claude sessions push to `main`, and rebasing rewrites what another session may already have seen.
