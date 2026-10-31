@@ -20,6 +20,7 @@ The topmost section is the day in progress — its link points at `main` until t
 - Claude sessions are no longer sent `/exit` on their own when Claude Code shows *Restart to update*; set `claudeUpdateRestart: true` in the settings to get the automatic restart back.
 
 ### Fixed
+- Switching virtual desktops (with *Show active desktop only*) selects that desktop's last task and shows its terminal again; an empty message box in the queue pane no longer holds the previous desktop's task in place.
 - Setup wizard: the browser-extension page is skipped for the Microsoft Store build of Firefox too, when the extension is installed there.
 - The remote-window dialog no longer shows a scrollbar next to a short two-line question; only an overlong pasted title scrolls.
 - Android: a host name that does not resolve on the phone's network is reported as such, with a VPN hint, instead of a bare "Cannot connect to user@host: host".

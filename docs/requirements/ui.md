@@ -2296,7 +2296,7 @@ The stage title is `<category> | <n> waiting | <n> working | ContextSwitcher` fo
 The counts are over that category's tasks: `waiting` is the same "needs the user" set the awaits-input filter uses (`dsn~awaits-input-filter~1`), `working` the orange running dot.
 The app name goes last because a taskbar button or window switcher truncates the end: the category and its counts are what distinguish two ContextSwitcher windows, the app name is not.
 Selecting a category header, a task, or a corrupt row switches the title's category; a label header leaves it alone (it sits inside the category already shown).
-A virtual-desktop switch under the active-desktop filter (`dsn~active-desktop-filter~6`) switches it too, to the category of the task that desktop re-selects (`dsn~desktop-last-task-selection~4`) — even while that selection waits for the queue box to lose the keyboard.
+A virtual-desktop switch under the active-desktop filter (`dsn~active-desktop-filter~6`) switches it too, to the category of the task that desktop re-selects (`dsn~desktop-last-task-selection~5`) — even while that selection waits for the queue box to lose the keyboard.
 A desktop with no task to select names itself: its desktop name stands in for the category, so the title never keeps the previous desktop's category.
 The counts follow the status poller (`dsn~task-running-indicator~7`) and every row rebuild, so the title stays as current as the dots.
 
@@ -2584,7 +2584,7 @@ The task-list selection listener calls `recordHistory(id)` for every loaded task
 `navigateHistory(±1)` first drops every entry whose task no longer exists in `entries` (deleted or renamed since the visit), adjusting the cursor for each removal below it, then moves the cursor one step and hands the id to `selectTask` — which already reveals a row a collapsed group or a find query hides.
 Back is therefore never a no-op that looks like a dead button; `updateHistoryButtons` disables each arrow at its end of the trail.
 A visit replaced within `TRANSIENT_VISIT_NANOS` (1 s) of being appended is no visit: the next task takes its entry instead of being appended after it.
-A desktop switch re-selects that desktop's last task (`dsn~desktop-last-task-selection~4`) and the browser window it activates reports its tab a moment later (`dsn~browser-tab-selects-task~7`); Back then landed on the task that had only flashed, not on the one worked on before (field report 2026-09-13).
+A desktop switch re-selects that desktop's last task (`dsn~desktop-last-task-selection~5`) and the browser window it activates reports its tab a moment later (`dsn~browser-tab-selects-task~7`); Back then landed on the task that had only flashed, not on the one worked on before (field report 2026-09-13).
 Only an append stamps the time and `navigateHistory` clears it, so the replaced entry is always the newest one and a step taken with the arrows is never overwritten.
 
 The two icon buttons (`ARROW_LEFT`, `ARROW_RIGHT`) sit at the **left** end of the list toolbar (`dsn~task-list-toolbar~3`), before the add menu, where a browser puts them.
@@ -2706,14 +2706,15 @@ Covers:
 Needs: impl, utest
 
 ### Last selected task per desktop
-`dsn~desktop-last-task-selection~4`
+`dsn~desktop-last-task-selection~5`
 
 `MainWindow` maps desktop name → last selected task id in a preferences child node (`lastTaskByDesktop`, so the memory outlives a restart): the task list's selection listener records every selected `TaskEntry.Loaded` under the currently active desktop (nothing is recorded while the active desktop is unknown — non-Windows, unnamed, or not yet read).
 `updateActiveDesktop` — only while the filter is on — reads the remembered id *before* its rebuild, whose own selection changes would otherwise be recorded under the desktop just switched to and overwrite it, and re-selects the task afterwards via `selectTask`, which also scrolls the row into view; the selection change then drives the terminal, editor, and queue panes as any click would.
 Only an id the narrowed rows actually show is handed to `selectTask` — a deleted or otherwise filtered-out id would sit in `pendingSelectionId` forever and block the selection preservation of every later rebuild — and a desktop with no usable remembered id falls back to the first task of the narrowed list.
 
 
-The re-selection is skipped while the keyboard sits in one of the queue pane's text boxes (`MainWindow.queueFieldFocused`, the guard `selectCreatedTask` has carried since `dsn~task-from-pr~6`).
+The re-selection is skipped while the keyboard sits in one of the queue pane's text boxes **and that box holds text** (`MainWindow.queueFieldFocused`, the guard `selectCreatedTask` has carried since `dsn~task-from-pr~6`).
+An empty box does not count: it is the queue's resting focus (it takes the keyboard back after every send) and the scene keeps it while the user is on another desktop, so a focus-only guard blocked every switch and left the previous desktop's task in the terminal (field report 2026-10-31).
 A selection change swaps the queue pane to the new task, and `QueuePane.showTask` **commits the half-typed message as the previous task's draft** before clearing the box — so a desktop switch arriving mid-sentence reads as "I typed something in the queue field, focus was stolen to the task list - and my typed letters lost" (field report 2026-09-12; the letters were not lost, they were filed under the task the user had left).
 The list still follows the desktop — only the selection waits, and the next switch or a click applies it.
 A desktop switch is an *ambient* event, unlike the click or keypress that every other selection comes from, so it is the one that must yield to someone typing.

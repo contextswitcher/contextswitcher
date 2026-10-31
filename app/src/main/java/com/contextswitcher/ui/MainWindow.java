@@ -559,7 +559,7 @@ public class MainWindow {
     /// not the previous desktop's. Kept across restarts (a preferences child
     /// node, one entry per desktop): the memory is worthless if the first
     /// switch after every launch has nothing to restore.
-    // [impl->dsn~desktop-last-task-selection~4]
+    // [impl->dsn~desktop-last-task-selection~5]
     static final Preferences LAST_TASK_BY_DESKTOP =
             Preferences.userNodeForPackage(MainWindow.class).node("lastTaskByDesktop");
     /// When on, the list shows only running (active) tasks — suspended and done
@@ -3006,7 +3006,7 @@ public class MainWindow {
                 if (EnergySaver.active()) {
                     EnergySaver.refreshTask();
                 }
-                // [impl->dsn~desktop-last-task-selection~4]
+                // [impl->dsn~desktop-last-task-selection~5]
                 rememberLastTask(activeDesktop, loaded.id());
                 showCategoryInTitle(loaded.group());
                 onPreview.accept(loaded.task());
@@ -6954,7 +6954,7 @@ public class MainWindow {
         // Read before the rebuild: the rebuild's own selection changes run
         // through the list's listener, which would record them under the
         // desktop just switched to — overwriting what it remembered.
-        // [impl->dsn~desktop-last-task-selection~4]
+        // [impl->dsn~desktop-last-task-selection~5]
         String last = desktop == null ? null : LAST_TASK_BY_DESKTOP.get(desktop, null);
         rebuildRows();
         // Re-select the task last selected on the now-active desktop, so the
@@ -6965,7 +6965,7 @@ public class MainWindow {
         // preservation) — a desktop with nothing remembered, or whose
         // remembered task is gone, falls back to its first task, since the
         // previous desktop's task is exactly the foreign view to avoid.
-        // [impl->dsn~desktop-last-task-selection~4]
+        // [impl->dsn~desktop-last-task-selection~5]
         TaskEntry.@Nullable Loaded target = visibleRows.stream()
                 .filter(TaskEntry.Loaded.class::isInstance)
                 .map(TaskEntry.Loaded.class::cast)
@@ -6986,7 +6986,7 @@ public class MainWindow {
         // `selectCreatedTask` has kept this guard for the same reason since
         // `dsn~task-from-pr~6`; the desktop switch is the other caller that
         // needed it.
-        // [impl->dsn~desktop-last-task-selection~4]
+        // [impl->dsn~desktop-last-task-selection~5]
         if (target != null && !queueFieldFocused()) {
             selectTask(target.id());
         }
@@ -7005,7 +7005,7 @@ public class MainWindow {
     /// A desktop that is not known (non-Windows, unnamed, not yet read) has no
     /// key to store under, and an over-long name would blow the preferences
     /// key limit — both simply record nothing.
-    // [impl->dsn~desktop-last-task-selection~4]
+    // [impl->dsn~desktop-last-task-selection~5]
     private void rememberLastTask(@Nullable String desktop, String taskId) {
         if (desktop != null && desktop.length() <= Preferences.MAX_KEY_LENGTH
                 && taskId.length() <= Preferences.MAX_VALUE_LENGTH) {
@@ -7407,12 +7407,19 @@ public class MainWindow {
         }
     }
 
-    /// Whether the keyboard focus sits in one of the queue pane's text boxes.
+    /// Whether the user is mid-message in one of the queue pane's text boxes:
+    /// the keyboard sits there **and** the box holds text. An empty box is
+    /// the queue's resting focus — it takes the keyboard back after every
+    /// send, and the scene keeps it while the user works on another desktop —
+    /// so guarding on focus alone blocked every desktop switch, leaving the
+    /// previous desktop's task in the terminal (field report 2026-10-31).
+    /// An empty box has nothing a task swap could misfile.
     // [impl->dsn~task-from-pr~6]
+    // [impl->dsn~desktop-last-task-selection~5]
     private boolean queueFieldFocused() {
         Scene scene = queueNode.getScene();
         Node focused = scene == null ? null : scene.getFocusOwner();
-        if (!(focused instanceof TextInputControl)) {
+        if (!(focused instanceof TextInputControl field) || field.getText().isEmpty()) {
             return false;
         }
         for (Node node = focused; node != null; node = node.getParent()) {
