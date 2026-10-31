@@ -4,6 +4,8 @@
 
 > ContextSwitcher is [Mylyn](https://www.eclipse.org/mylyn/) for the desktop: one click switches your whole working context — remote tmux window (e.g. a running Claude session), remote IntelliJ project, browser tabs, notes, chat room, folders.
 
+![The main window: task list with categories and tags on the left, the terminal mirroring the task's tmux window in the middle, notes and message queue on the right](docs/screenshot-main-window.png)
+
 Why this exists and the long-term vision: [docs/background.md](docs/background.md); related work: [docs/related-work.md](docs/related-work.md).
 
 **Status: in daily use; released by date (see [CHANGELOG.md](CHANGELOG.md)).**
