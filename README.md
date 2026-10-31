@@ -328,6 +328,7 @@ readlineKeys: false          # bash cursor chords in every text field (Ctrl+A/E,
 autoSuspendMinutes: 2880     # suspend an active Claude task idle this long (48 h); 0 = never
 mergedCleanupDays: 7         # remove a paused task whose PRs are all merged after this many days (only in autoDelete categories); 0 = never
 autoCopyReplies: false       # true = each finished reply of the mirrored Claude chat lands on the clipboard as Markdown
+claudeUpdateRestart: false   # true = quit (/exit) and resume an idle Claude session that shows "Restart to update"
 browser: firefox             # browser to start when no extension is connected (a connected one wins): firefox or chrome
 wsPort: 17872                # loopback WebSocket port the browser extension connects to
 wsToken: <generated>         # shared secret; keep the generated value

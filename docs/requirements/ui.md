@@ -265,10 +265,10 @@ Covers:
 Needs: dsn
 
 ### A pending Claude update gets its restart
-`req~claude-update-restart~1`
+`req~claude-update-restart~2`
 
 When Claude Code has installed an update and asks for a restart ("Restart to update" in its footer), the session is restarted on the new version — back in the same window on the same conversation — once its turn is over, never mid-answer.
-The desktop does this on its own while it runs; on the phone the user asks for it, since two apps restarting the same session would collide.
+The desktop does this on its own only when the user opts in (setting `claudeUpdateRestart`, off by default): an unasked `/exit` in a session reads as the app quitting it behind the user's back (field report 2026-10-31). On the phone the user asks for it, since two apps restarting the same session would collide.
 
 Tags: windows, linux, android
 
@@ -284,7 +284,7 @@ Each task row shows a live indicator of what its Claude window is doing, so the 
 A Claude session publishes its own state as the `@cs_status` tmux window user option (`working`, `waiting`, `attention`, `done`); ContextSwitcher polls it and colours the indicator accordingly.
 A session blocked on its usage limit publishes nothing — no hook fires for it — so ContextSwitcher detects it from the pane and shows a red dot (`dsn~claude-limit-detection~2`).
 A session whose turn was cut short by an API error is detected the same way and simply told to `continue` (`dsn~api-error-auto-continue~1`) — nothing there needs the user.
-A session that has unpacked a Claude Code update is restarted the same way (`dsn~claude-update-restart~6`), since only a fresh process runs the new version.
+A session that has unpacked a Claude Code update is restarted the same way (`dsn~claude-update-restart~7`) when the user opted in, since only a fresh process runs the new version.
 `attention` is set by Claude Code's `Notification` hook — Claude asked a question or waits for a permission — and is distinct from the mere end-of-turn `waiting`.
 A window that never publishes a status shows no indicator.
 A window that is alive but runs no Claude at all — a start that went wrong, or a session that exited — offers a one-click repair instead (`dsn~start-claude-button~2`).
@@ -1232,7 +1232,7 @@ Covers:
 Needs: impl, utest
 
 ### Restart on a pending Claude update
-`dsn~claude-update-restart~6`
+`dsn~claude-update-restart~7`
 
 Claude Code updates itself in the background and then asks for a restart — "Update installed · Restart to update" in its footer — which every session keeps showing until someone quits and comes back.
 `TmuxStatusPoller` therefore greps, in the same per-window pane pass as the limit detection (`dsn~claude-limit-detection~2`), the **bottom four non-blank lines** of `capture-pane -p -J` — the footer below the input box, with the hint lines under it — for `Restart to update`, and prints an `update|windowId` marker line per hit.
@@ -1251,12 +1251,13 @@ The fallback still covers a window that published no id at all and an id the rem
 `working` is deliberately excluded (mid-answer), and so are `attention` (a question or permission prompt on screen that the restart would throw away) and `limit` (a new process does not lift it).
 The restart is repeated at most every `RESTART_COOLDOWN_SECONDS` (300) per window, since a restart that did not take leaves the message on the footer and a per-tick retry would quit the session over and over.
 No window an attached tmux client shows is restarted (`~5`→`~6`, field report 2026-09-17: Oliver's own session, the task in focus, got the `/exit` while he worked in it): the status command ends with `tmux list-clients -F 'viewed|#{window_id}'`, and `autoRestart` skips every window listed there — the app's terminal mirror counts as a client, as does a terminal the user attached themselves — since the `Escape` would throw away what is being typed and the `/exit` end the session in front of the user; the first tick after they moved to another task restarts it.
+All of this runs only with the setting `claudeUpdateRestart: true` (`~6`→`~7`, field report 2026-10-31: "why /exit sent? … I don't like that"): `Main` hands the flag to `TmuxStatusPoller`, whose `poll` skips `autoRestart` without it, so by default a session keeps showing *Restart to update* until the user restarts it — or the phone's *Restart Claude* (`dsn~android-claude-restart~1`) does, which is a request and not gated.
 
 Tags: windows, linux
 
 Covers:
 - req~task-running-indicator~2
-- req~claude-update-restart~1
+- req~claude-update-restart~2
 
 Needs: impl, utest
 
@@ -1439,7 +1440,7 @@ The pane command is the same test `TmuxTaskImporter` uses on import: `claude` me
 Pressing it types `claude --resume <sessionId> || claude` into the recorded window — `TmuxResurrect.startClaude`, the command a resurrect already sends (`dsn~tmux-resurrect~7`), so the conversation is continued where one is recorded and a fresh session started where it is not (or where the id no longer resolves), `--dangerously-skip-permissions` following the `claudeAuto` setting.
 The round-trip runs off the FX thread with the button disabled and the status bar reporting `Starting Claude …` → outcome, the async single-shot button shape.
 No confirmation: typing a command into a window that is not running Claude cannot destroy anything.
-Play on such a task does the same (`~2`): `MainWindow.switchResolved` runs the switch actions and then, when the last poll's evidence says the window lacks Claude, the very start the button sends — so a killed Claude comes back by the one gesture a row is reached for, without switching away and back or finding the button (field report 2026-09-14: "if claude is killed, play button should resume it?"). No separate *restart* button: restarting a *running* Claude is the update path's business (`dsn~claude-update-restart~6`), and a window the poll has not seen is left alone as before.
+Play on such a task does the same (`~2`): `MainWindow.switchResolved` runs the switch actions and then, when the last poll's evidence says the window lacks Claude, the very start the button sends — so a killed Claude comes back by the one gesture a row is reached for, without switching away and back or finding the button (field report 2026-09-14: "if claude is killed, play button should resume it?"). No separate *restart* button: restarting a *running* Claude is the update path's business (`dsn~claude-update-restart~7`), and a window the poll has not seen is left alone as before.
 
 Tags: windows, linux
 

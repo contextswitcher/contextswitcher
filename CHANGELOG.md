@@ -17,6 +17,7 @@ The topmost section is the day in progress — its link points at `main` until t
 ### Changed
 
 - The task list sorts by *Last update* by default, so a new task shows up at the top of its group; a sort order picked in the Sort menu is kept as before.
+- Claude sessions are no longer sent `/exit` on their own when Claude Code shows *Restart to update*; set `claudeUpdateRestart: true` in the settings to get the automatic restart back.
 
 ### Fixed
 - Setup wizard: the browser-extension page is skipped for the Microsoft Store build of Firefox too, when the extension is installed there.

@@ -487,14 +487,14 @@ Needs: impl, utest
 
 `com.contextswitcher.android.ui.TerminalPage` checks every capture with `TmuxStatusPoller.updatePendingIn` — the remote grep's rule applied to the screen it already holds: the bottom four non-blank lines, escapes removed — and while the footer shows "Restart to update", the bar below the snapshot offers *Restart Claude*.
 The button runs `com.contextswitcher.discovery.ClaudeUpdateRestart.restart` for the task's window, disabled and reading *Restarting…* meanwhile, then recaptures and reports the outcome in the Snackbar.
-`restart` is the desktop poller's sequence (`dsn~claude-update-restart~6`) in one blocking call, from its commands: read the window's `@cs_status`, `@cs_session_id` and `pane_current_command`; refuse unless `TmuxStatusPoller.restartable` (`NotIdle`); read the pane process's and its children's arguments (Linux `ps`) for `--dangerously-skip-permissions`, since the phone has no `claudeAuto` setting; send `exitCommand`; ask every 2 s, up to 15 times, until the window no longer runs `claude` (else `DidNotQuit`, no resume); then `resumeCommand` with the session id and the flag.
+`restart` is the desktop poller's sequence (`dsn~claude-update-restart~7`) in one blocking call, from its commands: read the window's `@cs_status`, `@cs_session_id` and `pane_current_command`; refuse unless `TmuxStatusPoller.restartable` (`NotIdle`); read the pane process's and its children's arguments (Linux `ps`) for `--dangerously-skip-permissions`, since the phone has no `claudeAuto` setting; send `exitCommand`; ask every 2 s, up to 15 times, until the window no longer runs `claude` (else `DidNotQuit`, no resume); then `resumeCommand` with the session id and the flag.
 Not automatic on the phone: with the desktop also running, both would count their own `/exit` attempts and could type a resume into the other's fresh Claude.
 `TaskWatchService` adds "update pending: Restart Claude" to its finished alert when the status query's `update|<window>` marker names the watched window (`TmuxStatusPoller.parseUpdatePending`).
 
 Tags: android
 
 Covers:
-- req~claude-update-restart~1
+- req~claude-update-restart~2
 
 Needs: impl, utest
 

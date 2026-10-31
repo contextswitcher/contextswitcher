@@ -75,13 +75,13 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// the "Update installed · Restart to update" line it shows in its footer
     /// once the new version is unpacked but the running process is still the
     /// old one.
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     static final String UPDATE_PENDING = "update";
 
     /// Marker prefix of the windows an attached tmux client shows right now —
     /// the app's terminal mirror or the user's own terminal: someone is
     /// looking at, and may be typing into, that window.
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     static final String VIEWED = "viewed";
 
     /// `grep -E` pattern matching that footer line.
@@ -102,7 +102,7 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// A window whose restart did not take is retried at most this often —
     /// the footer keeps the message until a Claude that has it really comes
     /// up, so a per-tick retry would quit the session over and over.
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     static final long RESTART_COOLDOWN_SECONDS = 300;
 
     /// How many `/exit`s a window gets for one pending update before it is
@@ -110,7 +110,7 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// does not show (field report 2026-09-14, a `done` window took a dozen
     /// `/exit`s as prompts — its background shells' question is answered by
     /// [#exitCommand] now; this guards whatever else keeps a session up).
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     static final int MAX_RESTART_ATTEMPTS = 2;
 
     private final SshCommandRunner ssh;
@@ -141,22 +141,26 @@ public class TmuxStatusPoller implements AutoCloseable {
     private final Map<String, Long> continued = new HashMap<>();
     /// Window key -> epoch second of the last update restart typed into it.
     /// Poller thread only.
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     private final Map<String, Long> restarted = new HashMap<>();
     /// Window key -> the session id to resume once the window's `/exit` has
     /// taken, i.e. its pane no longer runs `claude` (a blank id resumes by
     /// `--continue`). Poller thread only.
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     private final Map<String, String> resumePending = new HashMap<>();
     /// Window key -> `/exit`s sent for the update it currently shows; cleared
     /// when the marker is gone. Poller thread only.
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     private final Map<String, Integer> restartAttempts = new HashMap<>();
     /// Whether a restarted session gets `--dangerously-skip-permissions` back
     /// (settings `claudeAuto`) — the flag is the process's, so a restart drops
     /// it unless it is typed again.
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     private final boolean claudeAuto;
+    /// Whether the poller restarts sessions on a pending update at all
+    /// (settings `claudeUpdateRestart`, off by default).
+    // [impl->dsn~claude-update-restart~7]
+    private final boolean updateRestart;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "tmux-status-poller");
         thread.setDaemon(true);
@@ -166,7 +170,8 @@ public class TmuxStatusPoller implements AutoCloseable {
     public TmuxStatusPoller(SshCommandRunner ssh, Supplier<Set<String>> hosts,
             Consumer<Map<String, String>> onUpdate, Consumer<Map<String, ClaudeMode>> onModes,
             Consumer<Map<String, String>> onSessionIds, Consumer<Map<String, String>> onCommands,
-            Consumer<Map<String, Long>> onIdle, boolean claudeAuto, long intervalSeconds) {
+            Consumer<Map<String, Long>> onIdle, boolean claudeAuto, boolean updateRestart,
+            long intervalSeconds) {
         this.ssh = ssh;
         this.hosts = hosts;
         this.onUpdate = onUpdate;
@@ -175,6 +180,7 @@ public class TmuxStatusPoller implements AutoCloseable {
         this.onCommands = onCommands;
         this.onIdle = onIdle;
         this.claudeAuto = claudeAuto;
+        this.updateRestart = updateRestart;
         this.intervalSeconds = intervalSeconds;
     }
 
@@ -216,7 +222,9 @@ public class TmuxStatusPoller implements AutoCloseable {
                     parseCommandsInto(host, result.stdout(), commands);
                     parseIdleInto(host, result.stdout(), idle);
                     autoContinue(host, result.stdout(), merged);
-                    autoRestart(host, result.stdout(), merged, sessionIds, commands);
+                    if (updateRestart) {
+                        autoRestart(host, result.stdout(), merged, sessionIds, commands);
+                    }
                 }
             } catch (Exception e) {
                 Logger.debug("Status poll failed for {}: {}", host, e.getMessage());
@@ -295,12 +303,12 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// `true` keeps the exit code at 0 when the last window did not match.
     /// A third grep looks at the bottom four non-blank lines — Claude's
     /// footer, below the input box — for the pending self-update and emits
-    /// an `update|windowId` marker (`dsn~claude-update-restart~6`). Not the
+    /// an `update|windowId` marker (`dsn~claude-update-restart~7`). Not the
     /// whole screen: a diff Claude shows can quote the phrase (2026-09-15,
     /// JabRef's *Restart to update* button label on screen got a session
     /// its `/exit`).
     // [impl->dsn~claude-limit-detection~2]
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     // [impl->dsn~android-finish-notification~1]
     public static List<String> statusCommand() {
         return List.of("now=$(date +%s); "
@@ -332,7 +340,7 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// `sessionIds` is the same tick's `@cs_session_id` per window, so the
     /// window comes back up on **its own** conversation ([#resumeCommand]);
     /// `commands` the same tick's `#{pane_current_command}`.
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     void autoRestart(String host, String stdout, Map<String, String> statuses,
             Map<String, String> sessionIds, Map<String, String> commands) {
         long now = System.currentTimeMillis() / 1000;
@@ -407,7 +415,7 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// permission prompt on screen that the restart would throw away, `limit`
     /// is not helped by a new process, and a window with no status this tick
     /// did not answer at all.
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     public static boolean restartable(@Nullable String status) {
         return "waiting".equalsIgnoreCase(status) || "done".equalsIgnoreCase(status);
     }
@@ -422,7 +430,7 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// the shell prompt Claude left behind, or in an empty input box —
     /// nothing either way. The sleeps are server-side `run-shell`s, so the
     /// whole thing is one round-trip.
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     public static List<String> exitCommand(String windowId) {
         String target = "'" + windowId + "'";
         return List.of("tmux", "send-keys", "-t", target, "Escape", "\\;",
@@ -450,7 +458,7 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// `--continue` stays as the `||` fallback for a window that published no
     /// id, and for an id the remote no longer knows — no worse than what it
     /// alone used to do, and the only way back into *some* conversation.
-    // [impl->dsn~claude-update-restart~6]
+    // [impl->dsn~claude-update-restart~7]
     public static List<String> resumeCommand(String windowId, @Nullable String sessionId, boolean auto) {
         String target = "'" + windowId + "'";
         String flags = auto ? " --dangerously-skip-permissions" : "";

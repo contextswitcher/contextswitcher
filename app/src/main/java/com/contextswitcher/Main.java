@@ -1102,8 +1102,10 @@ public class Main extends Application {
                 idle -> Platform.runLater(() -> window.autoSuspendIdle(idle,
                         autoSuspendMinutes * 60L)),
                 // The flag a restarted session has to be given back.
-                // [impl->dsn~claude-update-restart~6]
+                // [impl->dsn~claude-update-restart~7]
                 settings.claudeAuto(),
+                // Opt-in: an unasked /exit is not wanted by default.
+                settings.claudeUpdateRestart(),
                 STATUS_POLL_SECONDS);
         this.statusPoller = poller;
         poller.start();

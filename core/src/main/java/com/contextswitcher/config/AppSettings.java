@@ -50,6 +50,8 @@ import com.contextswitcher.tasks.TextFiles;
 /// janitor; 0 turns it off (`dsn~merged-task-cleanup~2`).
 /// `autoCopyReplies` (default false) puts each finished Claude reply of the
 /// mirrored chat on the clipboard as Markdown (`dsn~terminal-markdown-copy~1`).
+/// `claudeUpdateRestart` (default false) lets the status poller quit and resume
+/// an idle Claude session that asks to "Restart to update" (`dsn~claude-update-restart~7`).
 /// Files written before `hosts` existed carry `remotes`, `inactiveRemotes` and
 /// one global `refactoringMinerHome` instead; [#parse(String)] reads them into
 /// hosts (the global directory for every one of them), and [#loadOrCreate(Path)]
@@ -66,11 +68,12 @@ import com.contextswitcher.tasks.TextFiles;
 // [impl->dsn~terminal-markdown-copy~1]
 // [impl->dsn~host-on-off~2]
 // [impl->dsn~host-table~1]
+// [impl->dsn~claude-update-restart~7]
 public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSettings> hosts,
         List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
         boolean showOnAllDesktops, int refactoringMinerPort, boolean readlineKeys,
         String fallbackDesktop, int autoSuspendMinutes, Browser browser, int mergedCleanupDays,
-        boolean autoCopyReplies) {
+        boolean autoCopyReplies, boolean claudeUpdateRestart) {
 
     /// The settings keys `hosts` replaced — read from an older file, removed
     /// from it when the settings dialog writes `hosts`.
@@ -125,7 +128,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
         this(tasksDir, wsPort, wsToken, remotes.stream().map(HostSettings::of).toList(), tags,
                 true, false, DEFAULT_THEME, false, DEFAULT_REFACTORING_MINER_PORT, false,
                 DEFAULT_FALLBACK_DESKTOP, DEFAULT_AUTO_SUSPEND_MINUTES, Browser.DEFAULT,
-                DEFAULT_MERGED_CLEANUP_DAYS, false);
+                DEFAULT_MERGED_CLEANUP_DAYS, false, false);
     }
 
     public AppSettings {
@@ -180,7 +183,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
     public AppSettings withHosts(List<HostSettings> replaced) {
         return new AppSettings(tasksDir, wsPort, wsToken, replaced, tags, hints, claudeAuto, theme,
                 showOnAllDesktops, refactoringMinerPort, readlineKeys, fallbackDesktop,
-                autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies);
+                autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies, claudeUpdateRestart);
     }
 
     /// `hosts` with `destination`'s entry passed through `change` — or, when
@@ -324,12 +327,15 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
         // Overwriting the clipboard unasked is opt-in: only an explicit `true`
         // counts. [impl->dsn~terminal-markdown-copy~1]
         boolean autoCopyReplies = map.get("autoCopyReplies") instanceof Boolean copy && copy;
+        // An unasked /exit in a session is opt-in: only an explicit `true`
+        // counts. [impl->dsn~claude-update-restart~7]
+        boolean claudeUpdateRestart = map.get("claudeUpdateRestart") instanceof Boolean restart && restart;
         return new AppSettings(Path.of(tasksDir.toString()), port, wsToken.toString(), hosts,
                 parseTags(map.get("tags")), hints, claudeAuto,
                 theme == null ? DEFAULT_THEME : theme.toString(), showOnAllDesktops,
                 rmPort, readlineKeys,
                 fallbackDesktop == null ? DEFAULT_FALLBACK_DESKTOP : fallbackDesktop.toString(),
-                autoSuspend, browser, mergedCleanup, autoCopyReplies);
+                autoSuspend, browser, mergedCleanup, autoCopyReplies, claudeUpdateRestart);
     }
 
     /// The `hosts` list — or, in a file from before it, the hosts the legacy
@@ -409,6 +415,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
         data.put("autoSuspendMinutes", autoSuspendMinutes);
         data.put("mergedCleanupDays", mergedCleanupDays);
         data.put("autoCopyReplies", autoCopyReplies);
+        data.put("claudeUpdateRestart", claudeUpdateRestart);
         data.put("browser", browser.key());
         data.put("refactoringMinerPort", refactoringMinerPort);
         data.put("hosts", hostMaps());
@@ -449,6 +456,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
             case "autoSuspendMinutes" -> autoSuspendMinutes;
             case "mergedCleanupDays" -> mergedCleanupDays;
             case "autoCopyReplies" -> autoCopyReplies;
+            case "claudeUpdateRestart" -> claudeUpdateRestart;
             case "browser" -> browser.key();
             case "refactoringMinerPort" -> refactoringMinerPort;
             case "hosts" -> hostMaps();
@@ -477,6 +485,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                 autoSuspendMinutes: 2880     # suspend an active Claude task whose chat has been idle this long (48 h) (its window is ended, resume recreates it); 0 = never
                 mergedCleanupDays: 7         # a task whose PRs are all merged is cleaned up (window, transcript, worktree, file) — right away when its last screen needs no human, else once paused this long; 0 = never
                 autoCopyReplies: false       # true = each finished reply of the mirrored Claude chat is put on the clipboard as Markdown
+                claudeUpdateRestart: false   # true = quit and resume an idle Claude session that shows "Restart to update" (sends /exit)
                 refactoringMinerPort: 6789   # loopback port the refactoring web view is served and tunnelled on
                 hosts:                       # machines sessions run on; their destinations are what the tmux sync scans (none: it falls back to remotes of existing tasks)
                   - destination: koppor@devbox             # ssh destination, user part included (or an alias, or wsl:<distro>)

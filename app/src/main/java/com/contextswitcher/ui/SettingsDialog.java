@@ -385,10 +385,13 @@ final class SettingsDialog {
         }
         // [impl->dsn~terminal-markdown-copy~1]
         boolean autoCopyReplies = ((CheckBox) controls.get("autoCopyReplies")).isSelected();
+        // [impl->dsn~claude-update-restart~7]
+        boolean claudeUpdateRestart = ((CheckBox) controls.get("claudeUpdateRestart")).isSelected();
         return new AppSettings(Path.of(tasksDir.trim()), wsPort, wsToken,
                 hosts, tags, hints, claudeAuto, theme, showOnAllDesktops,
                 refactoringMinerPort, readlineKeys,
-                fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies);
+                fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies,
+                claudeUpdateRestart);
     }
 
     /// The tag-palette editor: a row per tag pairing a name field with a color

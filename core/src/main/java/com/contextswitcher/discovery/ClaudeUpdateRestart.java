@@ -8,7 +8,7 @@ import org.jspecify.annotations.Nullable;
 
 /// Restarts one Claude session that shows "Restart to update", on request —
 /// the phone's *Restart Claude* button. The same steps as the desktop poller's
-/// automatic restart (`dsn~claude-update-restart~6`), built from its commands,
+/// automatic restart (`dsn~claude-update-restart~7`), built from its commands,
 /// but in one blocking call instead of spread over poll ticks: only a session
 /// whose turn is over is touched ([TmuxStatusPoller#restartable]), `/exit`
 /// ([TmuxStatusPoller#exitCommand]), wait until the window no longer runs
