@@ -852,7 +852,7 @@ public class MainWindow {
     }
 
     /// Re-runs the first-start wizard (remote, tools, first project); set by
-    /// `Main`, a no-op until then. [impl->dsn~setup-wizard~11]
+    /// `Main`, a no-op until then. [impl->dsn~setup-wizard~12]
     private Runnable onSetupWizard = () -> { };
 
     /// The host table's workspaces directory per ssh destination (null: none
@@ -867,7 +867,7 @@ public class MainWindow {
     }
 
     /// Installs the setup-wizard handler (see [#onSetupWizard]).
-    // [impl->dsn~setup-wizard~11]
+    // [impl->dsn~setup-wizard~12]
     public void setOnSetupWizard(Runnable handler) {
         this.onSetupWizard = handler;
     }
@@ -4522,13 +4522,13 @@ public class MainWindow {
     }
 
     /// The category-from-URL flow behind the setup wizard's last page
-    /// (`dsn~setup-wizard~11`): creates the folder
+    /// (`dsn~setup-wizard~12`): creates the folder
     /// and its config, then starts the setup session. With a `remote` that is
     /// a live task there; with none (a local category) the same description is
     /// handed to a local Claude in the workspaces root, the template appended
     /// to the prompt, since the local launcher carries no appendix of its own.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~setup-wizard~11]
+    // [impl->dsn~setup-wizard~12]
     public void createCategoryFromRepo(String url, String workspacesRoot, @Nullable String remote,
             RepoType type, ClaudeMode mode, @Nullable String firstMessage) {
         String web = TaskFileParser.repoWebUrl(url);
@@ -4609,7 +4609,7 @@ public class MainWindow {
     /// directory, else the parent of that host's existing roots
     /// ([#categoriesWorkspacesParent]), else null — the setup wizard then
     /// proposes one under the checked home.
-    // [impl->dsn~setup-wizard~11]
+    // [impl->dsn~setup-wizard~12]
     // [impl->dsn~host-table~1]
     public @Nullable String configuredWorkspacesParent(String host) {
         String table = hostWorkspaces.apply(host);
@@ -4621,7 +4621,7 @@ public class MainWindow {
     /// categories count: another machine's `/data/kopp` does not exist on
     /// this one, and `tmux new-window -c` on a missing directory silently
     /// starts in the home directory instead.
-    // [impl->dsn~setup-wizard~11]
+    // [impl->dsn~setup-wizard~12]
     private @Nullable String categoriesWorkspacesParent(String host) {
         return folders.stream().sorted()
                 .map(this::groupDefaults)
@@ -4735,7 +4735,7 @@ public class MainWindow {
 
     /// Whether any category exists — the setup wizard's last page then
     /// adds one instead of creating the first.
-    // [impl->dsn~setup-wizard~11]
+    // [impl->dsn~setup-wizard~12]
     public boolean hasCategories() {
         return !folders.isEmpty();
     }
@@ -7104,7 +7104,7 @@ public class MainWindow {
     /// The wizard's re-entry, next to the other creation actions in the add
     /// menu and the list's context menu: a second remote, the tools on a new
     /// host, another first project — the same pages as on the first start.
-    // [impl->dsn~setup-wizard~11]
+    // [impl->dsn~setup-wizard~12]
     private MenuItem setupWizardItem() {
         MenuItem item = new MenuItem("Setup wizard…");
         item.setId("setup-wizard");
@@ -7557,7 +7557,7 @@ public class MainWindow {
         openDir.setOnAction(event -> onOpenTasksDir.run());
 
         // The wizard from the empty state too: a newcomer who cancelled it
-        // is looking right here. [impl->dsn~setup-wizard~11]
+        // is looking right here. [impl->dsn~setup-wizard~12]
         Hyperlink wizard = new Hyperlink("Run the setup wizard…");
         wizard.setOnAction(event -> onSetupWizard.run());
         VBox placeholder = new VBox(4,

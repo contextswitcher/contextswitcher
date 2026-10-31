@@ -21,6 +21,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Fixed
 - Setup wizard: the browser-extension page is skipped for the Microsoft Store build of Firefox too, when the extension is installed there.
+- Setup wizard: the browser-extension page is also skipped when Firefox runs the extension as a temporary add-on loaded through `about:debugging`.
 - The remote-window dialog no longer shows a scrollbar next to a short two-line question; only an overlong pasted title scrolls.
 - Android: a host name that does not resolve on the phone's network is reported as such, with a VPN hint, instead of a bare "Cannot connect to user@host: host".
 - Android: a host that rejects the SSH key says which host (the remote or the jump host) and whose `authorized_keys` needs the public key, instead of "Exhausted available authentication methods".

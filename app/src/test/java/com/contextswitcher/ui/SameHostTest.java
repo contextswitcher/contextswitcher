@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// Which categories' roots the setup wizard proposes a new root next to:
 /// only those on the chosen session host.
-// [utest->dsn~setup-wizard~11]
+// [utest->dsn~setup-wizard~12]
 class SameHostTest {
 
     @Test
