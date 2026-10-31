@@ -864,22 +864,24 @@ public class TaskFileParser {
     /// and `repo`, plus a `desktop:` line when a `desktop` is
     /// passed (the active-desktop filter's, `dsn~category-create-ui~2`). A
     /// null `remote` writes no `remote:` line — a local category
-    /// (`dsn~task-create-local~4`), the setup wizard's local choice.
+    /// (`dsn~task-create-local~4`), the setup wizard's local choice. A null
+    /// `url` is a plain folder (`dsn~category-from-folder~1`): no clone, so
+    /// neither `mainCheckout` nor `repo`.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~setup-wizard~10]
-    public static String groupConfigForRepo(String group, String url, @Nullable String remote,
+    // [impl->dsn~category-from-folder~1]
+    // [impl->dsn~setup-wizard~11]
+    public static String groupConfigForRepo(String group, @Nullable String url, @Nullable String remote,
             String workspacesRoot, @Nullable String desktop) {
         return """
                 ---
                 %sworkspacesRoot: %s
-                mainCheckout: %s
-                repo: %s
-                %s---
+                %s%s---
 
                 # %s — group defaults
                 """.formatted(remote == null ? "" : "remote: " + yamlScalar(remote) + "\n",
                 yamlScalar(workspacesRoot),
-                yamlScalar(workspacesRoot + "/" + group), yamlScalar(url.strip()),
+                url == null ? "" : "mainCheckout: " + yamlScalar(workspacesRoot + "/" + group)
+                        + "\nrepo: " + yamlScalar(url.strip()) + "\n",
                 desktop == null ? "" : "desktop: " + yamlScalar(desktop) + "\n", group);
     }
 

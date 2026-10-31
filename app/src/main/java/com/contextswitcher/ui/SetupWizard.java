@@ -53,7 +53,7 @@ import com.contextswitcher.tasks.TaskFileParser;
 ///
 /// One `Dialog` with swapped pages rather than six dialogs: Back works, and
 /// Cancel on any page leaves everything as it was.
-// [impl->dsn~setup-wizard~10]
+// [impl->dsn~setup-wizard~11]
 public final class SetupWizard {
 
     /// The wizard's answers. `remote` is null for local sessions; every
@@ -61,10 +61,14 @@ public final class SetupWizard {
     /// when the wizard was left through *Finish and check up*: the first
     /// project's setup session then goes on to [#CHECKUP_PROMPT].
     /// `workspaces` is the directory new workspaces roots go under on the
-    /// remote, asked on its page (`dsn~host-table~1`).
+    /// remote, asked on its page (`dsn~host-table~1`). `folderCategory` is
+    /// the name of a category for a plain folder — no git, no remote — whose
+    /// path is then `workspacesRoot`, `repoUrl` being null
+    /// (`dsn~category-from-folder~1`).
     public record Result(@Nullable String remote, @Nullable String taskRepoUrl,
             @Nullable String repoUrl, @Nullable String workspacesRoot, RepoType repoType,
-            @Nullable String refactoringMinerHome, boolean checkup, @Nullable String workspaces) {
+            @Nullable String refactoringMinerHome, boolean checkup, @Nullable String workspaces,
+            @Nullable String folderCategory) {
 
         public boolean local() {
             return remote == null;
@@ -679,7 +683,7 @@ public final class SetupWizard {
         repoType.getItems().setAll(RepoType.values());
         repoType.setValue(RepoType.WRITE_ACCESS);
         repoType.getStyleClass().add(Styles.SMALL);
-        VBox page6 = page(prefill.categoriesExist() ? "Add a category" : "First category",
+        VBox repoRows = new VBox(8,
                 caption("Repository URL"), repoUrl,
                 caption("Workspaces root (the primary clone and per-task worktrees go under it)"),
                 root,
@@ -687,6 +691,72 @@ public final class SetupWizard {
                 muted("A category is created for it and a Claude session sets the root up: "
                         + "clones the repository and writes its CLAUDE.md. Leave the URL empty "
                         + "to add categories later from the toolbar."));
+        // The other source: a plain folder on the session host — no git, no
+        // remote (one synced by OneDrive, say). Its name follows the folder's
+        // last segment until typed into. [impl->dsn~category-from-folder~1]
+        TextField folder = new TextField();
+        folder.setId("setup-folder");
+        folder.setPrefColumnCount(40);
+        TextField folderName = new TextField();
+        folderName.setId("setup-folder-name");
+        folderName.setPrefColumnCount(20);
+        boolean[] folderNameEdited = {false};
+        folderName.setOnKeyTyped(event -> folderNameEdited[0] = true);
+        folder.textProperty().addListener((obs, old, text) -> {
+            if (!folderNameEdited[0]) {
+                String[] segments = text.strip().split("[/\\\\]+");
+                folderName.setText(segments.length == 0 ? "" : TaskFileParser.slug(segments[segments.length - 1]));
+            }
+        });
+        Button browse = new Button("Browse…");
+        browse.setId("setup-folder-browse");
+        browse.getStyleClass().add(Styles.SMALL);
+        browse.setOnAction(event -> {
+            javafx.stage.DirectoryChooser chooser = new javafx.stage.DirectoryChooser();
+            chooser.setTitle("Folder of the category");
+            java.io.File picked = chooser.showDialog(browse.getScene().getWindow());
+            if (picked != null) {
+                folder.setText(picked.getAbsolutePath());
+            }
+        });
+        VBox folderRows = new VBox(8,
+                caption("Folder (on the machine the sessions run on)"), withButton(folder, browse),
+                caption("Category name"), folderName,
+                muted("A category is created for the folder and a Claude session writes its "
+                        + "CLAUDE.md there. Nothing is cloned and git is not used — fine for a "
+                        + "folder synced by OneDrive."));
+        ToggleGroup source = new ToggleGroup();
+        RadioButton fromRepo = new RadioButton("From a repository");
+        fromRepo.setId("setup-from-repo");
+        fromRepo.setToggleGroup(source);
+        fromRepo.setSelected(true);
+        RadioButton fromFolder = new RadioButton("A local folder — no remote, no git");
+        fromFolder.setId("setup-from-folder");
+        fromFolder.setToggleGroup(source);
+        Runnable showSource = () -> {
+            boolean plain = fromFolder.isSelected();
+            repoRows.setVisible(!plain);
+            repoRows.setManaged(!plain);
+            folderRows.setVisible(plain);
+            folderRows.setManaged(plain);
+            // Browsing shows this machine's folders, which only a local
+            // session can use.
+            browse.setDisable(!localChoice.isSelected());
+            javafx.scene.Scene scene = folder.getScene();
+            if (scene != null && scene.getWindow() != null) {
+                scene.getWindow().sizeToScene();
+            }
+        };
+        source.selectedToggleProperty().addListener((obs, old, picked) -> showSource.run());
+        showSource.run();
+        // The category the last page would create, null for none.
+        Supplier<@Nullable String> categoryName = () -> fromFolder.isSelected()
+                ? (folder.getText().isBlank() || TaskFileParser.slug(folderName.getText()).isEmpty()
+                        ? null : TaskFileParser.slug(folderName.getText()))
+                : TaskFileParser.repoName(repoUrl.getText()) == null || root.getText().isBlank()
+                        ? null : TaskFileParser.repoName(repoUrl.getText());
+        VBox page6 = page(prefill.categoriesExist() ? "Add a category" : "First category",
+                new HBox(16, fromRepo, fromFolder), repoRows, folderRows);
 
         List<Node> pages = List.of(page1, page2, page3, page4, page5, page6);
         StackPane content = new StackPane(page1);
@@ -728,6 +798,7 @@ public final class SetupWizard {
             }
             if (current[0] == last) {
                 followUrl.run();
+                showSource.run();
             }
             // A dialog sizes itself to its content once, at show; a taller
             // page would otherwise push its buttons out of the window.
@@ -740,19 +811,21 @@ public final class SetupWizard {
             }
             Platform.runLater(() -> (current[0] == 1
                     ? (wslChoice.isSelected() ? (Node) distro : host) : current[0] == 4 ? cloneUrl
-                    : current[0] == last ? repoUrl : (Node) nextButton).requestFocus());
+                    : current[0] == last ? (fromFolder.isSelected() ? folder : repoUrl)
+                    : (Node) nextButton).requestFocus());
         };
         nextButton.disableProperty().bind(Bindings.createBooleanBinding(
                 () -> current[0] == 1 && remoteChoice.isSelected() && host.getText().isBlank()
-                        || current[0] == last && !repoUrl.getText().isBlank()
-                                && (TaskFileParser.repoName(repoUrl.getText()) == null
-                                        || root.getText().isBlank()),
+                        || current[0] == last && categoryName.get() == null
+                                && !(fromFolder.isSelected() ? folder : repoUrl).getText().isBlank(),
                 host.textProperty(), repoUrl.textProperty(), root.textProperty(),
+                folder.textProperty(), folderName.textProperty(), source.selectedToggleProperty(),
                 content.getChildren()));
         // The checkup runs in the new category's setup session, so it needs one.
         checkupButton.disableProperty().bind(Bindings.createBooleanBinding(
-                () -> TaskFileParser.repoName(repoUrl.getText()) == null || root.getText().isBlank(),
-                repoUrl.textProperty(), root.textProperty()));
+                () -> categoryName.get() == null,
+                repoUrl.textProperty(), root.textProperty(), folder.textProperty(),
+                folderName.textProperty(), source.selectedToggleProperty()));
         Runnable forward = () -> {
             int index = current[0] + 1;
             while (skipped.test(index)) {
@@ -774,7 +847,7 @@ public final class SetupWizard {
         });
         // Registered ahead of Next's own filter, so it sees Finish first.
         javafx.event.EventHandler<ActionEvent> clashCheck = event -> {
-            String name = TaskFileParser.repoName(repoUrl.getText());
+            String name = categoryName.get();
             if (current[0] == last && name != null && !freeCategoryName.test(name)) {
                 event.consume();
             }
@@ -806,12 +879,15 @@ public final class SetupWizard {
             if (button != next && button != checkup && button != startNow) {
                 return null;
             }
-            @Nullable String project = button == startNow ? null : blankToNull(repoUrl.getText());
+            @Nullable String category = button == startNow ? null : categoryName.get();
+            boolean plain = category != null && fromFolder.isSelected();
+            @Nullable String project = category == null || plain ? null : repoUrl.getText().strip();
             return new Result(localChoice.isSelected() ? null : sessionHost.get(),
                     blankToNull(cloneUrl.getText()), project,
-                    project == null ? null : blankToNull(root.getText()),
+                    category == null ? null : blankToNull((plain ? folder : root).getText()),
                     repoType.getValue(), rmHome[0], button == checkup,
-                    localChoice.isSelected() ? null : blankToNull(workspaces.getText()));
+                    localChoice.isSelected() ? null : blankToNull(workspaces.getText()),
+                    plain ? category : null);
         });
         // The first start shows the wizard before the main window, which is
         // what otherwise installs `main.css` and forces the theme to take.

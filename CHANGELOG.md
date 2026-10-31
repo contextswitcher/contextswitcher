@@ -10,10 +10,12 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Added
 
+- Setup wizard: the category page offers *A local folder — no remote, no git* next to a repository: a folder (say, one synced by OneDrive) becomes a category as it is, and a Claude session writes its `CLAUDE.md` without cloning or running `git init`.
 - Android: *Call (Android Auto)* on the voice tour screen runs the tour as a phone call, so Android Auto shows it like a call and uses the car's microphone and speakers; "next", "previous", "repeat" and "hang up" steer, anything else is sent as the reply.
 - Android: *Jump hosts* in the settings — `user@host via user@jump[:port]` per line — reach a remote through another ssh host, like `ProxyJump` on the desktop; the jump host then also resolves a short name the phone cannot. *Check connections* tries every listed remote through its jump host and reports each result; saving does not depend on it.
 
 ### Fixed
+- Setup wizard: the browser-extension page is skipped for the Microsoft Store build of Firefox too, when the extension is installed there.
 - The remote-window dialog no longer shows a scrollbar next to a short two-line question; only an overlong pasted title scrolls.
 - Android: a host name that does not resolve on the phone's network is reported as such, with a VPN hint, instead of a bare "Cannot connect to user@host: host".
 - Android: a host that rejects the SSH key says which host (the remote or the jump host) and whose `authorized_keys` needs the public key, instead of "Exhausted available authentication methods".

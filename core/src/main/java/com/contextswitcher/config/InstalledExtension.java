@@ -30,7 +30,7 @@ import org.tinylog.Logger;
 ///
 /// Every unreadable file counts as *not installed*: this only decides whether
 /// the setup wizard's extension page is still worth showing.
-// [impl->dsn~setup-wizard~10]
+// [impl->dsn~setup-wizard~11]
 public final class InstalledExtension {
 
     /// The Firefox extension's `browser_specific_settings.gecko.id`.
@@ -62,13 +62,23 @@ public final class InstalledExtension {
         return null;
     }
 
-    /// Firefox's own directories, the ones holding `profiles.ini`: Windows,
-    /// the Linux classic, Snap and Flatpak locations, macOS.
+    /// Firefox's own directories, the ones holding `profiles.ini`: Windows
+    /// (classic installer and Microsoft Store package), the Linux classic, Snap and Flatpak locations, macOS.
     private static List<Path> firefoxBases(Path home, Map<String, String> env) {
         List<Path> bases = new ArrayList<>();
         String appData = env.get("APPDATA");
         if (appData != null) {
             bases.add(Path.of(appData, "Mozilla", "Firefox"));
+        }
+        // The Microsoft Store build keeps its roaming data inside its package
+        // (`Mozilla.Firefox_<publisher hash>`), not under %APPDATA%.
+        String localAppData = env.get("LOCALAPPDATA");
+        if (localAppData != null) {
+            for (Path pkg : profiles(List.of(Path.of(localAppData, "Packages")))) {
+                if (pkg.getFileName().toString().startsWith("Mozilla.Firefox")) {
+                    bases.add(pkg.resolve("LocalCache/Roaming/Mozilla/Firefox"));
+                }
+            }
         }
         bases.add(home.resolve(".mozilla/firefox"));
         bases.add(home.resolve("snap/firefox/common/.mozilla/firefox"));

@@ -884,7 +884,7 @@ Needs: impl, utest
 ### Category from repository URL
 `dsn~category-from-url~5`
 
-`MainWindow.createCategoryFromRepo` takes the repository URL, the workspaces root, the remote, a `RepoType` (`dsn~claude-md-templates~1`) and an optional first message — all asked on the setup wizard's last page (`dsn~setup-wizard~10`), its only entry point: the separate *Add category from URL…* dialog in the toolbar add menu and the empty-area context menu duplicated that page and was dropped in `~5`.
+`MainWindow.createCategoryFromRepo` takes the repository URL, the workspaces root, the remote, a `RepoType` (`dsn~claude-md-templates~1`) and an optional first message — all asked on the setup wizard's last page (`dsn~setup-wizard~11`), its only entry point: the separate *Add category from URL…* dialog in the toolbar add menu and the empty-area context menu duplicated that page and was dropped in `~5`.
 The category is named `TaskFileParser.repoName` (the last path segment of that web URL, `.git` dropped, slugged like a folder name; non-URLs are refused) — an ssh clone URL (`git@host:owner/name.git`, `ssh://…`) counts as well.
 It creates the folder and writes `TaskFileParser.groupConfigForRepo` — the skeleton's example lines as real values: `remote`, `workspacesRoot`, `mainCheckout: <root>/<name>`, `repo` (`TaskFileParser.repoWebUrl`: the `https://host/owner/name` page — of an ssh URL too, and cut back from a deep link: on GitHub after `owner/name`, on GitLab before `/-/` — since `repo` is opened in the browser and drives the issue links, `dsn~terminal-issue-links~2`; the setup description keeps an ssh URL as typed, so the session clones over ssh) (no `tags:` line since `~4` — a category is not a tag), plus `desktop:` when the desktop filter is on (`dsn~category-create-ui~2`) — then starts a live task in the new group (`dsn~task-create-live~8`, whose `mkdir -p` of the workspaces root is the remote-side setup step; no worktree clause, since there is no clone yet) with `MainWindow.categorySetupDescription` as the description and the picked type's template as the prompt's appendix: clone the repository into the `<name>` subdirectory (the `mainCheckout`), then write the root's `CLAUDE.md` from that template — placeholders replaced, the build/test and pull-request sections filled from the clone's README, build files and CI workflows, inapplicable sections deleted, the rest kept.
 The type and the first message only shape that description: a `fork()` type's clone clause asks for a fork of the repository (`gh repo fork --clone`, which reuses an existing fork) with the original kept as `upstream`; a non-blank first message is appended as "After setting things up, please do the following: …", so the setup session runs straight into the actual work instead of idling.
@@ -915,6 +915,21 @@ Covers:
 
 Needs: impl, utest
 
+### Category from a plain folder
+`dsn~category-from-folder~1`
+
+A project need not have a repository: a folder synced by OneDrive, say, has no remote and must not get a `.git` (the sync would carry it along).
+The setup wizard's last page offers it next to the repository (`dsn~setup-wizard~11`), and `Main` hands the answer to `MainWindow.createCategoryFromFolder`.
+It creates the category like `dsn~category-from-url~5` does — folder, clash popup (`dsn~category-name-clash~1`), `CONTEXTSWITCHER.md` through `TaskFileParser.groupConfigForRepo` with a null URL, so only `remote` (for a non-local session host), `workspacesRoot` (the folder itself) and `desktop` are written, no `mainCheckout` and no `repo` — and starts the same setup session in the folder, with `MainWindow.folderSetupDescription` as the description: do not run `git init`, write the folder's `CLAUDE.md` from `RepoType.localFolderTemplate` (`claudemd/local-folder.md`: no branches, no worktrees, tasks share the folder, a backup copy before a larger rewrite since nothing undoes an edit), keep a `CLAUDE.md` that is already there and add only what it lacks.
+A first message is appended as for a repository.
+
+Tags: windows, linux
+
+Covers:
+- req~setup-wizard~1
+
+Needs: impl, utest
+
 ### Workspace-root CLAUDE.md templates
 `dsn~claude-md-templates~1`
 
@@ -937,7 +952,7 @@ Covers:
 Needs: impl, utest
 
 ### First-start wizard
-`dsn~setup-wizard~10`
+`dsn~setup-wizard~11`
 
 `Main.runSetupWizard` replaces the clone offer at the fresh-machine moment (`dsn~task-git-clone-setup~2`: the task directory missing or empty and not a git checkout — an existing directory is never re-prompted) with `SetupWizard.show`, one `Dialog` whose content is swapped between four pages by *Back*/*Next* (their `ACTION` consumed, so the dialog stays open; the last page's *Finish* closes it with a `Result`, *Cancel* with none).
 Page one asks where sessions run — *remote over ssh* (default), *in WSL on this machine* (Windows only, `dsn~wsl-sessions~1`) or *this machine*, worded per OS: on Windows a local session runs in the app's own terminal pane and cannot be detached (`dsn~task-create-local~4`).
@@ -955,6 +970,7 @@ Page three recommends tools (`dsn~recommended-tools~3`), one row each with a liv
 Page four is the browser extension, the one part the app cannot install: what it does, the WebSocket port and token its options page needs (the token in a read-only field with a *Copy* button, since retyping it from `settings.yaml` is where people stall), a button opening the configured browser's install notes on GitHub through the app's URL opener, and — on a re-run, when `ExtensionServer` is up — which browser's extension is connected right now (`SetupWizard.Extension`, filled by `Main` from the settings and the server).
 When the extension is already there as the wizard opens, the page is skipped: it has nothing left to help with.
 "There" is either signal: an extension connected right now, or a browser profile listing it (`InstalledExtension.find`, `~9`→`~10`).
+The Microsoft Store build of Firefox keeps its profiles inside its package, `%LOCALAPPDATA%\Packages\Mozilla.Firefox_*\LocalCache\Roaming\Mozilla\Firefox`, which is searched like `%APPDATA%\Mozilla\Firefox` (`~10`→`~11`; field report 2026-10-31: the page still asked on a Windows machine with Firefox set up).
 A connection alone missed the common case — the browser closed, or the first start, when the server is not up yet — so on a machine with the extension installed the page still showed (field report 2026-10-11).
 The profile files answer without the browser: Firefox's `extensions.json` per profile (`addons[].id` is `extension@contextswitcher.org`; under `%APPDATA%\Mozilla\Firefox\Profiles`, `~/.mozilla/firefox` and its Snap and Flatpak twins, or macOS's `Library/Application Support`, plus every `Path=` of their `profiles.ini`, since a profile may live anywhere), and for Chrome/Chromium each `extensions.settings` entry of a profile's `Preferences`/`Secure Preferences`, followed to its `manifest.json` — an unpacked extension's id derives from its path, so the manifest `name` `ContextSwitcher` is what identifies it.
 Any unreadable file counts as not installed, so the page shows rather than being skipped wrongly; `InstalledExtensionTest` pins both browsers on synthetic profiles.
@@ -962,6 +978,7 @@ That is decided once, at open, so *Back* never loses a page the user just saw; o
 Page five is the old clone offer as a field: a task-repository URL, empty to start fresh.
 Next to *Next*, it offers *Start right away*, which finishes the wizard there without a first project: a cloned task repository already holds its projects.
 Page six is a category from a repository — headed *First category*, or *Add a category* on a re-run when categories already exist (`Prefill.categoriesExist`, from `MainWindow.hasCategories`), the same wording as the toolbar's *Add category* — with the repository URL (clipboard-prefilled like `dsn~category-from-url~5`), the workspaces root following it as `<remote home or user.home>/<name>-workspaces` until edited, and the `RepoType` — all optional.
+A radio pair above the fields switches it to a plain folder instead (*A local folder — no remote, no git*, `dsn~category-from-folder~1`, `~10`→`~11`): the folder's path, with *Browse…* (a `DirectoryChooser`, enabled only for local sessions, since it shows this machine's folders), and the category name following the path's last segment, slugged, until typed into; the `Result` then carries that name as `folderCategory` and the path as `workspacesRoot`, `repoUrl` null.
 Only a session on Windows itself gets Windows path separators there: a WSL root lives on the Linux side of the boundary and is proposed under the probed `$HOME` like a remote one.
 Back and Next step over the skipped pages (`skipped`: the remote page for a local choice, the tools page for local on Windows, the extension page while an extension is connected or installed), so a skipped page stays skipped in both directions.
 Each page swap calls `sizeToScene`: a `Dialog` sizes itself once at show, and a taller later page pushed *Finish* out of the window.
@@ -2157,7 +2174,7 @@ Needs: impl, utest
 ### A fresh install says which tools are missing
 `dsn~startup-tool-check~1`
 
-On the fresh-machine path — the same empty or missing task directory the setup wizard keys on (`dsn~setup-wizard~10`, `dsn~task-git-clone-setup~2`) — `RequiredTools.missing` scans `PATH` for `tmux`, `ssh` and `git`, and a warning alert names those that are not there.
+On the fresh-machine path — the same empty or missing task directory the setup wizard keys on (`dsn~setup-wizard~11`, `dsn~task-git-clone-setup~2`) — `RequiredTools.missing` scans `PATH` for `tmux`, `ssh` and `git`, and a warning alert names those that are not there.
 `tmux` runs local and remote Claude sessions, `ssh` reaches every remote, `git` syncs the task files; a missing one would otherwise only surface at the first click that needs it, as a failure with no obvious cause.
 Once, not on every start: the tools are installed once, and a per-launch check would be a permanent nag for a one-time problem.
 Windows is skipped — `ssh` ships with it and local sessions there are hosted by the app itself (`dsn~terminal-owned-session~4`), so `tmux` is not part of that install.

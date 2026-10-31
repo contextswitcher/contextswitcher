@@ -852,7 +852,7 @@ public class MainWindow {
     }
 
     /// Re-runs the first-start wizard (remote, tools, first project); set by
-    /// `Main`, a no-op until then. [impl->dsn~setup-wizard~10]
+    /// `Main`, a no-op until then. [impl->dsn~setup-wizard~11]
     private Runnable onSetupWizard = () -> { };
 
     /// The host table's workspaces directory per ssh destination (null: none
@@ -867,7 +867,7 @@ public class MainWindow {
     }
 
     /// Installs the setup-wizard handler (see [#onSetupWizard]).
-    // [impl->dsn~setup-wizard~10]
+    // [impl->dsn~setup-wizard~11]
     public void setOnSetupWizard(Runnable handler) {
         this.onSetupWizard = handler;
     }
@@ -4522,13 +4522,13 @@ public class MainWindow {
     }
 
     /// The category-from-URL flow behind the setup wizard's last page
-    /// (`dsn~setup-wizard~10`): creates the folder
+    /// (`dsn~setup-wizard~11`): creates the folder
     /// and its config, then starts the setup session. With a `remote` that is
     /// a live task there; with none (a local category) the same description is
     /// handed to a local Claude in the workspaces root, the template appended
     /// to the prompt, since the local launcher carries no appendix of its own.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~setup-wizard~10]
+    // [impl->dsn~setup-wizard~11]
     public void createCategoryFromRepo(String url, String workspacesRoot, @Nullable String remote,
             RepoType type, ClaudeMode mode, @Nullable String firstMessage) {
         String web = TaskFileParser.repoWebUrl(url);
@@ -4537,9 +4537,39 @@ public class MainWindow {
             Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Not a repository URL: " + url).show();
             return;
         }
-        if (!freeCategoryName(name, "Cancel")) {
+        if (!createConfiguredCategory(name, web, remote, workspacesRoot)) {
             return;
         }
+        // An ssh URL is what the session clones with; an https one may be a
+        // deep link, which only the web URL cuts back to the repository.
+        String clone = url.strip().startsWith("http") ? web : url;
+        startCategorySetup(categorySetupDescription(clone, name, workspacesRoot, type, firstMessage),
+                name, remote, workspacesRoot, web, type.template(), mode);
+    }
+
+    /// The setup wizard's other last-page choice: a category for a plain
+    /// `folder` on the session host — no git, no remote, e.g. one synced by
+    /// OneDrive. Named after `name` (slugged), configured with the folder as
+    /// its workspaces root, and set up by a session that writes the folder's
+    /// `CLAUDE.md` from [RepoType#localFolderTemplate].
+    // [impl->dsn~category-from-folder~1]
+    public void createCategoryFromFolder(String name, String folder, @Nullable String remote,
+            ClaudeMode mode, @Nullable String firstMessage) {
+        String group = TaskFileParser.slug(name);
+        if (group.isEmpty() || !freeCategoryName(group, "Cancel")
+                || !createConfiguredCategory(group, null, remote, folder)) {
+            return;
+        }
+        startCategorySetup(folderSetupDescription(folder, group, firstMessage), group, remote,
+                folder, null, RepoType.localFolderTemplate(), mode);
+    }
+
+    /// Creates the category folder and its `CONTEXTSWITCHER.md`; false after
+    /// an error alert.
+    // [impl->dsn~category-from-url~5]
+    // [impl->dsn~category-from-folder~1]
+    private boolean createConfiguredCategory(String name, @Nullable String web,
+            @Nullable String remote, String workspacesRoot) {
         String error = files.createFolder(name);
         if (error == null) {
             error = files.save(groupConfigFileName(name),
@@ -4549,25 +4579,29 @@ public class MainWindow {
         if (error != null) {
             Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
                     "Cannot create category %s: %s".formatted(name, error)).show();
-            return;
+            return false;
         }
         groupConfigCache.remove(name);
-        // An ssh URL is what the session clones with; an https one may be a
-        // deep link, which only the web URL cuts back to the repository.
-        String clone = url.strip().startsWith("http") ? web : url;
-        String description = categorySetupDescription(clone, name, workspacesRoot, type, firstMessage);
+        return true;
+    }
+
+    /// Starts a new category's setup session in `workspacesRoot`: a live task
+    /// on `remote`, or with none a local Claude given the template appended
+    /// to the prompt, since the local launcher carries no appendix of its own.
+    // [impl->dsn~category-from-url~5]
+    // [impl->dsn~category-from-folder~1]
+    private void startCategorySetup(String description, String name, @Nullable String remote,
+            String workspacesRoot, @Nullable String web, String template, ClaudeMode mode) {
         if (remote != null) {
             onCreateLiveTask.create(description, remote, workspacesRoot, web, false, name,
-                    mode, type.template());
+                    mode, template);
             return;
         }
         // The file keeps the whole prompt, template included, so a failed
         // first launch can be redone from it. [impl->dsn~task-create-live~8]
-        String taskId = createTitleTask(description, name,
-                description + "\n\n" + type.template());
+        String taskId = createTitleTask(description, name, description + "\n\n" + template);
         if (taskId != null) {
-            onStartLocalClaude.start(taskId, workspacesRoot,
-                    description + "\n\n" + type.template(), mode);
+            onStartLocalClaude.start(taskId, workspacesRoot, description + "\n\n" + template, mode);
         }
     }
 
@@ -4575,7 +4609,7 @@ public class MainWindow {
     /// directory, else the parent of that host's existing roots
     /// ([#categoriesWorkspacesParent]), else null — the setup wizard then
     /// proposes one under the checked home.
-    // [impl->dsn~setup-wizard~10]
+    // [impl->dsn~setup-wizard~11]
     // [impl->dsn~host-table~1]
     public @Nullable String configuredWorkspacesParent(String host) {
         String table = hostWorkspaces.apply(host);
@@ -4587,7 +4621,7 @@ public class MainWindow {
     /// categories count: another machine's `/data/kopp` does not exist on
     /// this one, and `tmux new-window -c` on a missing directory silently
     /// starts in the home directory instead.
-    // [impl->dsn~setup-wizard~10]
+    // [impl->dsn~setup-wizard~11]
     private @Nullable String categoriesWorkspacesParent(String host) {
         return folders.stream().sorted()
                 .map(this::groupDefaults)
@@ -4701,7 +4735,7 @@ public class MainWindow {
 
     /// Whether any category exists — the setup wizard's last page then
     /// adds one instead of creating the first.
-    // [impl->dsn~setup-wizard~10]
+    // [impl->dsn~setup-wizard~11]
     public boolean hasCategories() {
         return !folders.isEmpty();
     }
@@ -4732,6 +4766,24 @@ public class MainWindow {
                 + "clone's README, build files and CI workflows actually say, and delete the "
                 + "sections that do not apply. Keep the rest of the template as it is.")
                 .formatted(workspacesRoot, url.strip(), group);
+        return firstMessage == null || firstMessage.isBlank()
+                ? description
+                : description + " After setting things up, please do the following: "
+                        + firstMessage.strip();
+    }
+
+    /// The setup task's description for [#createCategoryFromFolder]: the
+    /// folder is neither a git repository nor to become one — write its
+    /// `CLAUDE.md` from the appended template, keeping one that is there.
+    // [impl->dsn~category-from-folder~1]
+    static String folderSetupDescription(String folder, String group, @Nullable String firstMessage) {
+        String description = ("Set up the folder %s (the current directory) as the workspace of %s. "
+                + "It is not a git repository and has no remote — it may be synced by a cloud drive "
+                + "such as OneDrive — so do not run git init. Write a CLAUDE.md into it from the "
+                + "template at the end of this prompt: replace every <placeholder> with the real "
+                + "value, describe the contents from what the folder actually holds, and delete the "
+                + "sections that do not apply. If a CLAUDE.md is there already, keep it and add only "
+                + "what it lacks.").formatted(folder, group);
         return firstMessage == null || firstMessage.isBlank()
                 ? description
                 : description + " After setting things up, please do the following: "
@@ -7052,7 +7104,7 @@ public class MainWindow {
     /// The wizard's re-entry, next to the other creation actions in the add
     /// menu and the list's context menu: a second remote, the tools on a new
     /// host, another first project — the same pages as on the first start.
-    // [impl->dsn~setup-wizard~10]
+    // [impl->dsn~setup-wizard~11]
     private MenuItem setupWizardItem() {
         MenuItem item = new MenuItem("Setup wizard…");
         item.setId("setup-wizard");
@@ -7505,7 +7557,7 @@ public class MainWindow {
         openDir.setOnAction(event -> onOpenTasksDir.run());
 
         // The wizard from the empty state too: a newcomer who cancelled it
-        // is looking right here. [impl->dsn~setup-wizard~10]
+        // is looking right here. [impl->dsn~setup-wizard~11]
         Hyperlink wizard = new Hyperlink("Run the setup wizard…");
         wizard.setOnAction(event -> onSetupWizard.run());
         VBox placeholder = new VBox(4,

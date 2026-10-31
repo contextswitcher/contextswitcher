@@ -87,7 +87,7 @@ class CategoryFromUrlTest {
 
     /// The setup wizard's local choice: no `remote:` line, so the category
     /// is a local one (`Add local Claude`), the rest as for a remote.
-    // [utest->dsn~setup-wizard~10]
+    // [utest->dsn~setup-wizard~11]
     @Test
     void withoutARemoteTheConfigIsALocalCategory() {
         String content = TaskFileParser.groupConfigForRepo("sailor", "https://github.com/Gram21/SaiLoR",
@@ -96,5 +96,18 @@ class CategoryFromUrlTest {
         assertThat(config.remote()).isNull();
         assertThat(config.workspacesRoot()).isEqualTo("/home/me/sailor-workspaces");
         assertThat(config.repo()).isEqualTo("https://github.com/Gram21/SaiLoR");
+    }
+
+    /// A plain folder (OneDrive, no git): its path is the root, as written
+    /// on Windows, and there is no clone to point `mainCheckout` or `repo` at.
+    // [utest->dsn~category-from-folder~1]
+    @Test
+    void aFolderCategoryHasNoCheckoutAndNoRepo() {
+        String content = TaskFileParser.groupConfigForRepo("paper", null, null,
+                "C:\\Users\\me\\OneDrive\\paper", null);
+        GroupConfig config = new TaskFileParser().parseGroupConfig(content);
+        assertThat(config.workspacesRoot()).isEqualTo("C:\\Users\\me\\OneDrive\\paper");
+        assertThat(config.mainCheckout()).isNull();
+        assertThat(config.repo()).isNull();
     }
 }

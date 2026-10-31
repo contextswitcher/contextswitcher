@@ -47,6 +47,18 @@ public enum RepoType {
     /// The workspace-root `CLAUDE.md` template for this repository type.
     /// A missing resource is a packaging bug, not a runtime condition.
     public String template() {
+        return template(resource);
+    }
+
+    /// The `CLAUDE.md` template for a category in a plain folder — no git, no
+    /// remote — which has no repository type to pick
+    /// (`dsn~category-from-folder~1`).
+    // [impl->dsn~category-from-folder~1]
+    public static String localFolderTemplate() {
+        return template("local-folder");
+    }
+
+    private static String template(String resource) {
         try (InputStream in = RepoType.class.getResourceAsStream("claudemd/" + resource + ".md")) {
             if (in == null) {
                 throw new IllegalStateException("Missing CLAUDE.md template " + resource);

@@ -187,7 +187,7 @@ Three commands build their own argv rather than going through the runner, and ea
 - `RefactoringMinerCommands.viewCommand` — WSL2 shares the loopback interface with Windows, so the port the view serves inside the distribution answers at `127.0.0.1` with no `ssh -L` tunnel to build.
 - `LocalCommandRunner` lists `wsl.exe` as Windows-only, so nothing is spawned off Windows — the same guard `powershell` has.
 
-The wizard offers it (`dsn~setup-wizard~10`) and it is the only place a `wsl:` host is composed, so nothing else needs to know the prefix exists.
+The wizard offers it (`dsn~setup-wizard~11`) and it is the only place a `wsl:` host is composed, so nothing else needs to know the prefix exists.
 
 Not addressed: **paths across the boundary**.
 A WSL task's `workspacesRoot` is a Linux path, and the Windows-side actions that open one by path (the category `folders:`, IntelliJ) would need a `\\wsl$\<distro>\…` translation.

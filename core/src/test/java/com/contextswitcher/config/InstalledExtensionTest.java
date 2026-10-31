@@ -9,7 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~setup-wizard~10]
+// [utest->dsn~setup-wizard~11]
 class InstalledExtensionTest {
 
     @Test
@@ -38,6 +38,18 @@ class InstalledExtensionTest {
                 "{\"addons\":[{\"id\":\"extension@contextswitcher.org\"}]}");
 
         assertThat(InstalledExtension.find(home, Map.of("APPDATA", appData.toString())))
+                .isEqualTo(Browser.FIREFOX);
+    }
+
+    @Test
+    void microsoftStoreFirefoxProfilesLiveInItsPackage(@TempDir Path home, @TempDir Path localAppData)
+            throws Exception {
+        Path profile = Files.createDirectories(localAppData.resolve(
+                "Packages/Mozilla.Firefox_n80bbvh6b1yt2/LocalCache/Roaming/Mozilla/Firefox/Profiles/x.default"));
+        Files.writeString(profile.resolve("extensions.json"),
+                "{\"addons\":[{\"id\":\"extension@contextswitcher.org\"}]}");
+
+        assertThat(InstalledExtension.find(home, Map.of("LOCALAPPDATA", localAppData.toString())))
                 .isEqualTo(Browser.FIREFOX);
     }
 
