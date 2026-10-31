@@ -32,6 +32,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.prefs.Preferences;
@@ -62,6 +63,7 @@ import com.contextswitcher.queue.ClaudeMode;
 import com.contextswitcher.queue.QueueFile;
 import com.contextswitcher.tasks.AutoPrReconcile;
 import com.contextswitcher.tasks.Frontmatter;
+import com.contextswitcher.tasks.FrontmatterCatalog;
 import com.contextswitcher.tasks.GroupConfig;
 import com.contextswitcher.tasks.MergedCleanup;
 import com.contextswitcher.tasks.Task;
@@ -886,8 +888,11 @@ public class MainWindow {
     private @Nullable Stage stage;
 
     /// The Configuration pane, built by [#show]: the frontmatter form with its
-    /// Raw YAML view (`dsn~task-field-form~4`).
-    private @Nullable ConfigFormPane configFormPane;
+    /// Raw YAML view (`dsn~task-field-form~5`).
+    private List<ConfigFormPane> formPanes = List.of();
+    /// Set while a form pane writes its fields into the buffer: the reload
+    /// that follows leaves a form the user is in alone (`ConfigFormPane.reload`).
+    private boolean savingForm;
 
     /// What [#show] built in the ShellFX shell; null until then — there is no
     /// pane to bring forward before there is a shell.
@@ -1329,21 +1334,19 @@ public class MainWindow {
         // The panes as ShellFX dock tabs (MADR 0032). The raw frontmatter editor
         // is the Configuration pane's Raw YAML view.
         // [impl->dsn~shell-layout~2]
-        ConfigFormPane pane = new ConfigFormPane(configEditor, this::editorText,
-                updated -> {
-                    setEditorText(updated);
-                    saveEditor();
-                },
-                () -> {
-                    String name = editedFileName;
-                    return name != null && isGroupConfig(name);
-                },
-                // [impl->dsn~host-table~1]
-                configuredRemotes, this::knownDesktops, this::refreshKnownDesktops);
-        configFormPane = pane;
+        // Two panes over one catalog: the switch actions apart, the rest in
+        // Configuration. They share the one raw editor.
+        // [impl->dsn~task-field-form~5]
+        ConfigFormPane switchActions = formPane("switch-actions", FrontmatterCatalog::isSwitchAction);
+        ConfigFormPane pane = formPane("config", field -> !FrontmatterCatalog.isSwitchAction(field));
+        selectOnClick.accept(switchActions.getRoot());
         selectOnClick.accept(pane.getRoot());
+        switchActions.setOnRawShown(pane::leaveRaw);
+        pane.setOnRawShown(switchActions::leaveRaw);
+        formPanes = List.of(switchActions, pane);
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(
-                leftPane, terminalLane, editorNode, pane, queueNode, bottomBar, listToolbar.appControls()));
+                leftPane, terminalLane, editorNode, switchActions, pane, queueNode, bottomBar,
+                listToolbar.appControls()));
         shell = hosted;
         Scene scene = hosted.scene();
         showCategoryInTitle("");
@@ -4966,7 +4969,7 @@ public class MainWindow {
     /// desktops as last read, those the categories name, the active one and
     /// the fallback — for the configuration form to suggest, sorted ignoring
     /// case.
-    // [impl->dsn~task-field-form~4]
+    // [impl->dsn~task-field-form~5]
     private List<String> knownDesktops() {
         Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         SortedSet<String> existing = existingDesktops;
@@ -5886,6 +5889,8 @@ public class MainWindow {
         if (fileName.equals(editedFileName)) {
             return;
         }
+        // A form's unsaved fields belong to the file being left.
+        formPanes.forEach(ConfigFormPane::commit);
         saveEditorIfDirty();
         editedFileName = fileName;
         boolean config = fileName.endsWith("/" + TaskRepository.GROUP_CONFIG_FILE_NAME);
@@ -5931,10 +5936,9 @@ public class MainWindow {
         setText(configEditor, parts[0]);
         setText(notesEditor, parts[1]);
         editorLoadedContent = editorText();
-        // Every buffer replacement (file switch, revert, form apply) passes here.
-        ConfigFormPane pane = configFormPane;
-        if (pane != null) {
-            pane.reload();
+        // Every buffer replacement (file switch, revert, form save) passes here.
+        for (ConfigFormPane pane : formPanes) {
+            pane.reload(!savingForm);
         }
     }
 
@@ -6080,6 +6084,15 @@ public class MainWindow {
         for (RichTextArea editor : List.of(configEditor, notesEditor)) {
             wireEditor(editor);
         }
+        // The raw YAML shows in one form pane; the other one's form is rebuilt
+        // from what was typed there once the focus has settled (a form the
+        // focus went into is left alone).
+        // [impl->dsn~task-field-form~5]
+        configEditor.focusedProperty().addListener((obs, was, focused) -> {
+            if (!focused) {
+                Platform.runLater(() -> formPanes.forEach(pane -> pane.reload(false)));
+            }
+        });
 
         Button revert = new Button("Revert");
         revert.getStyleClass().add(Styles.SMALL);
@@ -6186,10 +6199,33 @@ public class MainWindow {
         showReferenceDialog(title, reference);
     }
 
+    /// A configuration form pane holding the catalog fields `shows` picks; it
+    /// writes into the editor buffer and saves.
+    // [impl->dsn~task-field-form~5]
+    private ConfigFormPane formPane(String id, Predicate<FrontmatterCatalog.Field> shows) {
+        ConfigFormPane pane = new ConfigFormPane(id, shows, configEditor, this::editorText,
+                updated -> {
+                    savingForm = true;
+                    try {
+                        setEditorText(updated);
+                    } finally {
+                        savingForm = false;
+                    }
+                    saveEditor();
+                },
+                () -> {
+                    String name = editedFileName;
+                    return name != null && isGroupConfig(name);
+                },
+                // [impl->dsn~host-table~1]
+                configuredRemotes, this::knownDesktops, this::refreshKnownDesktops);
+        return pane;
+    }
+
     /// The notes header's configure button: puts the Configuration pane — the
     /// open file's frontmatter as a generated key/value form ([ConfigFormPane]),
     /// raw YAML its fallback — in front, reopening it if it was closed.
-    // [impl->dsn~task-field-form~4]
+    // [impl->dsn~task-field-form~5]
     private void showConfigForm() {
         showConfigurationPane();
     }
@@ -6904,7 +6940,7 @@ public class MainWindow {
 
     /// Installs the one-shot read of this machine's named desktops (null when
     /// it fails) behind the configuration form's desktop refresh button.
-    // [impl->dsn~task-field-form~4]
+    // [impl->dsn~task-field-form~5]
     public void setDesktopNamesReader(Supplier<CompletableFuture<@Nullable SortedSet<String>>> reader) {
         this.desktopNamesReader = reader;
     }
@@ -6912,7 +6948,7 @@ public class MainWindow {
     /// The desktop refresh button's round-trip: reads the named desktops,
     /// records them as [#updateExistingDesktops] would, and completes on the
     /// FX thread with the refreshed [#knownDesktops].
-    // [impl->dsn~task-field-form~4]
+    // [impl->dsn~task-field-form~5]
     private CompletableFuture<List<String>> refreshKnownDesktops() {
         statusBar().message("Reading the virtual desktops …");
         return desktopNamesReader.get()

@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~task-field-form~4]
+// [utest->dsn~task-field-form~5]
 class SuggestionsTest {
 
     private static final List<String> DESKTOPS = List.of("misc", "JabRef", "contextswitcher", "Ref Tools");
