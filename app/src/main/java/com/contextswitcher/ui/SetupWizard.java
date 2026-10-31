@@ -53,7 +53,7 @@ import com.contextswitcher.tasks.TaskFileParser;
 ///
 /// One `Dialog` with swapped pages rather than six dialogs: Back works, and
 /// Cancel on any page leaves everything as it was.
-// [impl->dsn~setup-wizard~11]
+// [impl->dsn~setup-wizard~12]
 public final class SetupWizard {
 
     /// The wizard's answers. `remote` is null for local sessions; every

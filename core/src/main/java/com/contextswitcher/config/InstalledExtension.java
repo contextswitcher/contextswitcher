@@ -1,6 +1,8 @@
 package com.contextswitcher.config;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -20,8 +22,11 @@ import org.tinylog.Logger;
 /// on a browser running and its extension being connected right now.
 ///
 /// Firefox lists every add-on of a profile in `extensions.json` (`addons[].id`,
-/// ours is [#FIREFOX_ID]); a temporary add-on is listed only while Firefox
-/// runs. Its profiles are the `Path=` entries of `profiles.ini` — a profile
+/// ours is [#FIREFOX_ID]). A temporary add-on (loaded from a checkout through
+/// `about:debugging`) never appears there, so the profile's `prefs.js` counts
+/// too: `extensions.webextensions.uuids` maps every extension the profile has
+/// run — temporary ones included — to its internal UUID, and Firefox drops the
+/// entry when an add-on is removed. Its profiles are the `Path=` entries of `profiles.ini` — a profile
 /// may live anywhere (`IsRelative=0`) — plus the directories beside it. Chrome has no fixed id for an unpacked extension (the id derives
 /// from its path), so each entry of `extensions.settings` in a profile's
 /// `Preferences`/`Secure Preferences` is followed to its `manifest.json`
@@ -30,7 +35,7 @@ import org.tinylog.Logger;
 ///
 /// Every unreadable file counts as *not installed*: this only decides whether
 /// the setup wizard's extension page is still worth showing.
-// [impl->dsn~setup-wizard~11]
+// [impl->dsn~setup-wizard~12]
 public final class InstalledExtension {
 
     /// The Firefox extension's `browser_specific_settings.gecko.id`.
@@ -38,6 +43,9 @@ public final class InstalledExtension {
 
     /// Both extensions' manifest `name`.
     static final String NAME = "ContextSwitcher";
+
+    /// The `prefs.js` line that maps each extension id to its internal UUID.
+    private static final String UUIDS_PREF = "user_pref(\"extensions.webextensions.uuids\",";
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -167,7 +175,22 @@ public final class InstalledExtension {
                 return true;
             }
         }
-        return false;
+        return inFirefoxUuids(profile.resolve("prefs.js"));
+    }
+
+    /// Whether the `extensions.webextensions.uuids` pref in `prefsJs` — a JSON
+    /// object written as an escaped JavaScript string — has our id as a key.
+    private static boolean inFirefoxUuids(Path prefsJs) {
+        if (!Files.isRegularFile(prefsJs)) {
+            return false;
+        }
+        try (Stream<String> lines = Files.lines(prefsJs, StandardCharsets.UTF_8)) {
+            return lines.filter(line -> line.startsWith(UUIDS_PREF))
+                    .anyMatch(line -> line.contains("\\\"" + FIREFOX_ID + "\\\":"));
+        } catch (IOException | UncheckedIOException e) {
+            Logger.debug("Cannot read {}: {}", prefsJs, e.getMessage());
+            return false;
+        }
     }
 
     private static boolean inChromeProfile(Path profile) {

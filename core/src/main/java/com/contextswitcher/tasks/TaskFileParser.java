@@ -869,7 +869,7 @@ public class TaskFileParser {
     /// neither `mainCheckout` nor `repo`.
     // [impl->dsn~category-from-url~5]
     // [impl->dsn~category-from-folder~1]
-    // [impl->dsn~setup-wizard~11]
+    // [impl->dsn~setup-wizard~12]
     public static String groupConfigForRepo(String group, @Nullable String url, @Nullable String remote,
             String workspacesRoot, @Nullable String desktop) {
         return """
