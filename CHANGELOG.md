@@ -8,6 +8,11 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Added
+
+- Setup wizard: a folder path on the clipboard (say, `c:\git-repositories\git.overleaf.com\…`, also with *Copy as path*'s quotes) preselects *On this machine* and opens the category page on *A local folder* with that path filled in.
+- Setup wizard: a local folder category can be created without a Claude session — untick *Start a Claude session that writes its CLAUDE.md*. Claude missing on this machine no longer blocks the wizard either: *Next* once more goes on without it.
+
 ### Changed
 
 - Android: a task started with *Start Claude* opens right away, so its terminal shows Claude starting.

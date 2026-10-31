@@ -373,7 +373,7 @@ class SetupWizardUiTest {
 
     /// The last page's second source: a plain folder, named after its last
     /// segment, handed back as the root with no repository URL.
-    // [utest->dsn~category-from-folder~1]
+    // [utest->dsn~category-from-folder~2]
     @Test
     void aLocalFolderBecomesACategoryWithoutARepository() {
         AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
@@ -400,6 +400,101 @@ class SetupWizardUiTest {
             assertThat(r.folderCategory()).isEqualTo("my-paper");
             assertThat(r.workspacesRoot()).isEqualTo("/home/local/OneDrive/My Paper");
         });
+    }
+
+    /// A folder of this machine on the clipboard preselects local sessions
+    /// and opens the last page on that folder; unticking the session hands
+    /// back a category without one, and the checkup goes with it.
+    // [utest->dsn~category-from-folder~2]
+    @Test
+    void aClipboardFolderIsPrefilledAndNeedsNoSession(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) {
+        String path = dir.resolve("paper").toAbsolutePath().toString();
+        try {
+            java.nio.file.Files.createDirectories(dir.resolve("paper"));
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
+        setClipboard("\"" + path + "\"");
+        try {
+            AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
+            Platform.runLater(() -> result.set(SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local",
+                    false, true, SetupWizard.Prefill.EMPTY, EXTENSION)));
+            RadioButton local = awaitPresent(
+                    () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
+            assertThat(local.isSelected()).as("local preselected over the first start's remote").isTrue();
+            clickButton("Next");
+            awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional(),
+                    "tools page");
+            clickButton("Next");
+            field("#setup-ws-token");
+            clickButton("Next");
+            field("#setup-clone-url");
+            clickButton("Next");
+            assertThat(field("#setup-folder").getText()).isEqualTo(path);
+            assertThat(field("#setup-folder-name").getText()).isEqualTo("paper");
+            javafx.scene.control.CheckBox session = awaitPresent(() -> FX_ROBOT.selectNodes(
+                    javafx.scene.control.CheckBox.class, "#setup-folder-session").fetchOptional(), "session box");
+            assertThat(session.isSelected()).isTrue();
+            assertThat(UiTestSupport.truncatedTexts(field("#setup-folder"))).isEmpty();
+            FX_ROBOT.mouse().moveTo(session).click();
+            awaitPresent(() -> FX_ROBOT.selectNodes(javafx.scene.control.Button.class, "#setup-checkup")
+                    .fetchOptional().filter(javafx.scene.control.Button::isDisabled), "checkup disabled");
+            clickButton("Finish");
+            awaitPresent(() -> Optional.ofNullable(result.get()), "wizard result");
+            assertThat(result.get()).hasValueSatisfying(r -> {
+                assertThat(r.local()).isTrue();
+                assertThat(r.folderCategory()).isEqualTo("paper");
+                assertThat(r.workspacesRoot()).isEqualTo(path);
+                assertThat(r.setupSession()).isFalse();
+            });
+        } finally {
+            setClipboard("");
+        }
+    }
+
+    /// Claude missing here stops Next once; Next again goes on without it,
+    /// and the last page then starts without a session.
+    // [utest->dsn~category-from-folder~2]
+    @Test
+    void nextAgainGoesOnWithoutClaude() {
+        java.util.function.Supplier<SetupWizard.Verdict> noClaude = () -> SetupWizard.toolsVerdict(
+                "/home/local", "tmux 3.4", null, true, "on this machine");
+        Platform.runLater(() -> SetupWizard.show(FAKE_SSH, noClaude, FAKE_TOOLS, "/home/local", false, false,
+                SetupWizard.Prefill.EMPTY, EXTENSION));
+        RadioButton localChoice = awaitPresent(
+                () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
+        FX_ROBOT.mouse().moveTo(localChoice).click();
+        clickButton("Next");
+        awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-local-verdict")
+                .fetchOptional().filter(label -> label.getText().contains("without Claude")), "go-on hint");
+        clickButton("Next");
+        awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional(),
+                "tools page");
+        clickButton("Next");
+        field("#setup-ws-token");
+        clickButton("Next");
+        RadioButton fromFolder = awaitPresent(
+                () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-from-folder").fetchOptional(), "folder choice");
+        FX_ROBOT.mouse().moveTo(fromFolder).click();
+        javafx.scene.control.CheckBox session = awaitPresent(() -> FX_ROBOT.selectNodes(
+                javafx.scene.control.CheckBox.class, "#setup-folder-session").fetchOptional(), "session box");
+        assertThat(session.isSelected()).isFalse();
+        clickButton("Cancel");
+    }
+
+    private static void setClipboard(String text) {
+        java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        Platform.runLater(() -> {
+            javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+            content.putString(text);
+            javafx.scene.input.Clipboard.getSystemClipboard().setContent(content);
+            done.countDown();
+        });
+        try {
+            done.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static void clickButtonById(String id) {

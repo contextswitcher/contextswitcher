@@ -51,7 +51,7 @@ class CategorySetupDescriptionTest {
                 .contains("-workspaces layout and workflow", "<YYYY-MM-DD>-<slug>", "<project>");
     }
 
-    // [utest->dsn~category-from-folder~1]
+    // [utest->dsn~category-from-folder~2]
     @Test
     void aFolderIsNeitherClonedNorMadeARepository() {
         String description = MainWindow.folderSetupDescription("C:\\paper", "paper", "Fix the intro");

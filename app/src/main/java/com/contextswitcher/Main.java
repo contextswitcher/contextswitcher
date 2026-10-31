@@ -3158,9 +3158,9 @@ public class Main extends Application {
     }
 
     /// The category the wizard's last page asked for, if any: from a
-    /// repository, or for a plain folder (`dsn~category-from-folder~1`).
+    /// repository, or for a plain folder (`dsn~category-from-folder~2`).
     // [impl->dsn~setup-wizard~12]
-    // [impl->dsn~category-from-folder~1]
+    // [impl->dsn~category-from-folder~2]
     private static void createWizardCategory(MainWindow window, SetupWizard.Result result) {
         String root = result.workspacesRoot();
         if (root == null) {
@@ -3168,7 +3168,7 @@ public class Main extends Application {
         }
         if (result.folderCategory() != null) {
             window.createCategoryFromFolder(result.folderCategory(), root, result.remote(),
-                    MainWindow.lastMode(), result.firstMessage());
+                    MainWindow.lastMode(), result.firstMessage(), result.setupSession());
         } else if (result.repoUrl() != null) {
             window.createCategoryFromRepo(result.repoUrl(), root, result.remote(), result.repoType(),
                     MainWindow.lastMode(), result.firstMessage());

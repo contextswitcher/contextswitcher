@@ -916,12 +916,16 @@ Covers:
 Needs: impl, utest
 
 ### Category from a plain folder
-`dsn~category-from-folder~1`
+`dsn~category-from-folder~2`
 
 A project need not have a repository: a folder synced by OneDrive, say, has no remote and must not get a `.git` (the sync would carry it along).
 The setup wizard's last page offers it next to the repository (`dsn~setup-wizard~12`), and `Main` hands the answer to `MainWindow.createCategoryFromFolder`.
 It creates the category like `dsn~category-from-url~5` does — folder, clash popup (`dsn~category-name-clash~1`), `CONTEXTSWITCHER.md` through `TaskFileParser.groupConfigForRepo` with a null URL, so only `remote` (for a non-local session host), `workspacesRoot` (the folder itself) and `desktop` are written, no `mainCheckout` and no `repo` — and starts the same setup session in the folder, with `MainWindow.folderSetupDescription` as the description: do not run `git init`, write the folder's `CLAUDE.md` from `RepoType.localFolderTemplate` (`claudemd/local-folder.md`: no branches, no worktrees, tasks share the folder, a backup copy before a larger rewrite since nothing undoes an edit), keep a `CLAUDE.md` that is already there and add only what it lacks.
 A first message is appended as for a repository.
+
+The session is optional (`~1`→`~2`): someone who does not use Claude for that folder unticks *Start a Claude session that writes its CLAUDE.md* under the folder fields, and the `Result`'s `setupSession` false has `createCategoryFromFolder` create the category only — folder, `CONTEXTSWITCHER.md`, a status-bar line — and leave the folder untouched; *Finish and check up* is disabled then, since the checkup runs in that session.
+For the same person the local check on page one is no longer a wall: after *Next* found Claude (or tmux) missing once, the verdict says so, and *Next* once more checks again and moves on either way; the last page then starts with the session unticked.
+A folder of this machine on the clipboard as the wizard opens — one line, optionally in the double quotes of Windows' *Copy as path*, an absolute path to an existing directory (`SetupWizard.clipboardFolder`), say `c:\git-repositories\git.overleaf.com\6aad3ebf9a43af8873645708` — is what the wizard was opened for: page one preselects *this machine*, and the last page opens on *A local folder* with the path in the folder field.
 
 Tags: windows, linux
 
@@ -979,7 +983,7 @@ That is decided once, at open, so *Back* never loses a page the user just saw; o
 Page five is the old clone offer as a field: a task-repository URL, empty to start fresh.
 Next to *Next*, it offers *Start right away*, which finishes the wizard there without a first project: a cloned task repository already holds its projects.
 Page six is a category from a repository — headed *First category*, or *Add a category* on a re-run when categories already exist (`Prefill.categoriesExist`, from `MainWindow.hasCategories`), the same wording as the toolbar's *Add category* — with the repository URL (clipboard-prefilled like `dsn~category-from-url~5`), the workspaces root following it as `<remote home or user.home>/<name>-workspaces` until edited, and the `RepoType` — all optional.
-A radio pair above the fields switches it to a plain folder instead (*A local folder — no remote, no git*, `dsn~category-from-folder~1`, `~10`→`~11`): the folder's path, with *Browse…* (a `DirectoryChooser`, enabled only for local sessions, since it shows this machine's folders), and the category name following the path's last segment, slugged, until typed into; the `Result` then carries that name as `folderCategory` and the path as `workspacesRoot`, `repoUrl` null.
+A radio pair above the fields switches it to a plain folder instead (*A local folder — no remote, no git*, `dsn~category-from-folder~2`, `~10`→`~11`): the folder's path, with *Browse…* (a `DirectoryChooser`, enabled only for local sessions, since it shows this machine's folders), and the category name following the path's last segment, slugged, until typed into; the `Result` then carries that name as `folderCategory` and the path as `workspacesRoot`, `repoUrl` null.
 Only a session on Windows itself gets Windows path separators there: a WSL root lives on the Linux side of the boundary and is proposed under the probed `$HOME` like a remote one.
 Back and Next step over the skipped pages (`skipped`: the remote page for a local choice, the tools page for local on Windows, the extension page while an extension is connected or installed), so a skipped page stays skipped in both directions.
 Each page swap calls `sizeToScene`: a `Dialog` sizes itself once at show, and a taller later page pushed *Finish* out of the window.
