@@ -463,11 +463,12 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
       **Add plain task** is the default — even when `settings.yaml` configures a
       fallback remote (the remote button stays clickable).
 
-### A local Claude task gets a short title (`dsn~task-create-local-title~1`)
+### A local Claude task gets a short title (`dsn~task-create-local-title~2`)
 
 - [ ] **Windows**, local category: add a local Claude task with a two-sentence description.
       Within about ten seconds the row shows a 3–6 word title, the task file's `# Notes` ends with the description, the file name is unchanged, and the session keeps running in the pane.
 - [ ] Same on **Linux** (local tmux): the row's title changes, the tmux window keeps its directory name.
+- [ ] A description that is itself an instruction (`Set up the folder C:\tmp\x as the workspace. Write a CLAUDE.md into it.`) gets a title that names it, never a tag such as `<invoke_tool>`.
 - [ ] A short title typed instead (`Fix login`) stays exactly as typed.
 - [ ] A long description renamed right away, before the title arrives, keeps your rename.
 - [ ] **Linux** with `claude` off `PATH` and out of `~/.local/bin`: the title becomes the description's first words.

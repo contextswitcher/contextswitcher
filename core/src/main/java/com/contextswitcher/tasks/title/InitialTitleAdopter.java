@@ -20,7 +20,7 @@ import com.contextswitcher.tasks.TaskParseException;
 /// other task-file edit of the app happens on, so a rename in between is
 /// either fully before the check or fully after the write.
 /// The replaced description is kept at the end of the body under `# Notes`.
-// [impl->dsn~task-create-local-title~1]
+// [impl->dsn~task-create-local-title~2]
 public final class InitialTitleAdopter {
 
     private final TaskTitleSummarizer summarizer;

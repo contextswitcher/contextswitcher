@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~task-create-local-title~1]
+// [utest->dsn~task-create-local-title~2]
 class FirstWordsSummarizerTest {
 
     private final FirstWordsSummarizer summarizer = new FirstWordsSummarizer();

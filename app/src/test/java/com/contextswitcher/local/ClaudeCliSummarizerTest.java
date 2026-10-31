@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~task-create-local-title~1]
+// [utest->dsn~task-create-local-title~2]
 class ClaudeCliSummarizerTest {
 
     private static final Path TEMP = Path.of("tmp");
@@ -55,6 +55,18 @@ class ClaudeCliSummarizerTest {
         Recording runner = new Recording(new LocalCommandRunner.LocalResult(0, "\"Fix Safari login.\"\n", ""));
 
         assertThat(new ClaudeCliSummarizer(runner, false, TEMP).summarize("text")).contains("Fix Safari login");
+    }
+
+    @Test
+    void aToolCallInsteadOfATitleGivesNoTitle() {
+        Recording runner = new Recording(new LocalCommandRunner.LocalResult(0, "<invoke_tool>\n", ""));
+
+        assertThat(new ClaudeCliSummarizer(runner, false, TEMP).summarize("Set up the folder")).isEmpty();
+    }
+
+    @Test
+    void theInstructionSaysTheDescriptionIsNotToBeCarriedOut() {
+        assertThat(ClaudeCliSummarizer.INSTRUCTION).contains("Do not carry it out");
     }
 
     @Test

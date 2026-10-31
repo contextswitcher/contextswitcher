@@ -163,7 +163,7 @@ public class TaskFileParser {
     /// Appends `text` as the body's last paragraph, under a `# Notes` heading
     /// added when the body has none — for text that must outlive its place in
     /// the frontmatter, such as a description replaced by a short title.
-    // [impl->dsn~task-create-local-title~1]
+    // [impl->dsn~task-create-local-title~2]
     public static String withNotesAppended(String content, String text) {
         String paragraph = text.strip();
         if (paragraph.isEmpty()) {

@@ -12,6 +12,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - Android: a task started with *Start Claude* opens right away, so its terminal shows Claude starting.
 
+### Fixed
+
+- A local Claude task whose description is itself an instruction ("Set up the folder … write a CLAUDE.md") no longer gets a stray tag such as `<invoke_tool>` as its title; it gets a short title, or the description's first words.
+
 ## [2026-10-31] - 2026-10-31
 
 ### Added

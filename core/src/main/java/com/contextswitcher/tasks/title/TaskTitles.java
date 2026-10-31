@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
 
 /// The rules shared by every [TaskTitleSummarizer]: when a text is a
 /// description rather than a title, and what a usable title looks like.
-// [impl->dsn~task-create-local-title~1]
+// [impl->dsn~task-create-local-title~2]
 public final class TaskTitles {
 
     /// The longest title kept — about what a task row shows before it
@@ -22,6 +22,10 @@ public final class TaskTitles {
     private static final Pattern TRAILING_PUNCTUATION = Pattern.compile("[\\s.,;:!?-]+$");
 
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
+
+    /// A markup tag such as `<invoke_tool>`: what a model emits when it tries
+    /// to act on a description instead of naming it.
+    private static final Pattern TAG = Pattern.compile("</?[A-Za-z_][\\w:-]*[^<>]*>");
 
     private TaskTitles() {
     }
@@ -48,6 +52,24 @@ public final class TaskTitles {
         String cleaned = withoutTrailingPunctuation(unwrapped(WHITESPACE.matcher(line).replaceAll(" ")));
         cleaned = withoutTrailingPunctuation(truncate(cleaned));
         return cleaned.isEmpty() ? Optional.empty() : Optional.of(cleaned);
+    }
+
+    /// A model's answer made into a title: like [#sanitize], but empty when the
+    /// first non-blank line is no title at all — it carries a markup tag (the
+    /// model tried to call a tool or answered in markup) or has more than
+    /// [#MAX_WORDS] words (it answered with a sentence, e.g. replied to the
+    /// description instead of naming it). The caller then falls back to a
+    /// title of its own rather than showing that answer as the task's name.
+    public static Optional<String> fromModelAnswer(String raw) {
+        String line = Objects.requireNonNull(raw, "raw").lines()
+                .map(String::strip)
+                .filter(candidate -> !candidate.isEmpty())
+                .findFirst()
+                .orElse("");
+        if (TAG.matcher(line).find() || wordCount(line) > MAX_WORDS) {
+            return Optional.empty();
+        }
+        return sanitize(line);
     }
 
     /// Punctuation first, then the wrapping: `"Fix login".` is quoted too.

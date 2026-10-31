@@ -1695,7 +1695,7 @@ The task file is the **plain** one (`MainWindow.createTitleTask`, `dsn~task-crea
 Off Windows the tmux window the session runs in is then written back into it (`Main.writeLocalWindowBack`: `tmux:` with session `0` and the window id, plus `claude.cwd`) — without a `remote:`, which is exactly what marks the session as local and lets the pane mirror it (`dsn~terminal-local-mirror~2`).
 On Windows the same call writes `claude.cwd` alone: there is no tmux window, and the cwd is what finds the transcript again for a later resume (`dsn~terminal-owned-session~4`).
 Nothing else is: a local session is not polled, so there is no `@cs_title` to sync and none of the live flow's id bookkeeping.
-The description-as-title is shortened by the app itself instead (`dsn~task-create-local-title~1`).
+The description-as-title is shortened by the app itself instead (`dsn~task-create-local-title~2`).
 
 `Main.startLocalClaude` then runs `LocalClaudeLauncher` off the FX thread, with the status bar's "Starting …"/outcome shape.
 A failure names its **reason** in the status bar (the launcher returns the attempt's stderr, else its exit code) rather than pointing at the log: a packaged app has no console to look at while it is running.
@@ -1718,7 +1718,7 @@ Covers:
 Needs: impl, utest
 
 ### A local Claude task gets a short title
-`dsn~task-create-local-title~1`
+`dsn~task-create-local-title~2`
 
 A local Claude task (`dsn~task-create-local~4`) starts with the typed description as its `title:`, and a description is routinely a paragraph — far more than a row shows before it ellipsizes.
 Unlike a remote task, nothing replaces it later: the local prompt asks for no `@cs_title`, and the local tmux window is named after its directory, so the title is shortened by the app and no tmux is involved.
@@ -1727,6 +1727,8 @@ When the title reads as a description — more than one line, more than 60 chara
 `ClaudeCliSummarizer` runs `claude -p --model haiku --tools "" --setting-sources "" --no-session-persistence --output-format text <instruction>` in the temp directory, with the description on stdin, through `cmd /c` on Windows and by resolved path elsewhere (MADR 0035).
 `FirstWordsSummarizer` — the first sentence, at most 8 words — answers when `claude` is missing, fails or times out after 45 s (`FallbackSummarizer`).
 Every answer is cleaned by `TaskTitles.sanitize`: the first non-blank line, without enclosing quotes or emphasis and trailing punctuation, cut at a word boundary to 60 characters.
+A description is often itself a prompt ("Set up the folder … Write a CLAUDE.md …"), and a model told only to title it may start carrying it out instead: field report 2026-10-31, where haiku — given no tools — answered `<invoke_tool>` and that became the task's name.
+The instruction therefore says the text on stdin is to be named, not carried out, and `TaskTitles.fromModelAnswer` refuses an answer whose first line holds a markup tag or has more than 8 words (a sentence, not a title); `ClaudeCliSummarizer` then has no title and `FirstWordsSummarizer` answers.
 Back on the FX thread the title is written only while the file's title still equals the description it was derived from, so a rename or a configuration edit made meanwhile wins; it is written once, and never again.
 The description moves to the end of the body under `# Notes` (`TaskFileParser.withNotesAppended`), the file keeps its name (the app-owned session is keyed by the task id), and an editor lane showing the file reloads.
 

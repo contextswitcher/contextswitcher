@@ -222,7 +222,7 @@ public class Main extends Application {
     });
     private @Nullable ExecutorService actionExecutor;
     /// Shortens a local Claude task's description-as-title once it is created.
-    // [impl->dsn~task-create-local-title~1]
+    // [impl->dsn~task-create-local-title~2]
     private @Nullable InitialTitleAdopter initialTitles;
     /// Fires the one-shot post-create sync (`dsn~tmux-sync~7`) — a daemon so a
     /// pending 30 s wait cannot hold the JVM open after the window closes.
@@ -593,7 +593,7 @@ public class Main extends Application {
             }
         }, TASK_BACKUP_MINUTES, TASK_BACKUP_MINUTES, TimeUnit.MINUTES);
         MainWindow.TaskFileAccess files = taskFileAccess(settings.tasksDir(), queueDir);
-        // [impl->dsn~task-create-local-title~1]
+        // [impl->dsn~task-create-local-title~2]
         initialTitles = new InitialTitleAdopter(
                 new FallbackSummarizer(new ClaudeCliSummarizer(), new FirstWordsSummarizer()),
                 files, actionExecutor, Platform::runLater, fileName -> {
@@ -4107,7 +4107,7 @@ public class Main extends Application {
         }
         // Independent of the launch: the title is the task file's, and a
         // failed start leaves a task that still deserves a readable row.
-        // [impl->dsn~task-create-local-title~1]
+        // [impl->dsn~task-create-local-title~2]
         InitialTitleAdopter titles = this.initialTitles;
         if (titles != null) {
             titles.adopt(taskId);
