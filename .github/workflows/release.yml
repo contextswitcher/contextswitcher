@@ -35,8 +35,8 @@ jobs:
           git config user.email '41898+github-actions[bot]@users.noreply.github.com'
           d=$(date -u +%F)
 
-          if [ -z "$(git rev-list origin/main..HEAD)" ]; then
-            echo "experimental has nothing new for main"; exit 0
+          if [ -z "$(git rev-list origin/main..HEAD)" ] && ! grep -q '^## \[Unreleased\]' CHANGELOG.md; then
+            echo "nothing to merge or release"; exit 0
           fi
 
           tag=
