@@ -308,7 +308,7 @@ While Claude works, draft the follow-ups instead of waiting: the pane below the 
 * **Jump to category** (`Ctrl+J`) — a popup narrows the category names as you type, the current virtual desktop's categories first; Enter selects the category in the list.
   While a query is typed, the tag / awaits-input / running-tasks filters step aside so a hit is never hidden; the active-desktop filter stays on and the bar reports the hits it does not show as "· N on other desktops".
 * **Filter menu** (toolbar) — **Awaits input** (waiting, asking, or hit the usage limit; the item carries the count even when off), **Active desktop**, **Running tasks**, and the **tag** submenu (several tags combine with AND; a filtered row shows only the selected tags, so a shared screen reveals nothing else). The button carries a badge while anything narrows the list, and the whole selection is restored on the next launch.
-* **Sort menu** — **Alphabetical** (default), **Last update**, or **Action needed** (usage limit, then attention, then waiting, then working). Error rows stay first, active before suspended, pinned tasks head their block.
+* **Sort menu** — **Last update** (default; a new task shows up on top), **Alphabetical**, or **Action needed** (usage limit, then attention, then waiting, then working). Error rows stay first, active before suspended, pinned tasks head their block.
 * **Group by labels** — group the list by tags instead of folders; a task with several tags appears under each, and every row then shows its category.
 * **Energy saver** (the leaf) — stops all background polling for working on battery; only the selected task's mirror keeps running, selecting a task refreshes that task, and the refresh button runs every poll once. Remembered across restarts.
 

@@ -129,7 +129,7 @@ Needs: dsn
 ### Remember the filters across restarts
 `req~filter-persistence~1`
 
-The task list comes up filtered the way the user left it: the toolbar filter menu's toggles and the selected tags are restored on the next launch, like the sort order (`req~task-sort-modes~1`).
+The task list comes up filtered the way the user left it: the toolbar filter menu's toggles and the selected tags are restored on the next launch, like the sort order (`req~task-sort-modes~2`).
 This deliberately overrides the "the filter is not persisted — the app always starts with it off" sentence of `req~task-tag-filter~1`, `req~awaits-input-filter~1`, `req~active-desktop-filter~2` and `req~running-tasks-filter~1` (without bumping them).
 A narrowed list is how the user chose to read their tasks — re-ticking the same two filters after every launch is busywork, and the filter button's badge already says the view is narrowed.
 A tag that no longer exists anywhere is dropped from the restored selection instead of hiding every task.
@@ -142,9 +142,9 @@ Covers:
 Needs: dsn
 
 ### Sort the task list
-`req~task-sort-modes~1`
+`req~task-sort-modes~2`
 
-The user can choose the order of the tasks within their groups from the task-list toolbar's Sort menu (`req~task-list-toolbar~2`): alphabetical (the default), last update (most recently changed task file first), or action needed (tasks awaiting the user first: usage limit, then attention, then waiting, then working, then status-less).
+The user can choose the order of the tasks within their groups from the task-list toolbar's Sort menu (`req~task-list-toolbar~2`): last update (the default: most recently changed task file first, so a new task shows up on top), alphabetical, or action needed (tasks awaiting the user first: usage limit, then attention, then waiting, then working, then status-less).
 Error rows stay first and active tasks stay before suspended ones in every mode; pinned tasks (`req~pinned-tasks~2`) head their block.
 The chosen order is kept across restarts.
 
@@ -2446,7 +2446,7 @@ While `ACTION_NEEDED` is active, `updateRunningStatuses` rebuilds the rows inste
 Tags: windows, linux
 
 Covers:
-- req~task-sort-modes~1
+- req~task-sort-modes~2
 
 Needs: impl, utest
 

@@ -14,6 +14,10 @@ The topmost section is the day in progress — its link points at `main` until t
 - Android: *Call (Android Auto)* on the voice tour screen runs the tour as a phone call, so Android Auto shows it like a call and uses the car's microphone and speakers; "next", "previous", "repeat" and "hang up" steer, anything else is sent as the reply.
 - Android: *Jump hosts* in the settings — `user@host via user@jump[:port]` per line — reach a remote through another ssh host, like `ProxyJump` on the desktop; the jump host then also resolves a short name the phone cannot. *Check connections* tries every listed remote through its jump host and reports each result; saving does not depend on it.
 
+### Changed
+
+- The task list sorts by *Last update* by default, so a new task shows up at the top of its group; a sort order picked in the Sort menu is kept as before.
+
 ### Fixed
 - Setup wizard: the browser-extension page is skipped for the Microsoft Store build of Firefox too, when the extension is installed there.
 - The remote-window dialog no longer shows a scrollbar next to a short two-line question; only an overlong pasted title scrolls.

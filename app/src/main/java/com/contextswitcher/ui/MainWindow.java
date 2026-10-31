@@ -803,9 +803,9 @@ public class MainWindow {
 
     private static TaskOrder storedSortMode() {
         try {
-            return TaskOrder.valueOf(PREFERENCES.get(SORT_MODE, TaskOrder.ALPHABETICAL.name()));
+            return TaskOrder.valueOf(PREFERENCES.get(SORT_MODE, TaskOrder.LAST_UPDATE.name()));
         } catch (IllegalArgumentException e) {
-            return TaskOrder.ALPHABETICAL;
+            return TaskOrder.LAST_UPDATE;
         }
     }
 

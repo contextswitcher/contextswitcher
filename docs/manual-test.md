@@ -1155,7 +1155,8 @@ Needs an imported plain-shell task — a tmux window that carried no Claude when
 
 ## Sort modes and label grouping (dsn~task-sort-modes~2, dsn~task-label-grouping~3)
 
-- [ ] Toolbar **Sort: Alphabetical** menu → pick **Last update** → within each group the most recently changed task file sorts first; editing any task file moves it to the top of its group.
+- [ ] Fresh profile (no stored sort mode) → the Sort menu has **Last update** ticked; adding a task puts it at the top of its group.
+- [ ] Toolbar **Sort** menu → pick **Last update** → within each group the most recently changed task file sorts first; editing any task file moves it to the top of its group.
 - [ ] Pick **Action needed** → tasks whose Claude asks/awaits (`attention`, then `waiting`) sort above `working` and idle ones; when a shown task's status changes (e.g. Claude finishes its turn), the row reorders within a few seconds without any click.
 - [ ] Suspended tasks stay below active ones and error rows stay on top in every mode.
 - [ ] Restart the app → the chosen sort mode is still active (button label shows it).
