@@ -7,6 +7,8 @@ on:
     # already ran for that commit on main.
     tags: ['v*']
   pull_request:
+  # The daily release dispatches this for its tag (a GITHUB_TOKEN tag push starts nothing).
+  workflow_dispatch:
 
 # A newer push to the same branch or PR supersedes the running build: a burst
 # of merges to main otherwise runs every intermediate commit to completion and

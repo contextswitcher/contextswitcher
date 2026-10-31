@@ -1,0 +1,61 @@
+name: Daily release
+
+# Every morning: merge experimental into main and, when CHANGELOG.md has an
+# [Unreleased] section, turn it into today's CalVer release `v<date>`
+# (MADR 0017). Runs here instead of being left to a Claude session's memory.
+on:
+  schedule:
+    - cron: '0 4 * * *'   # 04:00 UTC, before the working day in Europe
+  workflow_dispatch:
+
+concurrency:
+  group: daily-release
+
+permissions:
+  contents: write
+  actions: write   # dispatch build.yml for the tag (see the last step)
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: experimental
+          fetch-depth: 0
+
+      - uses: jbangdev/setup-jbang@v0.1.1
+
+      - name: Release, merge, tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898+github-actions[bot]@users.noreply.github.com'
+          d=$(date -u +%F)
+
+          if [ -z "$(git rev-list origin/main..HEAD)" ]; then
+            echo "experimental has nothing new for main"; exit 0
+          fi
+
+          tag=
+          if grep -q '^## \[Unreleased\]' CHANGELOG.md && ! git rev-parse -q --verify "refs/tags/v$d" >/dev/null; then
+            sed -i -e "s/^## \[Unreleased\]\$/## [$d] - $d/" \
+                   -e "s|^\[Unreleased\]: \(.*/compare/v[0-9-]*\)\.\.\.main\$|[$d]: \1...v$d|" CHANGELOG.md
+            jbang trust add https://github.com/nbbrd/
+            jbang heylogs@nbbrd check CHANGELOG.md
+            git commit -am "Release $d"
+            git push origin HEAD:experimental
+            tag="v$d"
+          fi
+
+          git switch main
+          git merge --no-ff --no-edit -m "Merge experimental${tag:+: release $d}" experimental
+          git push origin main
+          if [ -n "$tag" ]; then
+            git tag "$tag" main
+            git push origin "$tag"
+            # A tag pushed with GITHUB_TOKEN starts no workflow; a dispatch does.
+            gh workflow run build.yml --ref "$tag"
+          fi

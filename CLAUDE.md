@@ -14,10 +14,9 @@
 * Git: when the push is rejected, `git pull --no-rebase` (merge) — **never rebase**.
   Same rationale as MADR 0011: the merge commit keeps each session's state visible; concurrent Claude sessions push to `main`, and rebasing rewrites what another session may already have seen.
 * Changelog: `CHANGELOG.md` in Keep a Changelog format, CalVer date releases (MADR 0017).
-  Every push to `main` that changes user-visible behavior adds a bullet under **today's** section (create it if the last section is an older day).
-  A released section is never touched: once `v<today>` exists (another session tagged the day), new bullets go into an `## [Unreleased]` section on top, linked `.../compare/v<today>...main`, and the next release renames it to its day (Oliver, 2026-10-27: "DO NOT TOUCH RELEASED THINGS").
-  Today's section links to `.../compare/v<previous date>...main`; when a new day starts, retag the finished day — push `main` first (pull/merge if rejected), *then* `git tag v<that date> <last commit of that day> && git push origin v<that date>` — and rewrite its link to `.../compare/v<day before>...v<that date>`.
-  Tagging before the push can land the tag on a commit another concurrent session's push then diverges from.
+  Every user-visible change adds a bullet under `## [Unreleased]` on top (create it if missing, linked `.../compare/v<latest tag>...main`); a released section is never touched (Oliver, 2026-10-27: "DO NOT TOUCH RELEASED THINGS").
+  Releasing is automated: `.github/workflows/release.yml` runs every morning (04:00 UTC), merges `experimental` into `main` and, if `[Unreleased]` exists, renames it to the day, tags `v<date>` on `main` and starts the tag's build — sessions do not tag days by hand.
+  An extra release in between: *Run workflow* on *Daily release* (`gh workflow run release.yml`).
   The tag's GitHub pre-release takes the day's section as its notes (`build.yml`, `heylogs extract`), so the section must be complete when the tag is pushed.
   Verify before committing: `jbang heylogs@nbbrd check CHANGELOG.md` (rules come from `heylogs.properties`); CI runs the same check.
 * Requirements: OpenFastTrace in `docs/requirements/` — chain `feat → req → dsn → [impl->dsn~…~1]`/`[utest->dsn~…~1]` tags in code. A `dsn` item gains `Needs: impl` (and `utest` where sensible) in the same commit as the covering code. New behavior = new/updated spec item + tags in the same commit.
