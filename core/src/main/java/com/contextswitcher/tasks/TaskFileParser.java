@@ -66,7 +66,7 @@ public class TaskFileParser {
     /// Parses `file`, using its path relative to `tasksDir` (forward-slash
     /// separated, `.md` stripped) as id — e.g. `jabref/fix-npe` for a task
     /// grouped under the `jabref` subfolder.
-    // [impl->dsn~task-repository-watching~6]
+    // [impl->dsn~task-repository-watching~7]
     public Task parse(Path tasksDir, Path file) throws TaskParseException {
         return parse(relativeId(tasksDir, file), readContent(file));
     }
@@ -414,9 +414,9 @@ public class TaskFileParser {
                 #   the Windows Task View). The header's ▶ button focuses it — nothing
                 #   else. Omit for no desktop button. The nested form
                 #   desktop: {name: %1$s, completeControl: true}
-                #   additionally stores and closes every Firefox window on that
+                #   additionally stores and closes every Firefox tab on that
                 #   desktop when a task of this category is suspended, and reopens
-                #   the stored tabs on resume — a clean desktop in between.
+                #   them on resume — a clean desktop in between.
                 # profile: lecture
                 #   Environment profile from settings.yaml's profiles: (screens,
                 #   projector mode, taskbar, bookmarks bar) applied on every switch to
@@ -864,22 +864,24 @@ public class TaskFileParser {
     /// and `repo`, plus a `desktop:` line when a `desktop` is
     /// passed (the active-desktop filter's, `dsn~category-create-ui~2`). A
     /// null `remote` writes no `remote:` line — a local category
-    /// (`dsn~task-create-local~4`), the setup wizard's local choice.
+    /// (`dsn~task-create-local~4`), the setup wizard's local choice. A null
+    /// `url` is a plain folder (`dsn~category-from-folder~1`): no clone, so
+    /// neither `mainCheckout` nor `repo`.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~setup-wizard~10]
-    public static String groupConfigForRepo(String group, String url, @Nullable String remote,
+    // [impl->dsn~category-from-folder~1]
+    // [impl->dsn~setup-wizard~12]
+    public static String groupConfigForRepo(String group, @Nullable String url, @Nullable String remote,
             String workspacesRoot, @Nullable String desktop) {
         return """
                 ---
                 %sworkspacesRoot: %s
-                mainCheckout: %s
-                repo: %s
-                %s---
+                %s%s---
 
                 # %s — group defaults
                 """.formatted(remote == null ? "" : "remote: " + yamlScalar(remote) + "\n",
                 yamlScalar(workspacesRoot),
-                yamlScalar(workspacesRoot + "/" + group), yamlScalar(url.strip()),
+                url == null ? "" : "mainCheckout: " + yamlScalar(workspacesRoot + "/" + group)
+                        + "\nrepo: " + yamlScalar(url.strip()) + "\n",
                 desktop == null ? "" : "desktop: " + yamlScalar(desktop) + "\n", group);
     }
 

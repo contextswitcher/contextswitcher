@@ -25,7 +25,7 @@ import static com.contextswitcher.ui.UiTestSupport.clickButton;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The first-start wizard's page logic (`dsn~setup-wizard~10`): Next on the
+/// The first-start wizard's page logic (`dsn~setup-wizard~12`): Next on the
 /// remote page runs the connection check and only a success moves on, the
 /// checked remote's home becomes the proposed workspaces root, and the
 /// local choice skips the remote page and proposes a root under the local
@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// local check — no host is contacted, no tool run.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~setup-wizard~10]
+// [utest->dsn~setup-wizard~12]
 // [utest->dsn~full-labels~1]
 @Tag("ui")
 @TestFxApplication(SetupWizardUiTest.TestApp.class)
@@ -369,6 +369,37 @@ class SetupWizardUiTest {
                 () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
         assertThat(local.isSelected()).isTrue();
         clickButton("Cancel");
+    }
+
+    /// The last page's second source: a plain folder, named after its last
+    /// segment, handed back as the root with no repository URL.
+    // [utest->dsn~category-from-folder~1]
+    @Test
+    void aLocalFolderBecomesACategoryWithoutARepository() {
+        AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
+        Platform.runLater(() -> result.set(SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, true, SetupWizard.Prefill.EMPTY, EXTENSION)));
+        RadioButton local = awaitPresent(
+                () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
+        FX_ROBOT.mouse().moveTo(local).click();
+        clickButton("Next");
+        clickButton("Next");
+        field("#setup-ws-token");
+        clickButton("Next");
+        field("#setup-clone-url");
+        clickButton("Next");
+        RadioButton fromFolder = awaitPresent(
+                () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-from-folder").fetchOptional(), "folder choice");
+        FX_ROBOT.mouse().moveTo(fromFolder).click();
+        type(field("#setup-folder"), "/home/local/OneDrive/My Paper");
+        assertThat(field("#setup-folder-name").getText()).isEqualTo("my-paper");
+        assertThat(UiTestSupport.truncatedTexts(field("#setup-folder"))).isEmpty();
+        clickButtonById("setup-checkup");
+        awaitPresent(() -> Optional.ofNullable(result.get()), "wizard result");
+        assertThat(result.get()).hasValueSatisfying(r -> {
+            assertThat(r.repoUrl()).isNull();
+            assertThat(r.folderCategory()).isEqualTo("my-paper");
+            assertThat(r.workspacesRoot()).isEqualTo("/home/local/OneDrive/My Paper");
+        });
     }
 
     private static void clickButtonById(String id) {

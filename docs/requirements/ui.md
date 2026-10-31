@@ -129,7 +129,7 @@ Needs: dsn
 ### Remember the filters across restarts
 `req~filter-persistence~1`
 
-The task list comes up filtered the way the user left it: the toolbar filter menu's toggles and the selected tags are restored on the next launch, like the sort order (`req~task-sort-modes~1`).
+The task list comes up filtered the way the user left it: the toolbar filter menu's toggles and the selected tags are restored on the next launch, like the sort order (`req~task-sort-modes~2`).
 This deliberately overrides the "the filter is not persisted — the app always starts with it off" sentence of `req~task-tag-filter~1`, `req~awaits-input-filter~1`, `req~active-desktop-filter~2` and `req~running-tasks-filter~1` (without bumping them).
 A narrowed list is how the user chose to read their tasks — re-ticking the same two filters after every launch is busywork, and the filter button's badge already says the view is narrowed.
 A tag that no longer exists anywhere is dropped from the restored selection instead of hiding every task.
@@ -142,9 +142,9 @@ Covers:
 Needs: dsn
 
 ### Sort the task list
-`req~task-sort-modes~1`
+`req~task-sort-modes~2`
 
-The user can choose the order of the tasks within their groups from the task-list toolbar's Sort menu (`req~task-list-toolbar~2`): alphabetical (the default), last update (most recently changed task file first), or action needed (tasks awaiting the user first: usage limit, then attention, then waiting, then working, then status-less).
+The user can choose the order of the tasks within their groups from the task-list toolbar's Sort menu (`req~task-list-toolbar~2`): last update (the default: most recently changed task file first, so a new task shows up on top), alphabetical, or action needed (tasks awaiting the user first: usage limit, then attention, then waiting, then working, then status-less).
 Error rows stay first and active tasks stay before suspended ones in every mode; pinned tasks (`req~pinned-tasks~2`) head their block.
 The chosen order is kept across restarts.
 
@@ -265,10 +265,10 @@ Covers:
 Needs: dsn
 
 ### A pending Claude update gets its restart
-`req~claude-update-restart~1`
+`req~claude-update-restart~2`
 
 When Claude Code has installed an update and asks for a restart ("Restart to update" in its footer), the session is restarted on the new version — back in the same window on the same conversation — once its turn is over, never mid-answer.
-The desktop does this on its own while it runs; on the phone the user asks for it, since two apps restarting the same session would collide.
+The desktop does this on its own only when the user opts in (setting `claudeUpdateRestart`, off by default): an unasked `/exit` in a session reads as the app quitting it behind the user's back (field report 2026-10-31). On the phone the user asks for it, since two apps restarting the same session would collide.
 
 Tags: windows, linux, android
 
@@ -284,7 +284,7 @@ Each task row shows a live indicator of what its Claude window is doing, so the 
 A Claude session publishes its own state as the `@cs_status` tmux window user option (`working`, `waiting`, `attention`, `done`); ContextSwitcher polls it and colours the indicator accordingly.
 A session blocked on its usage limit publishes nothing — no hook fires for it — so ContextSwitcher detects it from the pane and shows a red dot (`dsn~claude-limit-detection~2`).
 A session whose turn was cut short by an API error is detected the same way and simply told to `continue` (`dsn~api-error-auto-continue~1`) — nothing there needs the user.
-A session that has unpacked a Claude Code update is restarted the same way (`dsn~claude-update-restart~6`), since only a fresh process runs the new version.
+A session that has unpacked a Claude Code update is restarted the same way (`dsn~claude-update-restart~7`) when the user opted in, since only a fresh process runs the new version.
 `attention` is set by Claude Code's `Notification` hook — Claude asked a question or waits for a permission — and is distinct from the mere end-of-turn `waiting`.
 A window that never publishes a status shows no indicator.
 A window that is alive but runs no Claude at all — a start that went wrong, or a session that exited — offers a one-click repair instead (`dsn~start-claude-button~2`).
@@ -884,7 +884,7 @@ Needs: impl, utest
 ### Category from repository URL
 `dsn~category-from-url~5`
 
-`MainWindow.createCategoryFromRepo` takes the repository URL, the workspaces root, the remote, a `RepoType` (`dsn~claude-md-templates~1`) and an optional first message — all asked on the setup wizard's last page (`dsn~setup-wizard~10`), its only entry point: the separate *Add category from URL…* dialog in the toolbar add menu and the empty-area context menu duplicated that page and was dropped in `~5`.
+`MainWindow.createCategoryFromRepo` takes the repository URL, the workspaces root, the remote, a `RepoType` (`dsn~claude-md-templates~1`) and an optional first message — all asked on the setup wizard's last page (`dsn~setup-wizard~12`), its only entry point: the separate *Add category from URL…* dialog in the toolbar add menu and the empty-area context menu duplicated that page and was dropped in `~5`.
 The category is named `TaskFileParser.repoName` (the last path segment of that web URL, `.git` dropped, slugged like a folder name; non-URLs are refused) — an ssh clone URL (`git@host:owner/name.git`, `ssh://…`) counts as well.
 It creates the folder and writes `TaskFileParser.groupConfigForRepo` — the skeleton's example lines as real values: `remote`, `workspacesRoot`, `mainCheckout: <root>/<name>`, `repo` (`TaskFileParser.repoWebUrl`: the `https://host/owner/name` page — of an ssh URL too, and cut back from a deep link: on GitHub after `owner/name`, on GitLab before `/-/` — since `repo` is opened in the browser and drives the issue links, `dsn~terminal-issue-links~2`; the setup description keeps an ssh URL as typed, so the session clones over ssh) (no `tags:` line since `~4` — a category is not a tag), plus `desktop:` when the desktop filter is on (`dsn~category-create-ui~2`) — then starts a live task in the new group (`dsn~task-create-live~8`, whose `mkdir -p` of the workspaces root is the remote-side setup step; no worktree clause, since there is no clone yet) with `MainWindow.categorySetupDescription` as the description and the picked type's template as the prompt's appendix: clone the repository into the `<name>` subdirectory (the `mainCheckout`), then write the root's `CLAUDE.md` from that template — placeholders replaced, the build/test and pull-request sections filled from the clone's README, build files and CI workflows, inapplicable sections deleted, the rest kept.
 The type and the first message only shape that description: a `fork()` type's clone clause asks for a fork of the repository (`gh repo fork --clone`, which reuses an existing fork) with the original kept as `upstream`; a non-blank first message is appended as "After setting things up, please do the following: …", so the setup session runs straight into the actual work instead of idling.
@@ -915,6 +915,21 @@ Covers:
 
 Needs: impl, utest
 
+### Category from a plain folder
+`dsn~category-from-folder~1`
+
+A project need not have a repository: a folder synced by OneDrive, say, has no remote and must not get a `.git` (the sync would carry it along).
+The setup wizard's last page offers it next to the repository (`dsn~setup-wizard~12`), and `Main` hands the answer to `MainWindow.createCategoryFromFolder`.
+It creates the category like `dsn~category-from-url~5` does — folder, clash popup (`dsn~category-name-clash~1`), `CONTEXTSWITCHER.md` through `TaskFileParser.groupConfigForRepo` with a null URL, so only `remote` (for a non-local session host), `workspacesRoot` (the folder itself) and `desktop` are written, no `mainCheckout` and no `repo` — and starts the same setup session in the folder, with `MainWindow.folderSetupDescription` as the description: do not run `git init`, write the folder's `CLAUDE.md` from `RepoType.localFolderTemplate` (`claudemd/local-folder.md`: no branches, no worktrees, tasks share the folder, a backup copy before a larger rewrite since nothing undoes an edit), keep a `CLAUDE.md` that is already there and add only what it lacks.
+A first message is appended as for a repository.
+
+Tags: windows, linux
+
+Covers:
+- req~setup-wizard~1
+
+Needs: impl, utest
+
 ### Workspace-root CLAUDE.md templates
 `dsn~claude-md-templates~1`
 
@@ -937,7 +952,7 @@ Covers:
 Needs: impl, utest
 
 ### First-start wizard
-`dsn~setup-wizard~10`
+`dsn~setup-wizard~12`
 
 `Main.runSetupWizard` replaces the clone offer at the fresh-machine moment (`dsn~task-git-clone-setup~2`: the task directory missing or empty and not a git checkout — an existing directory is never re-prompted) with `SetupWizard.show`, one `Dialog` whose content is swapped between four pages by *Back*/*Next* (their `ACTION` consumed, so the dialog stays open; the last page's *Finish* closes it with a `Result`, *Cancel* with none).
 Page one asks where sessions run — *remote over ssh* (default), *in WSL on this machine* (Windows only, `dsn~wsl-sessions~1`) or *this machine*, worded per OS: on Windows a local session runs in the app's own terminal pane and cannot be detached (`dsn~task-create-local~4`).
@@ -955,6 +970,8 @@ Page three recommends tools (`dsn~recommended-tools~3`), one row each with a liv
 Page four is the browser extension, the one part the app cannot install: what it does, the WebSocket port and token its options page needs (the token in a read-only field with a *Copy* button, since retyping it from `settings.yaml` is where people stall), a button opening the configured browser's install notes on GitHub through the app's URL opener, and — on a re-run, when `ExtensionServer` is up — which browser's extension is connected right now (`SetupWizard.Extension`, filled by `Main` from the settings and the server).
 When the extension is already there as the wizard opens, the page is skipped: it has nothing left to help with.
 "There" is either signal: an extension connected right now, or a browser profile listing it (`InstalledExtension.find`, `~9`→`~10`).
+The Microsoft Store build of Firefox keeps its profiles inside its package, `%LOCALAPPDATA%\Packages\Mozilla.Firefox_*\LocalCache\Roaming\Mozilla\Firefox`, which is searched like `%APPDATA%\Mozilla\Firefox` (`~10`→`~11`; field report 2026-10-31: the page still asked on a Windows machine with Firefox set up).
+A Firefox extension loaded as a temporary add-on from a checkout (`about:debugging`) is never listed in `extensions.json`, so the profile's `prefs.js` counts too: its `extensions.webextensions.uuids` pref maps every extension the profile has run, temporary ones included, to an internal UUID, and Firefox drops the entry when an add-on is removed (`~11`→`~12`; field report 2026-10-31: the page still asked on a machine whose classic-install Firefox ran the extension as a temporary add-on).
 A connection alone missed the common case — the browser closed, or the first start, when the server is not up yet — so on a machine with the extension installed the page still showed (field report 2026-10-11).
 The profile files answer without the browser: Firefox's `extensions.json` per profile (`addons[].id` is `extension@contextswitcher.org`; under `%APPDATA%\Mozilla\Firefox\Profiles`, `~/.mozilla/firefox` and its Snap and Flatpak twins, or macOS's `Library/Application Support`, plus every `Path=` of their `profiles.ini`, since a profile may live anywhere), and for Chrome/Chromium each `extensions.settings` entry of a profile's `Preferences`/`Secure Preferences`, followed to its `manifest.json` — an unpacked extension's id derives from its path, so the manifest `name` `ContextSwitcher` is what identifies it.
 Any unreadable file counts as not installed, so the page shows rather than being skipped wrongly; `InstalledExtensionTest` pins both browsers on synthetic profiles.
@@ -962,6 +979,7 @@ That is decided once, at open, so *Back* never loses a page the user just saw; o
 Page five is the old clone offer as a field: a task-repository URL, empty to start fresh.
 Next to *Next*, it offers *Start right away*, which finishes the wizard there without a first project: a cloned task repository already holds its projects.
 Page six is a category from a repository — headed *First category*, or *Add a category* on a re-run when categories already exist (`Prefill.categoriesExist`, from `MainWindow.hasCategories`), the same wording as the toolbar's *Add category* — with the repository URL (clipboard-prefilled like `dsn~category-from-url~5`), the workspaces root following it as `<remote home or user.home>/<name>-workspaces` until edited, and the `RepoType` — all optional.
+A radio pair above the fields switches it to a plain folder instead (*A local folder — no remote, no git*, `dsn~category-from-folder~1`, `~10`→`~11`): the folder's path, with *Browse…* (a `DirectoryChooser`, enabled only for local sessions, since it shows this machine's folders), and the category name following the path's last segment, slugged, until typed into; the `Result` then carries that name as `folderCategory` and the path as `workspacesRoot`, `repoUrl` null.
 Only a session on Windows itself gets Windows path separators there: a WSL root lives on the Linux side of the boundary and is proposed under the probed `$HOME` like a remote one.
 Back and Next step over the skipped pages (`skipped`: the remote page for a local choice, the tools page for local on Windows, the extension page while an extension is connected or installed), so a skipped page stays skipped in both directions.
 Each page swap calls `sizeToScene`: a `Dialog` sizes itself once at show, and a taller later page pushed *Finish* out of the window.
@@ -1215,7 +1233,7 @@ Covers:
 Needs: impl, utest
 
 ### Restart on a pending Claude update
-`dsn~claude-update-restart~6`
+`dsn~claude-update-restart~7`
 
 Claude Code updates itself in the background and then asks for a restart — "Update installed · Restart to update" in its footer — which every session keeps showing until someone quits and comes back.
 `TmuxStatusPoller` therefore greps, in the same per-window pane pass as the limit detection (`dsn~claude-limit-detection~2`), the **bottom four non-blank lines** of `capture-pane -p -J` — the footer below the input box, with the hint lines under it — for `Restart to update`, and prints an `update|windowId` marker line per hit.
@@ -1234,12 +1252,13 @@ The fallback still covers a window that published no id at all and an id the rem
 `working` is deliberately excluded (mid-answer), and so are `attention` (a question or permission prompt on screen that the restart would throw away) and `limit` (a new process does not lift it).
 The restart is repeated at most every `RESTART_COOLDOWN_SECONDS` (300) per window, since a restart that did not take leaves the message on the footer and a per-tick retry would quit the session over and over.
 No window an attached tmux client shows is restarted (`~5`→`~6`, field report 2026-09-17: Oliver's own session, the task in focus, got the `/exit` while he worked in it): the status command ends with `tmux list-clients -F 'viewed|#{window_id}'`, and `autoRestart` skips every window listed there — the app's terminal mirror counts as a client, as does a terminal the user attached themselves — since the `Escape` would throw away what is being typed and the `/exit` end the session in front of the user; the first tick after they moved to another task restarts it.
+All of this runs only with the setting `claudeUpdateRestart: true` (`~6`→`~7`, field report 2026-10-31: "why /exit sent? … I don't like that"): `Main` hands the flag to `TmuxStatusPoller`, whose `poll` skips `autoRestart` without it, so by default a session keeps showing *Restart to update* until the user restarts it — or the phone's *Restart Claude* (`dsn~android-claude-restart~1`) does, which is a request and not gated.
 
 Tags: windows, linux
 
 Covers:
 - req~task-running-indicator~2
-- req~claude-update-restart~1
+- req~claude-update-restart~2
 
 Needs: impl, utest
 
@@ -1422,7 +1441,7 @@ The pane command is the same test `TmuxTaskImporter` uses on import: `claude` me
 Pressing it types `claude --resume <sessionId> || claude` into the recorded window — `TmuxResurrect.startClaude`, the command a resurrect already sends (`dsn~tmux-resurrect~7`), so the conversation is continued where one is recorded and a fresh session started where it is not (or where the id no longer resolves), `--dangerously-skip-permissions` following the `claudeAuto` setting.
 The round-trip runs off the FX thread with the button disabled and the status bar reporting `Starting Claude …` → outcome, the async single-shot button shape.
 No confirmation: typing a command into a window that is not running Claude cannot destroy anything.
-Play on such a task does the same (`~2`): `MainWindow.switchResolved` runs the switch actions and then, when the last poll's evidence says the window lacks Claude, the very start the button sends — so a killed Claude comes back by the one gesture a row is reached for, without switching away and back or finding the button (field report 2026-09-14: "if claude is killed, play button should resume it?"). No separate *restart* button: restarting a *running* Claude is the update path's business (`dsn~claude-update-restart~6`), and a window the poll has not seen is left alone as before.
+Play on such a task does the same (`~2`): `MainWindow.switchResolved` runs the switch actions and then, when the last poll's evidence says the window lacks Claude, the very start the button sends — so a killed Claude comes back by the one gesture a row is reached for, without switching away and back or finding the button (field report 2026-09-14: "if claude is killed, play button should resume it?"). No separate *restart* button: restarting a *running* Claude is the update path's business (`dsn~claude-update-restart~7`), and a window the poll has not seen is left alone as before.
 
 Tags: windows, linux
 
@@ -2024,7 +2043,7 @@ Needs: impl, utest
 `dsn~group-config-cache~1`
 
 `MainWindow.groupDefaults` memoizes the parsed `CONTEXTSWITCHER.md` per group in a map that is cleared at the start of every `rebuildRows`. Every reader — the tag filter, the row and header "Tags" submenus (which collect the effective tags of *all* tasks per rendered cell), the desktop filter, the remote/repo/folder lookups — otherwise hit the disk once per call, and one list refresh became tasks² `exists`+read+parse calls on the FX thread: a 62 s freeze with 46 tasks on a slow Windows drive (logged by `dsn~fx-stall-log~1`), triggered by any list change (a Qodo sync's queue write, a tmux reconcile).
-Freshness is unchanged: every create/modify/delete of a config reaches `rebuildRows` through the repository watcher (`dsn~task-repository-watching~6`), which drops the cache before the rows are rebuilt.
+Freshness is unchanged: every create/modify/delete of a config reaches `rebuildRows` through the repository watcher (`dsn~task-repository-watching~7`), which drops the cache before the rows are rebuilt.
 
 Tags: windows, linux
 
@@ -2157,7 +2176,7 @@ Needs: impl, utest
 ### A fresh install says which tools are missing
 `dsn~startup-tool-check~1`
 
-On the fresh-machine path — the same empty or missing task directory the setup wizard keys on (`dsn~setup-wizard~10`, `dsn~task-git-clone-setup~2`) — `RequiredTools.missing` scans `PATH` for `tmux`, `ssh` and `git`, and a warning alert names those that are not there.
+On the fresh-machine path — the same empty or missing task directory the setup wizard keys on (`dsn~setup-wizard~12`, `dsn~task-git-clone-setup~2`) — `RequiredTools.missing` scans `PATH` for `tmux`, `ssh` and `git`, and a warning alert names those that are not there.
 `tmux` runs local and remote Claude sessions, `ssh` reaches every remote, `git` syncs the task files; a missing one would otherwise only surface at the first click that needs it, as a failure with no obvious cause.
 Once, not on every start: the tools are installed once, and a per-launch check would be a permanent nag for a one-time problem.
 Windows is skipped — `ssh` ships with it and local sessions there are hosted by the app itself (`dsn~terminal-owned-session~4`), so `tmux` is not part of that install.
@@ -2278,7 +2297,7 @@ The stage title is `<category> | <n> waiting | <n> working | ContextSwitcher` fo
 The counts are over that category's tasks: `waiting` is the same "needs the user" set the awaits-input filter uses (`dsn~awaits-input-filter~1`), `working` the orange running dot.
 The app name goes last because a taskbar button or window switcher truncates the end: the category and its counts are what distinguish two ContextSwitcher windows, the app name is not.
 Selecting a category header, a task, or a corrupt row switches the title's category; a label header leaves it alone (it sits inside the category already shown).
-A virtual-desktop switch under the active-desktop filter (`dsn~active-desktop-filter~6`) switches it too, to the category of the task that desktop re-selects (`dsn~desktop-last-task-selection~4`) — even while that selection waits for the queue box to lose the keyboard.
+A virtual-desktop switch under the active-desktop filter (`dsn~active-desktop-filter~6`) switches it too, to the category of the task that desktop re-selects (`dsn~desktop-last-task-selection~5`) — even while that selection waits for the queue box to lose the keyboard.
 A desktop with no task to select names itself: its desktop name stands in for the category, so the title never keeps the previous desktop's category.
 The counts follow the status poller (`dsn~task-running-indicator~7`) and every row rebuild, so the title stays as current as the dots.
 
@@ -2429,7 +2448,7 @@ While `ACTION_NEEDED` is active, `updateRunningStatuses` rebuilds the rows inste
 Tags: windows, linux
 
 Covers:
-- req~task-sort-modes~1
+- req~task-sort-modes~2
 
 Needs: impl, utest
 
@@ -2566,7 +2585,7 @@ The task-list selection listener calls `recordHistory(id)` for every loaded task
 `navigateHistory(±1)` first drops every entry whose task no longer exists in `entries` (deleted or renamed since the visit), adjusting the cursor for each removal below it, then moves the cursor one step and hands the id to `selectTask` — which already reveals a row a collapsed group or a find query hides.
 Back is therefore never a no-op that looks like a dead button; `updateHistoryButtons` disables each arrow at its end of the trail.
 A visit replaced within `TRANSIENT_VISIT_NANOS` (1 s) of being appended is no visit: the next task takes its entry instead of being appended after it.
-A desktop switch re-selects that desktop's last task (`dsn~desktop-last-task-selection~4`) and the browser window it activates reports its tab a moment later (`dsn~browser-tab-selects-task~7`); Back then landed on the task that had only flashed, not on the one worked on before (field report 2026-09-13).
+A desktop switch re-selects that desktop's last task (`dsn~desktop-last-task-selection~5`) and the browser window it activates reports its tab a moment later (`dsn~browser-tab-selects-task~7`); Back then landed on the task that had only flashed, not on the one worked on before (field report 2026-09-13).
 Only an append stamps the time and `navigateHistory` clears it, so the replaced entry is always the newest one and a step taken with the arrows is never overwritten.
 
 The two icon buttons (`ARROW_LEFT`, `ARROW_RIGHT`) sit at the **left** end of the list toolbar (`dsn~task-list-toolbar~3`), before the add menu, where a browser puts them.
@@ -2688,14 +2707,15 @@ Covers:
 Needs: impl, utest
 
 ### Last selected task per desktop
-`dsn~desktop-last-task-selection~4`
+`dsn~desktop-last-task-selection~5`
 
 `MainWindow` maps desktop name → last selected task id in a preferences child node (`lastTaskByDesktop`, so the memory outlives a restart): the task list's selection listener records every selected `TaskEntry.Loaded` under the currently active desktop (nothing is recorded while the active desktop is unknown — non-Windows, unnamed, or not yet read).
 `updateActiveDesktop` — only while the filter is on — reads the remembered id *before* its rebuild, whose own selection changes would otherwise be recorded under the desktop just switched to and overwrite it, and re-selects the task afterwards via `selectTask`, which also scrolls the row into view; the selection change then drives the terminal, editor, and queue panes as any click would.
 Only an id the narrowed rows actually show is handed to `selectTask` — a deleted or otherwise filtered-out id would sit in `pendingSelectionId` forever and block the selection preservation of every later rebuild — and a desktop with no usable remembered id falls back to the first task of the narrowed list.
 
 
-The re-selection is skipped while the keyboard sits in one of the queue pane's text boxes (`MainWindow.queueFieldFocused`, the guard `selectCreatedTask` has carried since `dsn~task-from-pr~6`).
+The re-selection is skipped while the keyboard sits in one of the queue pane's text boxes **and that box holds text** (`MainWindow.queueFieldFocused`, the guard `selectCreatedTask` has carried since `dsn~task-from-pr~6`).
+An empty box does not count: it is the queue's resting focus (it takes the keyboard back after every send) and the scene keeps it while the user is on another desktop, so a focus-only guard blocked every switch and left the previous desktop's task in the terminal (field report 2026-10-31).
 A selection change swaps the queue pane to the new task, and `QueuePane.showTask` **commits the half-typed message as the previous task's draft** before clearing the box — so a desktop switch arriving mid-sentence reads as "I typed something in the queue field, focus was stolen to the task list - and my typed letters lost" (field report 2026-09-12; the letters were not lost, they were filed under the task the user had left).
 The list still follows the desktop — only the selection waits, and the next switch or a click applies it.
 A desktop switch is an *ambient* event, unlike the click or keypress that every other selection comes from, so it is the one that must yield to someone typing.
@@ -3197,7 +3217,7 @@ Needs: impl
 `dsn~startup-background~1`
 
 Two pieces of `Main.start` leave the FX thread.
-The task-directory scan, watcher registration and startup git pull run as one background job on the action executor (in that order — the pull stays behind the watcher start so the files it merges in are seen; the scan itself parses off-thread per `dsn~task-repository-watching~6` and entries stream into the list as they parse).
+The task-directory scan, watcher registration and startup git pull run as one background job on the action executor (in that order — the pull stays behind the watcher start so the files it merges in are seen; the scan itself parses off-thread per `dsn~task-repository-watching~7` and entries stream into the list as they parse).
 And a `class-warmup` daemon thread started first thing `Class.forName`-loads the heavyweight UI classes (the JediTermFX widget, the incubator `RichTextArea`, `TerminalPane`, `MainWindow`): their classpath scanning cost over a second on a cold Windows drive and showed up as an FX stall inside the `TerminalPane` constructor (`dsn~fx-stall-log~1`); loading them concurrently, the FX thread later finds them loaded, or waits only for the one still in flight.
 The synchronous remainder of startup is deliberate: settings must exist before anything is built, the clone offer is a modal decision the scan depends on, and the stored-geometry read must precede `show`.
 

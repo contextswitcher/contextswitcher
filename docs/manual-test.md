@@ -1155,7 +1155,8 @@ Needs an imported plain-shell task — a tmux window that carried no Claude when
 
 ## Sort modes and label grouping (dsn~task-sort-modes~2, dsn~task-label-grouping~3)
 
-- [ ] Toolbar **Sort: Alphabetical** menu → pick **Last update** → within each group the most recently changed task file sorts first; editing any task file moves it to the top of its group.
+- [ ] Fresh profile (no stored sort mode) → the Sort menu has **Last update** ticked; adding a task puts it at the top of its group.
+- [ ] Toolbar **Sort** menu → pick **Last update** → within each group the most recently changed task file sorts first; editing any task file moves it to the top of its group.
 - [ ] Pick **Action needed** → tasks whose Claude asks/awaits (`attention`, then `waiting`) sort above `working` and idle ones; when a shown task's status changes (e.g. Claude finishes its turn), the row reorders within a few seconds without any click.
 - [ ] Suspended tasks stay below active ones and error rows stay on top in every mode.
 - [ ] Restart the app → the chosen sort mode is still active (button label shows it).
@@ -1254,7 +1255,7 @@ The capture/store/reopen logic and the scripts' COM shape are unit-tested; what 
 - [ ] Suspend with Firefox closed (extension disconnected) → the chip fails with the extension detail, nothing is stored; the tmux teardown still runs.
 - [ ] On the category with the plain scalar `desktop:` form, suspend → behavior unchanged (only the task's own `browser.urls` close).
 
-## Download a generated file (`dsn~generated-file-download~2`)
+## Download a generated file (`dsn~generated-file-download~3`)
 
 The remote half is verified (the `find` listing and the base64 round-trip were run against devbox while building this); what needs a real desktop is the menu, the download folder, and the OS handing the file to an application — on Windows in particular, where `~/Downloads` is `%USERPROFILE%\Downloads`.
 
@@ -1400,6 +1401,8 @@ Needs the debug APK on a phone with synced tasks of a category whose tasks recor
 - [ ] *Next* / *Previous* step and speak; *Repeat* speaks the card again; the last task has *Next* disabled.
 - [ ] *Dictate* → the first time Android asks for the microphone; the spoken sentence appears under *Heard:*; *Send* delivers it, the session's reply comes in a few sentences without tables, and within about ten seconds of Claude finishing the phone reads it out.
 - [ ] Without network, *Send* → "Not sent, kept on the phone"; the message is in the task's enqueued list.
+- [ ] An English card is read by an English voice, a German answer by a German one.
+- [ ] *Call (Android Auto)* with the phone connected to the car → the car shows an ongoing call; the overview and the card come through the car's speakers; saying "next" steps, a sentence is sent as the reply, and the finished turn is read out; the car's hang-up (or *Hang up* on the phone) ends it.
 - [ ] Head unit: *Tour* in the header → category list → the same card as a message screen with *Dictate* and *Next*; *Previous* and *Repeat* in the header. Dictation from the tour sends with the voice-mode hint.
 
 ## Android update hint (`dsn~android-update-hint~3`)

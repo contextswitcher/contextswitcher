@@ -27,8 +27,8 @@ import static com.contextswitcher.ui.UiTestSupport.awaitPresent;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// A virtual-desktop switch must not move the selection while the keyboard is
-/// in the queue pane's message box (`dsn~desktop-last-task-selection~4`).
+/// A virtual-desktop switch must not move the selection while the user is
+/// typing in the queue pane's message box (`dsn~desktop-last-task-selection~5`).
 ///
 /// The switch is the one *ambient* source of a selection change — every other
 /// one is a click or a keypress — and a selection change swaps the queue pane
@@ -42,13 +42,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// tasks directory between its methods and several of its assertions are exact
 /// row sets, so two extra categories here turned one pre-existing failure into
 /// five.
-// [utest->dsn~desktop-last-task-selection~4]
+// [utest->dsn~desktop-last-task-selection~5]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class DesktopSwitchWhileTypingUiTest {
 
     @Test
-    void aDesktopSwitchLeavesTheSelectionAloneWhileTheQueueBoxIsFocused() throws Exception {
+    void aDesktopSwitchLeavesTheSelectionAloneOnlyWhileTheQueueBoxHoldsText() throws Exception {
         Path dir = UiTestSupport.tasksDir;
         Files.createDirectories(dir.resolve("pi"));
         Files.createDirectories(dir.resolve("rho"));
@@ -69,8 +69,11 @@ class DesktopSwitchWhileTypingUiTest {
         runFx(() -> mainWindow().selectTask("pi/typing"));
         awaitSelected("pi/typing");
 
-        // The keyboard goes into the message box, as if mid-word.
-        runFx(() -> queueBox().requestFocus());
+        // The keyboard goes into the message box, mid-word.
+        runFx(() -> {
+            queueBox().requestFocus();
+            queueBox().setText("half a wo");
+        });
         UiTestSupport.sleep();
 
         runFx(() -> mainWindow().updateActiveDesktop("Rho"));
@@ -100,8 +103,10 @@ class DesktopSwitchWhileTypingUiTest {
                 .as("the title falls back to the desktop name")
                 .isTrue();
 
-        // Focus out of the box, and the next switch applies normally.
-        runFx(list::requestFocus);
+        // An empty box keeps the keyboard but guards nothing: it is the queue's
+        // resting focus, and blocking on it left every switch's terminal on the
+        // previous desktop's task (field report 2026-10-31).
+        runFx(() -> queueBox().clear());
         runFx(() -> mainWindow().updateActiveDesktop("Pi"));
         runFx(() -> mainWindow().updateActiveDesktop("Rho"));
         awaitSelected("rho/other");

@@ -61,6 +61,60 @@ It was announced as [complete desktop task-focused interface for everyone](https
 
 * [Orca](https://github.com/stablyai/orca) - desktop app for running several coding agents (Claude Code, Codex, ...) side by side, each in its own git worktree, tracked in one place, with a mobile companion.
   It covers the agent-and-worktree slice of a task only; browser tabs, IDE windows, and other applications stay outside.
+* [Paradev](https://github.com/paradevai/paradev) (formerly Superset) - Electron desktop app (macOS first, Elastic License 2.0) that runs many CLI coding agents in parallel, one git worktree per workspace, with a built-in diff viewer, in-app browser for dev servers, PR review comments sent straight to an agent, scheduled automations, a CLI/SDK/MCP server, and an iPhone app.
+  Agent status comes from hooks it installs into each agent's config; remote hosts, mobile and automations go through its relay and a paid account.
+  Like Orca it stays inside the app: the context it switches is the worktree, its terminals and its browser pane, not the desktop around them.
+
+### Paradev in detail
+
+A feature-by-feature comparison, from Paradev's README and docs as of 2026-10-29.
+The one-line difference: Paradev is an agent IDE — the context it manages is a worktree with its terminals, diff and browser pane, all inside one Electron window.
+ContextSwitcher manages the desktop around the agent: tmux window on a remote, IntelliJ, real browser tabs, notes, chat, folders, virtual desktops.
+Paradev replaces your terminal; ContextSwitcher drives the tools you already have.
+
+| Area | Paradev | ContextSwitcher |
+|---|---|---|
+| Platform, stack | Electron/React/Bun; macOS primary, Linux experimental, no Windows | JavaFX; Windows, Linux, NixOS; desktop-integration features are Windows-only |
+| License, business | Elastic License 2.0, YC-backed; Pro (paid, per user) for remote access, mobile, automations; Team for cloud workspaces | MIT, one-person project, nothing paid |
+| Agents | ~20 CLI agents with status hooks, model and effort picker, custom agents, built-in chat pane | Claude Code only (model and effort picker, fork session, `--resume` after reboot) |
+| Where agents run | Locally in the app's own terminals; remote hosts via its relay and account | Anywhere tmux runs, over plain ssh; local is just another host |
+| Task state | Database behind the app, restore for 30 days | One Markdown file per task, hand-editable, git-synced between machines with conflict merging |
+| Grouping | Projects, board lanes driven by PR state | Categories as folders with inherited defaults, tags, pin, Done section, machine-specific keys |
+| Worktree handling | App creates the worktree and branch, setup/teardown scripts, import existing worktrees | Claude creates the worktree per the category's `CLAUDE.md`; app records workspace and commit via tmux options |
+| Status | Hooks installed into each agent's config; sound, macOS dock badge, Clear Status | Claude Code hooks publish tmux window options; traffic-light dots, usage-limit and API-error detection from the pane, 90 s stale-hook safety net, auto-retry on API error |
+| Terminal | Native xterm tabs, splits, presets, rich prompt editor with @-file mentions | Live ssh mirror of the tmux window; Markdown copy of Claude's replies; clickable issue numbers; file download from the scratchpad |
+| Message queue | Prompt editor, send to running agent | Per-task persistent queue, delayed send on idle, drains one per turn, attachments, Read section, fed from PR review threads |
+| Diff and review | Built-in diff viewer with inline comments and editing, commit and push from the app | Show diff through the remote's git pager (delta), RefactoringMiner AST diff and refactoring count, Open in IntelliJ |
+| Pull requests | GitHub only: PR list, CI checks, activity stream, select diff lines and send to an agent, PR-checkout workspaces | GitHub and GitLab state icons, review comments synced into the queue, auto categories from a PR search, auto-suspend and cleanup of merged PRs |
+| Browser | In-app browser previewing the workspace's dev-server ports, Design mode to send a UI element to the agent | Firefox and Chrome extensions: focus or open the task's real tabs, tab groups, close on suspend, extension badge shows which tasks list the current page |
+| Beyond the agent | Open in Cursor or VS Code; Slack and Linear create workspaces | IntelliJ via Gateway, OneNote page, Matrix room, Explorer folders, Windows virtual desktops with complete control |
+| Automation | Scheduled and event-driven agent runs (Sentry, Slack, PR review requests) | Auto categories (poll a PR search every 10 min), auto-suspend idle tasks, merged cleanup; no scheduled agent runs |
+| Scripting | CLI, TypeScript SDK, MCP server | `contextswitcher://` deep links only |
+| Mobile | iPhone and iPad app, Pro only, via relay or cloud | Android app over ssh and git, plus Android Auto, no account |
+| Collaboration | Organizations, shared hosts, Pages for team review | None, single user by design |
+
+**Paradev has, ContextSwitcher lacks:**
+
+* Multi-agent support — Codex, Gemini, OpenCode and others with one status mechanism; our hooks and pane grep are Claude-Code-specific.
+* In-app diff viewer with line comments sent to the agent; we page a diff in the terminal and sync PR comments, but have no local select-and-send.
+* Scheduled and event-triggered agent runs; auto categories only add tasks, they do not start sessions.
+* CLI, SDK and MCP server, so agents can create tasks themselves; we have deep links and the task files.
+* Dev-server preview per worktree with port detection.
+* Terminal presets and splits; we mirror one tmux window per task.
+* Team features: shared hosts, Pages, Linear and Slack.
+
+**ContextSwitcher has, Paradev lacks:**
+
+* Whole-desktop switching — IDE window, real browser tabs, notes, chat, folders, virtual desktops; Paradev stops at its own window and an "open in IDE" button.
+* Plain ssh and tmux, no relay, no account; remote hosts and the phone need no cloud component.
+* Files as state: readable, editable, git-backed, conflict-merged.
+* Review workflow: auto-filled review categories, review threads into the message queue, GitLab support, PR-state-driven suspend and cleanup.
+* A delayed queue that sends on idle.
+* Resilience: usage-limit and API-error detection, auto `continue`, auto-suspend of idle sessions, restart all tasks after a host reboot.
+* RefactoringMiner view — semantic "what was refactored" instead of a text diff.
+* Windows support, and Android instead of iOS.
+
+**Worth stealing:** select diff lines and send to the session; an MCP server or small CLI so a session can create sibling tasks; status hooks for other agents (the tmux-option protocol is agent-agnostic, only the wizard's hook installer is Claude-specific); scheduled sessions as a category-level cron with a canned prompt.
 
 ## Research Papers
 

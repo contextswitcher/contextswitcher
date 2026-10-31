@@ -1,8 +1,10 @@
-# ContextSwitcher
+# <img src="extension/firefox/icon.svg" alt="" width="32" align="top"> ContextSwitcher
 
 [![Build](https://github.com/contextswitcher/contextswitcher/actions/workflows/build.yml/badge.svg)](https://github.com/contextswitcher/contextswitcher/actions/workflows/build.yml)
 
 > ContextSwitcher is [Mylyn](https://www.eclipse.org/mylyn/) for the desktop: one click switches your whole working context — remote tmux window (e.g. a running Claude session), remote IntelliJ project, browser tabs, notes, chat room, folders.
+
+![The main window: task list with categories and tags on the left, the terminal mirroring the task's tmux window in the middle, notes and message queue on the right](docs/screenshot-main-window.png)
 
 Why this exists and the long-term vision: [docs/background.md](docs/background.md); related work: [docs/related-work.md](docs/related-work.md).
 
@@ -306,7 +308,7 @@ While Claude works, draft the follow-ups instead of waiting: the pane below the 
 * **Jump to category** (`Ctrl+J`) — a popup narrows the category names as you type, the current virtual desktop's categories first; Enter selects the category in the list.
   While a query is typed, the tag / awaits-input / running-tasks filters step aside so a hit is never hidden; the active-desktop filter stays on and the bar reports the hits it does not show as "· N on other desktops".
 * **Filter menu** (toolbar) — **Awaits input** (waiting, asking, or hit the usage limit; the item carries the count even when off), **Active desktop**, **Running tasks**, and the **tag** submenu (several tags combine with AND; a filtered row shows only the selected tags, so a shared screen reveals nothing else). The button carries a badge while anything narrows the list, and the whole selection is restored on the next launch.
-* **Sort menu** — **Alphabetical** (default), **Last update**, or **Action needed** (usage limit, then attention, then waiting, then working). Error rows stay first, active before suspended, pinned tasks head their block.
+* **Sort menu** — **Last update** (default; a new task shows up on top), **Alphabetical**, or **Action needed** (usage limit, then attention, then waiting, then working). Error rows stay first, active before suspended, pinned tasks head their block.
 * **Group by labels** — group the list by tags instead of folders; a task with several tags appears under each, and every row then shows its category.
 * **Energy saver** (the leaf) — stops all background polling for working on battery; only the selected task's mirror keeps running, selecting a task refreshes that task, and the refresh button runs every poll once. Remembered across restarts.
 
@@ -326,6 +328,7 @@ readlineKeys: false          # bash cursor chords in every text field (Ctrl+A/E,
 autoSuspendMinutes: 2880     # suspend an active Claude task idle this long (48 h); 0 = never
 mergedCleanupDays: 7         # remove a paused task whose PRs are all merged after this many days (only in autoDelete categories); 0 = never
 autoCopyReplies: false       # true = each finished reply of the mirrored Claude chat lands on the clipboard as Markdown
+claudeUpdateRestart: false   # true = quit (/exit) and resume an idle Claude session that shows "Restart to update"
 browser: firefox             # browser to start when no extension is connected (a connected one wins): firefox or chrome
 wsPort: 17872                # loopback WebSocket port the browser extension connects to
 wsToken: <generated>         # shared secret; keep the generated value
@@ -514,7 +517,7 @@ The app never creates or configures the repository, and a failed sync never disr
 
 A native Android app reads the same task repository from your phone: the task list grouped by folder with status and tags, a terminal page showing the task's tmux window (`capture-pane`, refreshed while visible), and a queue page listing the pending messages and sending a new one straight into the chat over SSH ([`docs/requirements/android.md`](docs/requirements/android.md), MADR 0026–0028).
 
-The sync runs over HTTPS with a personal access token (a new task is the phone's only push); SSH uses an in-process client (no `ssh` binary on Android) with trust-on-first-use host keys and a single OpenSSH private key from the settings screen.
+The sync runs over HTTPS with a personal access token (a new task is the phone's only push); SSH uses an in-process client (no `ssh` binary on Android) with trust-on-first-use host keys and a single OpenSSH private key from the settings screen; a remote the phone cannot reach directly gets a jump host there (*Jump hosts*, `user@host via user@jump`, the phone's `ProxyJump`).
 Build it with `gradlew :android:assembleDebug`; the module is only included when an Android SDK is configured (`ANDROID_HOME` or `local.properties`), so SDK-less machines build exactly as before.
 Connected to a car, the same APK shows on the Android Auto head unit — the tasks with a Claude session, those waiting for you first, and per task a dictated or canned message; being sideloaded, it needs *Unknown sources* enabled in Android Auto's developer settings (tap the version there ten times).
 

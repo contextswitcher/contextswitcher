@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test
 /// MINA sshd, test-scope only. Proves the exec channel and stdin-feeding
 /// [SshjCommandRunner.runWithInput] actually work end to end, not just
 /// against mocks.
-// [utest->dsn~android-ssh-runner~1]
+// [utest->dsn~android-ssh-runner~2]
 class SshjCommandRunnerTest {
 
     private lateinit var server: SshServer
@@ -35,8 +35,10 @@ class SshjCommandRunnerTest {
         server = SshServer.setUpDefaultServer()
         server.keyPairProvider = SimpleGeneratorHostKeyProvider(
             File(createTempDirectory("sshd-hostkey").toFile(), "hostkey.ser").toPath())
-        server.publickeyAuthenticator = { _, offered, _ -> offered == keyPair.public }
+        // "stranger" has no authorized key anywhere — the rejected-key tests.
+        server.publickeyAuthenticator = { user, offered, _ -> offered == keyPair.public && user != "stranger" }
         server.commandFactory = org.apache.sshd.server.command.CommandFactory { _, command -> ShellCommand(command) }
+        server.forwardingFilter = org.apache.sshd.server.forward.AcceptAllForwardingFilter.INSTANCE
         server.start()
         port = server.port
         hostKeysFile = File(createTempDirectory("known-hosts").toFile(), "known_hosts.properties")
@@ -62,6 +64,86 @@ class SshjCommandRunnerTest {
         val result = runner.run("tester@127.0.0.1:$port", listOf("echo", "hello"))
         assertThat(result.ok()).isTrue()
         assertThat(result.stdout().trim()).isEqualTo("hello")
+    }
+
+    @Test
+    fun `a remote with a jump host is reached through it`() {
+        // The embedded sshd is its own jump host: the runner opens a
+        // direct-tcpip channel on the "jump" connection to the "remote".
+        val runner = SshjCommandRunner({ privateKeyPem() }, KnownHostsStore(hostKeysFile),
+            jumpHosts = { "me@127.0.0.1:$port via me@localhost:$port" })
+        val result = runner.run("me@127.0.0.1:$port", listOf("echo", "via"))
+
+        assertThat(result.ok()).isTrue()
+        assertThat(result.stdout().trim()).isEqualTo("via")
+    }
+
+    @Test
+    fun `jump hosts are looked up per remote, by full destination or host`() {
+        val text = "koppor@devbox via koppor@gate.example.org\nlab via me@gate.example.org:2222\nnonsense line\n"
+        assertThat(JumpHosts.forRemote(text, "koppor@devbox")).isEqualTo("koppor@gate.example.org")
+        assertThat(JumpHosts.forRemote(text, "other@devbox")).isNull()
+        assertThat(JumpHosts.forRemote(text, "anyone@lab")).isEqualTo("me@gate.example.org:2222")
+        assertThat(JumpHosts.forRemote(text, "anyone@lab:22")).isEqualTo("me@gate.example.org:2222")
+        assertThat(JumpHosts.forRemote("", "koppor@devbox")).isNull()
+    }
+
+    @Test
+    fun `a rejected key names the host and the authorized_keys cure`() {
+        val runner = SshjCommandRunner({ privateKeyPem() }, KnownHostsStore(hostKeysFile))
+        val result = runner.run("stranger@localhost:$port", listOf("true"))
+
+        assertThat(result.ok()).isFalse()
+        assertThat(result.stderr()).startsWith("Cannot connect to stranger@localhost:$port: stranger@localhost:$port rejected the SSH key from settings")
+            .contains("~/.ssh/authorized_keys of stranger")
+    }
+
+    @Test
+    fun `a jump host that rejects the key is named as the one that did`() {
+        val runner = SshjCommandRunner({ privateKeyPem() }, KnownHostsStore(hostKeysFile),
+            jumpHosts = { "me@127.0.0.1:$port via stranger@localhost:$port" })
+        val result = runner.run("me@127.0.0.1:$port", listOf("true"))
+
+        assertThat(result.stderr()).contains("jump host stranger@localhost:$port rejected the SSH key")
+    }
+
+    @Test
+    fun `check connections reports every jump-host line, reachable or why not`() {
+        val text = "me@127.0.0.1:$port via me@localhost:$port\nlab via stranger@localhost:$port\n"
+        val lines = JumpHosts.check(text, privateKeyPem(), KnownHostsStore(hostKeysFile))
+
+        assertThat(lines).hasSize(2)
+        assertThat(lines[0]).isEqualTo("me@127.0.0.1:$port via me@localhost:$port: reachable")
+        assertThat(lines[1]).startsWith("lab via stranger@localhost:$port: Cannot connect to stranger@lab:")
+        assertThat(JumpHosts.check("", privateKeyPem(), KnownHostsStore(hostKeysFile))).containsExactly("No jump hosts entered")
+    }
+
+    @Test
+    fun `a key pasted with indentation and blank lines still authenticates`() {
+        val messy = privateKeyPem().lines().joinToString("\r\n\n") { "    $it  " }
+        val runner = SshjCommandRunner({ messy }, KnownHostsStore(hostKeysFile))
+
+        assertThat(runner.run("me@localhost:$port", listOf("echo", "ok")).stdout().trim()).isEqualTo("ok")
+    }
+
+    @Test
+    fun `the settings screen's key line says whether the key parses`() {
+        assertThat(SshKeys.describe(privateKeyPem())).isEqualTo("Key parses: ssh-rsa")
+        assertThat(SshKeys.describe("")).isNull()
+        assertThat(SshKeys.describe("-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXk oops\n"))
+            .startsWith("The SSH private key in settings does not parse (").contains("paste it again")
+        val runner = SshjCommandRunner({ "garbage" }, KnownHostsStore(hostKeysFile))
+        assertThat(runner.run("me@localhost:$port", listOf("true")).stderr())
+            .startsWith("Cannot connect to me@localhost:$port: The SSH private key in settings does not parse")
+    }
+
+    @Test
+    fun `a name that does not resolve is explained, not echoed`() {
+        val runner = SshjCommandRunner({ privateKeyPem() }, KnownHostsStore(hostKeysFile))
+        val result = runner.run("me@nowhere.invalid", listOf("true"))
+
+        assertThat(result.ok()).isFalse()
+        assertThat(result.stderr()).startsWith("Cannot connect to me@nowhere.invalid: the name \"nowhere.invalid\" does not resolve")
     }
 
     @Test

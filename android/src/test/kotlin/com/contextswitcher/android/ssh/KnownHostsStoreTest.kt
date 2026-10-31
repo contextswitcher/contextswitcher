@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 import java.io.File
 import kotlin.io.path.createTempDirectory
 
-// [utest->dsn~android-ssh-runner~1]
+// [utest->dsn~android-ssh-runner~2]
 class KnownHostsStoreTest {
 
     private fun store(): KnownHostsStore =

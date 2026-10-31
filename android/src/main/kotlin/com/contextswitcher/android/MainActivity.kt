@@ -56,7 +56,9 @@ import com.contextswitcher.android.queue.AttachmentStore
 import com.contextswitcher.android.queue.DraftStore
 import com.contextswitcher.android.settings.RepoSettings
 import com.contextswitcher.android.settings.SettingsStore
+import com.contextswitcher.android.ssh.JumpHosts
 import com.contextswitcher.android.ssh.KnownHostsStore
+import com.contextswitcher.android.ssh.SshKeys
 import com.contextswitcher.android.ssh.SshjCommandRunner
 import com.contextswitcher.android.sync.CreateResult
 import com.contextswitcher.android.sync.LiveTaskStarter
@@ -135,7 +137,7 @@ class MainActivity : ComponentActivity() {
         val settingsStore = SettingsStore(applicationContext)
         val repoDir = File(filesDir, "taskrepo")
         val knownHosts = KnownHostsStore(File(filesDir, "known_hosts.properties"))
-        val ssh = SshjCommandRunner({ settingsStore.loadSshPrivateKey() }, knownHosts)
+        val ssh = SshjCommandRunner({ settingsStore.loadSshPrivateKey() }, knownHosts, jumpHosts = { settingsStore.loadJumpHosts() })
         val messageSender = MessageSender(ssh, File(filesDir, "attachments").toPath())
         PhoneProvenance.install(this, messageSender, ssh)
         val updates = AppUpdates({ settingsStore.load()?.effectiveUpdateToken.orEmpty() }, BuildConfig.GIT_COMMIT)
@@ -203,11 +205,14 @@ private fun ContextSwitcherApp(
         Screen.Settings -> SettingsScreen(
             initial = settingsStore.load() ?: RepoSettings("", "", ""),
             initialSshKey = settingsStore.loadSshPrivateKey(),
+            initialJumpHosts = settingsStore.loadJumpHosts(),
             onSaved = { settings, sshKey ->
                 settingsStore.save(settings)
                 settingsStore.saveSshPrivateKey(sshKey)
                 screen = Screen.TaskList
             },
+            onJumpHostsSaved = { settingsStore.saveJumpHosts(it) },
+            onCheckConnections = { key, text -> JumpHosts.check(text, key, knownHosts) },
             onClearKnownHosts = { knownHosts.clear() },
             // Nothing to go back to before the first save: back leaves the app then.
             onCancel = if (settingsStore.load() == null) null else ({ screen = Screen.TaskList }),
@@ -282,6 +287,9 @@ internal fun SettingsScreen(
     onSaved: (RepoSettings, String) -> Unit,
     onClearKnownHosts: () -> Unit,
     onCancel: (() -> Unit)? = null,
+    initialJumpHosts: String = "",
+    onJumpHostsSaved: (String) -> Unit = {},
+    onCheckConnections: ((sshKey: String, jumpHosts: String) -> List<String>)? = null,
 ) {
     // System back discards the edits, like leaving without saving.
     BackHandler(enabled = onCancel != null) { onCancel?.invoke() }
@@ -290,6 +298,10 @@ internal fun SettingsScreen(
     var token by rememberSaveable { mutableStateOf(initial.token) }
     var updateToken by rememberSaveable { mutableStateOf(initial.updateToken) }
     var sshKey by rememberSaveable { mutableStateOf(initialSshKey) }
+    var jumpHosts by rememberSaveable { mutableStateOf(initialJumpHosts) }
+    var checking by remember { mutableStateOf(false) }
+    var checkResult by remember { mutableStateOf<List<String>>(emptyList()) }
+    val scope = rememberCoroutineScope()
     Column(modifier = Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text(text = "Task repo settings", style = MaterialTheme.typography.titleLarge)
         OutlinedTextField(
@@ -327,8 +339,33 @@ internal fun SettingsScreen(
             // field instead of pushing the save button off the screen.
             maxLines = 8,
         )
+        // Live: a key that does not parse would otherwise surface only at the
+        // first connection, as a rejected key.
+        remember(sshKey) { SshKeys.describe(sshKey) }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        OutlinedTextField(
+            value = jumpHosts,
+            onValueChange = { jumpHosts = it },
+            label = { Text("Jump hosts (per line: user@host via user@jump[:port])") },
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            minLines = 2,
+        )
+        if (onCheckConnections != null) {
+            // Disabled for the round-trip (CLAUDE.md, async single-shot buttons);
+            // the result is advice, not a gate — save works either way.
+            TextButton(
+                enabled = !checking,
+                onClick = {
+                    checking = true
+                    scope.launch {
+                        checkResult = withContext(Dispatchers.IO) { onCheckConnections(sshKey, jumpHosts) }
+                        checking = false
+                    }
+                },
+            ) { Text(if (checking) "Checking …" else "Check connections") }
+            checkResult.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+        }
         Row(modifier = Modifier.padding(top = 16.dp)) {
-            Button(onClick = { onSaved(RepoSettings(url, username, token, updateToken), sshKey) }) {
+            Button(onClick = { onJumpHostsSaved(jumpHosts); onSaved(RepoSettings(url, username, token, updateToken), sshKey) }) {
                 Text("Save + Sync now")
             }
             TextButton(onClick = onClearKnownHosts, modifier = Modifier.padding(start = 8.dp)) {

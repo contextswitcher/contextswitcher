@@ -50,4 +50,13 @@ class CategorySetupDescriptionTest {
         assertThat(type.template())
                 .contains("-workspaces layout and workflow", "<YYYY-MM-DD>-<slug>", "<project>");
     }
+
+    // [utest->dsn~category-from-folder~1]
+    @Test
+    void aFolderIsNeitherClonedNorMadeARepository() {
+        String description = MainWindow.folderSetupDescription("C:\\paper", "paper", "Fix the intro");
+        assertThat(description).contains("C:\\paper").contains("do not run git init")
+                .doesNotContain("Clone").endsWith("please do the following: Fix the intro");
+        assertThat(RepoType.localFolderTemplate()).contains("No git and no remote");
+    }
 }

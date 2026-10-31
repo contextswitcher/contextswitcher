@@ -23,8 +23,8 @@ import org.jspecify.annotations.Nullable;
 /// of its own ([Task#withCategoryDefaults]).
 /// `completeControl` is the nested `desktop:` form's flag
 /// (`desktop: {name: …, completeControl: true}`): suspending a task of this
-/// group stores and closes every Firefox window on the named desktop, and
-/// resuming reopens the stored tabs (`dsn~complete-control-desktop~1`).
+/// group stores and closes every Firefox tab on the named desktop, and
+/// resuming reopens them (`dsn~complete-control-desktop~1`).
 /// `pinned` lifts the category above the unpinned ones in the task list
 /// (`dsn~pinned-categories~1`).
 /// `autoPr` turns the category into an *auto category*: its tasks are not

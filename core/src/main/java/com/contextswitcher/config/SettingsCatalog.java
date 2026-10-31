@@ -87,6 +87,12 @@ public final class SettingsCatalog {
                     Type.BOOLEAN,
                     "When the mirrored chat finishes a reply, its Markdown replaces the "
                             + "clipboard."),
+            // [impl->dsn~claude-update-restart~7]
+            new Option("claudeUpdateRestart", "Restart Claude sessions on a pending update", "General",
+                    Type.BOOLEAN,
+                    "An idle session whose footer says \"Restart to update\" is sent /exit and "
+                            + "resumed on the new version. Off: the session is left alone. "
+                            + "Applies after a restart of ContextSwitcher."),
             // [impl->dsn~browser-choice~2]
             new Option("browser", "Browser", "Browser bridge", Type.ENUM,
                     "The browser whose windows are raised, launched, and — on a complete-control "

@@ -248,13 +248,18 @@ Covers:
 Needs: impl, utest
 
 ### `SshjCommandRunner`
-`dsn~android-ssh-runner~1`
+`dsn~android-ssh-runner~2`
 
 `com.contextswitcher.android.ssh.SshjCommandRunner` implements `:core`'s `SshCommandRunner` with sshj (MADR 0027) instead of a spawned process.
 `host` must be `user@hostname[:port]` — there is no `~/.ssh/config` to resolve an alias or a bare host's default user.
+A name that does not resolve (`UnknownHostException`, whose message is just the name) is reported as such, with the VPN hint: on the phone a short name resolves only while Tailscale's MagicDNS or a VPN's search domain is up.
+The *Jump hosts* setting (`SettingsStore`, one line per remote: `user@host via user@jump[:port]`, parsed by `JumpHosts`; a left side without a user matches any user on that host) is the phone's `ProxyJump`: such a remote is reached with `connectVia` over a `direct-tcpip` channel on a connection to the jump host, authenticated with the same key and verified by the same TOFU store, so the jump host resolves the remote's name; the jump connection is dropped together with the remote's.
+A key the remote or the jump host rejects (`UserAuthException`) is reported naming that hop and the `authorized_keys` of the user there, not sshj's "Exhausted available authentication methods".
+The settings screen's *Check connections* (`JumpHosts.check`, with the field's unsaved key and text) runs `true` on every listed remote through its jump host and shows one line per entry, reachable or the error; it gates nothing — the hosts may be unreachable from where the phone is, and save works regardless.
 One connected `SSHClient` per host is kept in a synchronized map, reconnecting when a stored one has died (ceiling: no idle disconnect yet).
 Each `run`/`runWithInput` call is a fresh exec channel on that connection, with the command's argv joined by spaces (the same convention the desktop's `ProcessSshRunner` relies on: the remote shell reassembles the SSH exec string itself) and, for `runWithInput`, `input` written to the channel's stdin before it is read.
 Auth is a single OpenSSH private key pasted into settings and held in app-private storage (`SettingsStore`, same Keystore-later ceiling as the repo sync token); no passphrase support (ceiling).
+The pasted key is normalized per line (indentation, `\r`, blank lines dropped — `SshKeys.normalize`) and parsed before any connection (`SshKeys.parse`), so a key that does not parse is reported as that, with the cure, instead of surfacing at auth time as a rejected key; the settings screen shows `SshKeys.describe` live under the field ("Key parses: ssh-ed25519" or the complaint).
 Host keys are verified TOFU-style through `com.contextswitcher.android.ssh.KnownHostsStore` (`host:port -> fingerprint`, persisted as a `.properties` file under `filesDir`): first contact records the fingerprint, a later mismatch throws `HostKeyMismatchException` naming both fingerprints — never an always-accept verifier.
 The settings screen's "Clear known hosts" action calls `KnownHostsStore.clear()`.
 Android's built-in "BC" JCE provider is a stripped subset that trips up sshj's algorithm probing; `SshjCommandRunner` registers a full `org.bouncycastle:bcprov-jdk18on` at the highest provider priority once, before any `SSHClient` is built (the standard sshj-on-Android workaround).
@@ -482,14 +487,14 @@ Needs: impl, utest
 
 `com.contextswitcher.android.ui.TerminalPage` checks every capture with `TmuxStatusPoller.updatePendingIn` — the remote grep's rule applied to the screen it already holds: the bottom four non-blank lines, escapes removed — and while the footer shows "Restart to update", the bar below the snapshot offers *Restart Claude*.
 The button runs `com.contextswitcher.discovery.ClaudeUpdateRestart.restart` for the task's window, disabled and reading *Restarting…* meanwhile, then recaptures and reports the outcome in the Snackbar.
-`restart` is the desktop poller's sequence (`dsn~claude-update-restart~6`) in one blocking call, from its commands: read the window's `@cs_status`, `@cs_session_id` and `pane_current_command`; refuse unless `TmuxStatusPoller.restartable` (`NotIdle`); read the pane process's and its children's arguments (Linux `ps`) for `--dangerously-skip-permissions`, since the phone has no `claudeAuto` setting; send `exitCommand`; ask every 2 s, up to 15 times, until the window no longer runs `claude` (else `DidNotQuit`, no resume); then `resumeCommand` with the session id and the flag.
+`restart` is the desktop poller's sequence (`dsn~claude-update-restart~7`) in one blocking call, from its commands: read the window's `@cs_status`, `@cs_session_id` and `pane_current_command`; refuse unless `TmuxStatusPoller.restartable` (`NotIdle`); read the pane process's and its children's arguments (Linux `ps`) for `--dangerously-skip-permissions`, since the phone has no `claudeAuto` setting; send `exitCommand`; ask every 2 s, up to 15 times, until the window no longer runs `claude` (else `DidNotQuit`, no resume); then `resumeCommand` with the session id and the flag.
 Not automatic on the phone: with the desktop also running, both would count their own `/exit` attempts and could type a resume into the other's fresh Claude.
 `TaskWatchService` adds "update pending: Restart Claude" to its finished alert when the status query's `update|<window>` marker names the watched window (`TmuxStatusPoller.parseUpdatePending`).
 
 Tags: android
 
 Covers:
-- req~claude-update-restart~1
+- req~claude-update-restart~2
 
 Needs: impl, utest
 
@@ -549,7 +554,10 @@ That answer comes from :core's `ClaudeTranscript`: one ssh call reads the last f
 `Speaker` wraps Android's on-device `TextToSpeech`; `Dictation` is the former `CarDictation`, with the car's microphone optional: on the phone it listens through `SpeechRecognizer` directly.
 A dictated reply is sent as `VoiceTour.spokenReply(text)`, the text behind a hint asking for a few spoken sentences without tables, code or diffs, through the same path as a head-unit message (`dsn~android-auto-message~1`: sent at once, kept on the phone on failure), and only after the recognized text was shown.
 Both screens re-read the statuses every ten seconds (`refreshStatuses`) and read the current task's card again when its status leaves `working`, so a finished turn is heard without touching anything.
-Ceiling: one TTS voice for English and German text; the tour over several categories at once is a loop the user runs by hand.
+*Call (Android Auto)* on the phone's tour screen runs the same tour as a self-managed Telecom call (`TourCall`, `TourCallService`): Android Auto shows it like a phone call with mute and hang-up and routes the car's microphone and speakers to it, and the phone's screen may stay off.
+The call speaks the overview and the card, then listens; "next", "previous", "repeat" and "hang up" (or their German words) steer, anything else is sent as the reply, and the finished turn is read out as on the screen.
+`Speaker` reads each text in English or German by counting function words, so an English card is no longer read by the German voice.
+Ceiling: the tour over several categories at once is a loop the user runs by hand.
 
 Tags: android
 

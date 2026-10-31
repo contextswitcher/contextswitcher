@@ -7,6 +7,8 @@ on:
     # already ran for that commit on main.
     tags: ['v*']
   pull_request:
+  # The daily release dispatches this for its tag (a GITHUB_TOKEN tag push starts nothing).
+  workflow_dispatch:
 
 # A newer push to the same branch or PR supersedes the running build: a burst
 # of merges to main otherwise runs every intermediate commit to completion and
@@ -96,14 +98,21 @@ jobs:
       # Pushes only build the APK; `android-dev` is published on request by
       # android-dev.yml.
 
+      - uses: jbangdev/setup-jbang@v0.1.1
+        if: startsWith(github.ref, 'refs/tags/')
+
       # A release asset instead of an Actions artifact: release files don't
       # count against the artifact storage quota. Day tags additionally keep
-      # their own pre-release, one per tag.
+      # their own pre-release, one per tag, whose notes are the day's
+      # CHANGELOG.md section (the tag `v<date>` names the version `<date>`).
       - name: Publish debug APK to the tag's pre-release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" android/build/outputs/apk/debug/android-debug.apk --prerelease --verify-tag --notes "Debug APK built from $GITHUB_REF_NAME."
+        run: |
+          jbang trust add https://github.com/nbbrd/
+          jbang heylogs@nbbrd extract --batch -r "${GITHUB_REF_NAME#v}" -o notes.md CHANGELOG.md
+          gh release create "$GITHUB_REF_NAME" android/build/outputs/apk/debug/android-debug.apk --prerelease --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md
 
   changelog:
     runs-on: ubuntu-latest

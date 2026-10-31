@@ -9,6 +9,7 @@ private const val KEY_TOKEN = "token"
 private const val KEY_UPDATE_TOKEN = "update_token"
 private const val KEY_SSH_PRIVATE_KEY = "ssh_private_key"
 private const val KEY_SKIP_PERMISSIONS = "skip_permissions"
+private const val KEY_JUMP_HOSTS = "jump_hosts"
 
 /// The task backup repo's clone URL plus HTTPS credentials
 /// (`UsernamePasswordCredentialsProvider`; any value works for username with
@@ -61,6 +62,14 @@ class SettingsStore(context: Context) {
 
     fun saveSshPrivateKey(pem: String) {
         prefs.edit().putString(KEY_SSH_PRIVATE_KEY, pem).apply()
+    }
+
+    /// The *Jump hosts* text (`user@host via user@jump[:port]` per line,
+    /// `com.contextswitcher.android.ssh.JumpHosts`), `""` when none.
+    fun loadJumpHosts(): String = prefs.getString(KEY_JUMP_HOSTS, "") ?: ""
+
+    fun saveJumpHosts(text: String) {
+        prefs.edit().putString(KEY_JUMP_HOSTS, text).apply()
     }
 
     /// The last choice of *Skip permission prompts* when starting Claude from

@@ -29,7 +29,7 @@ import org.tinylog.Logger;
 /// entry list in sync with external file changes via a `WatchService`.
 /// List mutations run on the given executor (the JavaFX application thread in
 /// production, a direct executor in tests).
-// [impl->dsn~task-repository-watching~6]
+// [impl->dsn~task-repository-watching~7]
 public class TaskRepository implements AutoCloseable {
 
     public static final String TEMPLATE_FILE_NAME = "TEMPLATE.md";
@@ -258,7 +258,7 @@ public class TaskRepository implements AutoCloseable {
                     key = service.poll(SETTLE_MILLIS, TimeUnit.MILLISECONDS);
                 } while (key != null);
                 if (!batch.isEmpty()) {
-                    uiExecutor.execute(() -> batch.forEach(Runnable::run));
+                    uiExecutor.execute(() -> applyAll(batch));
                 }
                 if (!watching) {
                     return;
@@ -268,6 +268,22 @@ public class TaskRepository implements AutoCloseable {
             Thread.currentThread().interrupt();
         } catch (ClosedWatchServiceException e) {
             // repository closed - normal shutdown
+        }
+    }
+
+    /// Runs every step of a batch, each under its own guard. A list mutation
+    /// runs the UI's list listeners synchronously (row rebuild, selection,
+    /// editor load); an exception escaping one of them must not skip the steps
+    /// after it — an atomic save is a DELETE plus a CREATE, and with the
+    /// removal applied but the re-add skipped the task vanished from the list
+    /// and from search until the next restart (2026-10-29).
+    private static void applyAll(List<Runnable> batch) {
+        for (Runnable step : batch) {
+            try {
+                step.run();
+            } catch (RuntimeException | LinkageError e) {
+                Logger.error(e, "Task list update failed; applying the rest of the batch");
+            }
         }
     }
 

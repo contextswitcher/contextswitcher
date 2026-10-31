@@ -226,7 +226,7 @@ class TmuxStatusPollerTest {
             }
         };
         TmuxStatusPoller poller = new TmuxStatusPoller(ssh, Set::of, m -> { }, m -> { }, m -> { },
-                m -> { }, m -> { }, false, 5);
+                m -> { }, m -> { }, false, false, 5);
         String stdout = "apierror|@3\napierror|@5\n";
         Map<String, String> statuses = new HashMap<>(
                 Map.of("h @3", "waiting", "h @5", "working"));
@@ -248,7 +248,7 @@ class TmuxStatusPollerTest {
     /// Only the footer — the bottom non-blank lines — is grepped for Claude's
     /// pending self-update, on the same pass as the limit message: a diff on
     /// screen quoting "Restart to update" must not restart the session.
-    // [utest->dsn~claude-update-restart~6]
+    // [utest->dsn~claude-update-restart~7]
     @Test
     void statusCommandGrepsTheFooterForAPendingUpdate() {
         assertThat(TmuxStatusPoller.statusCommand()).singleElement().asString()
@@ -258,7 +258,7 @@ class TmuxStatusPollerTest {
 
     /// Only a finished turn is restarted: mid-answer, a question on screen or
     /// a usage limit all keep the session as it is.
-    // [utest->dsn~claude-update-restart~6]
+    // [utest->dsn~claude-update-restart~7]
     @Test
     void onlyAFinishedTurnIsRestartable() {
         assertThat(TmuxStatusPoller.restartable("waiting")).isTrue();
@@ -275,7 +275,7 @@ class TmuxStatusPollerTest {
     /// shells asks (its preselected choice is *Exit and stop tasks*); the
     /// resume typed at the shell later, with the auto flag typed back only
     /// when it was set.
-    // [utest->dsn~claude-update-restart~6]
+    // [utest->dsn~claude-update-restart~7]
     @Test
     void exitAndResumeCommandsAreSeparate() {
         assertThat(TmuxStatusPoller.exitCommand("@7")).containsExactly(
@@ -297,7 +297,7 @@ class TmuxStatusPollerTest {
     /// with a worktree per task), where `--continue` alone resumed a
     /// neighbouring task's chat. A window that published no id has nothing to
     /// resume by and falls back to `--continue`.
-    // [utest->dsn~claude-update-restart~6]
+    // [utest->dsn~claude-update-restart~7]
     @Test
     void resumeCommandResumesBySessionIdRatherThanByDirectory() {
         assertThat(String.join(" ", TmuxStatusPoller.resumeCommand("@7", "s-1", false)))
@@ -324,13 +324,13 @@ class TmuxStatusPollerTest {
             }
         };
         return new TmuxStatusPoller(ssh, Set::of, m -> { }, m -> { }, m -> { },
-                m -> { }, m -> { }, true, 5);
+                m -> { }, m -> { }, true, true, 5);
     }
 
     /// One `/exit` per pending update: not into a working window, and not
     /// again before the cooldown — then, in the tick that sees the pane at a
     /// shell, the resume on the window's own session.
-    // [utest->dsn~claude-update-restart~6]
+    // [utest->dsn~claude-update-restart~7]
     @Test
     void autoRestartQuitsAnIdleUpdatedWindowThenResumesOnceItIsAtAShell() {
         List<String> sent = new ArrayList<>();
@@ -367,7 +367,7 @@ class TmuxStatusPollerTest {
     /// A window shown by an attached client — the app's mirror, the user's own
     /// terminal — is not restarted: the user may be typing there. Once no
     /// client shows it, the next tick restarts it.
-    // [utest->dsn~claude-update-restart~6]
+    // [utest->dsn~claude-update-restart~7]
     @Test
     void autoRestartWaitsUntilNoClientShowsTheWindow() {
         List<String> sent = new ArrayList<>();
@@ -389,7 +389,7 @@ class TmuxStatusPollerTest {
                 .contains("tmux list-clients -F 'viewed|#{window_id}'");
     }
 
-    // [utest->dsn~claude-update-restart~6]
+    // [utest->dsn~claude-update-restart~7]
     @Test
     void autoRestartNeverResumesIntoARunningClaudeAndGivesUp() throws Exception {
         List<String> sent = new ArrayList<>();

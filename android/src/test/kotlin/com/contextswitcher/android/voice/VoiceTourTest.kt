@@ -23,8 +23,8 @@ class VoiceTourTest {
         override fun runWithInput(host: String, remoteCommand: List<String>, input: ByteArray) = run(host, remoteCommand)
     }
 
-    private fun task(id: String, title: String, session: String? = "s-$id") = Task(id, title, TaskStatus.ACTIVE, "devbox",
-        Task.TmuxConfig("jabref", "@1"), null, null, null, Task.ClaudeConfig("/home/o/jabref", session, null),
+    private fun task(id: String, title: String, session: String? = "s-$id", pr: String? = null) = Task(id, title, TaskStatus.ACTIVE, "devbox",
+        Task.TmuxConfig("jabref", "@1"), null, null, pr?.let { Task.BrowserConfig(listOf(Task.UrlEntry(it, null))) }, Task.ClaudeConfig("/home/o/jabref", session, null),
         null, emptyList(), emptyList(), emptyList(), null, null, "")
 
     private val tour = VoiceTour("jabref", listOf(
@@ -57,7 +57,36 @@ class VoiceTourTest {
     }
 
     @Test
+    fun cardNamesThePr() {
+        val withPr = VoiceTour("jabref", listOf(CarTask(task("a", "Fix the NPE", pr = "https://github.com/JabRef/jabref/pull/16245"), "waiting")), ssh)
+        assertThat(withPr.announcement()).startsWith("Task 1 of 1, PR 16245: Fix the NPE.")
+        val inTitle = VoiceTour("jabref", listOf(CarTask(task("a", "PR 16245: Fix the NPE", pr = "https://github.com/JabRef/jabref/pull/16245"), "waiting")), ssh)
+        assertThat(inTitle.announcement()).startsWith("Task 1 of 1: PR 16245: Fix the NPE.")
+    }
+
+    @Test
     fun `a dictated reply asks for a spoken answer`() {
         assertThat(VoiceTour.spokenReply("merge it")).startsWith("(Voice mode:").endsWith(") merge it")
+    }
+}
+
+/// The call steers on exact command words in English or German and sends everything else;
+/// the speaker picks the voice by the text's language.
+// [utest->dsn~android-voice-tour~1]
+class TourCallTest {
+
+    @Test
+    fun commands() {
+        assertThat(TourCall.command("Next.")).isEqualTo(TourCall.Command.NEXT)
+        assertThat(TourCall.command("weiter")).isEqualTo(TourCall.Command.NEXT)
+        assertThat(TourCall.command("Zurück!")).isEqualTo(TourCall.Command.PREVIOUS)
+        assertThat(TourCall.command("hang up")).isEqualTo(TourCall.Command.HANG_UP)
+        assertThat(TourCall.command("next, please also fix the tests")).isNull()
+    }
+
+    @Test
+    fun voiceByLanguage() {
+        assertThat(Speaker.localeOf("Task 1 of 3: Fix the build. Status: waiting. Claude said: The tests pass and the branch is pushed.")).isEqualTo(java.util.Locale.ENGLISH)
+        assertThat(Speaker.localeOf("Task 1 of 3: Build fix. Status: waiting. Claude said: Die Tests laufen durch und der Branch ist gepusht, ich habe nichts weiter geändert.")).isEqualTo(java.util.Locale.GERMAN)
     }
 }

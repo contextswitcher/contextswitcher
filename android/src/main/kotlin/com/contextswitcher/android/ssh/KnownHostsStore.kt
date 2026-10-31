@@ -8,7 +8,7 @@ import java.util.Properties
 /// with a host records its fingerprint; every later contact must match
 /// exactly, or [verify] fails — this is the only host-key check the app
 /// does, so it must never be bypassed with an always-accept verifier.
-// [impl->dsn~android-ssh-runner~1]
+// [impl->dsn~android-ssh-runner~2]
 class KnownHostsStore(private val file: File) {
 
     sealed interface Result {

@@ -21,6 +21,9 @@
     <!-- Dictation (voice/Dictation): the phone's or the car's microphone,
          and sight of the phone's speech recognition service. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- The voice tour as a self-managed call (voice/TourCall), so Android Auto
+         treats it like a phone call. -->
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />
@@ -56,6 +59,15 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Polls a remote Claude Code session's status over SSH to notify when it finishes" />
+        </service>
+
+        <service
+            android:name=".voice.TourCallService"
+            android:exported="true"
+            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService" />
+            </intent-filter>
         </service>
 
         <!-- The Android Auto head-unit app. IOT is the category closest to

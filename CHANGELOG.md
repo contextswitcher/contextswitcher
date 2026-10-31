@@ -3,8 +3,36 @@
 All notable changes to ContextSwitcher are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub once the day is over.
-The topmost section is the day in progress — its link points at `main` until that tag exists.
+Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
+Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
+
+## [Unreleased]
+
+### Added
+
+- Setup wizard: the category page offers *A local folder — no remote, no git* next to a repository: a folder (say, one synced by OneDrive) becomes a category as it is, and a Claude session writes its `CLAUDE.md` without cloning or running `git init`.
+- Android: *Call (Android Auto)* on the voice tour screen runs the tour as a phone call, so Android Auto shows it like a call and uses the car's microphone and speakers; "next", "previous", "repeat" and "hang up" steer, anything else is sent as the reply.
+- Android: *Jump hosts* in the settings — `user@host via user@jump[:port]` per line — reach a remote through another ssh host, like `ProxyJump` on the desktop; the jump host then also resolves a short name the phone cannot. *Check connections* tries every listed remote through its jump host and reports each result; saving does not depend on it.
+
+### Changed
+
+- The task list sorts by *Last update* by default, so a new task shows up at the top of its group; a sort order picked in the Sort menu is kept as before.
+- Claude sessions are no longer sent `/exit` on their own when Claude Code shows *Restart to update*; set `claudeUpdateRestart: true` in the settings to get the automatic restart back.
+
+### Fixed
+- Switching virtual desktops (with *Show active desktop only*) selects that desktop's last task and shows its terminal again; an empty message box in the queue pane no longer holds the previous desktop's task in place.
+- Setup wizard: the browser-extension page is skipped for the Microsoft Store build of Firefox too, when the extension is installed there.
+- Setup wizard: the browser-extension page is also skipped when Firefox runs the extension as a temporary add-on loaded through `about:debugging`.
+- The remote-window dialog no longer shows a scrollbar next to a short two-line question; only an overlong pasted title scrolls.
+- Android: a host name that does not resolve on the phone's network is reported as such, with a VPN hint, instead of a bare "Cannot connect to user@host: host".
+- Android: a host that rejects the SSH key says which host (the remote or the jump host) and whose `authorized_keys` needs the public key, instead of "Exhausted available authentication methods".
+- Android: the voice tour read "Loading" instead of the first task's card after the overview; the card is now spoken.
+- Android: the voice tour's card names the task's PR number ("Task 1 of 3, PR 16245: …") when the title does not.
+- Android: the voice tour reads English text with an English voice and German with a German one, instead of everything in the phone's language.
+- Android: the SSH private key is checked as you paste it — the settings screen says "Key parses: ssh-ed25519" or why it does not — and indentation, stray blank lines and Windows line ends from a messy paste no longer break it; a key that does not parse is reported as such instead of as a rejected key.
+- Settings: the help text of *Clear that desktop on suspend* said Firefox *windows* are closed; it now says *tabs* are stored and closed, which is what resuming reopens.
+- A task no longer vanishes from the list (and from search) until the next restart when a background write to its file coincides with an error in the task list's UI: the file watcher applies the rest of its batch even when one step throws, and logs the error instead.
+- The task editor failed with `NoSuchMethodError` on every task selection in the packaged app since this morning's build (a JDK bundling its own JavaFX had misled the compile); the editor loads again.
 
 ## [2026-10-27] - 2026-10-27
 
@@ -14,6 +42,7 @@ The topmost section is the day in progress — its link points at `main` until t
 
 ### Fixed
 
+- *Files* → *Custom path…*: a path pasted from the terminal with the line break and indentation of Claude's own wrapping is joined back into one path instead of being reported as unreadable.
 - Android: when *Add task* cannot create the tmux window, the dialog shows the remote's error (a refused connection, a missing key, tmux's own message) under the headline instead of the headline alone.
 - Android: a category's `~/…` workspaces root is created in the home directory before the window starts there, rather than a directory literally named `~`.
 
@@ -178,6 +207,7 @@ The topmost section is the day in progress — its link points at `main` until t
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-27...main
 [2026-10-27]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-25...v2026-10-27
 [2026-10-25]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-22...v2026-10-25
 [2026-10-22]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-19...v2026-10-22

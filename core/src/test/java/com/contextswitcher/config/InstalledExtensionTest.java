@@ -9,7 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~setup-wizard~10]
+// [utest->dsn~setup-wizard~12]
 class InstalledExtensionTest {
 
     @Test
@@ -31,6 +31,29 @@ class InstalledExtensionTest {
     }
 
     @Test
+    void temporaryFirefoxAddonIsFoundThroughPrefsJsUuids(@TempDir Path home) throws Exception {
+        Path profile = Files.createDirectories(home.resolve(".mozilla/firefox/abc.default-release"));
+        Files.writeString(profile.resolve("extensions.json"), "{\"addons\":[{\"id\":\"other@x\"}]}");
+        Files.writeString(profile.resolve("prefs.js"), """
+                user_pref("browser.startup.page", 3);
+                user_pref("extensions.webextensions.uuids", "{\\"other@x\\":\\"1\\",\\"extension@contextswitcher.org\\":\\"d1c19644\\"}");
+                """);
+
+        assertThat(InstalledExtension.find(home, Map.of())).isEqualTo(Browser.FIREFOX);
+    }
+
+    @Test
+    void ourIdElsewhereInPrefsJsDoesNotCount(@TempDir Path home) throws Exception {
+        Path profile = Files.createDirectories(home.resolve(".mozilla/firefox/abc.default-release"));
+        Files.writeString(profile.resolve("prefs.js"), """
+                user_pref("extensions.webextensions.ExtensionStorageIDB.migrated.extension@contextswitcher.org", true);
+                user_pref("extensions.webextensions.uuids", "{\\"other@x\\":\\"1\\"}");
+                """);
+
+        assertThat(InstalledExtension.find(home, Map.of())).isNull();
+    }
+
+    @Test
     void windowsFirefoxProfilesLiveUnderAppData(@TempDir Path home, @TempDir Path appData)
             throws Exception {
         Path profile = Files.createDirectories(appData.resolve("Mozilla/Firefox/Profiles/x.default"));
@@ -38,6 +61,18 @@ class InstalledExtensionTest {
                 "{\"addons\":[{\"id\":\"extension@contextswitcher.org\"}]}");
 
         assertThat(InstalledExtension.find(home, Map.of("APPDATA", appData.toString())))
+                .isEqualTo(Browser.FIREFOX);
+    }
+
+    @Test
+    void microsoftStoreFirefoxProfilesLiveInItsPackage(@TempDir Path home, @TempDir Path localAppData)
+            throws Exception {
+        Path profile = Files.createDirectories(localAppData.resolve(
+                "Packages/Mozilla.Firefox_n80bbvh6b1yt2/LocalCache/Roaming/Mozilla/Firefox/Profiles/x.default"));
+        Files.writeString(profile.resolve("extensions.json"),
+                "{\"addons\":[{\"id\":\"extension@contextswitcher.org\"}]}");
+
+        assertThat(InstalledExtension.find(home, Map.of("LOCALAPPDATA", localAppData.toString())))
                 .isEqualTo(Browser.FIREFOX);
     }
 
