@@ -65,7 +65,7 @@ class StickyHeaderUiTest {
         // The selected task's category is highlighted with a colour AtlantaFX
         // only defines inside `.list-view`; the pinned header must get it too,
         // and in the same shape as the header row it stands in for.
-        // [utest->dsn~current-category-highlight~1]
+        // [utest->dsn~current-category-highlight~2]
         // The last row is the category's "Add task…" row, which is no task.
         runFx(() -> list.getSelectionModel().select(list.getItems().size() - 2));
         awaitFx(() -> pinnedHeader().getStyleClass().contains("group-header-current"),

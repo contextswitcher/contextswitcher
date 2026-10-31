@@ -24,8 +24,21 @@
    reserve room for the scrollbar, so a background on it leaves gaps at both
    edges (invisible in light mode, obvious in dark). The :filled left accent
    border is transparent, and the background shows under it. */
+/* A category header opens a section: a full-strength divider on top as well
+   as the hairline below, so it never passes for one more task row
+   (`dsn~current-category-highlight~2`). */
 .task-list .list-cell.group-header-cell {
     -fx-background-color: -color-bg-subtle;
+}
+.task-list .list-cell.group-header-cell:filled {
+    -fx-border-color: -color-border-default transparent -color-border-muted transparent;
+    -fx-border-width: 1 0 1 3;
+}
+.task-list .list-cell.group-header-cell:filled:selected {
+    -fx-border-color: -color-border-default transparent -color-border-muted -color-accent-emphasis;
+}
+.group-name {
+    -fx-font-size: 1.05em;
 }
 .task-list .list-cell.done-cell {
     -fx-background-color: -color-bg-inset;
@@ -218,13 +231,13 @@
     -fx-font-size: 0.9em;
 }
 
-/* The header of the category the selected task lives in wears the selection's
-   own colours (background and accent left edge), so the highlighted row always
-   names its context — with the row itself selected somewhere below it, the
-   header is a second mark, not a competing one. Listed after the :selected
-   rules above and with the same style-class count, so a header that is both
-   current and selected simply lands on the same colours.
-   [impl->dsn~current-category-highlight~1] */
+/* The header of the category the selected task lives in keeps its own
+   section background and gains only the accent left edge, so the highlighted
+   row always names its context. It used to wear the selection fill as well,
+   and then looked exactly like a second selected task (field report
+   2026-10-31). A header that is itself selected still gets the selection fill
+   from the :selected rule, which carries one more pseudo-class.
+   [impl->dsn~current-category-highlight~2] */
 /* The pinned-header overlay carries `.list-view` only for the cell rules and
    colours it scopes (MainWindow#installStickyHeader); the list inside draws
    its own frame, so the overlay must not add a second one. */
@@ -232,9 +245,8 @@
     -fx-border-width: 0;
 }
 
-.task-list .list-cell.group-header-cell.group-header-current {
-    -fx-background-color: -color-cell-bg-selected;
-    -fx-border-color: transparent transparent -color-border-muted -color-accent-emphasis;
+.task-list .list-cell.group-header-cell.group-header-current:filled {
+    -fx-border-color: -color-border-default transparent -color-border-muted -color-accent-emphasis;
 }
 
 /* Colours live here, never in Java: a node gets a style class, and the class

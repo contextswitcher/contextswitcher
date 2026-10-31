@@ -2566,10 +2566,12 @@ Covers:
 Needs: impl, utest
 
 ### Current category highlight
-`dsn~current-category-highlight~1`
+`dsn~current-category-highlight~2`
 
-The header of the category the selected row belongs to carries the selection's own colours — the `-color-cell-bg-selected` background and the accent left edge — through a `group-header-current` style class `TaskListCell` adds to the header cell (`MainWindow.isCurrentGroup`).
-So the highlighted task always names the context it sits in, without scrolling up to look; a header that is both current and selected lands on the same colours, since the rule follows the `:selected` ones with the same style-class count.
+The header of the category the selected row belongs to gains the selection's accent left edge through a `group-header-current` style class `TaskListCell` adds to the header cell (`MainWindow.isCurrentGroup`), keeping its own section background.
+So the highlighted task always names the context it sits in, without scrolling up to look; a header that is itself selected takes the `-color-cell-bg-selected` fill from the `:selected` rule as before.
+`~1` painted the current header with that selection fill too, and then it looked exactly like a second selected task right above the real one — field report 2026-10-31, a category with one task: "why no category here?".
+For the same reason every category header reads as a section heading rather than a task row: a full-strength `-color-border-default` divider on its top edge, and its name bold at full contrast and 1.05× the row font (`group-name`), where it used to be muted.
 `MainWindow.markCurrentGroup` records the selected task's group (the selected header's own name when a header is selected, `""` for an ungrouped task or a label bucket, which has no category header) and, only when it changed, calls `ListView.refresh()` — the rows are unchanged, so the cells are re-rendered rather than rebuilt.
 
 Tags: windows, linux

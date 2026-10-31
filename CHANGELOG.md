@@ -11,6 +11,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Changed
 
 - Android: a task started with *Start Claude* opens right away, so its terminal shows Claude starting.
+- Category headers in the task list stand out from task rows: a divider line on top and the name bold at full contrast. The header of the selected task's category keeps its own background and is marked by the accent edge only, so it no longer looks like a second selected task.
 
 ### Fixed
 
