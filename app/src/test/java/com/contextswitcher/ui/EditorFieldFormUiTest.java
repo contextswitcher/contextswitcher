@@ -17,7 +17,7 @@ import javafx.scene.control.ButtonBase;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.Labeled;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputControl;
 import javafx.stage.Stage;
@@ -29,21 +29,23 @@ import jfx.incubator.scene.control.richtext.model.CodeTextModel;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import static com.contextswitcher.ui.UiTestSupport.awaitFocused;
 import static com.contextswitcher.ui.UiTestSupport.awaitPresent;
 import static com.contextswitcher.ui.UiTestSupport.sleep;
 import static io.gitlab.fxlabs.testfx.util.FxPredicates.hasText;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// UI automation of the Configuration pane (`dsn~task-field-form~4`): the notes
-/// header's configure button brings the pane forward, its form is generated from
-/// the field catalog and pre-filled from the open file, **Raw YAML** shows the
-/// same frontmatter as YAML, and **Apply** writes back only what changed —
-/// comments included. The rebuilt form shows what was written, and clearing a
-/// field removes its key.
+/// UI automation of the Configuration and Switch actions panes
+/// (`dsn~task-field-form~5`): the notes header's configure button brings
+/// Configuration forward, the forms are generated from the field catalog and
+/// pre-filled from the open file, **Raw YAML** shows the same frontmatter as
+/// YAML, and leaving a pane writes back only what changed — comments included.
+/// A list is a field per entry plus an empty one to add the next. The rebuilt
+/// form shows what was written, and clearing a field removes its key.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~task-field-form~4]
+// [utest->dsn~task-field-form~5]
 @Tag("ui")
 @TestFxApplication(EditorFieldFormUiTest.TestApp.class)
 class EditorFieldFormUiTest {
@@ -102,12 +104,18 @@ class EditorFieldFormUiTest {
         assertThat(richText(awaitControl(RichTextArea.class, "config-editor"))).contains("# keep me");
         clickById("config-raw-toggle");
 
-        set(awaitControl(TextField.class, "field-chat"), "https://matrix.to/#/!room:matrix.org");
-        set(awaitControl(TextArea.class, "field-browser-urls"),
+        // The switch actions have a pane of their own.
+        showTab("Switch actions");
+        TextField chat = awaitControl(TextField.class, "field-chat");
+        FX_ROBOT.mouse().moveTo(chat).click();
+        set(chat, "https://matrix.to/#/!room:matrix.org");
+        set(awaitControl(TextField.class, "field-browser-urls-0"),
                 "https://example.org/pr/1 — The PR");
-        set(awaitControl(TextArea.class, "field-folders"), "/data/koppor/p");
+        // Typing into the trailing empty field adds the next one.
+        awaitControl(TextField.class, "field-browser-urls-1");
+        set(awaitControl(TextField.class, "field-folders-0"), "/data/koppor/p");
         check(awaitControl(CheckBox.class, "field-intellij"));
-        clickById("config-apply-button");
+        leavePanes();
 
         String written = awaitContent("matrix.to");
         assertThat(written)
@@ -122,13 +130,28 @@ class EditorFieldFormUiTest {
 
         // The form is rebuilt from what was written, and an emptied field
         // removes its key — the form edits the file, it does not only add to it.
-        assertThat(text(awaitControl(TextArea.class, "field-browser-urls")))
+        assertThat(text(awaitControl(TextField.class, "field-browser-urls-0")))
                 .isEqualTo("https://example.org/pr/1 — The PR");
-        set(awaitControl(ComboBox.class, "field-remote").getEditor(), "");
-        clickById("config-apply-button");
+        showTab("Configuration");
+        ComboBox<?> hostBox = awaitControl(ComboBox.class, "field-remote");
+        awaitFocused(hostBox, "host field");
+        TextField host = hostBox.getEditor();
+        set(host, "");
+        leavePanes();
 
         String cleared = awaitAbsent("remote:");
         assertThat(cleared).contains("chat: ").contains("# keep me").contains("title: " + TITLE);
+
+        // A list entry's trash can removes it; the last entry gone, the key goes.
+        showTab("Switch actions");
+        awaitFocused(awaitControl(TextField.class, "field-chat"), "chat field");
+        TextField folder = awaitControl(TextField.class, "field-folders-0");
+        onFx(() -> {
+            ((ButtonBase) folder.getParent().getChildrenUnmodifiable().get(1)).fire();
+            return null;
+        });
+        leavePanes();
+        assertThat(awaitAbsent("folders:")).doesNotContain("/data/koppor/p");
     }
 
     private static void openForm() {
@@ -136,6 +159,19 @@ class EditorFieldFormUiTest {
                 () -> FX_ROBOT.selectNodes(Button.class).fromAll()
                         .filter(button -> "add-field-button".equals(button.getId())).findFirst(),
                 "the configure button")).click();
+    }
+
+    /// Puts a pane's tab in front by clicking its header.
+    private static void showTab(String title) {
+        FX_ROBOT.mouse().moveTo(awaitPresent(() -> FX_ROBOT.selectNodes(Labeled.class).fromAll()
+                .filter(hasText(title)).findFirst(), "the " + title + " tab")).click();
+    }
+
+    /// Moves the focus out of the form panes, which saves them — a click on
+    /// the open task's row in the task list.
+    private static void leavePanes() {
+        FX_ROBOT.mouse().moveTo(awaitPresent(() -> FX_ROBOT.selectNodes(Label.class).fromAll()
+                .filter(hasText(TITLE)).findFirst(), "the task row")).click();
     }
 
     /// The Configuration pane's buttons are icon-only, so they are found by id.

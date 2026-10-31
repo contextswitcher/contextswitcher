@@ -10,6 +10,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Changed
 
+- The switch actions (IntelliJ, browser URLs, local folders, chat room, OneNote) have a *Switch actions* pane of their own, next to *Configuration*. A list there is a field per entry plus an empty one to add the next; hovering an entry shows a trash can to remove it.
+- *Switch actions* and *Configuration* save when the focus leaves the pane; the *Apply* button is gone, and *Reload* drops what was not saved yet.
+- The *Note link* field is now labelled *OneNote*.
+
 - Android: a task started with *Start Claude* opens right away, so its terminal shows Claude starting.
 - Category headers in the task list stand out from task rows: a divider line on top and the name bold at full contrast. The header of the selected task's category keeps its own background and is marked by the accent edge only, so it no longer looks like a second selected task.
 

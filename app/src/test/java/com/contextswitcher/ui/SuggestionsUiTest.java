@@ -22,12 +22,12 @@ import static com.contextswitcher.ui.UiTestSupport.sleep;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The configuration form's *Virtual desktop* type-ahead (`dsn~task-field-form~4`):
+/// The configuration form's *Virtual desktop* type-ahead (`dsn~task-field-form~5`):
 /// typing part of a known name opens the suggestions, and Down + Enter picks
 /// one into the field.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~task-field-form~4]
+// [utest->dsn~task-field-form~5]
 @Tag("ui")
 @TestFxApplication(SuggestionsUiTest.TestApp.class)
 class SuggestionsUiTest {

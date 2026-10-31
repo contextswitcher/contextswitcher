@@ -1829,7 +1829,7 @@ Needs: impl, utest
 `dsn~settings-editor~4`
 
 A **cog icon button** at the right end of the list toolbar (`MainWindow.settingsButton`, a Material Design `COG` glyph via `SvgNode`, MADR 0010 — icon-only, `Styles.SMALL`/`BUTTON_ICON`/`FLAT`, tooltip "Settings"; the last item of the toolbar `dsn~task-list-toolbar~3`, after the add menu) opens a resizable dialog (`setResizable(true)` — JavaFX dialogs are fixed-size by default).
-The form scrolls in a viewport of `FieldForm.viewportHeight()`, which keeps the whole dialog, chrome included, within 75 % of the primary screen's height (`0.75 × height − 260`, at least 120 px); the task/category configuration form (`dsn~task-field-form~4`) uses the same rule (`~3`→`~4`: the viewport took the full height less 260 px, so a long form opened taller than the screen).
+The form scrolls in a viewport of `FieldForm.viewportHeight()`, which keeps the whole dialog, chrome included, within 75 % of the primary screen's height (`0.75 × height − 260`, at least 120 px); the task/category configuration form (`dsn~task-field-form~5`) uses the same rule (`~3`→`~4`: the viewport took the full height less 260 px, so a long form opened taller than the screen).
 A lone gear in the status bar had been easy to miss and read as a twin of the sync-tmux button, which used a cog glyph (`COG_SYNC`); `COG` is now the one plain cog in the app, and sync-tmux uses `SYNC`.
 The dialog is parented to the main window (`Dialog.initOwner`, `MainWindow.dialogOwner`): an ownerless JavaFX `Dialog` is application-modal — it grays the whole UI — but is its own top-level window, so with the main window pinned to every virtual desktop (`showOnAllDesktops`) the orphan opened on the primary desktop while the user was on another, leaving the app apparently frozen with no dialog in sight. The raw-fallback editor (`editSettingsRaw`) is parented the same way.
 The form is **generated from `SettingsCatalog`** (MADR 0015) — one control per known `settings.yaml` option (label, help, type), grouped into a section per option group — by an own small renderer, not a third-party form framework (FormsFX was tried and dropped, MADR 0015): a `TextField` for the tasks directory, WebSocket port, and WebSocket token; `CheckBox`es for `hints`, `claudeAuto`, and `showOnAllDesktops`; a `ComboBox` for an `ENUM` option's fixed `choices` (the `theme`, `dsn~theme-select~9`); the `HostTable` for `hosts` (an editable ExtendedTable, `dsn~host-table~1`, MADR 0038 — the former `remotes`/switched-off-hosts text lists and the global RefactoringMiner field); and a purpose-built `TagListEditor` for the tag palette — a row per tag pairing a name `TextField` with a `ColorPicker`, plus "Add tag" and a per-row remove (a tag is always a name + color). Each row places the label on its own line above a full-width control (a checkbox sits at the right edge instead of stretching) and highlights on hover; the option's help is the row tooltip. The form sits in a `ScrollPane`.
@@ -2090,17 +2090,19 @@ Covers:
 Needs: impl
 
 ### Editor configuration form
-`dsn~task-field-form~4`
+`dsn~task-field-form~5`
 
 A **configure icon button** in the Notes pane header (left of *Revert*, `MDIInterface.TUNE`) puts the **Configuration** pane in front — reopening it when closed, raising its window when popped out — which shows the frontmatter of the open file as a generated key/value form (`ConfigFormPane`, generated and written back by `ConfigForm`), so a task or a category is set up by filling fields instead of hand-writing YAML — the raw YAML stays reachable, as the form's fallback rather than the only way in.
 The form is generated from `FrontmatterCatalog` — one control per key a user hand-edits, grouped into sections — the way the settings dialog is generated from `SettingsCatalog` (`dsn~settings-editor~4`); both render through the shared `FieldForm` (bold section header, label above a full-width control, hover highlight, the field's help as the row tooltip).
 A task file gets the `TASK` catalog, a category's `CONTEXTSWITCHER.md` the `CATEGORY` one.
-Text fields are strings, a checkbox is a flag, a drop-down the fixed sets (`status`), and a multi-line field a list, one entry per line (`tags`, `folders`, `browser.urls`).
+The catalog is split over two panes built the same way (`ConfigFormPane`): **Switch actions**, between *Notes* and *Configuration*, holds what a switch opens — `FrontmatterCatalog.SWITCH_ACTION_KEYS`: `intellij`, `intellij.projectPath`, `browser.urls`, `folders`, `chat`, `note` (labelled *OneNote*) — and **Configuration** every other field; a form of a single section goes without its section header, the tab names it.
+Text fields are strings, a checkbox is a flag, a drop-down the fixed sets (`status`), and a list (`tags`, `folders`, `browser.urls`) is a `ListFieldEditor`: a single-line field per entry plus an empty one at the end — typing into it adds the next empty one, Enter moves to the next field — and a trash can, shown while a row is hovered, removing that entry (the queue's delete-on-hover, `dsn~message-queue-ui~26`).
 The `remote` field is labelled *Host* and is an **editable** drop-down offering the settings' host destinations (`dsn~host-table~1`) — any other destination typed in is kept, blank removes the key; the frontmatter key stays `remote:`, which every task file, the tmux sync and the Android app read.
 A category's *Virtual desktop* field suggests while typing (`Suggestions`): a popup under it lists the desktop names the app knows — this machine's named desktops as the desktop watcher last read them, those the categories name, the active desktop and the fallback desktop (`dsn~fallback-desktop~2`) — matching what is typed, names starting with it first; **Down** opens it on an empty field, picking an entry fills the field, and any other name typed in is kept.
 A refresh icon button beside the field reads the named desktops once more (`WindowsVirtualDesktopFocus.names`, a one-shot `powershell` read that works without the watcher), disabled for the round-trip with the status bar saying how it went, and opens the suggestions with the result — for a desktop created or renamed while the form is open.
 
-Every control is pre-filled from the open file (`Frontmatter.parse` of the editor buffer, so unsaved edits are kept), and **Apply** writes back only the keys that actually changed, each through `Frontmatter.set` — a `YamlPatch` on the frontmatter block alone.
+Every control is pre-filled from the open file (`Frontmatter.parse` of the editor buffer, so unsaved edits are kept), and **leaving the pane** — the scene's focus owner moving out of it, or its window losing the focus — writes back only the keys that actually changed, each through `Frontmatter.set` — a `YamlPatch` on the frontmatter block alone; switching to another file saves the forms first.
+The rebuild that follows a save leaves a form the focus is in alone, so the field just clicked in the sibling pane survives (the two panes' fields are disjoint, and a save patches only changed keys).
 So comments, key order, machine-suffixed variants (`folders-windows`) and keys the catalog does not list survive a form edit, and the Markdown body is never touched.
 Unlike the add-only form it replaces, an emptied field **removes** its key (an empty field means "not set", not `key: ''`), which is what makes the form an editor rather than an append box.
 Keys the app writes for itself (`claude.workspace`, `claude.commit`, `suspended`, `storedTabs`) are not in the catalog and so are neither shown nor touched.
@@ -2112,11 +2114,13 @@ Three keys carry a shape the form hides:
 The `folders` list subsumes the single-directory `folder:` spelling a local category seeds — writing the one removes the other, so a file never names two sets of folders.
 
 **Raw YAML** swaps the form for the frontmatter as YAML, in the frontmatter editor of `dsn~richtext-markdown-editor~9` — the fallback for anything the form does not cover; **F1** there opens the field reference (`dsn~task-field-help~1`).
-Turning it on applies the form's pending changes first (an invalid form keeps the form view), turning it off rebuilds the form from the buffer, and **Reload** rebuilds it dropping unapplied changes.
+Turning it on applies the form's pending changes first (an invalid form keeps the form view), turning it off rebuilds the form from the buffer, and **Reload** rebuilds it dropping changes not saved yet.
+The raw editor is one node: a pane turning it on makes the other pane go back to its form first, and leaving the raw editor rebuilds the forms from what was typed there.
 A file without a `---` fence has nothing to configure, and the pane says so instead of showing a form.
-**Pop out** moves the pane into a window of its own, which docks back (`dsn~shell-layout~2`).
-Like *Revert*, the configure button and the pane's buttons are not focus-traversable, so using them does not trigger the editor's focus-loss auto-save; an apply is written into the editor buffer and saved right away (`~2`→`~3`: the form was a modal dialog with *View raw* and *Save*).
-The pane's toolbar controls are icon buttons like every other toolbar's — `CODE_BRACES` (*Raw YAML*), `CHECK` (*Apply*), `RELOAD` (*Reload*), `OPEN_IN_NEW` (*Pop out*) — named by their tooltips, with ids for the UI test (`~3`→`~4`: they were text buttons).
+**Pop out** moves either pane into a window of its own, which docks back (`dsn~shell-layout~2`).
+Like *Revert*, the configure button and the pane's buttons are not focus-traversable, so using them does not trigger the editor's focus-loss auto-save; a save is written into the editor buffer and saved right away (`~2`→`~3`: the form was a modal dialog with *View raw* and *Save*).
+The panes' toolbar controls are icon buttons like every other toolbar's — `CODE_BRACES` (*Raw YAML*), `RELOAD` (*Reload*), `OPEN_IN_NEW` (*Pop out*) — named by their tooltips, with ids for the UI test (`config-…`, `switch-actions-…`; `~3`→`~4`: they were text buttons).
+`~4`→`~5`: the switch actions moved to a pane of their own, lists became a field per entry, and the *Apply* button (`CHECK`) gave way to saving on focus loss (Oliver, 2026-10-31).
 
 Tags: windows, linux
 
@@ -2243,15 +2247,15 @@ Needs: impl
 ### Docked panes in a ShellFX shell
 `dsn~shell-layout~2`
 
-The main window hosts its panes in a ShellFX shell (`ShellFxHost`, MADR 0032): **Tasks**, **Terminal**, **Notes**, **Configuration** and **Queue** are dock tabs, laid out by default like the three lanes before them — tasks 0.28, terminal 0.36, notes over the queue 0.62/0.38, configuration a second tab beside notes.
+The main window hosts its panes in a ShellFX shell (`ShellFxHost`, MADR 0032): **Tasks**, **Terminal**, **Notes**, **Switch actions**, **Configuration** and **Queue** are dock tabs, laid out by default like the three lanes before them — tasks 0.28, terminal 0.36, notes over the queue 0.62/0.38, switch actions and configuration further tabs beside notes, in that order.
 A tab can be dragged into another pane's tabs or split beside it; a dock that loses its last tab closes, so the panes share whatever docks are left.
 Closing a tab — from its context menu — hides its pane, and the panes menu at the right end of the main toolbar shows it again, in its last dock if that still exists.
 The dock tabs show no ×: one stray click beside a tab title closed a pane, so `main.css` hides the close button under the style class every dock carries (`ShellFxHost.DOCK_STYLE`, added to the docks ShellFX creates on a drop by `tidyDocks`) — hidden rather than `Tab.setClosable(false)`, which the context menu's close entries depend on.
 Every pane's own toolbar — the task list's, the Notes and Configuration headers, the Terminal pane's band, the Queue's top bar — has the task toolbar's height and background: `.list-toolbar` and `.panel-header` share one fixed height and one two-layer paint in `main.css`.
 The Terminal pane has no title line of its own: `TerminalPane` builds its band around the mirrored pane's title (right-click anywhere on the band for *Select the mirrored task*, `dsn~terminal-mirrored-task~1`), and `MainWindow` adds the Claude and IntelliJ buttons at its right end (`addToolbarControls`) and the PR rows below it (`setSubHeader`) (`~1`→`~2`).
 The main toolbar above the docks holds the app-wide controls (energy saver, browser status, update, settings); the task list toolbar keeps what acts on the list, and the status bar sits below the docks.
-The Configuration pane can pop out into a window of its own and dock back (**Dock back**, closing the window, or dragging its title over the main window).
-`ShellFxHost.Hosted` hands `MainWindow` the one way the editor brings a pane forward: showing Configuration on request (`dsn~task-field-form~4`).
+The Switch actions and Configuration panes can each pop out into a window of its own and dock back (**Dock back**, closing the window, or dragging its title over the main window).
+`ShellFxHost.Hosted` hands `MainWindow` the one way the editor brings a pane forward: showing Configuration on request (`dsn~task-field-form~5`).
 The shell needs JavaFX's `HeaderBar` preview API, so `-Djavafx.enablePreview=true` is in the app's, the packaged app's and `uiTest`'s JVM arguments; ShellFX is a pinned `2.0.0-SNAPSHOT`, and `ShellFxHost` works around its known bugs in place.
 
 Tags: windows, linux

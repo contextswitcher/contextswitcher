@@ -1,6 +1,7 @@
 package com.contextswitcher.tasks;
 
 import java.util.List;
+import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
 
@@ -17,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 /// `storedTabs`) and the
 /// machine-suffixed variants (`folders-windows`) stay out of the form and are
 /// edited — untouched by it — in the raw YAML.
-// [impl->dsn~task-field-form~4]
+// [impl->dsn~task-field-form~5]
 public final class FrontmatterCatalog {
 
     /// How a field's value is rendered as a form control and read back.
@@ -28,7 +29,8 @@ public final class FrontmatterCatalog {
         BOOLEAN,
         /// A fixed set of values, rendered as a drop-down ([Field#choices]).
         ENUM,
-        /// A multi-line field, one list entry per line; empty removes the key.
+        /// A list: one single-line field per entry plus an empty one to add the
+        /// next; no entries removes the key.
         LIST,
         /// An ssh destination: an editable drop-down offering the settings'
         /// hosts (`dsn~host-table~1`), any other value typed in kept; blank
@@ -119,8 +121,20 @@ public final class FrontmatterCatalog {
                     "Folders opened in the file manager on switch; one per line."),
             new Field("chat", "Chat room", "Switch actions", Type.STRING,
                     "Matrix room opened in the Element app — a matrix.to permalink."),
-            new Field("note", "Note link", "Switch actions", Type.STRING,
-                    "Opened by \"Open note\"; for OneNote use the onenote:… link form."));
+            new Field("note", "OneNote", "Switch actions", Type.STRING,
+                    "Opened by \"Open note\" — the page's onenote:… link (any other link works too)."));
+
+    /// The keys the **Switch actions** pane shows, in both catalogs: what a
+    /// switch to the task (or into the category) opens. The Configuration pane
+    /// shows every other field.
+    // [impl->dsn~task-field-form~5]
+    public static final Set<String> SWITCH_ACTION_KEYS =
+            Set.of("intellij", "intellij.projectPath", "browser.urls", "folders", "chat", "note");
+
+    /// Whether `field` belongs on the Switch actions pane ([#SWITCH_ACTION_KEYS]).
+    public static boolean isSwitchAction(Field field) {
+        return SWITCH_ACTION_KEYS.contains(field.key());
+    }
 
     /// The keys of a category's `CONTEXTSWITCHER.md`, in form order.
     public static final List<Field> CATEGORY = List.of(
@@ -142,8 +156,9 @@ public final class FrontmatterCatalog {
                     Type.BOOLEAN,
                     "Suspending a task stores and closes every Firefox tab on the desktop; "
                             + "resuming reopens them."),
-            new Field("note", "Note link", "Category", Type.STRING,
-                    "Opened by the header's \"Open note\"; for OneNote use the onenote:… form."),
+            new Field("note", "OneNote", "Category", Type.STRING,
+                    "Opened by the header's \"Open note\" — the page's onenote:… link "
+                            + "(any other link works too)."),
             new Field("chat", "Chat room", "Category", Type.STRING,
                     "Matrix room opened on every switch into the category "
                             + "(a task's own chat wins)."),
