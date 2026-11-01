@@ -475,7 +475,7 @@ internal fun TaskListScreen(
 
     var addProgress by remember { mutableStateOf<String?>(null) }
 
-    // [impl->dsn~android-live-task~3]
+    // [impl->dsn~android-live-task~4]
     fun startClaudeTask(category: String, title: String, mode: ClaudeMode, skipPermissions: Boolean) {
         val settings = settingsStore.load() ?: return
         val starter = liveTasks ?: return
@@ -487,10 +487,11 @@ internal fun TaskListScreen(
             val outcome = withContext(Dispatchers.IO) {
                 starter.start(repoDir, settings.username, settings.token, category, title, mode, skipPermissions,
                     onStep = { addProgress = it },
-                    onCreated = {
-                        // The task is in the repo: the list can show it while Claude starts.
+                    onCreated = { taskId ->
+                        // The task is in the repo: open it, so its terminal shows Claude starting.
                         addingTask = false
                         groups = runCatching { buildTaskListModel(repoDir.toPath()) }.getOrDefault(groups)
+                        findTask(repoDir, taskId)?.let { scope.launch { onOpenTask(it) } }
                     })
             }
             taskBeingAdded = false

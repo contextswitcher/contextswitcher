@@ -222,7 +222,7 @@ public class Main extends Application {
     });
     private @Nullable ExecutorService actionExecutor;
     /// Shortens a local Claude task's description-as-title once it is created.
-    // [impl->dsn~task-create-local-title~1]
+    // [impl->dsn~task-create-local-title~2]
     private @Nullable InitialTitleAdopter initialTitles;
     /// Fires the one-shot post-create sync (`dsn~tmux-sync~7`) — a daemon so a
     /// pending 30 s wait cannot hold the JVM open after the window closes.
@@ -593,7 +593,7 @@ public class Main extends Application {
             }
         }, TASK_BACKUP_MINUTES, TASK_BACKUP_MINUTES, TimeUnit.MINUTES);
         MainWindow.TaskFileAccess files = taskFileAccess(settings.tasksDir(), queueDir);
-        // [impl->dsn~task-create-local-title~1]
+        // [impl->dsn~task-create-local-title~2]
         initialTitles = new InitialTitleAdopter(
                 new FallbackSummarizer(new ClaudeCliSummarizer(), new FirstWordsSummarizer()),
                 files, actionExecutor, Platform::runLater, fileName -> {
@@ -935,7 +935,7 @@ public class Main extends Application {
         // [impl->dsn~start-claude-button~2]
         // [impl->dsn~setup-wizard~12]
         window.setOnSetupWizard(this::rerunSetupWizard);
-        // [impl->dsn~task-field-form~4]
+        // [impl->dsn~task-field-form~5]
         window.setDesktopNamesReader(() -> {
             ExecutorService executor = this.actionExecutor;
             return executor == null
@@ -3158,9 +3158,9 @@ public class Main extends Application {
     }
 
     /// The category the wizard's last page asked for, if any: from a
-    /// repository, or for a plain folder (`dsn~category-from-folder~1`).
+    /// repository, or for a plain folder (`dsn~category-from-folder~2`).
     // [impl->dsn~setup-wizard~12]
-    // [impl->dsn~category-from-folder~1]
+    // [impl->dsn~category-from-folder~2]
     private static void createWizardCategory(MainWindow window, SetupWizard.Result result) {
         String root = result.workspacesRoot();
         if (root == null) {
@@ -3168,7 +3168,7 @@ public class Main extends Application {
         }
         if (result.folderCategory() != null) {
             window.createCategoryFromFolder(result.folderCategory(), root, result.remote(),
-                    MainWindow.lastMode(), result.firstMessage());
+                    MainWindow.lastMode(), result.firstMessage(), result.setupSession());
         } else if (result.repoUrl() != null) {
             window.createCategoryFromRepo(result.repoUrl(), root, result.remote(), result.repoType(),
                     MainWindow.lastMode(), result.firstMessage());
@@ -4107,7 +4107,7 @@ public class Main extends Application {
         }
         // Independent of the launch: the title is the task file's, and a
         // failed start leaves a task that still deserves a readable row.
-        // [impl->dsn~task-create-local-title~1]
+        // [impl->dsn~task-create-local-title~2]
         InitialTitleAdopter titles = this.initialTitles;
         if (titles != null) {
             titles.adopt(taskId);

@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /// Asks `primary` first and `fallback` only when it has no title.
-// [impl->dsn~task-create-local-title~1]
+// [impl->dsn~task-create-local-title~2]
 public final class FallbackSummarizer implements TaskTitleSummarizer {
 
     private final TaskTitleSummarizer primary;

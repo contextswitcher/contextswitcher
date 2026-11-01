@@ -15,6 +15,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.stage.Window;
@@ -64,11 +65,13 @@ public final class SetupWizard {
     /// remote, asked on its page (`dsn~host-table~1`). `folderCategory` is
     /// the name of a category for a plain folder — no git, no remote — whose
     /// path is then `workspacesRoot`, `repoUrl` being null
-    /// (`dsn~category-from-folder~1`).
+    /// (`dsn~category-from-folder~2`). `setupSession` is false when such a
+    /// folder category is to be created without a Claude session writing its
+    /// `CLAUDE.md` — for someone who does not use Claude there.
     public record Result(@Nullable String remote, @Nullable String taskRepoUrl,
             @Nullable String repoUrl, @Nullable String workspacesRoot, RepoType repoType,
             @Nullable String refactoringMinerHome, boolean checkup, @Nullable String workspaces,
-            @Nullable String folderCategory) {
+            @Nullable String folderCategory, boolean setupSession) {
 
         public boolean local() {
             return remote == null;
@@ -212,6 +215,30 @@ public final class SetupWizard {
                 "OK: " + (tmux == null ? "" : tmux + ", ") + "Claude Code " + claudeVersion + " " + where);
     }
 
+    /// The clipboard's text as a folder of this machine, or null: one line,
+    /// optionally in the double quotes Windows' *Copy as path* adds, naming an
+    /// absolute path to an existing directory — say
+    /// `c:\git-repositories\git.overleaf.com\6aad3ebf9a43af8873645708`.
+    // [impl->dsn~category-from-folder~2]
+    static @Nullable String clipboardFolder(@Nullable String clip) {
+        if (clip == null) {
+            return null;
+        }
+        String text = clip.strip();
+        if (text.length() >= 2 && text.startsWith("\"") && text.endsWith("\"")) {
+            text = text.substring(1, text.length() - 1).strip();
+        }
+        if (text.isEmpty() || text.contains("\n") || text.contains("\r")) {
+            return null;
+        }
+        try {
+            java.nio.file.Path path = java.nio.file.Path.of(text);
+            return path.isAbsolute() && java.nio.file.Files.isDirectory(path) ? text : null;
+        } catch (java.nio.file.InvalidPathException e) {
+            return null;
+        }
+    }
+
     private static @Nullable String versionLine(LocalCommandRunner.LocalResult result, String mark) {
         return result.ok() ? versionLine(result.stdout().lines().map(String::strip).toList(), mark) : null;
     }
@@ -308,27 +335,32 @@ public final class SetupWizard {
         boolean offerWsl = onWindows;
         RadioButton configured = prefill.host() == null ? localChoice
                 : offerWsl && TmuxHost.isWsl(prefill.host()) ? wslChoice : remoteChoice;
-        (offerClone && prefill.host() == null ? remoteChoice : configured).setSelected(true);
+        // A folder of this machine on the clipboard is what the wizard was
+        // opened for: a category for it, so sessions run here.
+        // [impl->dsn~category-from-folder~2]
+        String clipText = javafx.scene.input.Clipboard.getSystemClipboard().getString();
+        @Nullable String clipFolder = clipboardFolder(clipText);
+        (clipFolder != null ? localChoice
+                : offerClone && prefill.host() == null ? remoteChoice : configured).setSelected(true);
         Label localVerdict = new Label();
         localVerdict.setId("setup-local-verdict");
         localVerdict.setWrapText(true);
         boolean[] localOk = {false};
         // This machine's tools, checked in the background as soon as the
-        // wizard opens; `onOk` runs (on the FX thread) after a success.
-        java.util.function.Consumer<Runnable> runLocalCheck = onOk -> {
+        // wizard opens; `onOk` runs (on the FX thread) after a success,
+        // `onFail` after a failure.
+        java.util.function.BiConsumer<Runnable, Runnable> runLocalCheck = (onOk, onFail) -> {
             localVerdict.setText("Checking this machine …");
             Thread.ofVirtual().start(() -> {
                 Verdict verdict = localCheck.get();
                 Platform.runLater(() -> {
                     localOk[0] = verdict.ok();
                     localVerdict.setText(verdict.message());
-                    if (verdict.ok()) {
-                        onOk.run();
-                    }
+                    (verdict.ok() ? onOk : onFail).run();
                 });
             });
         };
-        runLocalCheck.accept(() -> { });
+        runLocalCheck.accept(() -> { }, () -> { });
         List<Node> page1Rows = new ArrayList<>(List.of(
                 remoteChoice,
                 muted("A Linux box with tmux and Claude Code, reached through your ~/.ssh/config. "
@@ -654,9 +686,8 @@ public final class SetupWizard {
         repoUrl.setId("setup-repo-url");
         repoUrl.setPromptText("https://github.com/org/project  or  git@github.com:org/project.git  (optional)");
         repoUrl.setPrefColumnCount(40);
-        String clip = javafx.scene.input.Clipboard.getSystemClipboard().getString();
-        if (clip != null && TaskFileParser.repoName(clip) != null) {
-            repoUrl.setText(clip.strip());
+        if (clipText != null && TaskFileParser.repoName(clipText) != null) {
+            repoUrl.setText(clipText.strip());
         }
         TextField root = new TextField();
         root.setId("setup-root");
@@ -693,7 +724,7 @@ public final class SetupWizard {
                         + "to add categories later from the toolbar."));
         // The other source: a plain folder on the session host — no git, no
         // remote (one synced by OneDrive, say). Its name follows the folder's
-        // last segment until typed into. [impl->dsn~category-from-folder~1]
+        // last segment until typed into. [impl->dsn~category-from-folder~2]
         TextField folder = new TextField();
         folder.setId("setup-folder");
         folder.setPrefColumnCount(40);
@@ -719,20 +750,33 @@ public final class SetupWizard {
                 folder.setText(picked.getAbsolutePath());
             }
         });
+        // Claude is optional for a folder: without the session the category
+        // is only created, the folder left as it is. [impl->dsn~category-from-folder~2]
+        CheckBox folderSession = new CheckBox("Start a Claude session that writes its CLAUDE.md");
+        folderSession.setId("setup-folder-session");
+        folderSession.setSelected(true);
+        folderSession.setWrapText(true);
+        folderSession.setMinHeight(Region.USE_PREF_SIZE);
         VBox folderRows = new VBox(8,
                 caption("Folder (on the machine the sessions run on)"), withButton(folder, browse),
                 caption("Category name"), folderName,
-                muted("A category is created for the folder and a Claude session writes its "
-                        + "CLAUDE.md there. Nothing is cloned and git is not used — fine for a "
-                        + "folder synced by OneDrive."));
+                folderSession,
+                muted("A category is created for the folder. Nothing is cloned and git is not "
+                        + "used — fine for a folder synced by OneDrive. Without the Claude session "
+                        + "the folder is left as it is."));
         ToggleGroup source = new ToggleGroup();
         RadioButton fromRepo = new RadioButton("From a repository");
         fromRepo.setId("setup-from-repo");
         fromRepo.setToggleGroup(source);
-        fromRepo.setSelected(true);
         RadioButton fromFolder = new RadioButton("A local folder — no remote, no git");
         fromFolder.setId("setup-from-folder");
         fromFolder.setToggleGroup(source);
+        if (clipFolder != null) {
+            folder.setText(clipFolder);
+            fromFolder.setSelected(true);
+        } else {
+            fromRepo.setSelected(true);
+        }
         Runnable showSource = () -> {
             boolean plain = fromFolder.isSelected();
             repoRows.setVisible(!plain);
@@ -799,6 +843,10 @@ public final class SetupWizard {
             if (current[0] == last) {
                 followUrl.run();
                 showSource.run();
+                if (localChoice.isSelected() && !localOk[0]) {
+                    // Gone on without Claude here: no session by default.
+                    folderSession.setSelected(false);
+                }
             }
             // A dialog sizes itself to its content once, at show; a taller
             // page would otherwise push its buttons out of the window.
@@ -823,9 +871,11 @@ public final class SetupWizard {
                 content.getChildren()));
         // The checkup runs in the new category's setup session, so it needs one.
         checkupButton.disableProperty().bind(Bindings.createBooleanBinding(
-                () -> categoryName.get() == null,
+                () -> categoryName.get() == null
+                        || fromFolder.isSelected() && !folderSession.isSelected(),
                 repoUrl.textProperty(), root.textProperty(), folder.textProperty(),
-                folderName.textProperty(), source.selectedToggleProperty()));
+                folderName.textProperty(), source.selectedToggleProperty(),
+                folderSession.selectedProperty()));
         Runnable forward = () -> {
             int index = current[0] + 1;
             while (skipped.test(index)) {
@@ -854,6 +904,7 @@ public final class SetupWizard {
         };
         nextButton.addEventFilter(ActionEvent.ACTION, clashCheck);
         checkupButton.addEventFilter(ActionEvent.ACTION, clashCheck);
+        boolean[] localFailedAtNext = {false};
         nextButton.addEventFilter(ActionEvent.ACTION, event -> {
             if (current[0] == last) {
                 return;
@@ -862,8 +913,20 @@ public final class SetupWizard {
             if (current[0] == 0 && localChoice.isSelected() && !localOk[0]) {
                 // Same rule as the remote page: local sessions need tmux and
                 // Claude here, and a missing one is better found now than at
-                // the first task's empty terminal.
-                runLocalCheck.accept(forward);
+                // the first task's empty terminal. Yet Claude is not a must:
+                // Next once more goes on without it, for a folder used without
+                // sessions. [impl->dsn~category-from-folder~2]
+                boolean again = localFailedAtNext[0];
+                runLocalCheck.accept(forward, () -> {
+                    if (again) {
+                        forward.run();
+                    } else {
+                        localFailedAtNext[0] = true;
+                        localVerdict.setText(localVerdict.getText()
+                                + "\nOr press Next once more to go on without Claude: a folder "
+                                + "category can still be created, sessions cannot start here.");
+                    }
+                });
                 return;
             }
             if (current[0] == 1 && !verified[0]) {
@@ -887,7 +950,7 @@ public final class SetupWizard {
                     category == null ? null : blankToNull((plain ? folder : root).getText()),
                     repoType.getValue(), rmHome[0], button == checkup,
                     localChoice.isSelected() ? null : blankToNull(workspaces.getText()),
-                    plain ? category : null);
+                    plain ? category : null, !plain || folderSession.isSelected());
         });
         // The first start shows the wizard before the main window, which is
         // what otherwise installs `main.css` and forces the theme to take.

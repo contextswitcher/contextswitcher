@@ -86,4 +86,23 @@ class SetupWizardTest {
             }
         };
     }
+
+    /// A folder path on the clipboard — bare or in *Copy as path*'s quotes —
+    /// counts only when it is one absolute line naming an existing directory.
+    // [utest->dsn~category-from-folder~2]
+    @Test
+    void aClipboardFolderIsAnExistingAbsoluteDirectory(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
+            throws java.io.IOException {
+        String path = dir.toAbsolutePath().toString();
+        assertThat(SetupWizard.clipboardFolder(path)).isEqualTo(path);
+        assertThat(SetupWizard.clipboardFolder("  \"" + path + "\"\n")).isEqualTo(path);
+        assertThat(SetupWizard.clipboardFolder(null)).isNull();
+        assertThat(SetupWizard.clipboardFolder("")).isNull();
+        assertThat(SetupWizard.clipboardFolder("relative/folder")).isNull();
+        assertThat(SetupWizard.clipboardFolder(path + "\n" + path)).isNull();
+        assertThat(SetupWizard.clipboardFolder(dir.resolve("missing").toString())).isNull();
+        java.nio.file.Path file = java.nio.file.Files.writeString(dir.resolve("a.txt"), "x");
+        assertThat(SetupWizard.clipboardFolder(file.toString())).as("a file, not a folder").isNull();
+        assertThat(SetupWizard.clipboardFolder("https://github.com/org/proj")).isNull();
+    }
 }

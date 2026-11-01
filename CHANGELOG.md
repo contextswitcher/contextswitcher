@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-01] - 2026-11-01
+
+### Added
+
+- Setup wizard: a folder path on the clipboard (say, `c:\git-repositories\git.overleaf.com\…`, also with *Copy as path*'s quotes) preselects *On this machine* and opens the category page on *A local folder* with that path filled in.
+- Setup wizard: a local folder category can be created without a Claude session — untick *Start a Claude session that writes its CLAUDE.md*. Claude missing on this machine no longer blocks the wizard either: *Next* once more goes on without it.
+
+### Changed
+
+- The switch actions (IntelliJ, browser URLs, local folders, chat room, OneNote) have a *Switch actions* pane of their own, next to *Configuration*. A list there is a field per entry plus an empty one to add the next; hovering an entry shows a trash can to remove it.
+- *Switch actions* and *Configuration* save when the focus leaves the pane; the *Apply* button is gone, and *Reload* drops what was not saved yet.
+- The *Note link* field is now labelled *OneNote*.
+
+- Android: a task started with *Start Claude* opens right away, so its terminal shows Claude starting.
+- Category headers in the task list stand out from task rows: a divider line on top and the name bold at full contrast. The header of the selected task's category keeps its own background and is marked by the accent edge only, so it no longer looks like a second selected task.
+
+### Fixed
+
+- A local Claude task whose description is itself an instruction ("Set up the folder … write a CLAUDE.md") no longer gets a stray tag such as `<invoke_tool>` as its title; it gets a short title, or the description's first words.
+
 ## [2026-10-31] - 2026-10-31
 
 ### Added
@@ -207,6 +227,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-01]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-31...v2026-11-01
 [2026-10-31]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-27...v2026-10-31
 [2026-10-27]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-25...v2026-10-27
 [2026-10-25]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-22...v2026-10-25

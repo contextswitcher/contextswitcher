@@ -8,7 +8,7 @@ import java.util.Optional;
 /// empty result means "no title", so a caller can always fall back to another
 /// summarizer ([FallbackSummarizer]) or keep the description as it is.
 /// A present title is already cleaned up per [TaskTitles#sanitize].
-// [impl->dsn~task-create-local-title~1]
+// [impl->dsn~task-create-local-title~2]
 @FunctionalInterface
 public interface TaskTitleSummarizer {
 

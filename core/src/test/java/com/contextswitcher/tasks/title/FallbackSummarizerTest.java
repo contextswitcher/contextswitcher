@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
-// [utest->dsn~task-create-local-title~1]
+// [utest->dsn~task-create-local-title~2]
 class FallbackSummarizerTest {
 
     private static final TaskTitleSummarizer NEVER = description -> {

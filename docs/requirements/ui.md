@@ -916,12 +916,16 @@ Covers:
 Needs: impl, utest
 
 ### Category from a plain folder
-`dsn~category-from-folder~1`
+`dsn~category-from-folder~2`
 
 A project need not have a repository: a folder synced by OneDrive, say, has no remote and must not get a `.git` (the sync would carry it along).
 The setup wizard's last page offers it next to the repository (`dsn~setup-wizard~12`), and `Main` hands the answer to `MainWindow.createCategoryFromFolder`.
 It creates the category like `dsn~category-from-url~5` does — folder, clash popup (`dsn~category-name-clash~1`), `CONTEXTSWITCHER.md` through `TaskFileParser.groupConfigForRepo` with a null URL, so only `remote` (for a non-local session host), `workspacesRoot` (the folder itself) and `desktop` are written, no `mainCheckout` and no `repo` — and starts the same setup session in the folder, with `MainWindow.folderSetupDescription` as the description: do not run `git init`, write the folder's `CLAUDE.md` from `RepoType.localFolderTemplate` (`claudemd/local-folder.md`: no branches, no worktrees, tasks share the folder, a backup copy before a larger rewrite since nothing undoes an edit), keep a `CLAUDE.md` that is already there and add only what it lacks.
 A first message is appended as for a repository.
+
+The session is optional (`~1`→`~2`): someone who does not use Claude for that folder unticks *Start a Claude session that writes its CLAUDE.md* under the folder fields, and the `Result`'s `setupSession` false has `createCategoryFromFolder` create the category only — folder, `CONTEXTSWITCHER.md`, a status-bar line — and leave the folder untouched; *Finish and check up* is disabled then, since the checkup runs in that session.
+For the same person the local check on page one is no longer a wall: after *Next* found Claude (or tmux) missing once, the verdict says so, and *Next* once more checks again and moves on either way; the last page then starts with the session unticked.
+A folder of this machine on the clipboard as the wizard opens — one line, optionally in the double quotes of Windows' *Copy as path*, an absolute path to an existing directory (`SetupWizard.clipboardFolder`), say `c:\git-repositories\git.overleaf.com\6aad3ebf9a43af8873645708` — is what the wizard was opened for: page one preselects *this machine*, and the last page opens on *A local folder* with the path in the folder field.
 
 Tags: windows, linux
 
@@ -979,7 +983,7 @@ That is decided once, at open, so *Back* never loses a page the user just saw; o
 Page five is the old clone offer as a field: a task-repository URL, empty to start fresh.
 Next to *Next*, it offers *Start right away*, which finishes the wizard there without a first project: a cloned task repository already holds its projects.
 Page six is a category from a repository — headed *First category*, or *Add a category* on a re-run when categories already exist (`Prefill.categoriesExist`, from `MainWindow.hasCategories`), the same wording as the toolbar's *Add category* — with the repository URL (clipboard-prefilled like `dsn~category-from-url~5`), the workspaces root following it as `<remote home or user.home>/<name>-workspaces` until edited, and the `RepoType` — all optional.
-A radio pair above the fields switches it to a plain folder instead (*A local folder — no remote, no git*, `dsn~category-from-folder~1`, `~10`→`~11`): the folder's path, with *Browse…* (a `DirectoryChooser`, enabled only for local sessions, since it shows this machine's folders), and the category name following the path's last segment, slugged, until typed into; the `Result` then carries that name as `folderCategory` and the path as `workspacesRoot`, `repoUrl` null.
+A radio pair above the fields switches it to a plain folder instead (*A local folder — no remote, no git*, `dsn~category-from-folder~2`, `~10`→`~11`): the folder's path, with *Browse…* (a `DirectoryChooser`, enabled only for local sessions, since it shows this machine's folders), and the category name following the path's last segment, slugged, until typed into; the `Result` then carries that name as `folderCategory` and the path as `workspacesRoot`, `repoUrl` null.
 Only a session on Windows itself gets Windows path separators there: a WSL root lives on the Linux side of the boundary and is proposed under the probed `$HOME` like a remote one.
 Back and Next step over the skipped pages (`skipped`: the remote page for a local choice, the tools page for local on Windows, the extension page while an extension is connected or installed), so a skipped page stays skipped in both directions.
 Each page swap calls `sizeToScene`: a `Dialog` sizes itself once at show, and a taller later page pushed *Finish* out of the window.
@@ -1695,7 +1699,7 @@ The task file is the **plain** one (`MainWindow.createTitleTask`, `dsn~task-crea
 Off Windows the tmux window the session runs in is then written back into it (`Main.writeLocalWindowBack`: `tmux:` with session `0` and the window id, plus `claude.cwd`) — without a `remote:`, which is exactly what marks the session as local and lets the pane mirror it (`dsn~terminal-local-mirror~2`).
 On Windows the same call writes `claude.cwd` alone: there is no tmux window, and the cwd is what finds the transcript again for a later resume (`dsn~terminal-owned-session~4`).
 Nothing else is: a local session is not polled, so there is no `@cs_title` to sync and none of the live flow's id bookkeeping.
-The description-as-title is shortened by the app itself instead (`dsn~task-create-local-title~1`).
+The description-as-title is shortened by the app itself instead (`dsn~task-create-local-title~2`).
 
 `Main.startLocalClaude` then runs `LocalClaudeLauncher` off the FX thread, with the status bar's "Starting …"/outcome shape.
 A failure names its **reason** in the status bar (the launcher returns the attempt's stderr, else its exit code) rather than pointing at the log: a packaged app has no console to look at while it is running.
@@ -1718,7 +1722,7 @@ Covers:
 Needs: impl, utest
 
 ### A local Claude task gets a short title
-`dsn~task-create-local-title~1`
+`dsn~task-create-local-title~2`
 
 A local Claude task (`dsn~task-create-local~4`) starts with the typed description as its `title:`, and a description is routinely a paragraph — far more than a row shows before it ellipsizes.
 Unlike a remote task, nothing replaces it later: the local prompt asks for no `@cs_title`, and the local tmux window is named after its directory, so the title is shortened by the app and no tmux is involved.
@@ -1727,6 +1731,8 @@ When the title reads as a description — more than one line, more than 60 chara
 `ClaudeCliSummarizer` runs `claude -p --model haiku --tools "" --setting-sources "" --no-session-persistence --output-format text <instruction>` in the temp directory, with the description on stdin, through `cmd /c` on Windows and by resolved path elsewhere (MADR 0035).
 `FirstWordsSummarizer` — the first sentence, at most 8 words — answers when `claude` is missing, fails or times out after 45 s (`FallbackSummarizer`).
 Every answer is cleaned by `TaskTitles.sanitize`: the first non-blank line, without enclosing quotes or emphasis and trailing punctuation, cut at a word boundary to 60 characters.
+A description is often itself a prompt ("Set up the folder … Write a CLAUDE.md …"), and a model told only to title it may start carrying it out instead: field report 2026-10-31, where haiku — given no tools — answered `<invoke_tool>` and that became the task's name.
+The instruction therefore says the text on stdin is to be named, not carried out, and `TaskTitles.fromModelAnswer` refuses an answer whose first line holds a markup tag or has more than 8 words (a sentence, not a title); `ClaudeCliSummarizer` then has no title and `FirstWordsSummarizer` answers.
 Back on the FX thread the title is written only while the file's title still equals the description it was derived from, so a rename or a configuration edit made meanwhile wins; it is written once, and never again.
 The description moves to the end of the body under `# Notes` (`TaskFileParser.withNotesAppended`), the file keeps its name (the app-owned session is keyed by the task id), and an editor lane showing the file reloads.
 
@@ -1827,7 +1833,7 @@ Needs: impl, utest
 `dsn~settings-editor~4`
 
 A **cog icon button** at the right end of the list toolbar (`MainWindow.settingsButton`, a Material Design `COG` glyph via `SvgNode`, MADR 0010 — icon-only, `Styles.SMALL`/`BUTTON_ICON`/`FLAT`, tooltip "Settings"; the last item of the toolbar `dsn~task-list-toolbar~3`, after the add menu) opens a resizable dialog (`setResizable(true)` — JavaFX dialogs are fixed-size by default).
-The form scrolls in a viewport of `FieldForm.viewportHeight()`, which keeps the whole dialog, chrome included, within 75 % of the primary screen's height (`0.75 × height − 260`, at least 120 px); the task/category configuration form (`dsn~task-field-form~4`) uses the same rule (`~3`→`~4`: the viewport took the full height less 260 px, so a long form opened taller than the screen).
+The form scrolls in a viewport of `FieldForm.viewportHeight()`, which keeps the whole dialog, chrome included, within 75 % of the primary screen's height (`0.75 × height − 260`, at least 120 px); the task/category configuration form (`dsn~task-field-form~5`) uses the same rule (`~3`→`~4`: the viewport took the full height less 260 px, so a long form opened taller than the screen).
 A lone gear in the status bar had been easy to miss and read as a twin of the sync-tmux button, which used a cog glyph (`COG_SYNC`); `COG` is now the one plain cog in the app, and sync-tmux uses `SYNC`.
 The dialog is parented to the main window (`Dialog.initOwner`, `MainWindow.dialogOwner`): an ownerless JavaFX `Dialog` is application-modal — it grays the whole UI — but is its own top-level window, so with the main window pinned to every virtual desktop (`showOnAllDesktops`) the orphan opened on the primary desktop while the user was on another, leaving the app apparently frozen with no dialog in sight. The raw-fallback editor (`editSettingsRaw`) is parented the same way.
 The form is **generated from `SettingsCatalog`** (MADR 0015) — one control per known `settings.yaml` option (label, help, type), grouped into a section per option group — by an own small renderer, not a third-party form framework (FormsFX was tried and dropped, MADR 0015): a `TextField` for the tasks directory, WebSocket port, and WebSocket token; `CheckBox`es for `hints`, `claudeAuto`, and `showOnAllDesktops`; a `ComboBox` for an `ENUM` option's fixed `choices` (the `theme`, `dsn~theme-select~9`); the `HostTable` for `hosts` (an editable ExtendedTable, `dsn~host-table~1`, MADR 0038 — the former `remotes`/switched-off-hosts text lists and the global RefactoringMiner field); and a purpose-built `TagListEditor` for the tag palette — a row per tag pairing a name `TextField` with a `ColorPicker`, plus "Add tag" and a per-row remove (a tag is always a name + color). Each row places the label on its own line above a full-width control (a checkbox sits at the right edge instead of stretching) and highlights on hover; the option's help is the row tooltip. The form sits in a `ScrollPane`.
@@ -2088,17 +2094,19 @@ Covers:
 Needs: impl
 
 ### Editor configuration form
-`dsn~task-field-form~4`
+`dsn~task-field-form~5`
 
 A **configure icon button** in the Notes pane header (left of *Revert*, `MDIInterface.TUNE`) puts the **Configuration** pane in front — reopening it when closed, raising its window when popped out — which shows the frontmatter of the open file as a generated key/value form (`ConfigFormPane`, generated and written back by `ConfigForm`), so a task or a category is set up by filling fields instead of hand-writing YAML — the raw YAML stays reachable, as the form's fallback rather than the only way in.
 The form is generated from `FrontmatterCatalog` — one control per key a user hand-edits, grouped into sections — the way the settings dialog is generated from `SettingsCatalog` (`dsn~settings-editor~4`); both render through the shared `FieldForm` (bold section header, label above a full-width control, hover highlight, the field's help as the row tooltip).
 A task file gets the `TASK` catalog, a category's `CONTEXTSWITCHER.md` the `CATEGORY` one.
-Text fields are strings, a checkbox is a flag, a drop-down the fixed sets (`status`), and a multi-line field a list, one entry per line (`tags`, `folders`, `browser.urls`).
+The catalog is split over two panes built the same way (`ConfigFormPane`): **Switch actions**, between *Notes* and *Configuration*, holds what a switch opens — `FrontmatterCatalog.SWITCH_ACTION_KEYS`: `intellij`, `intellij.projectPath`, `browser.urls`, `folders`, `chat`, `note` (labelled *OneNote*) — and **Configuration** every other field; a form of a single section goes without its section header, the tab names it.
+Text fields are strings, a checkbox is a flag, a drop-down the fixed sets (`status`), and a list (`tags`, `folders`, `browser.urls`) is a `ListFieldEditor`: a single-line field per entry plus an empty one at the end — typing into it adds the next empty one, Enter moves to the next field — and a trash can, shown while a row is hovered, removing that entry (the queue's delete-on-hover, `dsn~message-queue-ui~26`).
 The `remote` field is labelled *Host* and is an **editable** drop-down offering the settings' host destinations (`dsn~host-table~1`) — any other destination typed in is kept, blank removes the key; the frontmatter key stays `remote:`, which every task file, the tmux sync and the Android app read.
 A category's *Virtual desktop* field suggests while typing (`Suggestions`): a popup under it lists the desktop names the app knows — this machine's named desktops as the desktop watcher last read them, those the categories name, the active desktop and the fallback desktop (`dsn~fallback-desktop~2`) — matching what is typed, names starting with it first; **Down** opens it on an empty field, picking an entry fills the field, and any other name typed in is kept.
 A refresh icon button beside the field reads the named desktops once more (`WindowsVirtualDesktopFocus.names`, a one-shot `powershell` read that works without the watcher), disabled for the round-trip with the status bar saying how it went, and opens the suggestions with the result — for a desktop created or renamed while the form is open.
 
-Every control is pre-filled from the open file (`Frontmatter.parse` of the editor buffer, so unsaved edits are kept), and **Apply** writes back only the keys that actually changed, each through `Frontmatter.set` — a `YamlPatch` on the frontmatter block alone.
+Every control is pre-filled from the open file (`Frontmatter.parse` of the editor buffer, so unsaved edits are kept), and **leaving the pane** — the scene's focus owner moving out of it, or its window losing the focus — writes back only the keys that actually changed, each through `Frontmatter.set` — a `YamlPatch` on the frontmatter block alone; switching to another file saves the forms first.
+The rebuild that follows a save leaves a form the focus is in alone, so the field just clicked in the sibling pane survives (the two panes' fields are disjoint, and a save patches only changed keys).
 So comments, key order, machine-suffixed variants (`folders-windows`) and keys the catalog does not list survive a form edit, and the Markdown body is never touched.
 Unlike the add-only form it replaces, an emptied field **removes** its key (an empty field means "not set", not `key: ''`), which is what makes the form an editor rather than an append box.
 Keys the app writes for itself (`claude.workspace`, `claude.commit`, `suspended`, `storedTabs`) are not in the catalog and so are neither shown nor touched.
@@ -2110,11 +2118,13 @@ Three keys carry a shape the form hides:
 The `folders` list subsumes the single-directory `folder:` spelling a local category seeds — writing the one removes the other, so a file never names two sets of folders.
 
 **Raw YAML** swaps the form for the frontmatter as YAML, in the frontmatter editor of `dsn~richtext-markdown-editor~9` — the fallback for anything the form does not cover; **F1** there opens the field reference (`dsn~task-field-help~1`).
-Turning it on applies the form's pending changes first (an invalid form keeps the form view), turning it off rebuilds the form from the buffer, and **Reload** rebuilds it dropping unapplied changes.
+Turning it on applies the form's pending changes first (an invalid form keeps the form view), turning it off rebuilds the form from the buffer, and **Reload** rebuilds it dropping changes not saved yet.
+The raw editor is one node: a pane turning it on makes the other pane go back to its form first, and leaving the raw editor rebuilds the forms from what was typed there.
 A file without a `---` fence has nothing to configure, and the pane says so instead of showing a form.
-**Pop out** moves the pane into a window of its own, which docks back (`dsn~shell-layout~2`).
-Like *Revert*, the configure button and the pane's buttons are not focus-traversable, so using them does not trigger the editor's focus-loss auto-save; an apply is written into the editor buffer and saved right away (`~2`→`~3`: the form was a modal dialog with *View raw* and *Save*).
-The pane's toolbar controls are icon buttons like every other toolbar's — `CODE_BRACES` (*Raw YAML*), `CHECK` (*Apply*), `RELOAD` (*Reload*), `OPEN_IN_NEW` (*Pop out*) — named by their tooltips, with ids for the UI test (`~3`→`~4`: they were text buttons).
+**Pop out** moves either pane into a window of its own, which docks back (`dsn~shell-layout~2`).
+Like *Revert*, the configure button and the pane's buttons are not focus-traversable, so using them does not trigger the editor's focus-loss auto-save; a save is written into the editor buffer and saved right away (`~2`→`~3`: the form was a modal dialog with *View raw* and *Save*).
+The panes' toolbar controls are icon buttons like every other toolbar's — `CODE_BRACES` (*Raw YAML*), `RELOAD` (*Reload*), `OPEN_IN_NEW` (*Pop out*) — named by their tooltips, with ids for the UI test (`config-…`, `switch-actions-…`; `~3`→`~4`: they were text buttons).
+`~4`→`~5`: the switch actions moved to a pane of their own, lists became a field per entry, and the *Apply* button (`CHECK`) gave way to saving on focus loss (Oliver, 2026-10-31).
 
 Tags: windows, linux
 
@@ -2241,15 +2251,15 @@ Needs: impl
 ### Docked panes in a ShellFX shell
 `dsn~shell-layout~2`
 
-The main window hosts its panes in a ShellFX shell (`ShellFxHost`, MADR 0032): **Tasks**, **Terminal**, **Notes**, **Configuration** and **Queue** are dock tabs, laid out by default like the three lanes before them — tasks 0.28, terminal 0.36, notes over the queue 0.62/0.38, configuration a second tab beside notes.
+The main window hosts its panes in a ShellFX shell (`ShellFxHost`, MADR 0032): **Tasks**, **Terminal**, **Notes**, **Switch actions**, **Configuration** and **Queue** are dock tabs, laid out by default like the three lanes before them — tasks 0.28, terminal 0.36, notes over the queue 0.62/0.38, switch actions and configuration further tabs beside notes, in that order.
 A tab can be dragged into another pane's tabs or split beside it; a dock that loses its last tab closes, so the panes share whatever docks are left.
 Closing a tab — from its context menu — hides its pane, and the panes menu at the right end of the main toolbar shows it again, in its last dock if that still exists.
 The dock tabs show no ×: one stray click beside a tab title closed a pane, so `main.css` hides the close button under the style class every dock carries (`ShellFxHost.DOCK_STYLE`, added to the docks ShellFX creates on a drop by `tidyDocks`) — hidden rather than `Tab.setClosable(false)`, which the context menu's close entries depend on.
 Every pane's own toolbar — the task list's, the Notes and Configuration headers, the Terminal pane's band, the Queue's top bar — has the task toolbar's height and background: `.list-toolbar` and `.panel-header` share one fixed height and one two-layer paint in `main.css`.
 The Terminal pane has no title line of its own: `TerminalPane` builds its band around the mirrored pane's title (right-click anywhere on the band for *Select the mirrored task*, `dsn~terminal-mirrored-task~1`), and `MainWindow` adds the Claude and IntelliJ buttons at its right end (`addToolbarControls`) and the PR rows below it (`setSubHeader`) (`~1`→`~2`).
 The main toolbar above the docks holds the app-wide controls (energy saver, browser status, update, settings); the task list toolbar keeps what acts on the list, and the status bar sits below the docks.
-The Configuration pane can pop out into a window of its own and dock back (**Dock back**, closing the window, or dragging its title over the main window).
-`ShellFxHost.Hosted` hands `MainWindow` the one way the editor brings a pane forward: showing Configuration on request (`dsn~task-field-form~4`).
+The Switch actions and Configuration panes can each pop out into a window of its own and dock back (**Dock back**, closing the window, or dragging its title over the main window).
+`ShellFxHost.Hosted` hands `MainWindow` the one way the editor brings a pane forward: showing Configuration on request (`dsn~task-field-form~5`).
 The shell needs JavaFX's `HeaderBar` preview API, so `-Djavafx.enablePreview=true` is in the app's, the packaged app's and `uiTest`'s JVM arguments; ShellFX is a pinned `2.0.0-SNAPSHOT`, and `ShellFxHost` works around its known bugs in place.
 
 Tags: windows, linux
@@ -2564,10 +2574,12 @@ Covers:
 Needs: impl, utest
 
 ### Current category highlight
-`dsn~current-category-highlight~1`
+`dsn~current-category-highlight~2`
 
-The header of the category the selected row belongs to carries the selection's own colours — the `-color-cell-bg-selected` background and the accent left edge — through a `group-header-current` style class `TaskListCell` adds to the header cell (`MainWindow.isCurrentGroup`).
-So the highlighted task always names the context it sits in, without scrolling up to look; a header that is both current and selected lands on the same colours, since the rule follows the `:selected` ones with the same style-class count.
+The header of the category the selected row belongs to gains the selection's accent left edge through a `group-header-current` style class `TaskListCell` adds to the header cell (`MainWindow.isCurrentGroup`), keeping its own section background.
+So the highlighted task always names the context it sits in, without scrolling up to look; a header that is itself selected takes the `-color-cell-bg-selected` fill from the `:selected` rule as before.
+`~1` painted the current header with that selection fill too, and then it looked exactly like a second selected task right above the real one — field report 2026-10-31, a category with one task: "why no category here?".
+For the same reason every category header reads as a section heading rather than a task row: a full-strength `-color-border-default` divider on its top edge, and its name bold at full contrast and 1.05× the row font (`group-name`), where it used to be muted.
 `MainWindow.markCurrentGroup` records the selected task's group (the selected header's own name when a header is selected, `""` for an ungrouped task or a label bucket, which has no category header) and, only when it changed, calls `ListView.refresh()` — the rows are unchanged, so the cells are re-rendered rather than rebuilt.
 
 Tags: windows, linux

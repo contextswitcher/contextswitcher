@@ -32,6 +32,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.prefs.Preferences;
@@ -62,6 +63,7 @@ import com.contextswitcher.queue.ClaudeMode;
 import com.contextswitcher.queue.QueueFile;
 import com.contextswitcher.tasks.AutoPrReconcile;
 import com.contextswitcher.tasks.Frontmatter;
+import com.contextswitcher.tasks.FrontmatterCatalog;
 import com.contextswitcher.tasks.GroupConfig;
 import com.contextswitcher.tasks.MergedCleanup;
 import com.contextswitcher.tasks.Task;
@@ -713,7 +715,7 @@ public class MainWindow {
     /// The category of the selected row — the selected task's group, or the
     /// selected header's own name. Its header carries the selection colours
     /// too, so the highlighted row always names the category it sits in.
-    // [impl->dsn~current-category-highlight~1]
+    // [impl->dsn~current-category-highlight~2]
     private @Nullable String currentGroup;
 
     /// The entries the running query matched but the active-desktop filter
@@ -886,8 +888,11 @@ public class MainWindow {
     private @Nullable Stage stage;
 
     /// The Configuration pane, built by [#show]: the frontmatter form with its
-    /// Raw YAML view (`dsn~task-field-form~4`).
-    private @Nullable ConfigFormPane configFormPane;
+    /// Raw YAML view (`dsn~task-field-form~5`).
+    private List<ConfigFormPane> formPanes = List.of();
+    /// Set while a form pane writes its fields into the buffer: the reload
+    /// that follows leaves a form the user is in alone (`ConfigFormPane.reload`).
+    private boolean savingForm;
 
     /// What [#show] built in the ShellFX shell; null until then — there is no
     /// pane to bring forward before there is a shell.
@@ -1329,21 +1334,19 @@ public class MainWindow {
         // The panes as ShellFX dock tabs (MADR 0032). The raw frontmatter editor
         // is the Configuration pane's Raw YAML view.
         // [impl->dsn~shell-layout~2]
-        ConfigFormPane pane = new ConfigFormPane(configEditor, this::editorText,
-                updated -> {
-                    setEditorText(updated);
-                    saveEditor();
-                },
-                () -> {
-                    String name = editedFileName;
-                    return name != null && isGroupConfig(name);
-                },
-                // [impl->dsn~host-table~1]
-                configuredRemotes, this::knownDesktops, this::refreshKnownDesktops);
-        configFormPane = pane;
+        // Two panes over one catalog: the switch actions apart, the rest in
+        // Configuration. They share the one raw editor.
+        // [impl->dsn~task-field-form~5]
+        ConfigFormPane switchActions = formPane("switch-actions", FrontmatterCatalog::isSwitchAction);
+        ConfigFormPane pane = formPane("config", field -> !FrontmatterCatalog.isSwitchAction(field));
+        selectOnClick.accept(switchActions.getRoot());
         selectOnClick.accept(pane.getRoot());
+        switchActions.setOnRawShown(pane::leaveRaw);
+        pane.setOnRawShown(switchActions::leaveRaw);
+        formPanes = List.of(switchActions, pane);
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(
-                leftPane, terminalLane, editorNode, pane, queueNode, bottomBar, listToolbar.appControls()));
+                leftPane, terminalLane, editorNode, switchActions, pane, queueNode, bottomBar,
+                listToolbar.appControls()));
         shell = hosted;
         Scene scene = hosted.scene();
         showCategoryInTitle("");
@@ -1579,7 +1582,7 @@ public class MainWindow {
 
     /// Whether `group`'s header is to carry the selection colours: it holds the
     /// selected task, or is the selected row itself.
-    // [impl->dsn~current-category-highlight~1]
+    // [impl->dsn~current-category-highlight~2]
     private boolean isCurrentGroup(String group) {
         return group.equals(currentGroup);
     }
@@ -1588,7 +1591,7 @@ public class MainWindow {
     /// ungrouped task or a label bucket, which has no category header). Only a
     /// change repaints — the cells are asked to re-render, not the rows
     /// rebuilt, since nothing about the list's content changed.
-    // [impl->dsn~current-category-highlight~1]
+    // [impl->dsn~current-category-highlight~2]
     private void markCurrentGroup(String group) {
         if (group.equals(currentGroup)) {
             return;
@@ -2995,7 +2998,7 @@ public class MainWindow {
     private void applySelection(@Nullable Object selected) {
         switch (selected) {
             case TaskEntry.Loaded loaded -> {
-                // [impl->dsn~current-category-highlight~1]
+                // [impl->dsn~current-category-highlight~2]
                 markCurrentGroup(loaded.group());
                 previewedTask = loaded.task();
                 // [impl->dsn~task-history-navigation~2]
@@ -3027,7 +3030,7 @@ public class MainWindow {
             // (null stays a no-op — rebuilds clear the selection
             // transiently and the panes must survive that.)
             case GroupHeader header -> {
-                // [impl->dsn~current-category-highlight~1]
+                // [impl->dsn~current-category-highlight~2]
                 markCurrentGroup(header.name());
                 previewedTask = null;
                 showCategoryInTitle(header.name());
@@ -4551,13 +4554,19 @@ public class MainWindow {
     /// `folder` on the session host — no git, no remote, e.g. one synced by
     /// OneDrive. Named after `name` (slugged), configured with the folder as
     /// its workspaces root, and set up by a session that writes the folder's
-    /// `CLAUDE.md` from [RepoType#localFolderTemplate].
-    // [impl->dsn~category-from-folder~1]
+    /// `CLAUDE.md` from [RepoType#localFolderTemplate] — unless `setupSession`
+    /// is false: then the category is only created and the folder left as it
+    /// is, for someone who does not use Claude there.
+    // [impl->dsn~category-from-folder~2]
     public void createCategoryFromFolder(String name, String folder, @Nullable String remote,
-            ClaudeMode mode, @Nullable String firstMessage) {
+            ClaudeMode mode, @Nullable String firstMessage, boolean setupSession) {
         String group = TaskFileParser.slug(name);
         if (group.isEmpty() || !freeCategoryName(group, "Cancel")
                 || !createConfiguredCategory(group, null, remote, folder)) {
+            return;
+        }
+        if (!setupSession) {
+            statusBar().message("Category " + group + " created for " + folder + ".");
             return;
         }
         startCategorySetup(folderSetupDescription(folder, group, firstMessage), group, remote,
@@ -4567,7 +4576,7 @@ public class MainWindow {
     /// Creates the category folder and its `CONTEXTSWITCHER.md`; false after
     /// an error alert.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~category-from-folder~1]
+    // [impl->dsn~category-from-folder~2]
     private boolean createConfiguredCategory(String name, @Nullable String web,
             @Nullable String remote, String workspacesRoot) {
         String error = files.createFolder(name);
@@ -4589,7 +4598,7 @@ public class MainWindow {
     /// on `remote`, or with none a local Claude given the template appended
     /// to the prompt, since the local launcher carries no appendix of its own.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~category-from-folder~1]
+    // [impl->dsn~category-from-folder~2]
     private void startCategorySetup(String description, String name, @Nullable String remote,
             String workspacesRoot, @Nullable String web, String template, ClaudeMode mode) {
         if (remote != null) {
@@ -4775,7 +4784,7 @@ public class MainWindow {
     /// The setup task's description for [#createCategoryFromFolder]: the
     /// folder is neither a git repository nor to become one — write its
     /// `CLAUDE.md` from the appended template, keeping one that is there.
-    // [impl->dsn~category-from-folder~1]
+    // [impl->dsn~category-from-folder~2]
     static String folderSetupDescription(String folder, String group, @Nullable String firstMessage) {
         String description = ("Set up the folder %s (the current directory) as the workspace of %s. "
                 + "It is not a git repository and has no remote — it may be synced by a cloud drive "
@@ -4960,7 +4969,7 @@ public class MainWindow {
     /// desktops as last read, those the categories name, the active one and
     /// the fallback — for the configuration form to suggest, sorted ignoring
     /// case.
-    // [impl->dsn~task-field-form~4]
+    // [impl->dsn~task-field-form~5]
     private List<String> knownDesktops() {
         Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         SortedSet<String> existing = existingDesktops;
@@ -5880,6 +5889,8 @@ public class MainWindow {
         if (fileName.equals(editedFileName)) {
             return;
         }
+        // A form's unsaved fields belong to the file being left.
+        formPanes.forEach(ConfigFormPane::commit);
         saveEditorIfDirty();
         editedFileName = fileName;
         boolean config = fileName.endsWith("/" + TaskRepository.GROUP_CONFIG_FILE_NAME);
@@ -5925,10 +5936,9 @@ public class MainWindow {
         setText(configEditor, parts[0]);
         setText(notesEditor, parts[1]);
         editorLoadedContent = editorText();
-        // Every buffer replacement (file switch, revert, form apply) passes here.
-        ConfigFormPane pane = configFormPane;
-        if (pane != null) {
-            pane.reload();
+        // Every buffer replacement (file switch, revert, form save) passes here.
+        for (ConfigFormPane pane : formPanes) {
+            pane.reload(!savingForm);
         }
     }
 
@@ -6074,6 +6084,15 @@ public class MainWindow {
         for (RichTextArea editor : List.of(configEditor, notesEditor)) {
             wireEditor(editor);
         }
+        // The raw YAML shows in one form pane; the other one's form is rebuilt
+        // from what was typed there once the focus has settled (a form the
+        // focus went into is left alone).
+        // [impl->dsn~task-field-form~5]
+        configEditor.focusedProperty().addListener((obs, was, focused) -> {
+            if (!focused) {
+                Platform.runLater(() -> formPanes.forEach(pane -> pane.reload(false)));
+            }
+        });
 
         Button revert = new Button("Revert");
         revert.getStyleClass().add(Styles.SMALL);
@@ -6180,10 +6199,33 @@ public class MainWindow {
         showReferenceDialog(title, reference);
     }
 
+    /// A configuration form pane holding the catalog fields `shows` picks; it
+    /// writes into the editor buffer and saves.
+    // [impl->dsn~task-field-form~5]
+    private ConfigFormPane formPane(String id, Predicate<FrontmatterCatalog.Field> shows) {
+        ConfigFormPane pane = new ConfigFormPane(id, shows, configEditor, this::editorText,
+                updated -> {
+                    savingForm = true;
+                    try {
+                        setEditorText(updated);
+                    } finally {
+                        savingForm = false;
+                    }
+                    saveEditor();
+                },
+                () -> {
+                    String name = editedFileName;
+                    return name != null && isGroupConfig(name);
+                },
+                // [impl->dsn~host-table~1]
+                configuredRemotes, this::knownDesktops, this::refreshKnownDesktops);
+        return pane;
+    }
+
     /// The notes header's configure button: puts the Configuration pane — the
     /// open file's frontmatter as a generated key/value form ([ConfigFormPane]),
     /// raw YAML its fallback — in front, reopening it if it was closed.
-    // [impl->dsn~task-field-form~4]
+    // [impl->dsn~task-field-form~5]
     private void showConfigForm() {
         showConfigurationPane();
     }
@@ -6898,7 +6940,7 @@ public class MainWindow {
 
     /// Installs the one-shot read of this machine's named desktops (null when
     /// it fails) behind the configuration form's desktop refresh button.
-    // [impl->dsn~task-field-form~4]
+    // [impl->dsn~task-field-form~5]
     public void setDesktopNamesReader(Supplier<CompletableFuture<@Nullable SortedSet<String>>> reader) {
         this.desktopNamesReader = reader;
     }
@@ -6906,7 +6948,7 @@ public class MainWindow {
     /// The desktop refresh button's round-trip: reads the named desktops,
     /// records them as [#updateExistingDesktops] would, and completes on the
     /// FX thread with the refreshed [#knownDesktops].
-    // [impl->dsn~task-field-form~4]
+    // [impl->dsn~task-field-form~5]
     private CompletableFuture<List<String>> refreshKnownDesktops() {
         statusBar().message("Reading the virtual desktops …");
         return desktopNamesReader.get()

@@ -23,7 +23,6 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.Region;
@@ -43,7 +42,7 @@ import tools.maran.svgnode.SvgNode;
 /// only the keys the user actually changed are patched back into it
 /// ([Frontmatter#set]), so comments, key order, machine-suffixed variants and
 /// keys the app does not know about survive an edit.
-// [impl->dsn~task-field-form~4]
+// [impl->dsn~task-field-form~5]
 final class ConfigForm {
 
     private final List<Field> fields;
@@ -94,8 +93,7 @@ final class ConfigForm {
                     combo.setValue((String) seed);
                     yield combo;
                 }
-                case LIST -> FieldForm.listArea(
-                        String.join("\n", asStringList(seed)), 3);
+                case LIST -> new ListFieldEditor(asStringList(seed));
                 // [impl->dsn~host-table~1]
                 case HOST -> {
                     ComboBox<String> combo = new ComboBox<>(FXCollections.observableArrayList(hosts));
@@ -138,13 +136,16 @@ final class ConfigForm {
         return (List<String>) seed;
     }
 
-    /// The form: a header per catalog section, then one row per field.
+    /// The form: a header per catalog section, then one row per field. A form
+    /// of a single section (a task's switch actions) goes without the header:
+    /// its pane's tab already names it.
     Node render() {
         VBox root = new VBox(2);
         root.setPadding(new Insets(6, 10, 6, 10));
+        boolean headers = fields.stream().map(Field::group).distinct().count() > 1;
         String group = null;
         for (Field field : fields) {
-            if (!field.group().equals(group)) {
+            if (headers && !field.group().equals(group)) {
                 group = field.group();
                 root.getChildren().add(FieldForm.section(group, root.getChildren().isEmpty()));
             }
@@ -386,7 +387,7 @@ final class ConfigForm {
             case STRING, DESKTOP -> ((TextField) control).getText();
             case BOOLEAN -> ((CheckBox) control).isSelected();
             case ENUM -> ((ComboBox<?>) control).getValue();
-            case LIST -> ((TextArea) control).getText().lines().toList();
+            case LIST -> ((ListFieldEditor) control).values();
             // The editor's text, not the value: a typed destination is the
             // value only once committed, and Apply must not lose it.
             case HOST -> ((ComboBox<?>) control).getEditor().getText();

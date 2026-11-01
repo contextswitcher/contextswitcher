@@ -53,11 +53,11 @@ import org.jspecify.annotations.Nullable;
 import org.tinylog.Logger;
 
 /// Hosts the main window's panes in a ShellFX shell (MADR 0032) — task list,
-/// terminal, notes, configuration and queue as dockable tabs, a toolbar above the
+/// terminal, notes, switch actions, configuration and queue as dockable tabs, a toolbar above the
 /// dock host to show or hide them, the status bar below it. A thin adapter: the
 /// panes stay the nodes `MainWindow` builds, with all their behavior; only the
 /// container is ShellFX's. The lanes themselves are [DockLanes]; a [ConfigFormPane]
-/// can additionally pop out of its tab into a window of its own ([PaneDetacher]).
+/// (Switch actions, Configuration) can additionally pop out of its tab into a window of its own ([PaneDetacher]).
 // [impl->dsn~shell-layout~2]
 public final class ShellFxHost {
 
@@ -72,8 +72,8 @@ public final class ShellFxHost {
     /// What [#host] puts in the shell: the panes `MainWindow` builds, the status
     /// bar below the docks and the app-wide controls for the main toolbar.
     /// Named rather than positional — six nodes in a row are easy to swap.
-    record Panes(Node tasks, Node terminal, Node notes, ConfigFormPane configuration,
-            Node queue, Node statusBar, List<Node> appControls) {
+    record Panes(Node tasks, Node terminal, Node notes, ConfigFormPane switchActions,
+            ConfigFormPane configuration, Node queue, Node statusBar, List<Node> appControls) {
 
         Panes {
             appControls = List.copyOf(appControls);
@@ -243,11 +243,13 @@ public final class ShellFxHost {
         Lane tasks = lanes.add("Tasks", panes.tasks());
         Lane terminal = lanes.add("Terminal", panes.terminal());
         Lane notesLane = lanes.add("Notes", panes.notes());
+        Lane switchActions = lanes.add("Switch actions", panes.switchActions().getRoot());
         Lane configuration = lanes.add("Configuration", panes.configuration().getRoot());
         Lane queueLane = lanes.add("Queue", panes.queue());
         lanes.open(tasks, left);
         lanes.open(terminal, center);
         lanes.open(notesLane, rightTop);
+        lanes.open(switchActions, rightTop);
         lanes.open(configuration, rightTop);
         lanes.open(queueLane, rightBottom);
         rightTop.selectTab(0);
@@ -298,11 +300,8 @@ public final class ShellFxHost {
         shellView.addBelowWorkspace(panes.statusBar());
         shellView.upgradeMenuBar();
 
-        ConfigFormPane configPane = panes.configuration();
-        var detacher = new PaneDetacher(stage, lanes, configuration, configPane.getRoot(),
-                configPane::setDetached);
-        configuration.setDetacher(detacher);
-        configPane.setOnDetachToggle(detacher::toggle);
+        detachable(stage, lanes, configuration, panes.configuration());
+        detachable(stage, lanes, switchActions, panes.switchActions());
 
         // ShellFX set its own Nord stylesheet while initializing; ours (the
         // Everforest recolouring in particular) goes back on top — forced, since
@@ -313,6 +312,13 @@ public final class ShellFxHost {
         stage.setHeight(650);
         return new Hosted(stage.getScene(), () -> lanes.bringToFront(configuration),
                 infoCenter.getInfoCenterView());
+    }
+
+    /// Lets `pane` pop out of `lane`'s tab into a window of its own and back.
+    private static void detachable(Stage stage, DockLanes lanes, Lane lane, ConfigFormPane pane) {
+        var detacher = new PaneDetacher(stage, lanes, lane, pane.getRoot(), pane::setDetached);
+        lane.setDetacher(detacher);
+        pane.setOnDetachToggle(detacher::toggle);
     }
 
     /// Puts `node` into an [InfoCenterPane] that takes its place in its parent —

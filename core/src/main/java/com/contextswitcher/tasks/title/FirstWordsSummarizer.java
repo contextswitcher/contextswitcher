@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 /// A title without any model: the description's first sentence, limited to
 /// [TaskTitles#MAX_WORDS] words. Always available, so it is the fallback
 /// when the model-backed summarizer cannot answer.
-// [impl->dsn~task-create-local-title~1]
+// [impl->dsn~task-create-local-title~2]
 public final class FirstWordsSummarizer implements TaskTitleSummarizer {
 
     /// A sentence ends at `.`, `!` or `?` followed by whitespace or the end,

@@ -52,8 +52,8 @@ public enum RepoType {
 
     /// The `CLAUDE.md` template for a category in a plain folder — no git, no
     /// remote — which has no repository type to pick
-    /// (`dsn~category-from-folder~1`).
-    // [impl->dsn~category-from-folder~1]
+    /// (`dsn~category-from-folder~2`).
+    // [impl->dsn~category-from-folder~2]
     public static String localFolderTemplate() {
         return template("local-folder");
     }

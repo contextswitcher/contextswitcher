@@ -163,7 +163,7 @@ public class TaskFileParser {
     /// Appends `text` as the body's last paragraph, under a `# Notes` heading
     /// added when the body has none — for text that must outlive its place in
     /// the frontmatter, such as a description replaced by a short title.
-    // [impl->dsn~task-create-local-title~1]
+    // [impl->dsn~task-create-local-title~2]
     public static String withNotesAppended(String content, String text) {
         String paragraph = text.strip();
         if (paragraph.isEmpty()) {
@@ -865,10 +865,10 @@ public class TaskFileParser {
     /// passed (the active-desktop filter's, `dsn~category-create-ui~2`). A
     /// null `remote` writes no `remote:` line — a local category
     /// (`dsn~task-create-local~4`), the setup wizard's local choice. A null
-    /// `url` is a plain folder (`dsn~category-from-folder~1`): no clone, so
+    /// `url` is a plain folder (`dsn~category-from-folder~2`): no clone, so
     /// neither `mainCheckout` nor `repo`.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~category-from-folder~1]
+    // [impl->dsn~category-from-folder~2]
     // [impl->dsn~setup-wizard~12]
     public static String groupConfigForRepo(String group, @Nullable String url, @Nullable String remote,
             String workspacesRoot, @Nullable String desktop) {
