@@ -54,6 +54,8 @@ import com.techsenger.jeditermfx.ui.DefaultHyperlinkFilter;
 import com.techsenger.jeditermfx.ui.DefaultTerminalCopyPasteHandler;
 import com.techsenger.jeditermfx.ui.TerminalCopyPasteHandler;
 import com.techsenger.jeditermfx.ui.TerminalPanel;
+import com.techsenger.jeditermfx.ui.TerminalAction;
+import com.techsenger.jeditermfx.ui.TerminalActionPresentation;
 import com.techsenger.jeditermfx.ui.settings.SettingsProvider;
 import com.techsenger.jeditermfx.ui.JediTermFxWidget;
 import javafx.animation.AnimationTimer;
@@ -1067,6 +1069,18 @@ public class TerminalPane {
     /// [#setLinkHover] wires one up.
     private Consumer<@Nullable String> linkHover = url -> { };
 
+    /// The link under the pointer — what the terminal's context menu offers
+    /// to copy — and whether it is a file path rather than a URL.
+    // [impl->dsn~terminal-link-copy~1]
+    private @Nullable String hoveredLink;
+    private boolean hoveredPath;
+
+    private void hovered(@Nullable String link, boolean path) {
+        hoveredLink = link;
+        hoveredPath = path;
+        linkHover.accept(link);
+    }
+
     /// Where uploaded attachments keep their local copies; null until
     /// [#setAttachmentsDir] wires it up — then a remote attachment path is
     /// just a remote path.
@@ -1104,13 +1118,13 @@ public class TerminalPane {
     // [impl->dsn~terminal-link-hover~1]
     private void addHyperlinkFilters(JediTermFxWidget widget) {
         widget.addHyperlinkFilter(new HoverLinkFilter(
-                new DefaultHyperlinkFilter(), url -> url, url -> linkHover.accept(url)));
+                new DefaultHyperlinkFilter(), url -> url, url -> hovered(url, false)));
         IssueHyperlinkFilter issues = new IssueHyperlinkFilter(() -> issueRepo, () -> knownRepos);
         widget.addHyperlinkFilter(new HoverLinkFilter(
-                issues, issues::urlFor, url -> linkHover.accept(url)));
+                issues, issues::urlFor, url -> hovered(url, false)));
         widget.addHyperlinkFilter(new HoverLinkFilter(new FileHyperlinkFilter(this::openLinkedPath),
                 FileHyperlinkFilter::pathFor, path -> {
-                    linkHover.accept(path);
+                    hovered(path, true);
                     imageHover.show(widget.getPane(), pointerX, pointerY, path == null ? null : localPath(path));
                 }));
         // A filter: it sees the move before the canvas turns it into a link hover.
@@ -1681,6 +1695,28 @@ public class TerminalPane {
         @Override
         protected TerminalCopyPasteHandler createCopyPasteHandler() {
             return mirror ? new MarkdownCopyHandler() : super.createCopyPasteHandler();
+        }
+
+        /// The stock actions, led by "Copy path" / "Copy link" while the
+        /// pointer rests on a link — JediTermFX 1.1.0 drops a link's own
+        /// popup group (`LinkInfoEx.PopupMenuGroupProvider`), so the panel adds it.
+        // [impl->dsn~terminal-link-copy~1]
+        @Override
+        public List<TerminalAction> getActions() {
+            String link = hoveredLink;
+            if (link == null) {
+                return super.getActions();
+            }
+            List<TerminalAction> actions = new ArrayList<>();
+            actions.add(new TerminalAction(
+                    new TerminalActionPresentation(hoveredPath ? "Copy path" : "Copy link", List.of()), key -> {
+                        ClipboardContent content = new ClipboardContent();
+                        content.putString(link);
+                        Clipboard.getSystemClipboard().setContent(content);
+                        return true;
+                    }));
+            actions.addAll(super.getActions());
+            return actions;
         }
     }
 

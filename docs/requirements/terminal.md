@@ -268,6 +268,20 @@ Covers:
 
 Needs: impl, utest
 
+### A hovered terminal link can be copied
+`dsn~terminal-link-copy~1`
+
+Copying a path Claude printed by selecting it is fiddly, and a hard-wrapped or truncated one cannot be selected whole.
+While the pointer rests on a link (`dsn~terminal-hyperlinks~1`, `dsn~terminal-issue-links~2`, `dsn~terminal-file-links~1`), the terminal's context menu starts with "Copy path" for a file link and "Copy link" otherwise, which puts the target — the one the status bar shows (`dsn~terminal-link-hover~1`) — on the clipboard.
+The panel adds the entry itself: JediTermFX 1.1.0 ignores a link's own popup group.
+
+Tags: windows, linux
+
+Covers:
+- req~terminal-live-mirror~1
+
+Needs: impl
+
 ### Terminal colors follow the app theme
 `dsn~terminal-theme~2`
 
