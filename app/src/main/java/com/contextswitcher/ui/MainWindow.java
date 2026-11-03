@@ -5553,16 +5553,23 @@ public class MainWindow {
         // are about to be handed is this rename, not another task.
         // [impl->dsn~message-queue-ui~26]
         onTaskRenamed.accept(fromId, toId);
+        // Also before the selection: selecting the renamed task opens it in the
+        // editor, and openInEditor first commits the forms and flushes the
+        // buffer of the file being left — still the old name, holding the
+        // content from before the rename. That write recreated the old file as
+        // a second row driving the same window and Claude session (2026-11-03).
+        // Unbinding first drops the stale buffer instead; the rename's caller
+        // has just rewritten the file anyway.
+        if ((fromId + ".md").equals(editedFileName)) {
+            editedFileName = null;
+            openInEditor(toId + ".md");
+        }
         ListView<Object> list = taskList;
         boolean selected = list != null
                 && list.getSelectionModel().getSelectedItem() instanceof TaskEntry.Loaded loaded
                 && loaded.id().equals(fromId);
         if (selected || fromId.equals(pendingSelectionId)) {
             selectTask(toId);
-        }
-        if ((fromId + ".md").equals(editedFileName)) {
-            editedFileName = null;
-            openInEditor(toId + ".md");
         }
     }
 
@@ -6025,6 +6032,15 @@ public class MainWindow {
         if (droppedFrontmatterFence(editorLoadedContent, text)) {
             Logger.warn("Refusing to save {}: the edit dropped the '---' frontmatter fence", fileName);
             editorFileLabel.setText(fileName + " — not saved (would drop '---' fence)");
+            return;
+        }
+        // The editor only ever edits a file that exists (a category config is
+        // created before it opens). A file gone from under it was moved or
+        // deleted — a rename, a move, a delete — and saving the stale buffer
+        // would resurrect it as a duplicate task.
+        if (!files.exists(fileName)) {
+            Logger.warn("Refusing to save {}: the file was moved or deleted", fileName);
+            editorFileLabel.setText(fileName + " — not saved (the file was moved or deleted)");
             return;
         }
         String error = files.save(fileName, text);
