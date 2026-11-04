@@ -64,7 +64,7 @@ Paradev replaces your terminal; ContextSwitcher drives the tools you already hav
 * RefactoringMiner view — semantic "what was refactored" instead of a text diff.
 * Windows support, and Android instead of iOS.
 
-**Worth stealing:** select diff lines and send to the session; an MCP server or small CLI so a session can create sibling tasks; status hooks for other agents (the tmux-option protocol is agent-agnostic, only the wizard's hook installer is Claude-specific); scheduled sessions as a category-level cron with a canned prompt.
+**Worth stealing:** select diff lines and send to the session; an MCP server or small CLI so a session can create sibling tasks ([#55](https://github.com/contextswitcher/contextswitcher-private/issues/55)); status hooks for other agents (the tmux-option protocol is agent-agnostic, only the wizard's hook installer is Claude-specific); scheduled sessions as a category-level cron with a canned prompt.
 
 ## Herdr in detail
 
@@ -118,6 +118,6 @@ Herdr is the closest relative so far, because it is the only one that, like Cont
 * Android app with no cloud piece.
 * Plain tmux underneath: any ssh client, any phone terminal, still reaches the session; a Herdr terminal needs a Herdr client.
 
-**Worth stealing:** OSC 7501 — make the terminal mirror recognize it, so a future Claude Code (or any agent) that emits it gets a status without hooks, and the tmux-option protocol becomes the fallback; `hc`-style sub-agent visibility (a session's helper windows listed under the task); a small CLI or MCP server with `--skill` output so a session can create sibling tasks and queue messages; a worktree dialog for "open an existing checkout as a task".
+**Worth stealing:** OSC 7501 — make the terminal mirror recognize it, so a future Claude Code (or any agent) that emits it gets a status without hooks, and the tmux-option protocol becomes the fallback ([#53](https://github.com/contextswitcher/contextswitcher-private/issues/53)); `hc`-style sub-agent visibility (a session's helper windows listed under the task, [#54](https://github.com/contextswitcher/contextswitcher-private/issues/54)); a small CLI or MCP server with `--skill` output so a session can create sibling tasks and queue messages ([#55](https://github.com/contextswitcher/contextswitcher-private/issues/55)); a worktree dialog for "open an existing checkout as a task" ([#56](https://github.com/contextswitcher/contextswitcher-private/issues/56)).
 
-**Worth considering:** ContextSwitcher as a herdr-core client. A task's terminal would live in `hc` instead of a tmux window; labels (`hc run --label`) replace tmux options for workspace, commit and status; the Android app would speak the OpenRPC API instead of parsing tmux. The price is a second daemon per host and losing plain-ssh reach to the session.
+**Worth considering** ([#57](https://github.com/contextswitcher/contextswitcher-private/issues/57)): ContextSwitcher as a herdr-core client. A task's terminal would live in `hc` instead of a tmux window; labels (`hc run --label`) replace tmux options for workspace, commit and status; the Android app would speak the OpenRPC API instead of parsing tmux. The price is a second daemon per host and losing plain-ssh reach to the session.
