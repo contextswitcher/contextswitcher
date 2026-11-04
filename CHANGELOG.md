@@ -12,6 +12,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - The energy saver's leaf in the task-list toolbar is filled green (the send button's accent) while it is on. Before, on and off looked almost the same, and armed queue messages silently waited for a click.
 
+### Fixed
+
+- *Review comments sync* picks up findings qodo adds to its edited "Code Review by Qodo" summary after you replied below it. Qodo now posts its findings only there, so new ones were never queued.
+
 ## [2026-11-03] - 2026-11-03
 
 ### Fixed

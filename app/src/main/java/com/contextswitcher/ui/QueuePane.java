@@ -1088,7 +1088,7 @@ public class QueuePane {
     /// rows stay aligned either way, while a kept slot would stretch the
     /// two-row add box. Right-clicking it offers **Copy URL** — the fallback
     /// when no browser extension is connected.
-    // [impl->dsn~qodo-agent-prompt-queue~11]
+    // [impl->dsn~qodo-agent-prompt-queue~12]
     private Button qodoLinkButton(@Nullable String url) {
         SvgNode svg = new SvgNode(MDIInterface.OPEN_IN_NEW.path(), 14);
         Button link = new Button(null, svg);
@@ -1659,7 +1659,7 @@ public class QueuePane {
     /// The background poller's entry point: add `taskId`'s new active qodo
     /// prompts to its queue (add-only — the poller never removes). Deduped and
     /// recorded as qodo-sourced by the shared reconcile. FX thread only.
-    // [impl->dsn~qodo-agent-prompt-queue~11]
+    // [impl->dsn~qodo-agent-prompt-queue~12]
     public void addQodoPrompts(String taskId, Map<String, String> activePrompts) {
         reconcileQodo(taskId, activePrompts, false);
     }
@@ -1669,7 +1669,7 @@ public class QueuePane {
     /// queued review-sourced messages the PR no longer carries. A failed fetch
     /// (null) leaves the queue untouched, so a network blip can never be read
     /// as "all resolved".
-    // [impl->dsn~qodo-agent-prompt-queue~11]
+    // [impl->dsn~qodo-agent-prompt-queue~12]
     private void syncReviewComments() {
         Task syncTask = this.task;
         if (syncTask == null || syncTask.prUrl() == null) {
@@ -1700,7 +1700,7 @@ public class QueuePane {
     /// sidecar. `removeResolved` drops the "done" qodo prompts (button) versus
     /// add-only (poller). FX thread — QueuePane is the sole writer of both
     /// files, so this never races the poller or the editing paths.
-    // [impl->dsn~qodo-agent-prompt-queue~11]
+    // [impl->dsn~qodo-agent-prompt-queue~12]
     private QodoReconcile.Result reconcileQodo(String taskId, Map<String, String> prompts,
             boolean removeResolved) {
         Path storedFile = QodoImported.file(qodoDir, taskId);

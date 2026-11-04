@@ -2944,7 +2944,7 @@ Needs: impl, utest
 
 Every queued message carries a tick box **below its 🗑 delete button** — same right-hand column, both meaning "I am done with this one", the tick reversibly.
 Ticking it moves the message out of the stack into a collapsed `TitledPane` **"Read (N)"** at the bottom of the pane, where it stays a full card: still editable, still sendable, still deletable, and unticking brings it back up.
-This is what makes a review-comment queue (`dsn~qodo-agent-prompt-queue~11`) workable — a review that raises twenty comments would otherwise bury the messages one actually wants to send under the ones already dealt with.
+This is what makes a review-comment queue (`dsn~qodo-agent-prompt-queue~12`) workable — a review that raises twenty comments would otherwise bury the messages one actually wants to send under the ones already dealt with.
 The section's expanded state is kept across rebuilds and opens automatically when a message is ticked, so the box does not fold shut under the user's hands and one sees where the message went.
 The marks are a YAML string list beside the queue (`QueueFile.readFile`, `<tasksDir>/.queues/<task id, `/`→`__`>.read.yaml`, so it syncs and follows a task rename like the queue and last-sent files, `dsn~message-queue-store~2`), pruned on every queue write to the messages still queued — a message that was sent, deleted, or edited into a different text drops its mark, and an empty set deletes the file.
 
@@ -3000,7 +3000,7 @@ Covers:
 Needs: impl
 
 ### Review comments queued from PR reviews
-`dsn~qodo-agent-prompt-queue~11`
+`dsn~qodo-agent-prompt-queue~12`
 
 A task's queue is also fed from its PR's open review comments — Qodo Merge's code suggestions **and** what human reviewers wrote — automatically in the background and on demand via a **Review comments sync** button.
 Qodo Merge (`qodo-free-for-open-source-projects[bot]`) posts each code suggestion as an inline PR review comment whose body carries a `<details><summary><strong>Agent Prompt</strong></summary>` section wrapping a fenced, ready-to-run prompt.
@@ -3020,6 +3020,8 @@ The same query also reads the PR's **conversation** — its top-level comments �
 Reviewers write there as much as in the diff (a top-level "we need to document the submodule checkout" never reached the queue at all), and qodo repeats its findings there in a "Code Review by Qodo" summary comment, which sometimes carries one the inline round left out.
 The conversation is not the connection `--paginate` pages, so every page repeats it verbatim; it is taken from the first page and harvested once.
 Its comments are always **active**: a top-level comment has no thread to resolve and no diff position to go outdated, so it stands until the user deals with it or writes below it — the last-own-reply rule applies to the conversation exactly as it does to a thread.
+Qodo's own conversation comments are the exception: since November 2026 qodo posts no inline comments at all and edits its one "Code Review by Qodo" summary in place on every push, so a finding it adds after the user's reply sits *above* that reply and the rule would swallow it.
+They are harvested whatever the user wrote below them; a finding qodo considers fixed moves to a "Resolved findings" section without an agent prompt, and one the user already sent or deleted stays out through the sidecar below.
 In the summary comment every finding is wrapped in a Markdown blockquote and its `<summary>` reads `Agent prompt` without the `<strong>`, so the blockquote markers are stripped and the pattern accepts both spellings; the preamble sentence qodo puts above the summary copy of a prompt ("The issue below was found during a code review…") is dropped, and `promptKey` (the prompt with whitespace runs collapsed) then recognises the inline and summary copies of one finding as the same text.
 A finding that qodo also raised inline is skipped in the summary whatever became of its thread — queuing the summary copy would otherwise resurrect every suggestion the user has already answered, since the reply rule silences the inline one but not the summary.
 On a fetch failure `comments`/`promptsFor` return `null`, never an empty list, so a network blip is never mistaken for "everything is resolved".

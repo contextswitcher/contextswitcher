@@ -15,7 +15,7 @@ import java.util.Set;
 /// qodo prompt they edited) and is never removed, so a sync cannot clobber a
 /// draft. A suggestion the user already sent or deleted stays in `qodoSourced`
 /// but out of the queue, so it is not re-added — the user's choice is honored.
-// [impl->dsn~qodo-agent-prompt-queue~11]
+// [impl->dsn~qodo-agent-prompt-queue~12]
 public final class QodoReconcile {
 
     private QodoReconcile() {

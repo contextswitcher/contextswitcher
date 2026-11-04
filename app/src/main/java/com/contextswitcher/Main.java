@@ -724,7 +724,7 @@ public class Main extends Application {
                 java.time.Clock.systemUTC(), () -> { }));
         // [impl->dsn~claude-session-kill~6]
         ClaudeSessionCleanup sessionCleanup = new ClaudeSessionCleanup(ssh);
-        // [impl->dsn~qodo-agent-prompt-queue~11]
+        // [impl->dsn~qodo-agent-prompt-queue~12]
         QodoReviewLookup qodoLookup = new QodoReviewLookup(new LocalCommandRunner());
         QueuePane queuePane = new QueuePane(queueDir,
                 queueDir.resolve("qodo"),
@@ -764,7 +764,7 @@ public class Main extends Application {
                 // The qodo link buttons reuse the PR icon's browser path,
                 // desktop and all: a review comment that must be opened lands
                 // on the task's category desktop just like a PR link does.
-                // [impl->dsn~qodo-agent-prompt-queue~11]
+                // [impl->dsn~qodo-agent-prompt-queue~12]
                 // [impl->dsn~pr-open-on-category-desktop~3]
                 (task, url) -> {
                     String desktop = task == null ? null : groupDesktop(files, taskGroup(task));
@@ -1161,7 +1161,7 @@ public class Main extends Application {
             rmPoller.start();
         }
 
-        // [impl->dsn~qodo-agent-prompt-queue~11]
+        // [impl->dsn~qodo-agent-prompt-queue~12]
         QodoReviewPoller qodoPoller = new QodoReviewPoller(qodoLookup,
                 () -> prUrlsByTask,
                 (taskId, prompts) -> Platform.runLater(() -> queuePane.addQodoPrompts(taskId, prompts)),
