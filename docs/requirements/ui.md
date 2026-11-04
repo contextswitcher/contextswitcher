@@ -3059,6 +3059,7 @@ The gate stops the *scheduled* work only: every poller keeps a `pollNow()` that 
 The embedded terminal is untouched — it is a live pty stream, not a poll, and the whole point is to keep working in the selected task's session.
 `Main` installs two refresh actions on the gate: the cheap one (the status poll alone) for a task change, and one that calls `pollNow()` on every poller for the manual refresh.
 `MainWindow`'s selection listener runs the first while the saver is on — no tick would otherwise arrive for the task the user just opened — and the toolbar's refresh `Button` (`REFRESH`) runs the second; the toolbar's `ToggleButton` (`LEAF`) flips the gate and stores it in the preferences like the grouping toggle (`dsn~task-label-grouping~3`), restored after its listener is attached so a stored `true` sets the gate and not just the button.
+While on, the toggle is filled with the accent colour of an accent button (`-color-accent-emphasis`, the queue's ➤ send button; green in Everforest), not just the flat selected shade: with the status poll off, armed messages (`dsn~message-queue-delayed-send~4`) wait for a click, and a barely visible toggle left that unexplained (field report 2026-11-04).
 The refresh button is always visible: running every poll once is useful with the saver off too, and hiding it would be one more piece of conditional toolbar.
 
 Tags: windows, linux

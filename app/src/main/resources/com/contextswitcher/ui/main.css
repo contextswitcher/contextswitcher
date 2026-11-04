@@ -95,6 +95,19 @@
     -fx-background-color: -color-accent-muted;
 }
 
+/* The energy saver, while on, is filled like an accent button (the queue's ➤
+   send button), so a switched-off status poll is never overlooked: a flat
+   leaf looked the same on and off. Listed after the hover rule above, with
+   higher specificity, so hovering does not hide the state.
+   [impl->dsn~energy-saver~1] */
+.tool-bar > .container > .toggle-button.button-icon.energy-saver:selected,
+.tool-bar > .container > .toggle-button.button-icon.energy-saver:selected:hover {
+    -fx-background-color: -color-accent-emphasis;
+}
+.toggle-button.energy-saver:selected .svg-node {
+    -fx-color: -color-fg-emphasis;
+}
+
 /* A MenuButton additionally wraps its glyph in a child `.label` (padded again)
    and adds a drop-down arrow — extra width the plain button and the toggle do
    not have. Zero the label padding and collapse the arrow, so only the shared

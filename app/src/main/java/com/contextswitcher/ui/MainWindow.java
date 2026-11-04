@@ -6858,6 +6858,9 @@ public class MainWindow {
         ToggleButton button = iconToggle(MDIWorld.LEAF,
                 "Energy saver — stop all background polling; the selected task's terminal keeps"
                         + " streaming and its state refreshes when you select it or press refresh.");
+        // Filled with the accent while on (main.css): a flat leaf was too easy
+        // to miss, and with it on, armed messages wait for a click.
+        button.getStyleClass().add("energy-saver");
         button.selectedProperty().addListener((obs, was, selected) -> {
             EnergySaver.setActive(selected);
             PREFERENCES.putBoolean(ENERGY_SAVER, selected);
