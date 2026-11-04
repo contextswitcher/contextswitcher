@@ -6,7 +6,7 @@
 
 ![The main window: task list with categories and tags on the left, the terminal mirroring the task's tmux window in the middle, notes and message queue on the right](docs/screenshot-main-window.png)
 
-Why this exists and the long-term vision: [docs/background.md](docs/background.md); related work: [docs/related-work.md](docs/related-work.md).
+Why this exists and the long-term vision: [docs/background.md](docs/background.md); related work: [docs/related-work.md](docs/related-work.md), agent orchestrators compared: [docs/related-work-agentic.md](docs/related-work-agentic.md).
 
 **Status: in daily use; released by date (see [CHANGELOG.md](CHANGELOG.md)).**
 Everything described here is implemented; each section links to the requirement that specifies it in detail, so this file stays a guide rather than a specification.
@@ -559,6 +559,7 @@ The desktop app needs no token: its update check is a `git fetch` in its own che
 * [CONSISTENCY.md](CONSISTENCY.md) — what the docs must agree with in the code, and `scripts/consistency.sh` to check the mechanical part
 * [docs/background.md](docs/background.md) — motivation, vision
 * [docs/related-work.md](docs/related-work.md) — related work
+* [docs/related-work-agentic.md](docs/related-work-agentic.md) — agent orchestrators (Orca, Paradev, Herdr) compared with ContextSwitcher
 
 License: MIT — see [LICENSE](LICENSE).
 
