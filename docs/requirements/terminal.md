@@ -269,18 +269,21 @@ Covers:
 Needs: impl, utest
 
 ### A hovered terminal link can be copied
-`dsn~terminal-link-copy~1`
+`dsn~terminal-link-copy~2`
 
 Copying a path Claude printed by selecting it is fiddly, and a hard-wrapped or truncated one cannot be selected whole.
 While the pointer rests on a link (`dsn~terminal-hyperlinks~1`, `dsn~terminal-issue-links~2`, `dsn~terminal-file-links~1`), the terminal's context menu starts with "Copy path" for a file link and "Copy link" otherwise, which puts the target — the one the status bar shows (`dsn~terminal-link-hover~1`) — on the clipboard.
 The panel adds the entry itself: JediTermFX 1.1.0 ignores a link's own popup group.
+A URL or path Claude Code hard-wrapped across rows gets the same entry with the whole target, from a right-click on any of its rows: the line-wise filters see at most a piece of it, so `WrappedLink` joins the rows around the click, indentation removed, and runs the URL and path patterns over the result.
+A row counts as cut when it ends within four columns of the terminal's width and the next row is not blank, since Claude's own wrap width is unknown here.
+Clicking and the status bar stay line-wise.
 
 Tags: windows, linux
 
 Covers:
 - req~terminal-live-mirror~1
 
-Needs: impl
+Needs: impl, utest
 
 ### Terminal colors follow the app theme
 `dsn~terminal-theme~2`

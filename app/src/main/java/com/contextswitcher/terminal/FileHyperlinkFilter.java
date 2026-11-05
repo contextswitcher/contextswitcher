@@ -21,7 +21,8 @@ import org.jspecify.annotations.Nullable;
 /// to open, and requiring `.<ext>` keeps the slashes of ordinary prose out of
 /// the links. A path Claude Code hard-wrapped across two lines cannot be
 /// recovered by a line-wise filter (see `TerminalPane.showRemoteFiles`) and
-/// stays plain text — the menu remains the way to reach those.
+/// stays plain text — the context menu ([WrappedLink]) and the "Files" menu
+/// remain the ways to reach those.
 // [impl->dsn~terminal-file-links~1]
 public class FileHyperlinkFilter implements HyperlinkFilter {
 
@@ -29,9 +30,10 @@ public class FileHyperlinkFilter implements HyperlinkFilter {
     /// extension. The lookbehind keeps it out of a URL's path — that one is
     /// `DefaultHyperlinkFilter`'s link, and a second one over the same text
     /// would fight it.
+    /// The lookahead lets a sentence's full stop end a path.
     private static final Pattern PATH = Pattern.compile(
             "(?<![\\w:/~.-])~?(?:/[A-Za-z0-9._+@%-]+)*/[A-Za-z0-9._+@%-]*[A-Za-z0-9_-]"
-                    + "\\.[A-Za-z0-9]{1,8}(?![\\w.-])");
+                    + "\\.[A-Za-z0-9]{1,8}(?![\\w-]|\\.\\w)");
 
     private final Consumer<String> onClick;
 

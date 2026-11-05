@@ -16,6 +16,15 @@ class FileHyperlinkFilterTest {
     private final FileHyperlinkFilter filter = new FileHyperlinkFilter(clicked::add);
 
     @Test
+    void aFullStopEndsThePath() {
+        String line = "The copy is at /tmp/guide_annotated.pdf. Every flawed place";
+
+        LinkResultItem item = filter.apply(line).getItems().getFirst();
+
+        assertThat(line.substring(item.getStartOffset(), item.getEndOffset())).isEqualTo("/tmp/guide_annotated.pdf");
+    }
+
+    @Test
     void marksAnAttachmentPathAndHandsItToTheOpener() {
         String line = "saved to /export/home/koppor/.contextswitcher/attachments/img-1-2.png now";
 

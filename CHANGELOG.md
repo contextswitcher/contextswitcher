@@ -6,6 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-05] - 2026-11-05
+
+### Changed
+
+- The energy saver's leaf in the task-list toolbar is filled green (the send button's accent) while it is on. Before, on and off looked almost the same, and armed queue messages silently waited for a click.
+
+### Fixed
+
+- A file path followed by a sentence's full stop is a link in the terminal now.
+- Right-clicking a URL or file path that Claude wrapped across rows now offers "Copy link" or "Copy path" with the whole target. Before, such a path had no entry and a wrapped URL was copied cut off.
+- *Review comments sync* picks up findings qodo adds to its edited "Code Review by Qodo" summary after you replied below it. Qodo now posts its findings only there, so new ones were never queued.
+
 ## [2026-11-03] - 2026-11-03
 
 ### Fixed
@@ -239,6 +251,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-05]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-03...v2026-11-05
 [2026-11-03]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-02...v2026-11-03
 [2026-11-02]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-01...v2026-11-02
 [2026-11-01]: https://github.com/contextswitcher/contextswitcher/compare/v2026-10-31...v2026-11-01

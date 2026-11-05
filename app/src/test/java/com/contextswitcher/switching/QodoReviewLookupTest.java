@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-// [utest->dsn~qodo-agent-prompt-queue~11]
+// [utest->dsn~qodo-agent-prompt-queue~12]
 class QodoReviewLookupTest {
 
     /// A qodo review-comment body carrying one Agent Prompt, in qodo's real
@@ -187,6 +187,20 @@ class QodoReviewLookupTest {
                 .repeat(3) + prompt;
         assertThat(QodoReviewLookup.extractPrompts(summaryBodyWithPrompt(stacked)))
                 .containsExactly(prompt);
+    }
+
+    @Test
+    void extractsEveryPromptOfQodosNovember2026Summary() throws Exception {
+        // Real body (JabRef PR 17710): numbered findings, the medium ones folded
+        // into a nested "View medium" <details>, resolved ones without a prompt.
+        String body;
+        try (var in = getClass().getResourceAsStream("qodo-summary-2026-11.md")) {
+            body = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+        List<String> prompts = QodoReviewLookup.extractPrompts(body);
+        assertThat(prompts).hasSize(6).allSatisfy(prompt -> assertThat(prompt)
+                .startsWith("## Issue description\n")
+                .contains("## Recommended Fix"));
     }
 
     @Test
@@ -426,6 +440,20 @@ class QodoReviewLookupTest {
                         comment("pr-author", "url-answer", "Done.")));
 
         assertThat(new QodoReviewLookup(new LocalCommandRunner()).parse(json)).isEmpty();
+    }
+
+    @Test
+    void qodosSummaryStaysHarvestedAfterTheUsersReplyBelowIt() throws Exception {
+        // Qodo now posts no inline comments and edits its one summary in place:
+        // findings it adds after the user's reply land above that reply.
+        String prompt = "## Issue description\nA new finding.";
+        String json = pageWith(List.of(),
+                List.of(comment(QodoReviewLookup.BOT, "url-summary", summaryBodyWithPrompt(prompt)),
+                        comment("pr-author", "url-answer", "Fixed the first one.")));
+
+        assertThat(QodoReviewLookup.activePrompts(
+                new QodoReviewLookup(new LocalCommandRunner()).parse(json)))
+                .containsExactly(Map.entry(prompt, "url-summary"));
     }
 
     @Test

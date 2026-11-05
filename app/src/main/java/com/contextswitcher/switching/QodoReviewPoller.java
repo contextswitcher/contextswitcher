@@ -31,7 +31,7 @@ import com.contextswitcher.config.EnergySaver;
 /// prompts came from qodo happens there ([com.contextswitcher.ui.QueuePane]),
 /// the single writer of the queue and its qodo-sourced sidecar — this poller
 /// keeps no state on disk.
-// [impl->dsn~qodo-agent-prompt-queue~11]
+// [impl->dsn~qodo-agent-prompt-queue~12]
 public class QodoReviewPoller implements AutoCloseable {
 
     /// After activity, how many ticks to keep fetching comments before going

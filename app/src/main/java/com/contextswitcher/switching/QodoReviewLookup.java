@@ -53,7 +53,7 @@ import org.tinylog.Logger;
 /// thread to resolve or a diff position to go outdated, so a top-level comment
 /// stands until the user replies below it. A finding that arrives twice is
 /// queued once ([#activePrompts], [#promptKey]).
-// [impl->dsn~qodo-agent-prompt-queue~11]
+// [impl->dsn~qodo-agent-prompt-queue~12]
 public class QodoReviewLookup {
 
     /// GitHub's login for the free-for-open-source Qodo Merge bot. REST spells
@@ -372,7 +372,11 @@ public class QodoReviewLookup {
             String login = comment.path("author").path("login").asText();
             String body = comment.path("body").asText("");
             String url = comment.path("url").asText("");
-            if (index <= answeredUpTo || !seen.add(url)) {
+            // Qodo edits its conversation comments in place — the summary is
+            // rewritten on every push and gains new findings below the user's
+            // reply — so the reply rule does not apply to them there.
+            boolean editedInPlace = isQodo(login) && container.has("reviewThreads");
+            if ((index <= answeredUpTo && !editedInPlace) || !seen.add(url)) {
                 continue;   // the user replied below it, or a page already had it
             }
             List<String> messages;
