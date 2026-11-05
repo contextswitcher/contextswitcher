@@ -31,6 +31,7 @@ import com.contextswitcher.tasks.Task;
 import com.contextswitcher.terminal.FileHyperlinkFilter;
 import com.contextswitcher.terminal.HoverLinkFilter;
 import com.contextswitcher.terminal.IssueHyperlinkFilter;
+import com.contextswitcher.terminal.WrappedLink;
 import com.contextswitcher.queue.SendResult;
 import com.contextswitcher.terminal.OptionalSequencesEmulator;
 import com.contextswitcher.terminal.PtyTtyConnector;
@@ -62,6 +63,7 @@ import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
@@ -80,6 +82,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.BorderPane;
@@ -1071,9 +1074,14 @@ public class TerminalPane {
 
     /// The link under the pointer — what the terminal's context menu offers
     /// to copy — and whether it is a file path rather than a URL.
-    // [impl->dsn~terminal-link-copy~1]
+    // [impl->dsn~terminal-link-copy~2]
     private @Nullable String hoveredLink;
     private boolean hoveredPath;
+
+    /// The hard-wrapped link under the last right-click — no link to the
+    /// hover filters, or only a cut-off piece of one.
+    // [impl->dsn~terminal-link-copy~2]
+    private WrappedLink.@Nullable Target wrappedLink;
 
     private void hovered(@Nullable String link, boolean path) {
         hoveredLink = link;
@@ -1133,6 +1141,9 @@ public class TerminalPane {
             pointerY = event.getScreenY();
         });
         widget.getPane().addEventFilter(ScrollEvent.SCROLL, event -> imageHover.hide());
+        widget.getPane().addEventFilter(MouseEvent.MOUSE_PRESSED, event ->
+                wrappedLink = event.getButton() == MouseButton.SECONDARY
+                        && widget.getTerminalPanel() instanceof PanePanel panel ? panel.wrappedLinkAt(event) : null);
     }
 
     /// The repository the pane's `#123` links resolve against — set from the
@@ -1678,6 +1689,9 @@ public class TerminalPane {
     // [impl->dsn~terminal-markdown-copy~1]
     private final class PanePanel extends TerminalPanel {
 
+        /// How many rows above and below a right-click a wrapped link may reach.
+        private static final int WRAPPED_LINK_ROWS = 8;
+
         private final boolean mirror;
 
         private PanePanel(SettingsProvider provider, TerminalTextBuffer buffer, StyleState style,
@@ -1700,16 +1714,19 @@ public class TerminalPane {
         /// The stock actions, led by "Copy path" / "Copy link" while the
         /// pointer rests on a link — JediTermFX 1.1.0 drops a link's own
         /// popup group (`LinkInfoEx.PopupMenuGroupProvider`), so the panel adds it.
-        // [impl->dsn~terminal-link-copy~1]
+        /// A hard-wrapped link beats the hover: that one is a piece at best.
+        // [impl->dsn~terminal-link-copy~2]
         @Override
         public List<TerminalAction> getActions() {
-            String link = hoveredLink;
+            WrappedLink.Target wrapped = wrappedLink;
+            String link = wrapped != null ? wrapped.text() : hoveredLink;
+            boolean path = wrapped != null ? wrapped.path() : hoveredPath;
             if (link == null) {
                 return super.getActions();
             }
             List<TerminalAction> actions = new ArrayList<>();
             actions.add(new TerminalAction(
-                    new TerminalActionPresentation(hoveredPath ? "Copy path" : "Copy link", List.of()), key -> {
+                    new TerminalActionPresentation(path ? "Copy path" : "Copy link", List.of()), key -> {
                         ClipboardContent content = new ClipboardContent();
                         content.putString(link);
                         Clipboard.getSystemClipboard().setContent(content);
@@ -1717,6 +1734,31 @@ public class TerminalPane {
                     }));
             actions.addAll(super.getActions());
             return actions;
+        }
+
+        /// The hard-wrapped link under a mouse event; the arithmetic is the
+        /// private `panelPointToCell`'s.
+        private WrappedLink.@Nullable Target wrappedLinkAt(MouseEvent event) {
+            Point2D point = getCanvas().sceneToLocal(event.getSceneX(), event.getSceneY());
+            int column = ((int) Math.round(point.getX()) - getInsetX()) / (int) Math.round(myCharSize.getWidth());
+            int line = (int) Math.round(point.getY()) / (int) Math.round(myCharSize.getHeight())
+                    + swingClientScrollOrigin;
+            TerminalTextBuffer buffer = getTerminalTextBuffer();
+            buffer.lock();
+            try {
+                int top = Math.max(line - WRAPPED_LINK_ROWS, -buffer.getHistoryLinesCount());
+                int bottom = Math.min(line + WRAPPED_LINK_ROWS, buffer.getHeight() - 1);
+                if (line < top || line > bottom) {
+                    return null;
+                }
+                List<String> rows = new ArrayList<>();
+                for (int i = top; i <= bottom; i++) {
+                    rows.add(buffer.getLine(i).getText());
+                }
+                return WrappedLink.at(rows, line - top, column, buffer.getWidth());
+            } finally {
+                buffer.unlock();
+            }
         }
     }
 
