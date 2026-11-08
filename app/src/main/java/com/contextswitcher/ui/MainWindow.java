@@ -927,6 +927,10 @@ public class MainWindow {
     /// currently renders (-1: nothing pinned). [#installStickyHeader]
     private @Nullable TaskListCell stickyCell;
     private int stickyIndex = -1;
+    /// [#stickyIndex] when the pinned cell must be repainted whatever the next
+    /// index is. Not -1: that is a real state, and a repaint which finds nothing
+    /// to pin still has to hide the cell.
+    private static final int STICKY_REPAINT = -2;
     /// Task id to select after the next [#rebuildRows] (which clears the
     /// ListView selection): the neighbour of a just-deleted task, or a task
     /// just created via "Add task…".
@@ -1602,7 +1606,7 @@ public class MainWindow {
             list.refresh();
         }
         // The pinned header is no cell of the list, so refresh() skips it.
-        stickyIndex = -1;
+        stickyIndex = STICKY_REPAINT;
         updateStickyHeader();
     }
 
@@ -5409,8 +5413,11 @@ public class MainWindow {
         list.heightProperty().addListener((obs, old, height) -> updateStickyHeader());
         // A rebuild can leave the pinned index pointing at different content
         // (renamed group, changed tags), so re-render even when it is unchanged.
+        // The cell re-renders itself as soon as the list changes, and shows
+        // whichever row now has its index, so a rebuild with no header left to
+        // pin must reach the setVisible below.
         visibleRows.addListener((ListChangeListener<Object>) change -> {
-            stickyIndex = -1;
+            stickyIndex = STICKY_REPAINT;
             Platform.runLater(this::updateStickyHeader);
         });
         return stack;

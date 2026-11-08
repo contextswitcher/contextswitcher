@@ -8,6 +8,7 @@ import java.util.function.BooleanSupplier;
 
 import javafx.application.Platform;
 import javafx.scene.control.ListView;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -82,6 +83,40 @@ class StickyHeaderUiTest {
                 .mapToDouble(node -> node.getBoundsInLocal().getHeight()).findFirst().orElse(-1));
         assertThat(heights[0]).as("the pinned header is as tall as the header row")
                 .isEqualTo(heights[1]);
+    }
+
+    /// A rebuild that leaves no section header to pin must hide the pinned cell.
+    /// A `ListCell` re-renders by itself when its list changes, so a cell left
+    /// visible shows whatever now sits at its old index: a task row floating
+    /// over the list, or, as in this narrowed list, a blank strip.
+    @Test
+    void aRebuildWithNoHeaderToPinHidesThePinnedCell() throws Exception {
+        // The ungrouped rows come first, then the category, so the search below
+        // leaves a list without any header, shorter than the header's old index.
+        Path dir = UiTestSupport.tasksDir;
+        Files.createDirectories(dir.resolve("Beta"));
+        for (int i = 0; i < 60; i++) {
+            Files.writeString(dir.resolve("Beta/beta-%02d.md".formatted(i)),
+                    "---\ntitle: beta-" + i + "\nstatus: active\n---\nnotes\n");
+        }
+        for (int i = 0; i < 3; i++) {
+            Files.writeString(dir.resolve("loose-%d.md".formatted(i)),
+                    "---\ntitle: loose-" + i + "\nstatus: active\n---\nnotes\n");
+        }
+
+        ListView<Object> list = awaitListView();
+        awaitFx(() -> list.getItems().size() > 50, "the tasks to load");
+        runFx(() -> list.scrollTo(list.getItems().size() - 1));
+        awaitFx(StickyHeaderUiTest::pinnedHeaderVisible, "the pinned category header");
+
+        TextField find = FX_ROBOT.selectNodes(TextField.class).fromAll()
+                .filter(field -> field.getPromptText() != null
+                        && field.getPromptText().startsWith("Find task"))
+                .findFirst().orElseThrow();
+        runFx(() -> find.setText("loose-"));
+        awaitFx(() -> list.getItems().size() == 3, "the search to leave the loose tasks only");
+
+        awaitFx(() -> !pinnedHeaderVisible(), "the pinned cell to hide with no header to pin");
     }
 
     private static boolean pinnedHeaderIsOpaque() {

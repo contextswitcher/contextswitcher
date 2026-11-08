@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [Unreleased]
+
+### Fixed
+
+- A task row no longer stays stuck over the top of the task list, hiding the rows beneath it, after a search, a filter or a background update changes the list while it is scrolled into a category.
+
 ## [2026-11-05] - 2026-11-05
 
 ### Changed
@@ -251,6 +257,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-05...main
 [2026-11-05]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-03...v2026-11-05
 [2026-11-03]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-02...v2026-11-03
 [2026-11-02]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-01...v2026-11-02
