@@ -2342,9 +2342,20 @@ public class MainWindow {
     // [impl->dsn~task-link-icons~2]
     // [impl->dsn~pr-open-on-category-desktop~3]
     private void focusPr(Task task, Task.UrlEntry pr) {
-        statusBar.message("Opening " + pr.display() + " …");
-        String group = groupOf(task.id());
-        onFocusUrlInBrowser.accept(pr.url(), group.isEmpty() ? null : groupDesktop(group));
+        openInBrowser(pr, groupOf(task.id()));
+    }
+
+    /// Shows `entry`'s page in the browser, on the virtual desktop of `group`.
+    private void openInBrowser(Task.UrlEntry entry, String group) {
+        statusBar.message("Opening " + entry.display() + " …");
+        onFocusUrlInBrowser.accept(entry.url(), group.isEmpty() ? null : groupDesktop(group));
+    }
+
+    /// Highlights the browser URL of the tab in view (null: none known) in the
+    /// open file's forms.
+    // [impl->dsn~browser-url-links~1]
+    public void showBrowserTab(@Nullable String tabUrl) {
+        formPanes.forEach(pane -> pane.showBrowserTab(tabUrl));
     }
 
     /// Merges the poller's latest snapshot into the PR-state map, keeping the
@@ -6241,7 +6252,12 @@ public class MainWindow {
                     return name != null && isGroupConfig(name);
                 },
                 // [impl->dsn~host-table~1]
-                configuredRemotes, this::knownDesktops, this::refreshKnownDesktops);
+                configuredRemotes, this::knownDesktops, this::refreshKnownDesktops,
+                // [impl->dsn~browser-url-links~1]
+                line -> {
+                    String name = editedFileName;
+                    openInBrowser(ConfigForm.urlEntry(line), name == null ? "" : groupOf(name));
+                });
         return pane;
     }
 
@@ -6521,6 +6537,10 @@ public class MainWindow {
     /// — a play narrowed to the browser section. FX thread.
     // [impl->dsn~extension-connection-indicator~2]
     public void showBrowserExtension(@Nullable Browser connected) {
+        if (connected == null) {
+            // Nothing reports tabs any more, so none is known to be in view.
+            showBrowserTab(null);
+        }
         Button status = browserStatus;
         if (status == null) {
             return;

@@ -2479,6 +2479,8 @@ public class Main extends Application {
         if (window == null) {
             return;
         }
+        // [impl->dsn~browser-url-links~1]
+        window.showBrowserTab(url);
         java.util.List<Task> matches = repository.entries().stream()
                 .filter(TaskEntry.Loaded.class::isInstance)
                 .map(entry -> ((TaskEntry.Loaded) entry).task())

@@ -103,6 +103,20 @@ Covers:
 
 Needs: dsn
 
+### A task's URLs are links to their tabs
+`req~browser-url-links~1`
+
+The *Browser URLs* of the Switch actions pane read as links: one click brings up that page's browser tab, opening it if there is none, as a click on a task's pull request icon does.
+Editing stays one step away, the way a link list on the web does it: hovering a row offers *Edit* and *Delete*, and *Edit* turns the row into its text field until the focus leaves it.
+The URL whose page is the tab in view is highlighted, so the pane shows where the browser is.
+
+Tags: windows, linux
+
+Covers:
+- feat~browser-context~1
+
+Needs: dsn
+
 ### Connection is visible
 `req~extension-connection-visible~1`
 
@@ -414,6 +428,26 @@ Tags: windows, linux
 
 Covers:
 - req~browser-tab-selects-task~3
+
+Needs: impl, utest
+
+### Browser URL links
+`dsn~browser-url-links~1`
+
+`ListFieldEditor` given an `openUrl` action (only `ConfigForm`'s `browser.urls`) keeps its text field per row, which stays the value `ConfigForm` reads, and shows a `Hyperlink` of the `Task.UrlEntry.display()` text in its place.
+A click goes the way of `MainWindow.focusPr` (`dsn~pr-open-on-category-desktop~3`), with the category taken from the open file.
+The field shows while it has the focus or is blank, so the trailing add row stays a field and an emptied entry cannot vanish; the row's pencil button, or F2 on the focused link, moves the focus into it.
+Enter moves to the next field that shows, which is the add row when the rows between read as links.
+Removing a row moves the focus into the add row, since the form only saves when the focus leaves it.
+
+`Main.selectTaskForTab` hands every reported tab URL (`dsn~browser-tab-selects-task~7`, and the re-sync of `dsn~browser-teardown-quiet-tabs~1`) to `MainWindow.showBrowserTab`, down to the form, which keeps it for the forms it builds later; a lost extension connection clears it.
+A row is marked with the `:browser-tab` pseudo-class when `Task.urlMatch` — the per-URL rule behind `Task.tabUrlMatch` — calls it an exact hit or, failing any, when it is the longest URL the tab is under, so on a PR's `/files` page the PR's row wins over its repository's row.
+The extensions need no change: `focus-url` and `tab-activated` already say everything.
+
+Tags: windows, linux
+
+Covers:
+- req~browser-url-links~1
 
 Needs: impl, utest
 

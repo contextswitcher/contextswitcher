@@ -8,6 +8,14 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Changed
+
+- *Browser URLs* in the Switch actions pane is now a list of links: clicking one selects that page's browser tab (opening it if needed), and Edit and Delete appear when you hover over a row.
+
+### Added
+
+- The browser URL of the tab in view is highlighted in the Switch actions pane.
+
 ### Fixed
 
 - A task row no longer stays stuck over the top of the task list, hiding the rows beneath it, after a search, a filter or a background update changes the list while it is scrolled into a category.

@@ -319,21 +319,24 @@ public record Task(
         if (browser == null) {
             return 0;
         }
+        return browser.urls().stream().mapToInt(url -> urlMatch(tabUrl, url)).max().orElse(0);
+    }
+
+    /// [#tabUrlMatch] against a single URL of a task: 2 exact, 1 a page under
+    /// it, 0 neither.
+    public static int urlMatch(String tabUrl, String url) {
         tabUrl = normalizeUrl(tabUrl);
-        int best = 0;
-        for (String url : browser.urls()) {
-            if (tabUrl.equals(url)) {
-                return 2;
-            }
-            int fragment = url.indexOf('#');
-            if (fragment >= 0) {
-                url = normalizeUrl(url.substring(0, fragment));
-            }
-            if (tabUrl.equals(url) || tabUrl.startsWith(url + "/") || tabUrl.startsWith(url + "#") || tabUrl.startsWith(url + "?")) {
-                best = 1;
-            }
+        url = normalizeUrl(url);
+        if (tabUrl.equals(url)) {
+            return 2;
         }
-        return best;
+        int fragment = url.indexOf('#');
+        if (fragment >= 0) {
+            url = normalizeUrl(url.substring(0, fragment));
+        }
+        return tabUrl.equals(url) || tabUrl.startsWith(url + "/") || tabUrl.startsWith(url + "#") || tabUrl.startsWith(url + "?")
+                ? 1
+                : 0;
     }
 
     /// The task's primary PR — the first one — for the single-PR consumers

@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import atlantafx.base.theme.Styles;
@@ -15,6 +16,7 @@ import atlantafx.base.theme.Styles;
 import com.contextswitcher.tasks.Frontmatter;
 import com.contextswitcher.tasks.FrontmatterCatalog;
 import com.contextswitcher.tasks.FrontmatterCatalog.Field;
+import com.contextswitcher.tasks.Task;
 import com.contextswitcher.tasks.TaskTags;
 
 import javafx.collections.FXCollections;
@@ -54,16 +56,19 @@ final class ConfigForm {
     private final Supplier<CompletableFuture<List<String>>> refreshDesktops;
     /// Opens a desktop field's suggestions; a no-op without such a field.
     private Runnable showDesktops = () -> { };
+    /// Shows a `browser.urls` entry's page in the browser.
+    private final Consumer<String> openUrl;
 
     /// The form for `fields`, its controls seeded from `content`'s frontmatter;
     /// `hosts` are the destinations a host field offers, `desktops` the names
     /// a desktop field suggests, and `refreshDesktops` reads those again for
-    /// the field's refresh button.
+    /// the field's refresh button; `openUrl` shows a clicked browser URL.
     ConfigForm(List<Field> fields, String content, List<String> hosts, List<String> desktops,
-            Supplier<CompletableFuture<List<String>>> refreshDesktops) {
+            Supplier<CompletableFuture<List<String>>> refreshDesktops, Consumer<String> openUrl) {
         this.fields = List.copyOf(fields);
         this.desktops = List.copyOf(desktops);
         this.refreshDesktops = refreshDesktops;
+        this.openUrl = openUrl;
         this.controls = buildControls(content, hosts);
     }
 
@@ -93,7 +98,9 @@ final class ConfigForm {
                     combo.setValue((String) seed);
                     yield combo;
                 }
-                case LIST -> new ListFieldEditor(asStringList(seed));
+                // [impl->dsn~browser-url-links~1]
+                case LIST -> new ListFieldEditor(asStringList(seed),
+                        field.key().equals("browser.urls") ? openUrl : null);
                 // [impl->dsn~host-table~1]
                 case HOST -> {
                     ComboBox<String> combo = new ComboBox<>(FXCollections.observableArrayList(hosts));
@@ -155,6 +162,15 @@ final class ConfigForm {
                     : FieldForm.row(field.label(), field.help(), control));
         }
         return root;
+    }
+
+    /// Highlights the `browser.urls` entry of the browser's tab in view (null:
+    /// none known).
+    // [impl->dsn~browser-url-links~1]
+    void showBrowserTab(@Nullable String tabUrl) {
+        if (controls.get("browser.urls") instanceof ListFieldEditor urls) {
+            urls.highlight(tabUrl);
+        }
     }
 
     /// The desktop field's refresh button: reads the desktop names again — a
@@ -420,18 +436,27 @@ final class ConfigForm {
     private static List<Object> urlEntries(List<String> lines) {
         List<Object> entries = new ArrayList<>();
         for (String line : lines) {
-            int separator = line.indexOf(FrontmatterCatalog.URL_TITLE_SEPARATOR);
-            if (separator < 0) {
-                entries.add(line);
+            Task.UrlEntry parsed = urlEntry(line);
+            if (parsed.title() == null) {
+                entries.add(parsed.url());
                 continue;
             }
             Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("url", line.substring(0, separator).strip());
-            entry.put("title", line.substring(
-                    separator + FrontmatterCatalog.URL_TITLE_SEPARATOR.length()).strip());
+            entry.put("url", parsed.url());
+            entry.put("title", parsed.title());
             entries.add(entry);
         }
         return entries;
+    }
+
+    /// One `url — title` line of the form.
+    // [impl->dsn~browser-url-title~1]
+    static Task.UrlEntry urlEntry(String line) {
+        int separator = line.indexOf(FrontmatterCatalog.URL_TITLE_SEPARATOR);
+        return separator < 0
+                ? new Task.UrlEntry(line.strip(), null)
+                : new Task.UrlEntry(line.substring(0, separator).strip(), line.substring(
+                        separator + FrontmatterCatalog.URL_TITLE_SEPARATOR.length()).strip());
     }
 
     private static @Nullable String nullIfBlank(String value) {

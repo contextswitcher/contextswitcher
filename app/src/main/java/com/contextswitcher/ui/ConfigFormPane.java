@@ -83,6 +83,10 @@ final class ConfigFormPane {
     private final Supplier<List<String>> desktops;
     /// Re-reads the desktop names for a desktop field's refresh button.
     private final Supplier<CompletableFuture<List<String>>> refreshDesktops;
+    /// Shows a clicked browser URL's page in the browser.
+    private final Consumer<String> openUrl;
+    /// The browser's tab in view, for the forms built later on.
+    private @Nullable String browserTab;
 
     /// `id` prefixes the toolbar controls' ids (`config-raw-toggle`); `shows`
     /// picks the catalog fields of this pane. `rawEditor` is the editor lane's
@@ -91,7 +95,7 @@ final class ConfigFormPane {
     ConfigFormPane(String id, Predicate<Field> shows, Node rawEditor, Supplier<String> text,
             Consumer<String> apply, BooleanSupplier category,
             Supplier<List<String>> hosts, Supplier<List<String>> desktops,
-            Supplier<CompletableFuture<List<String>>> refreshDesktops) {
+            Supplier<CompletableFuture<List<String>>> refreshDesktops, Consumer<String> openUrl) {
         this.shows = shows;
         this.rawEditor = rawEditor;
         this.text = text;
@@ -100,6 +104,7 @@ final class ConfigFormPane {
         this.hosts = hosts;
         this.desktops = desktops;
         this.refreshDesktops = refreshDesktops;
+        this.openUrl = openUrl;
         // Icon-only like every pane toolbar's controls; the tooltip names each.
         // [impl->dsn~task-field-form~5]
         rawToggle.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
@@ -155,6 +160,16 @@ final class ConfigFormPane {
     /// about to take it.
     void leaveRaw() {
         rawToggle.setSelected(false);
+    }
+
+    /// Highlights the browser URL of the tab in view (null: none known).
+    // [impl->dsn~browser-url-links~1]
+    void showBrowserTab(@Nullable String tabUrl) {
+        browserTab = tabUrl;
+        ConfigForm current = form;
+        if (current != null) {
+            current.showBrowserTab(tabUrl);
+        }
     }
 
     /// Writes what the form holds now, without waiting for the focus to leave
@@ -240,7 +255,8 @@ final class ConfigFormPane {
         }
         List<Field> fields = (category.getAsBoolean() ? FrontmatterCatalog.CATEGORY : FrontmatterCatalog.TASK)
                 .stream().filter(shows).toList();
-        ConfigForm built = new ConfigForm(fields, content, hosts.get(), desktops.get(), refreshDesktops);
+        ConfigForm built = new ConfigForm(fields, content, hosts.get(), desktops.get(), refreshDesktops, openUrl);
+        built.showBrowserTab(browserTab);
         form = built;
         ScrollPane scroll = new ScrollPane(built.render());
         scroll.setFitToWidth(true);
