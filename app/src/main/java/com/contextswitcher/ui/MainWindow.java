@@ -896,7 +896,7 @@ public class MainWindow {
     private @Nullable Stage stage;
 
     /// The Configuration pane, built by [#show]: the frontmatter form with its
-    /// Raw YAML view (`dsn~task-field-form~5`).
+    /// Raw YAML view (`dsn~task-field-form~6`).
     private List<ConfigFormPane> formPanes = List.of();
     /// Set while a form pane writes its fields into the buffer: the reload
     /// that follows leaves a form the user is in alone (`ConfigFormPane.reload`).
@@ -1348,7 +1348,7 @@ public class MainWindow {
         // [impl->dsn~shell-layout~2]
         // Two panes over one catalog: the switch actions apart, the rest in
         // Configuration. They share the one raw editor.
-        // [impl->dsn~task-field-form~5]
+        // [impl->dsn~task-field-form~6]
         ConfigFormPane switchActions = formPane("switch-actions", FrontmatterCatalog::isSwitchAction);
         ConfigFormPane pane = formPane("config", field -> !FrontmatterCatalog.isSwitchAction(field));
         selectOnClick.accept(switchActions.getRoot());
@@ -4992,7 +4992,7 @@ public class MainWindow {
     /// desktops as last read, those the categories name, the active one and
     /// the fallback — for the configuration form to suggest, sorted ignoring
     /// case.
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     private List<String> knownDesktops() {
         Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         SortedSet<String> existing = existingDesktops;
@@ -6129,7 +6129,7 @@ public class MainWindow {
         // The raw YAML shows in one form pane; the other one's form is rebuilt
         // from what was typed there once the focus has settled (a form the
         // focus went into is left alone).
-        // [impl->dsn~task-field-form~5]
+        // [impl->dsn~task-field-form~6]
         configEditor.focusedProperty().addListener((obs, was, focused) -> {
             if (!focused) {
                 Platform.runLater(() -> formPanes.forEach(pane -> pane.reload(false)));
@@ -6243,7 +6243,7 @@ public class MainWindow {
 
     /// A configuration form pane holding the catalog fields `shows` picks; it
     /// writes into the editor buffer and saves.
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     private ConfigFormPane formPane(String id, Predicate<FrontmatterCatalog.Field> shows) {
         ConfigFormPane pane = new ConfigFormPane(id, shows, configEditor, this::editorText,
                 updated -> {
@@ -6259,6 +6259,7 @@ public class MainWindow {
                     String name = editedFileName;
                     return name != null && isGroupConfig(name);
                 },
+                () -> editedFileName,
                 // [impl->dsn~host-table~1]
                 configuredRemotes, this::knownDesktops, this::refreshKnownDesktops,
                 browserUrlActions());
@@ -6345,7 +6346,7 @@ public class MainWindow {
     /// The notes header's configure button: puts the Configuration pane — the
     /// open file's frontmatter as a generated key/value form ([ConfigFormPane]),
     /// raw YAML its fallback — in front, reopening it if it was closed.
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     private void showConfigForm() {
         showConfigurationPane();
     }
@@ -7067,7 +7068,7 @@ public class MainWindow {
 
     /// Installs the one-shot read of this machine's named desktops (null when
     /// it fails) behind the configuration form's desktop refresh button.
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     public void setDesktopNamesReader(Supplier<CompletableFuture<@Nullable SortedSet<String>>> reader) {
         this.desktopNamesReader = reader;
     }
@@ -7075,7 +7076,7 @@ public class MainWindow {
     /// The desktop refresh button's round-trip: reads the named desktops,
     /// records them as [#updateExistingDesktops] would, and completes on the
     /// FX thread with the refreshed [#knownDesktops].
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     private CompletableFuture<List<String>> refreshKnownDesktops() {
         statusBar().message("Reading the virtual desktops …");
         return desktopNamesReader.get()

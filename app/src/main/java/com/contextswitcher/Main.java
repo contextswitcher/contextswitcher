@@ -959,7 +959,7 @@ public class Main extends Application {
         // [impl->dsn~start-claude-button~2]
         // [impl->dsn~setup-wizard~12]
         window.setOnSetupWizard(this::rerunSetupWizard);
-        // [impl->dsn~task-field-form~5]
+        // [impl->dsn~task-field-form~6]
         window.setDesktopNamesReader(() -> {
             ExecutorService executor = this.actionExecutor;
             return executor == null

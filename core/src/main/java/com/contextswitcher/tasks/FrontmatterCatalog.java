@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 /// `storedTabs`) and the
 /// machine-suffixed variants (`folders-windows`) stay out of the form and are
 /// edited — untouched by it — in the raw YAML.
-// [impl->dsn~task-field-form~5]
+// [impl->dsn~task-field-form~6]
 public final class FrontmatterCatalog {
 
     /// How a field's value is rendered as a form control and read back.
@@ -132,7 +132,7 @@ public final class FrontmatterCatalog {
     /// The keys the **Switch actions** pane shows, in both catalogs: what a
     /// switch to the task (or into the category) opens. The Configuration pane
     /// shows every other field.
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     public static final Set<String> SWITCH_ACTION_KEYS =
             Set.of("intellij", "intellij.projectPath", "browser.urls", "folders", "chat", "note");
 

@@ -27,12 +27,12 @@ import static io.gitlab.fxlabs.testfx.util.FxPredicates.hasText;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The category form's *Virtual desktop* refresh button (`dsn~task-field-form~5`):
+/// The category form's *Virtual desktop* refresh button (`dsn~task-field-form~6`):
 /// a desktop created after the form was built is not suggested until the
 /// button reads the desktops again, which then opens the suggestions with it.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~task-field-form~5]
+// [utest->dsn~task-field-form~6]
 @Tag("ui")
 @TestFxApplication(DesktopRefreshUiTest.TestApp.class)
 class DesktopRefreshUiTest {

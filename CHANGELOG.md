@@ -21,6 +21,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- *Switch actions* and *Configuration* keep their scroll position when the task file changes in the background, instead of jumping to the top.
 - A URL mentioned in LaTeX (`\href{…}{…}`, `\url{…}`), between `<…>` or in backticks is now collected on its own, without the markup around it, in *Browser URLs*.
 - A task row no longer stays stuck over the top of the task list, hiding the rows beneath it, after a search, a filter or a background update changes the list while it is scrolled into a category.
 

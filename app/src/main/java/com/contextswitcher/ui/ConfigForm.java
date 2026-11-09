@@ -43,7 +43,7 @@ import tools.maran.svgnode.SvgNode;
 /// only the keys the user actually changed are patched back into it
 /// ([Frontmatter#set]), so comments, key order, machine-suffixed variants and
 /// keys the app does not know about survive an edit.
-// [impl->dsn~task-field-form~5]
+// [impl->dsn~task-field-form~6]
 final class ConfigForm {
 
     private final List<Field> fields;

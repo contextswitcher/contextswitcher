@@ -44,7 +44,7 @@ import tools.maran.svgnode.SvgNode;
 /// with the raw YAML editor one toggle away. It works on the editor buffer:
 /// when the focus leaves the pane, the changed keys are patched in and saved;
 /// **Reload** drops what was not saved yet.
-// [impl->dsn~task-field-form~5]
+// [impl->dsn~task-field-form~6]
 final class ConfigFormPane {
 
     /// Held, not extended: only the header and the form or raw view go in it,
@@ -54,6 +54,12 @@ final class ConfigFormPane {
     private final Supplier<String> text;
     private final Consumer<String> apply;
     private final BooleanSupplier category;
+    /// The open file's name, which decides whether a rebuild keeps the scroll
+    /// position.
+    private final Supplier<@Nullable String> file;
+    /// The file the form was last built for.
+    private @Nullable String builtFile;
+    private final ScrollPane scroll = new ScrollPane();
     /// Which catalog fields this pane's form holds.
     private final Predicate<Field> shows;
     private final ToggleButton rawToggle =
@@ -93,7 +99,7 @@ final class ConfigFormPane {
     /// frontmatter editor (it auto-saves on focus loss); `text` and `apply`
     /// read and replace-and-save the whole buffer.
     ConfigFormPane(String id, Predicate<Field> shows, Node rawEditor, Supplier<String> text,
-            Consumer<String> apply, BooleanSupplier category,
+            Consumer<String> apply, BooleanSupplier category, Supplier<@Nullable String> file,
             Supplier<List<String>> hosts, Supplier<List<String>> desktops,
             Supplier<CompletableFuture<List<String>>> refreshDesktops, BrowserUrlActions urlActions) {
         this.shows = shows;
@@ -101,12 +107,13 @@ final class ConfigFormPane {
         this.text = text;
         this.apply = apply;
         this.category = category;
+        this.file = file;
         this.hosts = hosts;
         this.desktops = desktops;
         this.refreshDesktops = refreshDesktops;
         this.urlActions = urlActions;
         // Icon-only like every pane toolbar's controls; the tooltip names each.
-        // [impl->dsn~task-field-form~5]
+        // [impl->dsn~task-field-form~6]
         rawToggle.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
         rawToggle.setId(id + "-raw-toggle");
         reloadButton.setId(id + "-reload-button");
@@ -140,6 +147,7 @@ final class ConfigFormPane {
         header.setPadding(new Insets(4, 6, 4, 6));
         header.getStyleClass().add("panel-header");
         root.setTop(header);
+        scroll.setFitToWidth(true);
         reload(true);
     }
 
@@ -241,10 +249,18 @@ final class ConfigFormPane {
     /// for a new one. The fields of the two panes are disjoint, and saving
     /// patches only changed keys, so the form loses nothing by waiting for
     /// its own save.
+    ///
+    /// A rebuild of the same file stays where it was scrolled to: the file is
+    /// rewritten behind the form all the time, for instance when a chat
+    /// mentions a URL. Another file starts at the top.
+    // [impl->dsn~task-field-form~6]
     void reload(boolean force) {
         if (rawToggle.isSelected() || (!force && form != null && focusInside)) {
             return;
         }
+        String shown = file.get();
+        double scrolled = java.util.Objects.equals(shown, builtFile) ? scrolledPixels() : 0;
+        builtFile = shown;
         String content = text.get();
         if (Frontmatter.block(content) == null) {
             form = null;
@@ -259,9 +275,33 @@ final class ConfigFormPane {
                 this::applyForm);
         built.showBrowserTab(browserTab);
         form = built;
-        ScrollPane scroll = new ScrollPane(built.render());
-        scroll.setFitToWidth(true);
+        scroll.setContent(built.render());
         root.setCenter(scroll);
+        scrollTo(scrolled);
+    }
+
+    private double hiddenPixels() {
+        Node content = scroll.getContent();
+        return content == null ? 0
+                : Math.max(0, content.getLayoutBounds().getHeight() - scroll.getViewportBounds().getHeight());
+    }
+
+    private double scrolledPixels() {
+        return scroll.getVvalue() * hiddenPixels();
+    }
+
+    /// In pixels, not as `vvalue`'s fraction: a row added or removed must not
+    /// shift the rows under the pointer. A pane not on screen has no layout to
+    /// measure and keeps its fraction, unless it goes back to the top.
+    private void scrollTo(double pixels) {
+        scroll.applyCss();
+        scroll.layout();
+        double hidden = hiddenPixels();
+        if (pixels == 0) {
+            scroll.setVvalue(0);
+        } else if (hidden > 0) {
+            scroll.setVvalue(Math.min(1, pixels / hidden));
+        }
     }
 
     /// False when the form is invalid, after an alert saying why.
