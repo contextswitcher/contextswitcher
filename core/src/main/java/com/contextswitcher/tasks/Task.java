@@ -238,13 +238,15 @@ public record Task(
 
     /// Any http(s) URL mentioned in free text (a task description, a queued
     /// message) — broader than [#PR_URL], for `TaskFileParser.addUrlsFrom`.
+    /// It stops at the characters a URL cannot contain unescaped, which is
+    /// where markup around it starts: LaTeX's `\href{…}{…}`, `<…>`, `` `…` ``.
     private static final java.util.regex.Pattern URL =
-            java.util.regex.Pattern.compile("https?://\\S+");
+            java.util.regex.Pattern.compile("https?://[^\\s{}\\\\<>\"`]+");
 
     /// URLs found in `text`, trailing sentence punctuation (that wraps
     /// around, not part of, the link) stripped. Order preserved, not
     /// deduplicated — callers dedupe as needed.
-    // [impl->dsn~task-url-collect~1]
+    // [impl->dsn~task-url-collect~2]
     public static List<String> urlsIn(String text) {
         return URL.matcher(text).results()
                 .map(m -> stripTrailingPunctuation(m.group()))
@@ -253,7 +255,7 @@ public record Task(
 
     private static String stripTrailingPunctuation(String url) {
         int end = url.length();
-        while (end > 0 && ".,;:!?)]}'\"".indexOf(url.charAt(end - 1)) >= 0) {
+        while (end > 0 && ".,;:!?)]'".indexOf(url.charAt(end - 1)) >= 0) {
             end--;
         }
         return url.substring(0, end);

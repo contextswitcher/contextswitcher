@@ -773,7 +773,7 @@ public class Main extends Application {
                 },
                 // Any URL in a queued message also becomes a browser tab —
                 // the same textual rewrite the task-creation dialogs use.
-                // [impl->dsn~task-url-collect~1]
+                // [impl->dsn~task-url-collect~2]
                 (task, text) -> rewriteTaskFile(files, task,
                         content -> TaskFileParser.addUrlsFrom(content, text)),
                 actionExecutor,
@@ -3736,7 +3736,7 @@ public class Main extends Application {
         String content = ClaudeWindowLauncher.liveTaskContent(title, remote, workdir, appendix)
                 + (hints ? "\nCreated on %s.\n".formatted(LocalDate.now()) : "");
         // Any URL inside the description also becomes a browser tab.
-        // [impl->dsn~task-url-collect~1]
+        // [impl->dsn~task-url-collect~2]
         String withPrs = TaskFileParser.addUrlsFrom(content, title);
         // Dated like the per-task worktrees; the description slug is
         // only a placeholder until the adopted title renames the file.
