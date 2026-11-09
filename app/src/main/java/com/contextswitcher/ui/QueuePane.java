@@ -173,7 +173,7 @@ public class QueuePane {
     /// box commits), so a URL mentioned in it also becomes a browser tab —
     /// the same treatment `TaskFileParser.addUrlsFrom` gives a task
     /// description. FX thread, like every queue write.
-    // [impl->dsn~task-url-collect~1]
+    // [impl->dsn~task-url-collect~2]
     private final BiConsumer<Task, String> onMessageQueued;
     /// Resumes a suspended task (status back to active, window recreated) —
     /// a send into a suspended chat first brings the chat back.
@@ -1652,7 +1652,7 @@ public class QueuePane {
         rebuild();
         // A URL mentioned in the message also becomes a browser tab, same as
         // one in the task description.
-        // [impl->dsn~task-url-collect~1]
+        // [impl->dsn~task-url-collect~2]
         onMessageQueued.accept(queuedTask, stripped);
     }
 

@@ -275,7 +275,7 @@ class TaskFileAddUrlTest {
     }
 
     // [utest->dsn~task-create-ui~15]
-    // [utest->dsn~task-url-collect~1]
+    // [utest->dsn~task-url-collect~2]
     @Test
     void addsUrlsMentionedInADescription() throws Exception {
         String content = TaskFileParser.newTaskContent("T");
@@ -290,6 +290,15 @@ class TaskFileAddUrlTest {
                 "https://github.com/JabRef/jabref/pull/16433",
                 "https://github.com/JabRef/jabref/pull/9",
                 "https://github.com/JabRef/jabref/issues/16726");
+    }
+
+    // [utest->dsn~task-url-collect~2]
+    @Test
+    void markupAroundAUrlStaysOutOfIt() {
+        assertThat(Task.urlsIn("\\href{https://www.scienceos.ai/}{ScienceOS}\\footnote{\\url{https://www.scienceos.ai/}} can"))
+                .containsExactly("https://www.scienceos.ai/", "https://www.scienceos.ai/");
+        assertThat(Task.urlsIn("<https://a.example/x> `https://b.example/y` \"https://c.example/z\""))
+                .containsExactly("https://a.example/x", "https://b.example/y", "https://c.example/z");
     }
 
     @Test

@@ -1404,7 +1404,7 @@ Needs: impl, utest
 ### Remove a link from a task
 `dsn~task-remove-link~2`
 
-Every URL Claude mentions is filed automatically (`dsn~task-url-collect~1`), so a task's `browser.urls` only ever grows; each line of the PR header line above the terminal (`dsn~pr-header-line~4`) therefore carries its own way out.
+Every URL Claude mentions is filed automatically (`dsn~task-url-collect~2`), so a task's `browser.urls` only ever grows; each line of the PR header line above the terminal (`dsn~pr-header-line~4`) therefore carries its own way out.
 A trash icon (MDI `trash-can-outline`) sits at the end of the line, visible only while the mouse is on that line — the task rows' hover-action shape (`dsn~task-row-hover-actions~7`) — and stays managed, so the line does not jump on hover; the title's right-click menu offers the same as `Remove link`.
 Before it, a copy icon (MDI `content-copy`) with the same hover visibility puts the URL on the clipboard, like the menu's `Copy link`.
 `MainWindow.removeTaskUrl` flushes the editor, re-reads the file and drops the entry via `TaskFileParser.removeBrowserUrl`, a textual comment-preserving edit like `addBrowserUrl` (`dsn~task-add-link~3`): the item line goes with the map form's continuation lines, URLs are compared normalized (`Task.normalizeUrl`, so a trailing slash still matches), and a URL the list does not have is a no-op.
@@ -1545,7 +1545,7 @@ The add-menu item and `Ctrl+T` target the category in view (`MainWindow.selected
 A list scrolled away from the selection, or with none, pre-selects the category shown at its top, not the one that sorts first (`~15`, 2026-09-18).
 The per-group affordances still pass their own group explicitly.
 The field is pre-filled from the clipboard when it holds text, so a copied PR link or title is one chord away.
-Any http(s) URL **mentioned inside** the description (rather than pasted alone, which routes to the PR flow) is appended to the new task file's `browser.urls` as well (`TaskFileParser.addUrlsFrom`, `dsn~task-url-collect~1`) — for the plain and the live flow alike, so an issue link, a PR, or any other address is there without a second `Add link…` round.
+Any http(s) URL **mentioned inside** the description (rather than pasted alone, which routes to the PR flow) is appended to the new task file's `browser.urls` as well (`TaskFileParser.addUrlsFrom`, `dsn~task-url-collect~2`) — for the plain and the live flow alike, so an issue link, a PR, or any other address is there without a second `Add link…` round.
 Under the field sit the model and effort pickers (`dsn~claude-mode-select~3`), pre-selected with the last pick (a fresh install starts on "as is"): they reach the fresh chat as `/model`/`/effort` ahead of the context prompt, for the live-task and the PR flow alike (`Add plain task` starts no chat, so they are ignored).
 The dialog offers an explicit choice of four buttons, in this order: `Add plain task`, `Add remote Claude`, `Add local Claude`, and `Cancel`.
 `Add remote Claude` is enabled whenever a remote resolves: the group's `CONTEXTSWITCHER.md` `remote`, else the app's first configured remote (settings `remotes`), the same fallback `openGroupConfig` uses to pre-fill a new CS config — so a folder without a CS config still offers it.
@@ -1584,10 +1584,11 @@ Covers:
 Needs: impl, utest
 
 ### URLs mentioned in free text become browser tabs
-`dsn~task-url-collect~1`
+`dsn~task-url-collect~2`
 
 Any http(s) URL mentioned anywhere in a task's description (the Add-task dialog's field, `dsn~task-create-ui~15`) or in a message queued for its chat (`dsn~message-queue-ui~26`) is appended to the task file's `browser.urls` — not only a GitHub PR link, so a pasted issue link, wiki page, or any other address shows up as a tab too, without a separate `Add link…` round.
-`Task.urlsIn` scans free text with a general `https?://\S+` pattern and strips the trailing sentence punctuation (`.,;:!?)]}'"`) a URL commonly sits in front of, e.g. "see https://example.org/x." keeps the period out of the link.
+`Task.urlsIn` scans free text for `https?://` up to whitespace or a character a URL cannot contain unescaped (`{}\<>"` and the backtick), so markup around a URL stays out of it: LaTeX's `\href{https://example.org/}{Example}` yields `https://example.org/`.
+It then strips the trailing sentence punctuation (`.,;:!?)]'`) a URL commonly sits in front of, e.g. "see https://example.org/x." keeps the period out of the link.
 `TaskFileParser.addUrlsFrom` runs the scan and appends every match through the existing `addBrowserUrl` (deduplicated, first occurrence wins, sorted-position insertion) — the same textual, comment-preserving rewrite the Add-link dialog and the PR-mention extraction already used.
 Wired at both textual sources: `MainWindow.createTitleTask`/`Main`'s live-task creation run it over the description before the file is first written, and `QueuePane.commitAddBox` runs it (via a new `onMessageQueued` callback into `Main.rewriteTaskFile`) right after a message is added to the queue, so a URL typed into an already-open chat's queue gets the same treatment as one typed while creating the task.
 
@@ -2820,7 +2821,7 @@ Needs: impl, utest
 `dsn~message-queue-ui~26`
 
 `QueuePane` (the **Queue** pane, docked below Notes by default, `dsn~shell-layout~2`) shows the selected task's queued messages as a stack of wrapped `TextArea` cards, ordered top-down by how urgently each part wants the eye (changed in `~15`): the last sent message (`dsn~last-sent-message~5`), the status line, the queued messages oldest-first — so the **top** card is the next to send (changed in `~18`; the newest message ends up next to the add box that produced it) — and the always-empty **add** box directly under the last card — inside the scrolling stack, not pinned to the pane's bottom edge, where a short queue would leave it stranded at the far end of an empty pane (committed as a new message when focus leaves it non-blank, or via `Ctrl+Enter` which keeps the caret in the emptied add box).
-A committed add-box message is trimmed of surrounding whitespace (`String.strip()`) before it enters the queue, and any http(s) URL it mentions is also added to the task's `browser.urls` (`dsn~task-url-collect~1`).
+A committed add-box message is trimmed of surrounding whitespace (`String.strip()`) before it enters the queue, and any http(s) URL it mentions is also added to the task's `browser.urls` (`dsn~task-url-collect~2`).
 The add box also commits on three plain Enters in a row at the end of the box — a message followed by two empty lines: `KEY_PRESSED` fires before the third Enter's newline lands, so two newlines sitting immediately in front of a caret **at the box's end** mark the submit and are deleted before committing (the end check, added in `~12`, keeps a caret moved up behind an existing blank line from submitting after only two Enters), while three Enters into an all-blank box do nothing.
 In any box (add box or card) `Shift+Enter` inserts a newline (chat-app muscle memory) — a plain `TextArea` does not bind it, so a capture-phase `KEY_PRESSED` filter does `replaceSelection("\n")` and consumes the event, which also keeps it from ever committing.
 The boxes' chords (Shift+Enter newline, triple Ctrl+Enter act, triple-Enter commit) are installed by the static `QueuePane.installComposeKeys`, shared with the Add-task dialog's description field (`dsn~task-create-ui~15`) per `req~compose-key-conventions~5` — one implementation, so the compose keys cannot drift apart.

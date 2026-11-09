@@ -1498,7 +1498,7 @@ public class TaskFileParser {
     /// link inside a longer description or queued message gets the same
     /// treatment as one pasted alone into the Add-task dialog.
     // [impl->dsn~task-create-ui~15]
-    // [impl->dsn~task-url-collect~1]
+    // [impl->dsn~task-url-collect~2]
     public static String addUrlsFrom(String content, String description) {
         String updated = content;
         for (String url : new java.util.LinkedHashSet<>(Task.urlsIn(description))) {

@@ -2107,7 +2107,7 @@ public class MainWindow {
             MenuItem copyLink = new MenuItem("Copy link");
             copyLink.setOnAction(event -> copyTaskUrl(pr));
             // The list grows on its own — every URL Claude mentions is filed
-            // (`dsn~task-url-collect~1`) — so each line carries its own way
+            // (`dsn~task-url-collect~2`) — so each line carries its own way
             // out: a trash icon that appears while the mouse is on the line,
             // like the task rows' hover actions, plus the same action in the
             // right-click menu for the keyboard/menu path. A copy icon sits
@@ -3696,7 +3696,7 @@ public class MainWindow {
         String fileName = uniqueFileName(TaskFileParser.newTaskFileName(base));
         GroupConfig defaults = groupDefaults(group);
         // Any URL inside the description also becomes a browser tab.
-        // [impl->dsn~task-url-collect~1]
+        // [impl->dsn~task-url-collect~2]
         String created = TaskFileParser.newTaskContent(title, defaults.remote(), defaults.resolveWorkdir());
         if (notes != null) {
             created = created.stripTrailing() + "\n\n" + notes.strip() + "\n";
