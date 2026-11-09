@@ -60,7 +60,7 @@ Paradev replaces your terminal; ContextSwitcher drives the tools you already hav
 * Files as state: readable, editable, git-backed, conflict-merged.
 * Review workflow: auto-filled review categories, review threads into the message queue, GitLab support, PR-state-driven suspend and cleanup.
 * A delayed queue that sends on idle.
-* Resilience: usage-limit and API-error detection, auto `continue`, auto-suspend of idle sessions, restart all tasks after a host reboot.
+* Resilience: usage-limit and API-error detection, auto `continue`, auto-suspend of idle sessions, restart of the running tasks after a host reboot.
 * RefactoringMiner view — semantic "what was refactored" instead of a text diff.
 * Windows support, and Android instead of iOS.
 
@@ -68,7 +68,7 @@ Paradev replaces your terminal; ContextSwitcher drives the tools you already hav
 
 ## Herdr in detail
 
-A feature-by-feature comparison, from herdr.dev, the three READMEs and the app's shipped `AGENTS.md` as of 2026-11-04.
+A feature-by-feature comparison, from herdr.dev, the three READMEs and the app's shipped `AGENTS.md` as of 2026-11-04; reboot behaviour and the backend question rechecked against the TUI and herdr-core docs and source on 2026-11-09.
 The one-line difference: Herdr replaces tmux and the terminal emulator with an agent-aware runtime and a window built for it.
 ContextSwitcher keeps tmux and the terminal, and switches the desktop around them.
 Herdr is the closest relative so far, because it is the only one that, like ContextSwitcher, treats a terminal on any ssh host as the home of an agent and reads the agent's status out of that terminal.
@@ -79,11 +79,11 @@ Herdr is the closest relative so far, because it is the only one that, like Cont
 | License, business | Apache 2.0, free; YC S26, $6M seed (Bessemer, 2026-09); planned paid piece is Herdr Cloud, a relay that links your machines, not hosting; usage telemetry on by default | MIT, one-person project, nothing paid, no telemetry |
 | Agents | TUI: 24 kinds detected (`claude`, `codex`, `gemini`, `cursor`, `copilot`, `opencode`, `grok`, ...), started with `herdr agent start --kind`; core: anything in a terminal, status only if it emits OSC 7501 | Claude Code only (model and effort picker, fork session, `--resume` after reboot) |
 | Where agents run | In herdr-core or the TUI server on each machine; `hc machine add` adds an ssh host, its terminals show in the same sidebar; agents keep running when the laptop sleeps or the app is closed | Anywhere tmux runs, over plain ssh; local is just another host; the tmux window keeps running when the app is closed |
-| After a reboot | TUI restores the layout and resumes supported agent sessions; the app brings back a shell in the terminal's last folder, the agent is not restarted | *Restart all tasks*: a new tmux window per task with `claude --resume` of the recorded session |
+| After a reboot | When its server next starts (neither ships a boot service): TUI restores the layout and resumes 18 supported agents with their own resume command (`claude --resume <id>`), on by default, without the original launch flags; herdr-core and the app bring back kept terminals as a shell in the last folder, the agent is not restarted | One click, *Restart running tasks…*: a new tmux window per active task with `claude --resume` of the recorded session, `--dangerously-skip-permissions` if `claudeAuto` is set; Claude Code only |
 | Task state | Per machine, a layout document inside that machine's core; newest write wins, no merging; a space is named after its repo, a tab is a number until renamed | One Markdown file per task, hand-editable, git-synced between machines with conflict merging |
 | Grouping | Spaces (one repo on one machine) hold tabs (one task); agents sidebar sorted by priority or grouped by space; gallery mods add kanban boards and queues | Categories as folders with inherited defaults, tags, pin, Done section, machine-specific keys |
 | Worktree handling | Shipped `worktree` dialog: new, open, remove a checkout under `~/.herdr/worktrees/<repo>/<branch>`, one space per worktree; several gallery mods do the same | Claude creates the worktree per the category's `CLAUDE.md`; app records workspace and commit via tmux options |
-| Status | Core: the agent emits `OSC 7501 state=working|blocked|done|error`, nothing scraped, no agent list; TUI: foreground process plus output patterns, states `working`, `blocked`, `idle`, `done`, `unknown`; a tab's status is its most urgent agent (blocked > done > working > idle); sounds; ntfy phone push as a mod; agents inside tmux cannot report | Claude Code hooks publish tmux window options; traffic-light dots, usage-limit and API-error detection from the pane, 90 s stale-hook safety net, auto-retry on API error |
+| Status | Core: the agent emits OSC 7501 with state `working`, `blocked`, `done` or `error`, nothing scraped, no agent list; TUI: foreground process plus output patterns, states `working`, `blocked`, `idle`, `done`, `unknown`; a tab's status is its most urgent agent (blocked > done > working > idle); sounds; ntfy phone push as a mod; agents inside tmux cannot report | Claude Code hooks publish tmux window options; traffic-light dots, usage-limit and API-error detection from the pane, 90 s stale-hook safety net, auto-retry on API error |
 | Terminal | Its own GPU terminal, tabs and splits, *peek* overlay for any terminal by address (`t7`, `vps/t7`), ctrl-click a terminal address in output to open it | Live ssh mirror of the tmux window; Markdown copy of Claude's replies; clickable issue numbers; file download from the scratchpad |
 | Message queue | `hc send <terminal> "..."` and `herdr agent prompt --wait` from scripts; no queue in the UI | Per-task persistent queue, delayed send on idle, drains one per turn, attachments, Read section, fed from PR review threads |
 | Diff and review | Shipped *Changes* panel: working-tree diff per file and a commit box; gallery mods add PR-style review with line comments | Show diff through the remote's git pager (delta), RefactoringMiner AST diff and refactoring count, Open in IntelliJ |
@@ -101,6 +101,7 @@ Herdr is the closest relative so far, because it is the only one that, like Cont
 
 * Agent-agnostic status — 24 detected CLIs in the TUI, and a protocol (OSC 7501) any program can speak; our hooks and pane grep know only Claude Code.
 * Agents running agents with ownership, wait and report-back, and sub-agents shown under their parent.
+* Resume without a click: the TUI resumes 18 kinds of agent as soon as its server is back, where we wait for *Restart running tasks…* and know only Claude Code.
 * A real scripting surface: CLI, OpenRPC socket API with events, and a manual the agent reads with one call.
 * The whole UI as agent-editable files; a user asks their agent for a kanban board and gets one.
 * A worktree dialog and a working-tree diff with a commit box inside the app.
@@ -113,11 +114,17 @@ Herdr is the closest relative so far, because it is the only one that, like Cont
 * Files as state: readable, editable, git-backed, conflict-merged; Herdr's layout document is newest-write-wins per machine.
 * Review workflow: auto-filled review categories, review threads into the message queue, GitHub and GitLab state, PR-state-driven suspend and cleanup.
 * A delayed queue that sends on idle.
-* Resilience: usage-limit and API-error detection, auto `continue`, auto-suspend of idle sessions, `--resume` of every task after a host reboot (the app gives you a shell back, not the agent).
+* Resilience: usage-limit and API-error detection, auto `continue`, auto-suspend of idle sessions.
+* A resume that keeps the permission mode (`claudeAuto`); the TUI deliberately runs the bare resume command, so launch flags are lost, and the app gives you a shell back, not the agent.
 * RefactoringMiner view — semantic "what was refactored" instead of a text diff.
 * Android app with no cloud piece.
-* Plain tmux underneath: any ssh client, any phone terminal, still reaches the session; a Herdr terminal needs a Herdr client.
+* Plain tmux underneath: already on most hosts, nothing to install; Herdr needs its own binary on every machine, though `ssh -t box hc attach t7` then works from any ssh client.
 
-**Worth stealing:** OSC 7501 — make the terminal mirror recognize it, so a future Claude Code (or any agent) that emits it gets a status without hooks, and the tmux-option protocol becomes the fallback ([#53](https://github.com/contextswitcher/contextswitcher-private/issues/53)); `hc`-style sub-agent visibility (a session's helper windows listed under the task, [#54](https://github.com/contextswitcher/contextswitcher-private/issues/54)); a small CLI or MCP server with `--skill` output so a session can create sibling tasks and queue messages ([#55](https://github.com/contextswitcher/contextswitcher-private/issues/55)); a worktree dialog for "open an existing checkout as a task" ([#56](https://github.com/contextswitcher/contextswitcher-private/issues/56)).
+**Worth stealing:** OSC 7501 — make the terminal mirror recognize it, so a future Claude Code (or any agent) that emits it gets a status without hooks, and the tmux-option protocol becomes the fallback ([#53](https://github.com/contextswitcher/contextswitcher-private/issues/53)); `hc`-style sub-agent visibility (a session's helper windows listed under the task, [#54](https://github.com/contextswitcher/contextswitcher-private/issues/54)); a small CLI or MCP server with `--skill` output so a session can create sibling tasks and queue messages ([#55](https://github.com/contextswitcher/contextswitcher-private/issues/55)); a worktree dialog for "open an existing checkout as a task" ([#56](https://github.com/contextswitcher/contextswitcher-private/issues/56)); resuming without a click once a rebooted host is detected.
 
-**Worth considering** ([#57](https://github.com/contextswitcher/contextswitcher-private/issues/57)): ContextSwitcher as a herdr-core client. A task's terminal would live in `hc` instead of a tmux window; labels (`hc run --label`) replace tmux options for workspace, commit and status; the Android app would speak the OpenRPC API instead of parsing tmux. The price is a second daemon per host and losing plain-ssh reach to the session.
+**Worth considering** ([#57](https://github.com/contextswitcher/contextswitcher-private/issues/57)): herdr-core as an additional per-host backend next to tmux.
+On such a host a task's terminal would live in `hc` instead of a tmux window, and labels (`hc run --label`) would replace tmux options for workspace, commit and status.
+The Android app would speak the same commands over ssh, and `ssh box hc connect` carries the whole API, so no extra connection or relay is needed.
+After a reboot the app would still type `claude --resume` itself, since herdr-core only brings back a shell.
+The price: `hc` on every such host, a preview API (0.x), plain-text `hc read` where the phone's terminal page uses coloured `capture-pane`, and no tmux copy-mode for the mirror's scrollback.
+The biggest cost is on our side: tmux commands are spelled out in 29 source files with no seam between them, so that seam has to come first.
