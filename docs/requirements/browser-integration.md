@@ -123,6 +123,7 @@ Needs: dsn
 
 The *Browser URLs* caption offers to open a new browser window with a tab group containing all of the task's tabs.
 A window already holding such a group, with every URL in it, is only brought to the front.
+A tab in the group whose URL is no longer on the list leaves the group and stays open.
 Otherwise all the task's open tabs move to the new window in the order of the list, and the missing ones open in their places.
 
 Tags: windows, linux
@@ -483,7 +484,8 @@ Needs: impl, utest
 `dsn~browser-task-window~1`
 
 The window button on the *Browser URLs* caption of a task (`ConfigForm.urlButtons`; a category has no group and no button) sends `{"type":"task-window","id":…,"urls":[…],"group":…}` with the lines in the form and `Task.tabGroup()`, and is disabled for the round-trip.
-The extensions look for a tab group of that title whose tabs cover every URL, matched by `claimTabs` (exact hits first, then a page under the URL, one tab per entry); its window is focused and nothing else changes, so a group whose order differs from the list is left as it is.
+The extensions look for a tab group of that title whose tabs cover every URL, matched by `claimTabs` (exact hits first, then a page under the URL, one tab per entry); its window is focused, so a group whose order differs from the list is left as it is.
+Members of a group of that title that no entry claims are ungrouped first, whether the window is then raised or rebuilt, so a page under a remaining URL that has no entry of its own leaves as well; the extension keeps no record of what was removed.
 Otherwise the claimed tabs of every non-private window, unpinned first, go to a new window (`windows.create({tabId})`, `tabs.move`) with the missing URLs created at their index, all are grouped and titled, and the first is activated.
 The reply carries the tab's `title`, so `Main` raises the window as `reportFocusUrl` does.
 A browser without the tab-group API answers with a failure: without groups the property cannot be checked and every click would build another window.
