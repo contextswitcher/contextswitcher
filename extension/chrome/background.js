@@ -349,7 +349,13 @@ async function taskWindow(urls, group) {
   const tabs = (await browser.tabs.query({})).filter((tab) => tab.url && !tab.incognito);
   for (const existing of (await browser.tabGroups.query({})).filter((g) => g.title === group)) {
     const members = tabs.filter((tab) => tab.groupId === existing.id);
-    if (members.length > 0 && !claimTabs(urls, members).includes(undefined)) {
+    const kept = claimTabs(urls, members);
+    // A tab no entry claims had its link removed; it leaves the group but stays open.
+    const removed = members.filter((tab) => !kept.includes(tab)).map((tab) => tab.id);
+    if (removed.length > 0) {
+      await browser.tabs.ungroup(removed);
+    }
+    if (members.length > 0 && !kept.includes(undefined)) {
       const windowId = members[0].windowId;
       await browser.windows.update(windowId, { focused: true });
       const [active] = await browser.tabs.query({ windowId, active: true });

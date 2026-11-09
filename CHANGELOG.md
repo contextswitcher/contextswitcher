@@ -16,7 +16,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Added
 
 - The browser URL of the tab in view is highlighted in the Switch actions pane.
-- *Browser URLs* has a button that opens a new browser window with a tab group holding all the task's URLs in order, or brings that window to the front if it already exists; update the browser extension to 0.9.0 for it.
+- *Browser URLs* has a button that opens a new browser window with a tab group holding all the task's URLs in order, or brings that window to the front if it already exists; a tab whose URL left the list leaves the group but stays open. Update the browser extension to 0.9.1 for it.
 - *Browser URLs* can be re-arranged by drag and drop, and a *Sync order* button arranges them the way the tabs stand in the browser.
 
 ### Fixed
