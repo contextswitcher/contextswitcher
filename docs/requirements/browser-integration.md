@@ -103,6 +103,48 @@ Covers:
 
 Needs: dsn
 
+### A task's URLs are links to their tabs
+`req~browser-url-links~1`
+
+The *Browser URLs* of the Switch actions pane read as links: one click brings up that page's browser tab, opening it if there is none, as a click on a task's pull request icon does.
+Hovering a link shows the entry's description, else the page's title if it can be had.
+Editing stays one step away, the way a link list on the web does it: hovering a row offers *Edit* and *Delete*, and *Edit* turns the row into its text field until the focus leaves it.
+The URL whose page is the tab in view is highlighted, so the pane shows where the browser is.
+
+Tags: windows, linux
+
+Covers:
+- feat~browser-context~1
+
+Needs: dsn
+
+### A task's own browser window
+`req~browser-task-window~1`
+
+The *Browser URLs* caption offers to open a new browser window with a tab group containing all of the task's tabs.
+A window already holding such a group, with every URL in it, is only brought to the front.
+A tab in the group whose URL is no longer on the list leaves the group and stays open.
+Otherwise all the task's open tabs move to the new window in the order of the list, and the missing ones open in their places.
+
+Tags: windows, linux
+
+Covers:
+- feat~browser-context~1
+
+Needs: dsn
+
+### Arranging a task's URLs
+`req~browser-url-order~1`
+
+The *Browser URLs* can be re-arranged by dragging them, and a *Sync order* button on the caption arranges them the way their tabs stand in the browser.
+
+Tags: windows, linux
+
+Covers:
+- feat~browser-context~1
+
+Needs: dsn
+
 ### Connection is visible
 `req~extension-connection-visible~1`
 
@@ -414,6 +456,60 @@ Tags: windows, linux
 
 Covers:
 - req~browser-tab-selects-task~3
+
+Needs: impl, utest
+
+### Browser URL links
+`dsn~browser-url-links~1`
+
+`ListFieldEditor` given an `openUrl` action (only `ConfigForm`'s `browser.urls`) keeps its text field per row, which stays the value `ConfigForm` reads, and shows a `Hyperlink` of the `Task.UrlEntry.display()` text in its place.
+A click goes the way of `MainWindow.focusPr` (`dsn~pr-open-on-category-desktop~3`), with the category taken from the open file.
+The field shows while it has the focus or is blank, so the trailing add row stays a field and an emptied entry cannot vanish; the row's pencil button, or F2 on the focused link, moves the focus into it.
+Enter moves to the next field that shows, which is the add row when the rows between read as links.
+Removing a row moves the focus into the add row, since the form only saves when the focus leaves it.
+
+`Main.selectTaskForTab` hands every reported tab URL (`dsn~browser-tab-selects-task~7`, and the re-sync of `dsn~browser-teardown-quiet-tabs~1`) to `MainWindow.showBrowserTab`, down to the form, which keeps it for the forms it builds later; a lost extension connection clears it.
+A row is marked with the `:browser-tab` pseudo-class when `Task.urlMatch` — the per-URL rule behind `Task.tabUrlMatch` — calls it an exact hit or, failing any, when it is the longest URL the tab is under, so on a PR's `/files` page the PR's row wins over its repository's row.
+The link's tooltip is the entry's title, else the pull request's title the poller knows, else the title of the tab showing it (`list-tabs` carries `titles` parallel to `urls`, asked when the tooltip shows), else the address.
+Ceiling: a page with no open tab and no known pull request shows its address; nothing fetches pages from the web.
+
+Tags: windows, linux
+
+Covers:
+- req~browser-url-links~1
+
+Needs: impl, utest
+
+### Task window
+`dsn~browser-task-window~1`
+
+The window button on the *Browser URLs* caption of a task (`ConfigForm.urlButtons`; a category has no group and no button) sends `{"type":"task-window","id":…,"urls":[…],"group":…}` with the lines in the form and `Task.tabGroup()`, and is disabled for the round-trip.
+The extensions look for a tab group of that title whose tabs cover every URL, matched by `claimTabs` (exact hits first, then a page under the URL, one tab per entry); its window is focused, so a group whose order differs from the list is left as it is.
+Members of a group of that title that no entry claims are ungrouped first, whether the window is then raised or rebuilt, so a page under a remaining URL that has no entry of its own leaves as well; the extension keeps no record of what was removed.
+Otherwise the claimed tabs of every non-private window, unpinned first, go to a new window (`windows.create({tabId})`, `tabs.move`) with the missing URLs created at their index, all are grouped and titled, and the first is activated.
+The reply carries the tab's `title`, so `Main` raises the window as `reportFocusUrl` does.
+A browser without the tab-group API answers with a failure: without groups the property cannot be checked and every click would build another window.
+An extension older than 0.9.0 ignores the command, which reads as the request's timeout.
+
+Tags: windows, linux
+
+Covers:
+- req~browser-task-window~1
+
+Needs: impl, utest
+
+### Browser URL order
+`dsn~browser-url-order~1`
+
+A link drags its row (`ListFieldEditor.installDrag`) onto the place of the row it is dropped on, the add row standing for the end of the list; the form is saved at once, since a drag leaves no focus whose loss would save it.
+The *Sync order* button on the caption asks `list-tabs` and rearranges the lines by `BrowserTabs.inTabOrder`: windows in the browser's order, tabs in each by index, a line's tab being the exact one or else the first page under it.
+A line without a tab keeps its slot, the others take the remaining slots in tab order.
+The button is disabled for the round-trip, and an order that changed is saved at once.
+
+Tags: windows, linux
+
+Covers:
+- req~browser-url-order~1
 
 Needs: impl, utest
 

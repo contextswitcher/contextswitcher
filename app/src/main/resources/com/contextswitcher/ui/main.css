@@ -394,6 +394,13 @@
     -fx-background-radius: 4;
 }
 
+/* A browser URL whose page is the browser's tab in view.
+   [impl->dsn~browser-url-links~1] */
+.list-field-row:browser-tab {
+    -fx-background-color: -color-accent-muted;
+    -fx-background-radius: 4;
+}
+
 /* Editor-lane syntax colours: the decorator gives each segment one of these
    style names. [impl->dsn~markdown-syntax-highlighting~3] */
 .md-yaml-key {

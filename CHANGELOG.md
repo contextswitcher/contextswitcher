@@ -6,6 +6,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-09] - 2026-11-09
+
+### Changed
+
+- *Browser URLs* in the Switch actions pane is now a list of links: clicking one selects that page's browser tab (opening it if needed), and Edit and Delete appear when you hover over a row.
+- Hovering a browser URL shows its description, or else the page's title, instead of the field's help text.
+
+### Added
+
+- The browser URL of the tab in view is highlighted in the Switch actions pane.
+- *Browser URLs* has a button that opens a new browser window with a tab group holding all the task's URLs in order, or brings that window to the front if it already exists; a tab whose URL left the list leaves the group but stays open. Update the browser extension to 0.9.1 for it.
+- *Browser URLs* can be re-arranged by drag and drop, and a *Sync order* button arranges them the way the tabs stand in the browser.
+
+### Fixed
+
+- *Switch actions* and *Configuration* keep their scroll position when the task file changes in the background, instead of jumping to the top.
+- A URL mentioned in LaTeX (`\href{…}{…}`, `\url{…}`), between `<…>` or in backticks is now collected on its own, without the markup around it, in *Browser URLs*.
+- A task row no longer stays stuck over the top of the task list, hiding the rows beneath it, after a search, a filter or a background update changes the list while it is scrolled into a category.
+
 ## [2026-11-05] - 2026-11-05
 
 ### Changed
@@ -251,6 +270,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-09]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-05...v2026-11-09
 [2026-11-05]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-03...v2026-11-05
 [2026-11-03]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-02...v2026-11-03
 [2026-11-02]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-01...v2026-11-02

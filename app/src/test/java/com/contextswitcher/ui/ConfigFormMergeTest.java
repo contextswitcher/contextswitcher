@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// The configuration form's two pure halves: the seeds it fills its controls
 /// from, and the merge that writes the edited values back. No display needed —
 /// the robot test drives the dialog itself.
-// [utest->dsn~task-field-form~5]
+// [utest->dsn~task-field-form~6]
 class ConfigFormMergeTest {
 
     private static final String TASK = """

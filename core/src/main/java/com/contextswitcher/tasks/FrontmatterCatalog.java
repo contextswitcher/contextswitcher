@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 /// `storedTabs`) and the
 /// machine-suffixed variants (`folders-windows`) stay out of the form and are
 /// edited — untouched by it — in the raw YAML.
-// [impl->dsn~task-field-form~5]
+// [impl->dsn~task-field-form~6]
 public final class FrontmatterCatalog {
 
     /// How a field's value is rendered as a form control and read back.
@@ -76,6 +76,12 @@ public final class FrontmatterCatalog {
     /// this separator and a short human title (`Task.UrlEntry`).
     public static final String URL_TITLE_SEPARATOR = " — ";
 
+    /// What the *Browser URLs* field's caption tells, for a task and a category.
+    // [impl->dsn~browser-url-links~1]
+    private static final String BROWSER_URLS_HELP = "A link shows its page's browser tab; drag it to re-arrange, "
+            + "hover for Edit and Delete (F2 edits a focused link). An entry is a URL, optionally followed by \""
+            + URL_TITLE_SEPARATOR + "\" and a short title.";
+
     /// The keys of a task file, in form order.
     public static final List<Field> TASK = List.of(
             new Field("title", "Title", "Task", Type.STRING,
@@ -114,8 +120,7 @@ public final class FrontmatterCatalog {
                     "Project directory; empty falls back to the Claude session's workspace."),
             // [impl->dsn~browser-url-title~1]
             new Field("browser.urls", "Browser URLs", "Switch actions", Type.LIST,
-                    "One URL per line, optionally followed by \"" + URL_TITLE_SEPARATOR
-                            + "\" and a short title."),
+                    BROWSER_URLS_HELP),
             // [impl->dsn~explorer-folder-focus~3]
             new Field("folders", "Local folders", "Switch actions", Type.LIST,
                     "Folders opened in the file manager on switch; one per line."),
@@ -127,7 +132,7 @@ public final class FrontmatterCatalog {
     /// The keys the **Switch actions** pane shows, in both catalogs: what a
     /// switch to the task (or into the category) opens. The Configuration pane
     /// shows every other field.
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     public static final Set<String> SWITCH_ACTION_KEYS =
             Set.of("intellij", "intellij.projectPath", "browser.urls", "folders", "chat", "note");
 
@@ -203,8 +208,7 @@ public final class FrontmatterCatalog {
                     Type.STRING,
                     "Project directory; empty falls back to the task's Claude workspace."),
             new Field("browser.urls", "Browser URLs", "Defaults for its tasks", Type.LIST,
-                    "One URL per line, optionally followed by \"" + URL_TITLE_SEPARATOR
-                            + "\" and a short title."),
+                    BROWSER_URLS_HELP),
             new Field("folders", "Local folders", "Defaults for its tasks", Type.LIST,
                     "Folders opened in the file manager on switch; one per line."));
 

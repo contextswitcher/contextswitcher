@@ -37,7 +37,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// UI automation of the Configuration and Switch actions panes
-/// (`dsn~task-field-form~5`): the notes header's configure button brings
+/// (`dsn~task-field-form~6`): the notes header's configure button brings
 /// Configuration forward, the forms are generated from the field catalog and
 /// pre-filled from the open file, **Raw YAML** shows the same frontmatter as
 /// YAML, and leaving a pane writes back only what changed — comments included.
@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// form shows what was written, and clearing a field removes its key.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~task-field-form~5]
+// [utest->dsn~task-field-form~6]
 @Tag("ui")
 @TestFxApplication(EditorFieldFormUiTest.TestApp.class)
 class EditorFieldFormUiTest {

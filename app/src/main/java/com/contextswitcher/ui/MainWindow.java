@@ -50,6 +50,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import com.dlsc.gemsfx.infocenter.Notification;
 import com.dlsc.gemsfx.infocenter.NotificationGroup;
+import com.contextswitcher.extension.ExtensionProtocol;
 import com.contextswitcher.analysis.RefactoringSummary;
 import com.contextswitcher.config.AppSettings;
 import com.contextswitcher.config.Browser;
@@ -571,6 +572,13 @@ public class MainWindow {
     private boolean runningTasksOnly = PREFERENCES.getBoolean(FILTER_RUNNING_TASKS, false);
     private @Nullable Task previewedTask;
 
+    /// What the *Browser URLs* field asks the browser; set by `Main`.
+    private @Nullable BrowserTabs browserTabs;
+
+    public void setBrowserTabs(BrowserTabs browserTabs) {
+        this.browserTabs = browserTabs;
+    }
+
     /// Runs the *browser* switch action alone for the task handed in — the
     /// toolbar globe's click; set by `Main`, a no-op until then.
     /// [impl->dsn~extension-connection-indicator~2]
@@ -888,7 +896,7 @@ public class MainWindow {
     private @Nullable Stage stage;
 
     /// The Configuration pane, built by [#show]: the frontmatter form with its
-    /// Raw YAML view (`dsn~task-field-form~5`).
+    /// Raw YAML view (`dsn~task-field-form~6`).
     private List<ConfigFormPane> formPanes = List.of();
     /// Set while a form pane writes its fields into the buffer: the reload
     /// that follows leaves a form the user is in alone (`ConfigFormPane.reload`).
@@ -927,6 +935,10 @@ public class MainWindow {
     /// currently renders (-1: nothing pinned). [#installStickyHeader]
     private @Nullable TaskListCell stickyCell;
     private int stickyIndex = -1;
+    /// [#stickyIndex] when the pinned cell must be repainted whatever the next
+    /// index is. Not -1: that is a real state, and a repaint which finds nothing
+    /// to pin still has to hide the cell.
+    private static final int STICKY_REPAINT = -2;
     /// Task id to select after the next [#rebuildRows] (which clears the
     /// ListView selection): the neighbour of a just-deleted task, or a task
     /// just created via "Add task…".
@@ -1336,7 +1348,7 @@ public class MainWindow {
         // [impl->dsn~shell-layout~2]
         // Two panes over one catalog: the switch actions apart, the rest in
         // Configuration. They share the one raw editor.
-        // [impl->dsn~task-field-form~5]
+        // [impl->dsn~task-field-form~6]
         ConfigFormPane switchActions = formPane("switch-actions", FrontmatterCatalog::isSwitchAction);
         ConfigFormPane pane = formPane("config", field -> !FrontmatterCatalog.isSwitchAction(field));
         selectOnClick.accept(switchActions.getRoot());
@@ -1602,7 +1614,7 @@ public class MainWindow {
             list.refresh();
         }
         // The pinned header is no cell of the list, so refresh() skips it.
-        stickyIndex = -1;
+        stickyIndex = STICKY_REPAINT;
         updateStickyHeader();
     }
 
@@ -2095,7 +2107,7 @@ public class MainWindow {
             MenuItem copyLink = new MenuItem("Copy link");
             copyLink.setOnAction(event -> copyTaskUrl(pr));
             // The list grows on its own — every URL Claude mentions is filed
-            // (`dsn~task-url-collect~1`) — so each line carries its own way
+            // (`dsn~task-url-collect~2`) — so each line carries its own way
             // out: a trash icon that appears while the mouse is on the line,
             // like the task rows' hover actions, plus the same action in the
             // right-click menu for the keyboard/menu path. A copy icon sits
@@ -2338,9 +2350,20 @@ public class MainWindow {
     // [impl->dsn~task-link-icons~2]
     // [impl->dsn~pr-open-on-category-desktop~3]
     private void focusPr(Task task, Task.UrlEntry pr) {
-        statusBar.message("Opening " + pr.display() + " …");
-        String group = groupOf(task.id());
-        onFocusUrlInBrowser.accept(pr.url(), group.isEmpty() ? null : groupDesktop(group));
+        openInBrowser(pr, groupOf(task.id()));
+    }
+
+    /// Shows `entry`'s page in the browser, on the virtual desktop of `group`.
+    private void openInBrowser(Task.UrlEntry entry, String group) {
+        statusBar.message("Opening " + entry.display() + " …");
+        onFocusUrlInBrowser.accept(entry.url(), group.isEmpty() ? null : groupDesktop(group));
+    }
+
+    /// Highlights the browser URL of the tab in view (null: none known) in the
+    /// open file's forms.
+    // [impl->dsn~browser-url-links~1]
+    public void showBrowserTab(@Nullable String tabUrl) {
+        formPanes.forEach(pane -> pane.showBrowserTab(tabUrl));
     }
 
     /// Merges the poller's latest snapshot into the PR-state map, keeping the
@@ -3673,7 +3696,7 @@ public class MainWindow {
         String fileName = uniqueFileName(TaskFileParser.newTaskFileName(base));
         GroupConfig defaults = groupDefaults(group);
         // Any URL inside the description also becomes a browser tab.
-        // [impl->dsn~task-url-collect~1]
+        // [impl->dsn~task-url-collect~2]
         String created = TaskFileParser.newTaskContent(title, defaults.remote(), defaults.resolveWorkdir());
         if (notes != null) {
             created = created.stripTrailing() + "\n\n" + notes.strip() + "\n";
@@ -4969,7 +4992,7 @@ public class MainWindow {
     /// desktops as last read, those the categories name, the active one and
     /// the fallback — for the configuration form to suggest, sorted ignoring
     /// case.
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     private List<String> knownDesktops() {
         Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         SortedSet<String> existing = existingDesktops;
@@ -5409,8 +5432,11 @@ public class MainWindow {
         list.heightProperty().addListener((obs, old, height) -> updateStickyHeader());
         // A rebuild can leave the pinned index pointing at different content
         // (renamed group, changed tags), so re-render even when it is unchanged.
+        // The cell re-renders itself as soon as the list changes, and shows
+        // whichever row now has its index, so a rebuild with no header left to
+        // pin must reach the setVisible below.
         visibleRows.addListener((ListChangeListener<Object>) change -> {
-            stickyIndex = -1;
+            stickyIndex = STICKY_REPAINT;
             Platform.runLater(this::updateStickyHeader);
         });
         return stack;
@@ -6103,7 +6129,7 @@ public class MainWindow {
         // The raw YAML shows in one form pane; the other one's form is rebuilt
         // from what was typed there once the focus has settled (a form the
         // focus went into is left alone).
-        // [impl->dsn~task-field-form~5]
+        // [impl->dsn~task-field-form~6]
         configEditor.focusedProperty().addListener((obs, was, focused) -> {
             if (!focused) {
                 Platform.runLater(() -> formPanes.forEach(pane -> pane.reload(false)));
@@ -6217,7 +6243,7 @@ public class MainWindow {
 
     /// A configuration form pane holding the catalog fields `shows` picks; it
     /// writes into the editor buffer and saves.
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     private ConfigFormPane formPane(String id, Predicate<FrontmatterCatalog.Field> shows) {
         ConfigFormPane pane = new ConfigFormPane(id, shows, configEditor, this::editorText,
                 updated -> {
@@ -6233,15 +6259,94 @@ public class MainWindow {
                     String name = editedFileName;
                     return name != null && isGroupConfig(name);
                 },
+                () -> editedFileName,
                 // [impl->dsn~host-table~1]
-                configuredRemotes, this::knownDesktops, this::refreshKnownDesktops);
+                configuredRemotes, this::knownDesktops, this::refreshKnownDesktops,
+                browserUrlActions());
         return pane;
+    }
+
+    /// What the *Browser URLs* of the open file do.
+    // [impl->dsn~browser-url-links~1]
+    private BrowserUrlActions browserUrlActions() {
+        return new BrowserUrlActions() {
+            @Override
+            public void open(String line) {
+                String name = editedFileName;
+                openInBrowser(ConfigForm.urlEntry(line), name == null ? "" : groupOf(name));
+            }
+
+            @Override
+            public void pageTitle(String url, Consumer<String> answer) {
+                PrInfo info = prInfoByUrl.get(url);
+                BrowserTabs tabs = browserTabs;
+                if (info != null && !info.title().isBlank()) {
+                    answer.accept(info.title());
+                } else if (tabs != null) {
+                    tabs.list(result -> {
+                        List<ExtensionProtocol.TabWindow> windows = result.windows();
+                        if (windows != null) {
+                            BrowserTabs.titleOf(url, windows).ifPresent(answer);
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public boolean hasTabGroup() {
+                String name = editedFileName;
+                return name != null && !isGroupConfig(name);
+            }
+
+            // [impl->dsn~browser-task-window~1]
+            @Override
+            public void openWindow(List<String> lines, Runnable done) {
+                Task task = previewedTask;
+                BrowserTabs tabs = browserTabs;
+                if (task == null || tabs == null || lines.isEmpty()) {
+                    statusBar.message(lines.isEmpty() ? "This task lists no browser URLs." : "No task to open a window for.");
+                    done.run();
+                    return;
+                }
+                statusBar.message("Opening the browser window of this task …");
+                tabs.openTaskWindow(lines.stream().map(line -> ConfigForm.urlEntry(line).url()).toList(),
+                        task.tabGroup(), result -> {
+                            statusBar.message(result.ok()
+                                    ? "Browser window: " + result.detail()
+                                    : "Cannot open the browser window: " + result.detail());
+                            done.run();
+                        });
+            }
+
+            // [impl->dsn~browser-url-order~1]
+            @Override
+            public void inTabOrder(List<String> lines, Consumer<List<String>> answer) {
+                BrowserTabs tabs = browserTabs;
+                if (tabs == null) {
+                    answer.accept(lines);
+                    return;
+                }
+                tabs.list(result -> {
+                    List<ExtensionProtocol.TabWindow> windows = result.windows();
+                    if (!result.ok() || windows == null) {
+                        statusBar.message("Cannot read the browser's tab order: " + result.detail());
+                        answer.accept(lines);
+                        return;
+                    }
+                    List<String> ordered = BrowserTabs.inTabOrder(lines, windows);
+                    statusBar.message(ordered.equals(lines)
+                            ? "The list already follows the browser's tab order."
+                            : "The list now follows the browser's tab order.");
+                    answer.accept(ordered);
+                });
+            }
+        };
     }
 
     /// The notes header's configure button: puts the Configuration pane — the
     /// open file's frontmatter as a generated key/value form ([ConfigFormPane]),
     /// raw YAML its fallback — in front, reopening it if it was closed.
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     private void showConfigForm() {
         showConfigurationPane();
     }
@@ -6514,6 +6619,10 @@ public class MainWindow {
     /// — a play narrowed to the browser section. FX thread.
     // [impl->dsn~extension-connection-indicator~2]
     public void showBrowserExtension(@Nullable Browser connected) {
+        if (connected == null) {
+            // Nothing reports tabs any more, so none is known to be in view.
+            showBrowserTab(null);
+        }
         Button status = browserStatus;
         if (status == null) {
             return;
@@ -6959,7 +7068,7 @@ public class MainWindow {
 
     /// Installs the one-shot read of this machine's named desktops (null when
     /// it fails) behind the configuration form's desktop refresh button.
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     public void setDesktopNamesReader(Supplier<CompletableFuture<@Nullable SortedSet<String>>> reader) {
         this.desktopNamesReader = reader;
     }
@@ -6967,7 +7076,7 @@ public class MainWindow {
     /// The desktop refresh button's round-trip: reads the named desktops,
     /// records them as [#updateExistingDesktops] would, and completes on the
     /// FX thread with the refreshed [#knownDesktops].
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     private CompletableFuture<List<String>> refreshKnownDesktops() {
         statusBar().message("Reading the virtual desktops …");
         return desktopNamesReader.get()

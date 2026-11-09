@@ -486,7 +486,7 @@ public class WindowsVirtualDesktopFocus {
     /// Reads the named desktops once — the configuration form's refresh, which
     /// must work without the watcher too. Null when the read fails (off
     /// Windows, no `powershell`).
-    // [impl->dsn~task-field-form~5]
+    // [impl->dsn~task-field-form~6]
     public @Nullable SortedSet<String> names() {
         String encoded = Base64.getEncoder().encodeToString(
                 namesScript().getBytes(StandardCharsets.UTF_16LE));

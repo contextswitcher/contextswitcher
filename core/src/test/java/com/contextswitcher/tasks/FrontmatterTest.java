@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// The frontmatter key patching behind the configuration form: values are read
 /// by key path, writes touch only the edited key's block, and the Markdown body
 /// is never involved.
-// [utest->dsn~task-field-form~5]
+// [utest->dsn~task-field-form~6]
 class FrontmatterTest {
 
     private static final String TASK = """

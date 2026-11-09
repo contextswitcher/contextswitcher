@@ -17,12 +17,12 @@ import javafx.stage.Screen;
 
 /// The shared look of the app's generated option forms — the settings dialog
 /// (`dsn~settings-editor~4`) and the task/category configuration form
-/// (`dsn~task-field-form~5`), which are the same form over two different
+/// (`dsn~task-field-form~6`), which are the same form over two different
 /// catalogs: a bold section header, then one row per option with its label on
 /// the line above a full-width control, highlighting on hover and carrying the
 /// option's help as its tooltip.
 // [impl->dsn~settings-editor~4]
-// [impl->dsn~task-field-form~5]
+// [impl->dsn~task-field-form~6]
 final class FieldForm {
 
     private FieldForm() {
@@ -93,6 +93,17 @@ final class FieldForm {
         Tooltip.install(row, new Tooltip(help));
         // Hover highlight — a subtle inset (`.field-row:hover`, main.css).
         row.getStyleClass().add("field-row");
+        return row;
+    }
+
+    /// A [#row] with buttons next to its caption, for actions on the field as a
+    /// whole. Not for a checkbox, which has no caption line.
+    static Node rowWithCaptionActions(String label, String help, Region control, Node... actions) {
+        VBox row = (VBox) row(label, help, control);
+        HBox captionLine = new HBox(6, row.getChildren().removeFirst());
+        captionLine.getChildren().addAll(actions);
+        captionLine.setAlignment(Pos.CENTER_LEFT);
+        row.getChildren().addFirst(captionLine);
         return row;
     }
 

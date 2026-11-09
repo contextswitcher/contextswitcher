@@ -25,7 +25,7 @@ import com.contextswitcher.config.YamlPatch;
 /// Machine-suffixed keys (`folders-windows`, `workspacesRoot-mylaptop`) are
 /// deliberately *not* resolved here: the form edits the plain key, and the
 /// suffixed variants stay where they are, editable in the raw YAML.
-// [impl->dsn~task-field-form~5]
+// [impl->dsn~task-field-form~6]
 public final class Frontmatter {
 
     private static final String FENCE = "---";

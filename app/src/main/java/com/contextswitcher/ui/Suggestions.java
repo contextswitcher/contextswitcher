@@ -14,8 +14,8 @@ import javafx.scene.input.KeyCode;
 /// Type-ahead for a free-text field: while the user types, a popup under the
 /// field lists the known values that match; picking one fills the field. Any
 /// other value can still be typed — the list only suggests. The configuration
-/// form's *Virtual desktop* field uses it (`dsn~task-field-form~5`).
-// [impl->dsn~task-field-form~5]
+/// form's *Virtual desktop* field uses it (`dsn~task-field-form~6`).
+// [impl->dsn~task-field-form~6]
 final class Suggestions {
 
     /// More than this many entries stops being a suggestion and becomes a list

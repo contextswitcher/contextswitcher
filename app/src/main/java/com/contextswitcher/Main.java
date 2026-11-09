@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -772,7 +773,7 @@ public class Main extends Application {
                 },
                 // Any URL in a queued message also becomes a browser tab —
                 // the same textual rewrite the task-creation dialogs use.
-                // [impl->dsn~task-url-collect~1]
+                // [impl->dsn~task-url-collect~2]
                 (task, text) -> rewriteTaskFile(files, task,
                         content -> TaskFileParser.addUrlsFrom(content, text)),
                 actionExecutor,
@@ -912,6 +913,29 @@ public class Main extends Application {
         // A resume the browser triggered: everything but the browser action.
         // [impl->dsn~browser-tab-selects-task~7]
         window.setOnTabResume(task -> switchToExceptBrowser(orchestrator, files, task));
+        window.setBrowserTabs(new com.contextswitcher.ui.BrowserTabs() {
+            @Override
+            public void list(Consumer<ExtensionProtocol.Result> answer) {
+                actionExecutor.execute(() -> {
+                    ExtensionProtocol.Result result = extensionServer.listTabs();
+                    Platform.runLater(() -> answer.accept(result));
+                });
+            }
+
+            // [impl->dsn~browser-task-window~1]
+            @Override
+            public void openTaskWindow(List<String> urls, String group, Consumer<ExtensionProtocol.Result> answer) {
+                actionExecutor.execute(() -> {
+                    ExtensionProtocol.Result result = extensionServer.taskWindow(urls, group);
+                    // As reportFocusUrl: past the OS foreground lock, by title.
+                    String title = result.title();
+                    if (result.ok() && title != null && !title.isBlank()) {
+                        new BrowserWindowFocus(new LocalCommandRunner(), drivenBrowser()).focus(title);
+                    }
+                    Platform.runLater(() -> answer.accept(result));
+                });
+            }
+        });
         // The globe's right-click: the chosen browser drives while connected
         // and is the one launched while not; saved as `browser`, so it lasts.
         // [impl->dsn~prefer-chosen-browser~1]
@@ -935,7 +959,7 @@ public class Main extends Application {
         // [impl->dsn~start-claude-button~2]
         // [impl->dsn~setup-wizard~12]
         window.setOnSetupWizard(this::rerunSetupWizard);
-        // [impl->dsn~task-field-form~5]
+        // [impl->dsn~task-field-form~6]
         window.setDesktopNamesReader(() -> {
             ExecutorService executor = this.actionExecutor;
             return executor == null
@@ -2479,6 +2503,8 @@ public class Main extends Application {
         if (window == null) {
             return;
         }
+        // [impl->dsn~browser-url-links~1]
+        window.showBrowserTab(url);
         java.util.List<Task> matches = repository.entries().stream()
                 .filter(TaskEntry.Loaded.class::isInstance)
                 .map(entry -> ((TaskEntry.Loaded) entry).task())
@@ -3710,7 +3736,7 @@ public class Main extends Application {
         String content = ClaudeWindowLauncher.liveTaskContent(title, remote, workdir, appendix)
                 + (hints ? "\nCreated on %s.\n".formatted(LocalDate.now()) : "");
         // Any URL inside the description also becomes a browser tab.
-        // [impl->dsn~task-url-collect~1]
+        // [impl->dsn~task-url-collect~2]
         String withPrs = TaskFileParser.addUrlsFrom(content, title);
         // Dated like the per-task worktrees; the description slug is
         // only a placeholder until the adopted title renames the file.
