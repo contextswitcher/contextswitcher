@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -912,6 +913,29 @@ public class Main extends Application {
         // A resume the browser triggered: everything but the browser action.
         // [impl->dsn~browser-tab-selects-task~7]
         window.setOnTabResume(task -> switchToExceptBrowser(orchestrator, files, task));
+        window.setBrowserTabs(new com.contextswitcher.ui.BrowserTabs() {
+            @Override
+            public void list(Consumer<ExtensionProtocol.Result> answer) {
+                actionExecutor.execute(() -> {
+                    ExtensionProtocol.Result result = extensionServer.listTabs();
+                    Platform.runLater(() -> answer.accept(result));
+                });
+            }
+
+            // [impl->dsn~browser-task-window~1]
+            @Override
+            public void openTaskWindow(List<String> urls, String group, Consumer<ExtensionProtocol.Result> answer) {
+                actionExecutor.execute(() -> {
+                    ExtensionProtocol.Result result = extensionServer.taskWindow(urls, group);
+                    // As reportFocusUrl: past the OS foreground lock, by title.
+                    String title = result.title();
+                    if (result.ok() && title != null && !title.isBlank()) {
+                        new BrowserWindowFocus(new LocalCommandRunner(), drivenBrowser()).focus(title);
+                    }
+                    Platform.runLater(() -> answer.accept(result));
+                });
+            }
+        });
         // The globe's right-click: the chosen browser drives while connected
         // and is the one launched while not; saved as `browser`, so it lasts.
         // [impl->dsn~prefer-chosen-browser~1]

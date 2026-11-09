@@ -50,6 +50,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import com.dlsc.gemsfx.infocenter.Notification;
 import com.dlsc.gemsfx.infocenter.NotificationGroup;
+import com.contextswitcher.extension.ExtensionProtocol;
 import com.contextswitcher.analysis.RefactoringSummary;
 import com.contextswitcher.config.AppSettings;
 import com.contextswitcher.config.Browser;
@@ -570,6 +571,13 @@ public class MainWindow {
     // [impl->dsn~filter-persistence~1]
     private boolean runningTasksOnly = PREFERENCES.getBoolean(FILTER_RUNNING_TASKS, false);
     private @Nullable Task previewedTask;
+
+    /// What the *Browser URLs* field asks the browser; set by `Main`.
+    private @Nullable BrowserTabs browserTabs;
+
+    public void setBrowserTabs(BrowserTabs browserTabs) {
+        this.browserTabs = browserTabs;
+    }
 
     /// Runs the *browser* switch action alone for the task handed in — the
     /// toolbar globe's click; set by `Main`, a no-op until then.
@@ -6253,12 +6261,85 @@ public class MainWindow {
                 },
                 // [impl->dsn~host-table~1]
                 configuredRemotes, this::knownDesktops, this::refreshKnownDesktops,
-                // [impl->dsn~browser-url-links~1]
-                line -> {
-                    String name = editedFileName;
-                    openInBrowser(ConfigForm.urlEntry(line), name == null ? "" : groupOf(name));
-                });
+                browserUrlActions());
         return pane;
+    }
+
+    /// What the *Browser URLs* of the open file do.
+    // [impl->dsn~browser-url-links~1]
+    private BrowserUrlActions browserUrlActions() {
+        return new BrowserUrlActions() {
+            @Override
+            public void open(String line) {
+                String name = editedFileName;
+                openInBrowser(ConfigForm.urlEntry(line), name == null ? "" : groupOf(name));
+            }
+
+            @Override
+            public void pageTitle(String url, Consumer<String> answer) {
+                PrInfo info = prInfoByUrl.get(url);
+                BrowserTabs tabs = browserTabs;
+                if (info != null && !info.title().isBlank()) {
+                    answer.accept(info.title());
+                } else if (tabs != null) {
+                    tabs.list(result -> {
+                        List<ExtensionProtocol.TabWindow> windows = result.windows();
+                        if (windows != null) {
+                            BrowserTabs.titleOf(url, windows).ifPresent(answer);
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public boolean hasTabGroup() {
+                String name = editedFileName;
+                return name != null && !isGroupConfig(name);
+            }
+
+            // [impl->dsn~browser-task-window~1]
+            @Override
+            public void openWindow(List<String> lines, Runnable done) {
+                Task task = previewedTask;
+                BrowserTabs tabs = browserTabs;
+                if (task == null || tabs == null || lines.isEmpty()) {
+                    statusBar.message(lines.isEmpty() ? "This task lists no browser URLs." : "No task to open a window for.");
+                    done.run();
+                    return;
+                }
+                statusBar.message("Opening the browser window of this task …");
+                tabs.openTaskWindow(lines.stream().map(line -> ConfigForm.urlEntry(line).url()).toList(),
+                        task.tabGroup(), result -> {
+                            statusBar.message(result.ok()
+                                    ? "Browser window: " + result.detail()
+                                    : "Cannot open the browser window: " + result.detail());
+                            done.run();
+                        });
+            }
+
+            // [impl->dsn~browser-url-order~1]
+            @Override
+            public void inTabOrder(List<String> lines, Consumer<List<String>> answer) {
+                BrowserTabs tabs = browserTabs;
+                if (tabs == null) {
+                    answer.accept(lines);
+                    return;
+                }
+                tabs.list(result -> {
+                    List<ExtensionProtocol.TabWindow> windows = result.windows();
+                    if (!result.ok() || windows == null) {
+                        statusBar.message("Cannot read the browser's tab order: " + result.detail());
+                        answer.accept(lines);
+                        return;
+                    }
+                    List<String> ordered = BrowserTabs.inTabOrder(lines, windows);
+                    statusBar.message(ordered.equals(lines)
+                            ? "The list already follows the browser's tab order."
+                            : "The list now follows the browser's tab order.");
+                    answer.accept(ordered);
+                });
+            }
+        };
     }
 
     /// The notes header's configure button: puts the Configuration pane — the

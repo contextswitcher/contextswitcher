@@ -1,7 +1,6 @@
 package com.contextswitcher.ui;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 import atlantafx.base.theme.Styles;
 
@@ -18,7 +17,10 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -37,26 +39,33 @@ import tools.maran.svgnode.SvgNode;
 /// The fields carry the editor's id with the row index appended
 /// (`field-folders-0`, …), so a UI test can address a single entry.
 ///
-/// With an `openUrl` action the entries are URLs (`dsn~browser-url-links~1`): a
-/// row reads as a link that shows the page in the browser, its text field only
-/// appears for adding an entry or through the row's edit button.
+/// With [BrowserUrlActions] the entries are URLs (`dsn~browser-url-links~1`): a
+/// row reads as a link that shows the page in the browser and drags to another
+/// place, its text field only appears for adding an entry or through the row's
+/// edit button.
 // [impl->dsn~task-field-form~5]
 final class ListFieldEditor extends VBox {
 
     /// A row showing the page of the browser's tab in view (`main.css`).
     private static final PseudoClass BROWSER_TAB = PseudoClass.getPseudoClass("browser-tab");
 
-    private final @Nullable Consumer<String> openUrl;
+    /// A row a dragged link is over (`main.css`).
+    private static final PseudoClass DROP_TARGET = PseudoClass.getPseudoClass("drop-target");
+
+    private final @Nullable BrowserUrlActions actions;
     /// The browser's tab in view, re-matched when an entry is edited.
     private @Nullable String browserTab;
+    /// The row being dragged, so a drag from anywhere else is not accepted.
+    private @Nullable HBox dragged;
+    private Runnable onReordered = () -> { };
 
     ListFieldEditor(List<String> entries) {
         this(entries, null);
     }
 
-    ListFieldEditor(List<String> entries, @Nullable Consumer<String> openUrl) {
+    ListFieldEditor(List<String> entries, @Nullable BrowserUrlActions actions) {
         super(2);
-        this.openUrl = openUrl;
+        this.actions = actions;
         for (String entry : entries) {
             addRow(entry);
         }
@@ -67,6 +76,21 @@ final class ListFieldEditor extends VBox {
     /// The entries in order, blank ones included — the form drops those.
     List<String> values() {
         return getChildren().stream().map(row -> field(row).getText()).toList();
+    }
+
+    /// Told when the entries changed their order, which leaves no focus to
+    /// lose: the form cannot wait for that to save.
+    void setOnReordered(Runnable onReordered) {
+        this.onReordered = onReordered;
+    }
+
+    /// Replaces the entries.
+    // [impl->dsn~browser-url-order~1]
+    void setValues(List<String> entries) {
+        getChildren().clear();
+        entries.forEach(this::addRow);
+        addRow("");
+        highlight(browserTab);
     }
 
     /// Highlights the entry the browser's tab shows: an exact hit, else the
@@ -110,8 +134,8 @@ final class ListFieldEditor extends VBox {
                 () -> row.isHover() && !(isLast(row) && field.getText().isEmpty()),
                 row.hoverProperty(), field.textProperty(), getChildren()));
         delete.setOnAction(event -> remove(row));
-        if (openUrl != null) {
-            addLink(row, field, openUrl);
+        if (actions != null) {
+            addLink(row, field, actions);
         }
         field.textProperty().addListener((obs, old, now) -> {
             if (isLast(row) && !now.isEmpty()) {
@@ -135,7 +159,7 @@ final class ListFieldEditor extends VBox {
     /// both on hover like the web's link lists. The field takes the link's
     /// place while it has the focus, and while it has nothing to link to.
     // [impl->dsn~browser-url-links~1]
-    private void addLink(HBox row, TextField field, Consumer<String> open) {
+    private void addLink(HBox row, TextField field, BrowserUrlActions urls) {
         BooleanProperty editing = new SimpleBooleanProperty();
         BooleanBinding showField = editing.or(Bindings.createBooleanBinding(
                 () -> field.getText().isBlank(), field.textProperty()));
@@ -155,12 +179,10 @@ final class ListFieldEditor extends VBox {
         link.textProperty().bind(field.textProperty().map(line -> ConfigForm.urlEntry(line).display()));
         link.visibleProperty().bind(showField.not());
         link.managedProperty().bind(showField.not());
-        Tooltip hint = new Tooltip();
-        hint.textProperty().bind(field.textProperty().map(line -> ConfigForm.urlEntry(line).url()
-                + "\nClick shows it in the browser, F2 edits this entry"));
-        link.setTooltip(hint);
+        link.setTooltip(pageHint(field, urls));
+        installDrag(row, link, field);
         link.setOnAction(event -> {
-            open.accept(field.getText());
+            urls.open(field.getText());
             // Keeps the link's colour: it is a jump to a tab, not a visited page.
             link.setVisited(false);
         });
@@ -179,6 +201,65 @@ final class ListFieldEditor extends VBox {
         editButton.visibleProperty().bind(row.hoverProperty().and(showField.not()));
         editButton.setOnAction(event -> edit.run());
         row.getChildren().add(2, editButton);
+    }
+
+    /// The link's tooltip: the entry's own description, else the page's title
+    /// once that is known, else the address.
+    private static Tooltip pageHint(TextField field, BrowserUrlActions urls) {
+        Tooltip hint = new Tooltip();
+        hint.setOnShowing(event -> {
+            Task.UrlEntry entry = ConfigForm.urlEntry(field.getText());
+            String title = entry.title();
+            if (title != null && !title.isBlank()) {
+                hint.setText(title);
+            } else {
+                hint.setText(entry.url());
+                urls.pageTitle(entry.url(), hint::setText);
+            }
+        });
+        return hint;
+    }
+
+    /// Drags the row by its link, onto the place of the row it is dropped on;
+    /// the add row stands for the end of the list.
+    // [impl->dsn~browser-url-order~1]
+    private void installDrag(HBox row, Hyperlink link, TextField field) {
+        link.setOnDragDetected(event -> {
+            Dragboard dragboard = link.startDragAndDrop(TransferMode.MOVE);
+            ClipboardContent content = new ClipboardContent();
+            content.putString(field.getText());
+            dragboard.setContent(content);
+            dragboard.setDragView(link.snapshot(null, null));
+            dragged = row;
+            event.consume();
+        });
+        link.setOnDragDone(event -> dragged = null);
+        row.setOnDragOver(event -> {
+            if (dragged != null && dragged != row) {
+                event.acceptTransferModes(TransferMode.MOVE);
+                event.consume();
+            }
+        });
+        row.setOnDragEntered(event -> row.pseudoClassStateChanged(DROP_TARGET, dragged != null && dragged != row));
+        row.setOnDragExited(event -> row.pseudoClassStateChanged(DROP_TARGET, false));
+        row.setOnDragDropped(event -> {
+            HBox source = dragged;
+            if (source != null) {
+                move(source, row);
+                event.setDropCompleted(true);
+                event.consume();
+            }
+        });
+    }
+
+    /// Puts `source` in the place of `target`; package-private for the test,
+    /// as the headless platform runs no drag gesture.
+    void move(HBox source, HBox target) {
+        int place = Math.min(getChildren().indexOf(target), getChildren().size() - 2);
+        getChildren().remove(source);
+        getChildren().add(place, source);
+        renumber();
+        onReordered.run();
     }
 
     private void remove(HBox row) {

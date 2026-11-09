@@ -222,6 +222,9 @@ async function handleCommand(message) {
   if (message.type === "list-tabs") {
     return resultOf(message.id, listTabs);
   }
+  if (message.type === "task-window") {
+    return resultOf(message.id, () => taskWindow(message.urls, message.group));
+  }
   if (message.type === "active-tab") {
     return resultOf(message.id, activeTab);
   }
@@ -315,6 +318,73 @@ async function groupTab(tabId, name) {
     // Grouping is cosmetic: never fail the focus over it.
     console.warn("ContextSwitcher: could not group tab", e);
   }
+}
+
+// One tab per URL, undefined where none shows it: exact hits first, so that a
+// page under another listed URL is not taken by that one (what focusUrl looks
+// for, but a tab serves only one entry here).
+function claimTabs(urls, tabs) {
+  const claimed = urls.map((url) => tabs.find((tab) => tab.url === url));
+  return claimed.map((tab, i) => {
+    if (tab) {
+      return tab;
+    }
+    const under = tabs.find((t) => isSameOrSubUrl(t.url, urls[i]) && !claimed.includes(t));
+    claimed[i] = under;
+    return under;
+  });
+}
+
+// The task's own window: a window whose tab group `group` holds every URL is
+// only brought to the front; otherwise all the task's open tabs move, in list
+// order, to a new window, the missing ones open between them, and the lot
+// becomes the group. Tab groups are what the property is made of, so a browser
+// without them says so rather than building a new window on every click.
+// [impl->dsn~browser-task-window~1]
+async function taskWindow(urls, group) {
+  if (!browser.tabs.group || !browser.tabGroups) {
+    return { ok: false, detail: "this browser has no tab groups (Firefox 139 or later)" };
+  }
+  // A private window's tab cannot leave it.
+  const tabs = (await browser.tabs.query({})).filter((tab) => tab.url && !tab.incognito);
+  for (const existing of (await browser.tabGroups.query({})).filter((g) => g.title === group)) {
+    const members = tabs.filter((tab) => tab.groupId === existing.id);
+    if (members.length > 0 && !claimTabs(urls, members).includes(undefined)) {
+      const windowId = members[0].windowId;
+      await browser.windows.update(windowId, { focused: true });
+      const [active] = await browser.tabs.query({ windowId, active: true });
+      return { ok: true, detail: "already open, brought to the front", title: active && active.title };
+    }
+  }
+  const claimed = claimTabs(urls, tabs);
+  for (const tab of claimed) {
+    if (tab && tab.pinned) {
+      await browser.tabs.update(tab.id, { pinned: false }); // a pinned tab joins no group
+    }
+  }
+  const first = claimed[0];
+  const created = await browser.windows.create(first ? { tabId: first.id } : { url: urls[0] });
+  const ids = [first ? first.id : created.tabs[0].id];
+  for (let i = 1; i < urls.length; i++) {
+    if (claimed[i]) {
+      await browser.tabs.move(claimed[i].id, { windowId: created.id, index: i });
+      ids.push(claimed[i].id);
+    } else {
+      const tab = await browser.tabs.create({ windowId: created.id, url: urls[i], index: i, active: false });
+      ids.push(tab.id);
+    }
+  }
+  const groupId = await browser.tabs.group({ tabIds: ids });
+  await browser.tabGroups.update(groupId, { title: group });
+  await browser.tabs.update(ids[0], { active: true });
+  await browser.windows.update(created.id, { focused: true });
+  const moved = claimed.filter(Boolean).length;
+  return {
+    ok: true,
+    detail: `${moved} moved, ${urls.length - moved} opened`,
+    // Bounded well under the app's 5 s for the whole request.
+    title: await waitForTabTitle(ids[0], 1500),
+  };
 }
 
 async function focusUrl(url, openIfMissing, windowTitleWanted, group, background) {
@@ -440,6 +510,7 @@ async function listTabs() {
       id: w.id,
       title: windowTitle(w),
       urls: (w.tabs || []).map((tab) => tab.url || ""),
+      titles: (w.tabs || []).map((tab) => tab.title || ""),
     }));
   return { ok: true, detail: `${windows.length} window(s)`, windows };
 }

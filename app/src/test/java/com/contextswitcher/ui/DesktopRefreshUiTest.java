@@ -46,7 +46,7 @@ class DesktopRefreshUiTest {
                     pinned: false
                     ---
                     """, List.of(), List.of("misc"),
-                    () -> CompletableFuture.completedFuture(List.of("misc", "Fresh desk")), url -> { });
+                    () -> CompletableFuture.completedFuture(List.of("misc", "Fresh desk")), null, () -> { });
             stage.setScene(new Scene(new ScrollPane(form.render()), 600, 700));
             stage.show();
         }

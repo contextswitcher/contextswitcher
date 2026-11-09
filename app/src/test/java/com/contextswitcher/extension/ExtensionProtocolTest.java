@@ -161,6 +161,17 @@ class ExtensionProtocolTest {
                                 new ExtensionProtocol.TabWindow(2, "Docs", java.util.List.of()))));
     }
 
+    // [utest->dsn~browser-task-window~1]
+    @Test
+    void taskWindowCarriesUrlsInOrderAndGroup() throws Exception {
+        var node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(
+                ExtensionProtocol.encodeTaskWindow("i", java.util.List.of("https://b", "https://a"), "#3"));
+        assertThat(node.path("type").asText()).isEqualTo("task-window");
+        assertThat(node.path("urls").get(0).asText()).isEqualTo("https://b");
+        assertThat(node.path("urls").get(1).asText()).isEqualTo("https://a");
+        assertThat(node.path("group").asText()).isEqualTo("#3");
+    }
+
     @Test
     void resultWithoutDetailParsesWithEmptyDetail() {
         assertThat(ExtensionProtocol.parse("{\"type\":\"result\",\"id\":\"abc-1\",\"ok\":false}"))

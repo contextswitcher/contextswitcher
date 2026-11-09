@@ -211,6 +211,14 @@ public class ExtensionServer extends WebSocketServer implements TabCommands {
         return request(id, ExtensionProtocol.encodeCloseWindow(id, windowId));
     }
 
+    /// Brings up the window holding the tab group `group` with all of `urls`,
+    /// building it when there is none.
+    // [impl->dsn~browser-task-window~1]
+    public ExtensionProtocol.Result taskWindow(List<String> urls, String group) {
+        String id = UUID.randomUUID().toString();
+        return request(id, ExtensionProtocol.encodeTaskWindow(id, urls, group));
+    }
+
     /// The URL of the tab in view (`detail`, empty when there is none) — the
     /// re-sync after a teardown dropped the tab reports its closes caused.
     // [impl->dsn~browser-teardown-quiet-tabs~1]

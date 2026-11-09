@@ -57,11 +57,17 @@ public final class ExtensionProtocol {
 
     /// One Firefox window in a `list-tabs` result: the extension's window id
     /// (valid for a following `close-window`), its caption-forming title (the
-    /// active tab's), and the URLs of all its tabs.
+    /// active tab's), the URLs of all its tabs in tab order, and their titles
+    /// (parallel to `urls`; empty from an extension that predates them).
     // [impl->dsn~extension-server-protocol~4]
-    public record TabWindow(int id, String title, List<String> urls) {
+    public record TabWindow(int id, String title, List<String> urls, List<String> titles) {
         public TabWindow {
             urls = List.copyOf(urls);
+            titles = List.copyOf(titles);
+        }
+
+        public TabWindow(int id, String title, List<String> urls) {
+            this(id, title, urls, List.of());
         }
     }
 
@@ -193,6 +199,18 @@ public final class ExtensionProtocol {
         return node.toString();
     }
 
+    /// The task's own browser window: `urls` in a tab group named `group`.
+    // [impl->dsn~browser-task-window~1]
+    public static String encodeTaskWindow(String id, List<String> urls, String group) {
+        ObjectNode node = MAPPER.createObjectNode();
+        node.put("type", "task-window");
+        node.put("id", id);
+        var array = node.putArray("urls");
+        urls.forEach(array::add);
+        node.put("group", group);
+        return node.toString();
+    }
+
     /// Shows or hides the browser's bookmarks toolbar in every window — an
     /// environment profile's `bookmarksBar` key.
     // [impl->dsn~environment-profile-bookmarks-bar~1]
@@ -250,10 +268,13 @@ public final class ExtensionProtocol {
         for (JsonNode window : windows) {
             List<String> urls = new java.util.ArrayList<>();
             window.path("urls").forEach(url -> urls.add(url.asText("")));
+            List<String> titles = new java.util.ArrayList<>();
+            window.path("titles").forEach(title -> titles.add(title.asText("")));
             parsed.add(new TabWindow(
                     window.path("id").asInt(-1),
                     window.path("title").asText(""),
-                    urls));
+                    urls,
+                    titles));
         }
         return List.copyOf(parsed);
     }

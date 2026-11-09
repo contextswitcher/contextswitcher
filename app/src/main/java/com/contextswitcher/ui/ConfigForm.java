@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import atlantafx.base.theme.Styles;
@@ -56,19 +55,24 @@ final class ConfigForm {
     private final Supplier<CompletableFuture<List<String>>> refreshDesktops;
     /// Opens a desktop field's suggestions; a no-op without such a field.
     private Runnable showDesktops = () -> { };
-    /// Shows a `browser.urls` entry's page in the browser.
-    private final Consumer<String> openUrl;
+    /// What the `browser.urls` field does; null: plain text rows, as any list.
+    private final @Nullable BrowserUrlActions urlActions;
+    /// Saves the form right away, for a change that takes no focus with it.
+    private final Runnable save;
 
     /// The form for `fields`, its controls seeded from `content`'s frontmatter;
     /// `hosts` are the destinations a host field offers, `desktops` the names
     /// a desktop field suggests, and `refreshDesktops` reads those again for
-    /// the field's refresh button; `openUrl` shows a clicked browser URL.
+    /// the field's refresh button; `urlActions` is what the browser URLs do and
+    /// `save` writes the form at once.
     ConfigForm(List<Field> fields, String content, List<String> hosts, List<String> desktops,
-            Supplier<CompletableFuture<List<String>>> refreshDesktops, Consumer<String> openUrl) {
+            Supplier<CompletableFuture<List<String>>> refreshDesktops,
+            @Nullable BrowserUrlActions urlActions, Runnable save) {
         this.fields = List.copyOf(fields);
         this.desktops = List.copyOf(desktops);
         this.refreshDesktops = refreshDesktops;
-        this.openUrl = openUrl;
+        this.urlActions = urlActions;
+        this.save = save;
         this.controls = buildControls(content, hosts);
     }
 
@@ -99,8 +103,12 @@ final class ConfigForm {
                     yield combo;
                 }
                 // [impl->dsn~browser-url-links~1]
-                case LIST -> new ListFieldEditor(asStringList(seed),
-                        field.key().equals("browser.urls") ? openUrl : null);
+                case LIST -> {
+                    ListFieldEditor editor = new ListFieldEditor(asStringList(seed),
+                            field.key().equals("browser.urls") ? urlActions : null);
+                    editor.setOnReordered(save);
+                    yield editor;
+                }
                 // [impl->dsn~host-table~1]
                 case HOST -> {
                     ComboBox<String> combo = new ComboBox<>(FXCollections.observableArrayList(hosts));
@@ -157,9 +165,14 @@ final class ConfigForm {
                 root.getChildren().add(FieldForm.section(group, root.getChildren().isEmpty()));
             }
             Region control = controls.get(field.key());
-            root.getChildren().add(field.type() == FrontmatterCatalog.Type.DESKTOP
-                    ? FieldForm.row(field.label(), field.help(), control, desktopRefresh(control))
-                    : FieldForm.row(field.label(), field.help(), control));
+            root.getChildren().add(switch (field.type()) {
+                case DESKTOP -> FieldForm.row(field.label(), field.help(), control, desktopRefresh(control));
+                case LIST -> urlActions != null && field.key().equals("browser.urls")
+                        ? FieldForm.rowWithCaptionActions(field.label(), field.help(), control,
+                                urlButtons((ListFieldEditor) control, urlActions))
+                        : FieldForm.row(field.label(), field.help(), control);
+                default -> FieldForm.row(field.label(), field.help(), control);
+            });
         }
         return root;
     }
@@ -171,6 +184,47 @@ final class ConfigForm {
         if (controls.get("browser.urls") instanceof ListFieldEditor urls) {
             urls.highlight(tabUrl);
         }
+    }
+
+    /// The buttons on the *Browser URLs* caption: the task's browser window, and
+    /// the list taking over the browser's tab order. Each is disabled for its
+    /// round-trip.
+    private Node[] urlButtons(ListFieldEditor editor, BrowserUrlActions actions) {
+        Button sync = captionButton(editor.getId() + "-sync", MDIInterface.SYNC,
+                "Sync order — arrange this list the way the tabs stand in the browser");
+        sync.setOnAction(event -> {
+            sync.setDisable(true);
+            List<String> lines = editor.values().stream().filter(line -> !line.isBlank()).toList();
+            actions.inTabOrder(lines, ordered -> {
+                sync.setDisable(false);
+                if (!ordered.equals(lines)) {
+                    editor.setValues(ordered);
+                    save.run();
+                }
+            });
+        });
+        if (!actions.hasTabGroup()) {
+            return new Node[] {sync};
+        }
+        Button window = captionButton(editor.getId() + "-window", MDIInterface.DOCK_WINDOW,
+                "Open new browser window with a group containing all the tabs "
+                        + "— or bring it to the front if it exists");
+        window.setOnAction(event -> {
+            window.setDisable(true);
+            actions.openWindow(editor.values().stream().filter(line -> !line.isBlank()).toList(),
+                    () -> window.setDisable(false));
+        });
+        return new Node[] {window, sync};
+    }
+
+    private static Button captionButton(String id, MDIInterface icon, String tooltip) {
+        Button button = new Button(null, new SvgNode(icon.path(), 16));
+        button.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
+        // A click must not pull the focus: leaving the form saves it.
+        button.setFocusTraversable(false);
+        button.setId(id);
+        button.setTooltip(new Tooltip(tooltip));
+        return button;
     }
 
     /// The desktop field's refresh button: reads the desktop names again — a

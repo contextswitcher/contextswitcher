@@ -96,6 +96,17 @@ final class FieldForm {
         return row;
     }
 
+    /// A [#row] with buttons next to its caption, for actions on the field as a
+    /// whole. Not for a checkbox, which has no caption line.
+    static Node rowWithCaptionActions(String label, String help, Region control, Node... actions) {
+        VBox row = (VBox) row(label, help, control);
+        HBox captionLine = new HBox(6, row.getChildren().removeFirst());
+        captionLine.getChildren().addAll(actions);
+        captionLine.setAlignment(Pos.CENTER_LEFT);
+        row.getChildren().addFirst(captionLine);
+        return row;
+    }
+
     /// A multi-line list control: one entry per line, monospace so paths and
     /// URLs line up.
     static TextArea listArea(String text, int rows) {

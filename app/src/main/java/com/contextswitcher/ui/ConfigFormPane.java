@@ -83,8 +83,8 @@ final class ConfigFormPane {
     private final Supplier<List<String>> desktops;
     /// Re-reads the desktop names for a desktop field's refresh button.
     private final Supplier<CompletableFuture<List<String>>> refreshDesktops;
-    /// Shows a clicked browser URL's page in the browser.
-    private final Consumer<String> openUrl;
+    /// What the browser URLs do.
+    private final BrowserUrlActions urlActions;
     /// The browser's tab in view, for the forms built later on.
     private @Nullable String browserTab;
 
@@ -95,7 +95,7 @@ final class ConfigFormPane {
     ConfigFormPane(String id, Predicate<Field> shows, Node rawEditor, Supplier<String> text,
             Consumer<String> apply, BooleanSupplier category,
             Supplier<List<String>> hosts, Supplier<List<String>> desktops,
-            Supplier<CompletableFuture<List<String>>> refreshDesktops, Consumer<String> openUrl) {
+            Supplier<CompletableFuture<List<String>>> refreshDesktops, BrowserUrlActions urlActions) {
         this.shows = shows;
         this.rawEditor = rawEditor;
         this.text = text;
@@ -104,7 +104,7 @@ final class ConfigFormPane {
         this.hosts = hosts;
         this.desktops = desktops;
         this.refreshDesktops = refreshDesktops;
-        this.openUrl = openUrl;
+        this.urlActions = urlActions;
         // Icon-only like every pane toolbar's controls; the tooltip names each.
         // [impl->dsn~task-field-form~5]
         rawToggle.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
@@ -255,7 +255,8 @@ final class ConfigFormPane {
         }
         List<Field> fields = (category.getAsBoolean() ? FrontmatterCatalog.CATEGORY : FrontmatterCatalog.TASK)
                 .stream().filter(shows).toList();
-        ConfigForm built = new ConfigForm(fields, content, hosts.get(), desktops.get(), refreshDesktops, openUrl);
+        ConfigForm built = new ConfigForm(fields, content, hosts.get(), desktops.get(), refreshDesktops, urlActions,
+                this::applyForm);
         built.showBrowserTab(browserTab);
         form = built;
         ScrollPane scroll = new ScrollPane(built.render());
