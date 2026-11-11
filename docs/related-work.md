@@ -14,10 +14,14 @@ See the GitHub guidelines on issues for more information on issues: <https://gui
 * [bug.n](https://github.com/fuhsjr00/bug.n) - can provide views on opened windows.
 * [Workspacer](https://github.com/rickbutton/workspacer) - tiling Window management on Windows - with multiple desktops.
 * [Display Fusion](https://www.displayfusion.com/) - offers profiles, where screen resolution and window position is stored. No app starting, closing windows, ...
+* [Context Switcher](https://apps.microsoft.com/detail/9ph1t6g8q6hz) (Microsoft Store, free, since October 2026) - one-click presets such as Work, Gaming or Study: changes the wallpaper and launches the applications listed for that preset.
+  A preset is a set of programs to start, not a task; nothing per window, tab or file is restored.
 
 ## Mac OS X
 
 * [Switch](https://github.com/numist/Switch)
+* [contextSwitcher](https://github.com/mobrava/contextSwitcher) (GPL-3.0, macOS 14+ menu-bar app) - named workspaces of selected apps or single windows (e.g., one IntelliJ project); switching hides the windows of the other workspaces, via menu bar, floating HUD or global shortcut.
+  It only hides and shows windows that are already open — no launching, no browser tabs, no task notes.
 
 ## Linux
 
@@ -30,6 +34,8 @@ See the GitHub guidelines on issues for more information on issues: <https://gui
 * [ZenHub's Workspaces](https://help.zenhub.com/support/solutions/articles/43000495219). This concept is bound to GitHub.
 * Firefox supports [profiles](https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Multiple_profiles) where separate Firefox configurations could be done (e.g., family or work).
   However, it requires much effort to create a Firefox profile for each context
+* [ContextSwitchAI](https://contextswitchai.github.io/ContextSwitchAI/) - free Chrome extension that exports a chat from ChatGPT, Claude, Gemini, Grok or DeepSeek and continues it on another of these services, locally without a server.
+  The "context" here is one AI conversation moving between vendors, not a task across applications.
 
 ## Special Features
 
@@ -60,6 +66,9 @@ It was announced as [complete desktop task-focused interface for everyone](https
 ## Agent Orchestration
 
 Desktop apps and terminal runtimes that run several coding agents side by side are compared in [related-work-agentic.md](related-work-agentic.md).
+
+* [t3ta/contextswitcher](https://github.com/t3ta/contextswitcher) - early-stage TypeScript MCP gateway (same name, unrelated): it proxies several MCP servers to one agent and swaps the whole server set when the agent calls its `context/switch` tool.
+  The context is the agent's tool configuration, not the user's working environment.
 
 ## Research Papers
 
