@@ -965,6 +965,10 @@ It runs at three points:
 - the sync icon button (MDI `sync`, id `group-sync-sessions-button`) right of the name of every local category's header that has a directory — where a remote category carries its terminal icon — disabled for the round-trip, with "Looking for Claude sessions in …" → "Added N Claude sessions in … as tasks." / "No new Claude sessions in …." on the status bar;
 - *Sync tmux windows…* (`dsn~tmux-sync~7`), for every local category at once.
 
+The imported tasks are suspended, so the standing filters (*Show running tasks only*, `dsn~running-tasks-filter~1`) hide them — and a category whose every task is filtered out drops from the list, which left the list empty right after adding a category.
+A category created in this window (`MainWindow.createdCategories`) therefore keeps its header under the standing filters for the rest of the session; a typed query or a tag filter still hides it, those look for tasks.
+The creation's status line says when the running-tasks filter hides the imported tasks.
+
 Tags: windows, linux
 
 Covers:

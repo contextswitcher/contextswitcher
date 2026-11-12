@@ -21,6 +21,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - The terminal's status messages ("Connection lost — reconnecting…", "Connecting to …") show dashes and ellipses instead of garbled characters.
 - Deleting a local task offers to remove its Claude transcript on this machine, as it already did for remote tasks.
 - A task whose creation failed before its tmux window came up shows play instead of pause on hover; play opens the same dialog as the terminal's *Start Claude* button.
+- A category just added stays in the list while *Show running tasks only* hides its tasks, instead of vanishing.
 - A local task in a folder whose path contains spaces (OneDrive's do) finds its Claude transcript again, so it resumes the right conversation and *Delete* can remove the transcript.
 
 ## [2026-11-12] - 2026-11-12

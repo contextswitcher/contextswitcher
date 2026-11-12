@@ -2793,7 +2793,8 @@ public class MainWindow {
             // The scoped category itself always stays: it is what the user
             // asked to see, even when nothing in it matches.
             if (narrowed && tasks.isEmpty() && groupsWithEntries.contains(name)
-                    && !name.equals(scope)) {
+                    && !name.equals(scope)
+                    && !(createdCategories.contains(name) && !searching && !filtering)) {
                 continue;
             }
             // A scoped category shows its tasks even when it was collapsed.
@@ -4591,6 +4592,7 @@ public class MainWindow {
             return false;
         }
         groupConfigCache.remove(name);
+        createdCategories.add(name);
         if (!searchQuery.strip().isEmpty()) {
             closeFind();
         }
@@ -4599,8 +4601,9 @@ public class MainWindow {
         if (remote == null) {
             importLocalSessions(List.of(name), added -> {
                 if (added > 0) {
-                    statusBar().message("Added %d existing Claude session%s in %s as task%s.".formatted(
-                            added, added == 1 ? "" : "s", name, added == 1 ? "" : "s"));
+                    statusBar().message("Added %d existing Claude session%s in %s as suspended task%s%s.".formatted(
+                            added, added == 1 ? "" : "s", name, added == 1 ? "" : "s",
+                            runningTasksOnly ? " — hidden while \"Show running tasks only\" is on" : ""));
                 }
             });
         }
@@ -5060,6 +5063,14 @@ public class MainWindow {
     /// again. FX thread only.
     // [impl->dsn~local-category-session-import~1]
     private final Set<String> importedSessionIds = new HashSet<>();
+
+    /// Categories created in this window, which stay on screen under the
+    /// standing filters even when those hide every task in them: the import
+    /// fills a new local category with suspended tasks, and "Running tasks
+    /// only" then hid the category the user had just made (field report
+    /// 2026-11-12, an empty list right after adding a category).
+    // [impl->dsn~local-category-session-import~1]
+    private final Set<String> createdCategories = new HashSet<>();
 
     /// The local category header's sync button
     /// (`dsn~local-category-session-import~1`): adds every Claude session
