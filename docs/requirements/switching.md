@@ -662,7 +662,7 @@ A wrong kill is the one outcome on any of these paths that cannot be taken back 
 The `PaneSnapshots.capture` that normally runs just before the kill is skipped with it: capturing that pane would file another task's screen as this task's last screen.
 Nothing is lost by refusing — `MainWindow.tearDown` has already dropped the task's `window:` before dispatching, so the task resurrects into a window of its own on the next switch instead of pointing at the foreign one again.
 
-The delete dialog (`dsn~claude-session-kill~6`) reflects that instead of promising it: with a foreign owner, "End the tmux window" is unticked, disabled and renamed to name the other session, and the `KILL_END_WINDOW` preference is **not** written back — that "no" is the app's, not the user's, and persisting it would stop ending windows on every later delete. "Close browser tabs" is unrelated to tmux ownership and keeps its own tick regardless.
+The delete dialog (`dsn~claude-session-kill~7`) reflects that instead of promising it: with a foreign owner, "End the tmux window" is unticked, disabled and renamed to name the other session, and the `KILL_END_WINDOW` preference is **not** written back — that "no" is the app's, not the user's, and persisting it would stop ending windows on every later delete. "Close browser tabs" is unrelated to tmux ownership and keeps its own tick regardless.
 
 The terminal mirror needs the same guard — mirroring the recorded window would show that other task's terminal, the same failure `Main.previewTask` already blocks for a *missing* window — but it runs on the FX thread and must not do a round-trip.
 It reads the id from the status poll instead: `TmuxStatusPoller` carries `#{@cs_session_id}` as a sixth field on the `list-windows` it already runs per host per tick, `Main` stashes the `host windowId -> session id` map in the volatile `liveSessionIds`, and `previewTask` does a map lookup.
@@ -840,7 +840,7 @@ Needs: impl, utest
 
 `SwitchOrchestrator` determines the configured actions of a task, runs them concurrently on a background executor, and publishes per-action state transitions (pending → running → ok/failed with message) to the UI via `Platform.runLater`. An optional completion callback runs on the UI executor once every configured action has reported its final state — used to re-target the terminal mirror after a switch/suspend (`dsn~terminal-pane~14`).
 A caller can additionally pass a set of action names to further narrow the run to those (the rest are skipped as if unconfigured, with no state transition at all); a `null` set runs every configured action, the plain overloads' behavior.
-The delete dialog's independent "End the tmux window" / "Close browser tabs" ticks (`dsn~claude-session-kill~6`) use this to run only the actions the user selected.
+The delete dialog's independent "End the tmux window" / "Close browser tabs" ticks (`dsn~claude-session-kill~7`) use this to run only the actions the user selected.
 
 Tags: windows, linux
 

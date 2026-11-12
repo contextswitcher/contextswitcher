@@ -1,18 +1,22 @@
 package com.contextswitcher.discovery;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 
 import com.contextswitcher.ssh.SshCommandRunner;
 import org.jspecify.annotations.Nullable;
 
-/// Removes a deleted task's remote leftovers (the delete dialog's kill
-/// checkboxes): the Claude transcript under `~/.claude/projects/` and the
-/// task's working directory. Blocking — callers run it on a background
+/// Removes a deleted task's leftovers (the delete dialog's kill
+/// checkboxes): the Claude transcript under `~/.claude/projects/` — on the
+/// remote over ssh, or on this machine for a local task — and the task's
+/// remote working directory. Blocking — callers run it on a background
 /// executor. An already-gone target counts as success (`rm -f`/`-rf`), like
 /// [com.contextswitcher.switching.TmuxKillAction]; the tmux window kill
 /// itself runs through the regular suspend orchestrator, not this helper.
-// [impl->dsn~claude-session-kill~6]
+// [impl->dsn~claude-session-kill~7]
 public class ClaudeSessionCleanup {
 
     /// What the user ticked in the delete dialog. `endWindow` and
@@ -38,6 +42,32 @@ public class ClaudeSessionCleanup {
     static List<String> transcriptCommand(String cwd, String sessionId) {
         return List.of("rm", "-f", "~/.claude/projects/"
                 + ClaudeSessionLookup.encodeProjectDir(cwd) + "/" + sessionId + ".jsonl");
+    }
+
+    /// Where a session started in `cwd` on **this** machine keeps its
+    /// transcript: `<home>/.claude/projects/<encoded cwd>/<sessionId>.jsonl`,
+    /// the directory [ClaudeSessionLookup#localSessionToResume] reads.
+    static Path localTranscript(Path home, String cwd, String sessionId) {
+        return home.resolve(".claude").resolve("projects")
+                .resolve(ClaudeSessionLookup.encodeProjectDir(cwd))
+                .resolve(sessionId + ".jsonl");
+    }
+
+    /// Removes the transcript of a local task (no `remote:` — the session ran
+    /// on this machine, so there is no host to ssh to); null on success,
+    /// else a short human-readable failure. Already gone counts as success.
+    public static @Nullable String removeLocalTranscript(String cwd, String sessionId) {
+        return removeLocalTranscript(Path.of(System.getProperty("user.home")), cwd, sessionId);
+    }
+
+    static @Nullable String removeLocalTranscript(Path home, String cwd, String sessionId) {
+        Path transcript = localTranscript(home, cwd, sessionId);
+        try {
+            Files.deleteIfExists(transcript);
+            return null;
+        } catch (IOException e) {
+            return "cannot remove " + transcript + ": " + e.getMessage();
+        }
     }
 
     /// Why `workdir` must not be fed to `rm -rf`, or null when it is safe.

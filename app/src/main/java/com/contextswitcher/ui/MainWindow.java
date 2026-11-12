@@ -263,7 +263,7 @@ public class MainWindow {
     /// it — `-1` when the question cannot be asked at all (no extension
     /// connected, or the request timed out). Backs the delete dialog's
     /// "Close N browser tabs" tick.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private final BiConsumer<List<String>, IntConsumer> onCountOpenTabs;
     /// Switches Windows to a named virtual desktop (`Main.focusDesktop`), then
     /// runs the `Runnable` on the FX thread. Backs the category header's
@@ -315,11 +315,11 @@ public class MainWindow {
     private final Runnable onRethemeTerminal;
     /// Runs the delete dialog's ticked cleanup (window teardown, transcript,
     /// working directory) off the FX thread.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private final BiConsumer<Task, ClaudeSessionCleanup.Choices> onKillSession;
     /// Sends the canned "tidy up before deletion" prompt into the task's
     /// Claude window instead of deleting.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private final Consumer<Task> onAskClaudeCleanup;
     /// Creates a task (tmux window + Claude) for a PR URL on a remote,
     /// placed in the given group (empty = root).
@@ -750,7 +750,7 @@ public class MainWindow {
     /// Delete-dialog cleanup checkboxes, pre-filled from the last run
     /// (UI state, not configuration). The workdir box is deliberately
     /// **not** persisted — `rm -rf` starts unticked every time.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private static final String KILL_END_WINDOW = "killEndWindow";
     private static final String KILL_CLOSE_BROWSER_TABS = "killCloseBrowserTabs";
     private static final String KILL_TRANSCRIPT = "killTranscript";
@@ -5610,7 +5610,7 @@ public class MainWindow {
     /// The "Close browser tabs" checkbox text — always naming *browser tabs*,
     /// with the number of tabs that are **actually open** once the browser has
     /// answered; the checkbox is disabled for anything but a positive number,
-    /// there being nothing to close (`dsn~claude-session-kill~6`).
+    /// there being nothing to close (`dsn~claude-session-kill~7`).
     /// Never "Close 1 PR": that reads as GitHub's close-the-pull-request, not
     /// as closing a tab (field report 2026-09-09).
     /// The count comes from the task's own `browser.urls` only, never a
@@ -5629,7 +5629,7 @@ public class MainWindow {
     }
 
     /// Shows the delete confirmation for one (already fresh) task, with the
-    /// kill checkboxes of `dsn~claude-session-kill~6`: end the tmux window,
+    /// kill checkboxes of `dsn~claude-session-kill~7`: end the tmux window,
     /// close browser tabs (independent of each other — the old combined
     /// "Terminate and delete" tick), remove the Claude transcript, and remove
     /// the per-task working directory (`claude.workspace` only —
@@ -5642,13 +5642,16 @@ public class MainWindow {
     /// deleted file. Returns which button the user pressed so a bulk caller
     /// can stop; a failed file delete reports [#CANCELLED].
     // [impl->dsn~task-delete~6]
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private DeleteChoice confirmAndDeleteTask(Task task) {
         String fileName = task.id() + ".md";
         boolean liveContext = hasLiveContext(task);
         boolean working = liveContext && "working".equals(runningStatusFor(task));
         Task.ClaudeConfig claude = task.claude();
-        boolean hasTranscript = task.remote() != null && claude != null && claude.sessionId() != null;
+        // A local task (no `remote:`) has its transcript on this machine,
+        // under the same encoded `claude.cwd` — offered just like a remote one.
+        boolean hasTranscript = claude != null && claude.sessionId() != null
+                && (task.remote() != null || claude.cwd() != null);
         String workspace = task.remote() != null && claude != null ? claude.workspace() : null;
         List<String> browserUrls = task.browser() == null ? List.of() : task.browser().urls();
         int queued = QueueFile.load(QueueFile.file(queuesDir, task.id())).size();
@@ -5673,7 +5676,7 @@ public class MainWindow {
         // How many tabs are really open is a round-trip to the browser, so the
         // tick starts off and says it is asking rather than blocking the
         // dialog on it; the answer enables it (or explains why it stays off).
-        // [impl->dsn~claude-session-kill~6]
+        // [impl->dsn~claude-session-kill~7]
         CheckBox closeBrowserTabs = new CheckBox(BROWSER_TABS_CHECKING);
         closeBrowserTabs.setWrapText(true);
         closeBrowserTabs.setSelected(false);
@@ -5688,14 +5691,15 @@ public class MainWindow {
         } else {
             closeBrowserTabs.setText(browserTabsLabel(0));
         }
-        CheckBox transcript = new CheckBox("Remove the Claude transcript on " + task.remote());
+        CheckBox transcript = new CheckBox("Remove the Claude transcript "
+                + (task.remote() != null ? "on " + task.remote() : "on this machine"));
         transcript.setSelected(PREFERENCES.getBoolean(KILL_TRANSCRIPT, false));
         // A workspace that is one of the category's own directories — the main
         // checkout, the shared workspaces root, a pinned workdir — is not this
         // task's worktree, and removing it would take the whole category with
         // it (field report 2026-09-12). The same `rejectWorkdir` the cleanup
         // itself runs decides that here, so the dialog never offers what the
-        // `rm -rf` would refuse. [impl->dsn~claude-session-kill~6]
+        // `rm -rf` would refuse. [impl->dsn~claude-session-kill~7]
         String rejected = workspace == null ? null : ClaudeSessionCleanup.rejectWorkdir(
                 workspace, groupDefaults(groupOf(task.id())).protectedDirs());
         CheckBox workdir = new CheckBox(rejected == null
@@ -5773,7 +5777,7 @@ public class MainWindow {
         }
         // Only the user's own answer is remembered: a tick the app forced off
         // (nothing open, no extension) would otherwise stop closing tabs on
-        // every later delete. [impl->dsn~claude-session-kill~6]
+        // every later delete. [impl->dsn~claude-session-kill~7]
         boolean canCloseTabs = !closeBrowserTabs.isDisabled();
         if (canCloseTabs) {
             PREFERENCES.putBoolean(KILL_CLOSE_BROWSER_TABS, closeBrowserTabs.isSelected());

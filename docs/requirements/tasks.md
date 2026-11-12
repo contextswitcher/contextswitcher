@@ -226,10 +226,11 @@ Needs: dsn
 ## Design
 
 ### Kill dialog with per-target cleanup
-`dsn~claude-session-kill~6`
+`dsn~claude-session-kill~7`
 
 The delete dialog (`dsn~task-delete~6`) carries one checkbox per cleanup target, each shown only when applicable and executed off the FX thread by `Main.killSession` after **Delete**:
 "End the tmux window" and "Close browser tabs" are independent ticks — either can run without the other — each mapping to the matching `SwitchOrchestrator` action name (`"tmux"`, `"browser"`) via its `only` overload (`dsn~switch-orchestrator~3`), so the regular suspend teardown (`dsn~task-suspend~6`, per-action chips) runs just the ticked ones; transcript and working-directory removal run over ssh in the orchestrator's completion callback — after the window ended, so Claude's exit cannot recreate the transcript — via `ClaudeSessionCleanup` (`rm -f` of `~/.claude/projects/<encoded claude.cwd>/<sessionId>.jsonl`, `rm -rf` of the single-quoted workdir; already-gone counts as success, results land in the status bar).
+A local task (no `remote:`) gets the transcript tick too, labelled "on this machine": its session ran here, so `ClaudeSessionCleanup.removeLocalTranscript` deletes `<user.home>/.claude/projects/<encoded claude.cwd>/<sessionId>.jsonl` directly (the directory `ClaudeSessionLookup.localSessionToResume` reads), with no ssh; working-directory removal stays remote-only (`~6`→`~7`).
 Only the per-task `claude.workspace` is ever offered for removal — `claude.cwd` may be the group's **shared** workspacesRoot — and `rejectWorkdir` additionally refuses non-absolute, shallow (fewer than two levels), `..`- or `'`-containing paths.
 It also refuses any directory the task's category configures for itself (`GroupConfig.protectedDirs`: `mainCheckout`, `workspacesRoot`, `workdir`), compared ignoring a trailing slash (`~4`→`~5`).
 The skeleton `CONTEXTSWITCHER.md` leaves `mainCheckout:` commented out, so most categories name none and the list would have missed the very directory the report was about; `protectedDirs` therefore also derives the *conventional* primary clone — `<workspacesRoot>/<repo name>`, the path `TaskFileParser.groupConfigForRepo` writes for a category created from a URL — whenever `mainCheckout:` is absent (`~5`→`~6`).
@@ -270,7 +271,7 @@ A **suspended** task has no window left for the poll to see and keeps its own ro
 `MergedCleanup.cleanUpNow` clears an unremarkable screen immediately and an interesting one only once `AutoPrReconcile.expired` says the task has been paused `mergedCleanupDays` long (the `dsn~suspended-timestamp~1` stamp — an active task carries none and is therefore never force-cleaned); `0` days turns the janitor off entirely.
 
 Before anything is removed, `MergedCleanup.withLastScreen` appends the screen as a fenced block below the task's notes (once — the heading is its own marker) and `TaskGitBackup.commitNow` commits the task directory without pushing, so the archived version exists as a commit even though the next push will only see the deletion.
-The removal itself reuses the delete dialog's machinery (`dsn~claude-session-kill~6`): `Main.killSession` with the window, transcript and workdir targets ticked — browser tabs deliberately not, closing pages is not part of finishing a merge — followed by the plain file delete.
+The removal itself reuses the delete dialog's machinery (`dsn~claude-session-kill~7`): `Main.killSession` with the window, transcript and workdir targets ticked — browser tabs deliberately not, closing pages is not part of finishing a merge — followed by the plain file delete.
 
 Tags: windows, linux
 

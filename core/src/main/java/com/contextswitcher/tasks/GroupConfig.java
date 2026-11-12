@@ -195,8 +195,8 @@ public record GroupConfig(
     /// (spelled out or [#conventionalMainCheckout]), the shared
     /// `workspacesRoot`, a pinned `workdir`. None of them is a per-task
     /// worktree, so none may ever reach the delete dialog's `rm -rf`
-    /// (`dsn~claude-session-kill~6`).
-    // [impl->dsn~claude-session-kill~6]
+    /// (`dsn~claude-session-kill~7`).
+    // [impl->dsn~claude-session-kill~7]
     public List<String> protectedDirs() {
         return java.util.stream.Stream.of(
                         mainCheckout, conventionalMainCheckout(), workspacesRoot, workdir)
@@ -222,7 +222,7 @@ public record GroupConfig(
     /// which the delete dialog then offered for `rm -rf` (field report
     /// 2026-09-12). Null when the category names no `workspacesRoot`/`repo`,
     /// or the `repo` is no URL.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private @Nullable String conventionalMainCheckout() {
         if (workspacesRoot == null || repo == null) {
             return null;
