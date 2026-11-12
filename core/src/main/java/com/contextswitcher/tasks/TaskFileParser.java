@@ -866,7 +866,8 @@ public class TaskFileParser {
     /// null `remote` writes no `remote:` line — a local category
     /// (`dsn~task-create-local~4`), the setup wizard's local choice. A null
     /// `url` is a plain folder (`dsn~category-from-folder~2`): no clone, so
-    /// neither `mainCheckout` nor `repo`.
+    /// neither `mainCheckout` nor `repo`; a local one also lists the folder
+    /// under `folders:`, so a switch opens it in the file manager.
     // [impl->dsn~category-from-url~5]
     // [impl->dsn~category-from-folder~2]
     // [impl->dsn~setup-wizard~12]
@@ -880,8 +881,9 @@ public class TaskFileParser {
                 # %s — group defaults
                 """.formatted(remote == null ? "" : "remote: " + yamlScalar(remote) + "\n",
                 yamlScalar(workspacesRoot),
-                url == null ? "" : "mainCheckout: " + yamlScalar(workspacesRoot + "/" + group)
-                        + "\nrepo: " + yamlScalar(url.strip()) + "\n",
+                url != null ? "mainCheckout: " + yamlScalar(workspacesRoot + "/" + group)
+                        + "\nrepo: " + yamlScalar(url.strip()) + "\n"
+                        : remote == null ? "folders:\n  - " + yamlScalar(workspacesRoot) + "\n" : "",
                 desktop == null ? "" : "desktop: " + yamlScalar(desktop) + "\n", group);
     }
 

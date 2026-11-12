@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [Unreleased]
+
+### Changed
+
+- A project created by the setup wizard for a local folder lists that folder under *Local folders*, so switching to it opens the folder in the file manager.
+
 ## [2026-11-09] - 2026-11-09
 
 ### Changed
