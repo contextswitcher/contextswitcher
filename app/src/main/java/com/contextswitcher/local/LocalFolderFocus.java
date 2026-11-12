@@ -31,10 +31,16 @@ import org.tinylog.Logger;
 /// jumps across virtual desktops). With none open, a fresh Explorer window is
 /// launched at the folder.
 ///
+/// A matching window on **another** virtual desktop is first moved to the one
+/// in view (`CsMv.Here`, [WindowsWindowMove]) so focusing it does not drag the
+/// user to that desktop; if the move is unavailable on this Windows build, the
+/// old cross-desktop jump remains.
+///
 /// The script is passed as a base64 `-EncodedCommand`, so there is no shell
 /// quoting to get wrong; the only escaping is doubling `'` for the folder
 /// single-quoted literal.
 // [impl->dsn~explorer-folder-focus~3]
+// [impl->dsn~window-move-here~1]
 public class LocalFolderFocus {
 
     /// Outcome of a focus/open attempt.
@@ -54,6 +60,9 @@ public class LocalFolderFocus {
               [DllImport("user32.dll")] public static extern void SwitchToThisWindow(IntPtr h, bool alt);
             }
             "@
+            Add-Type -TypeDefinition @"
+            __MOVE_TYPES__
+            "@
             $target = '__PATH__'
             $norm = $target.TrimEnd('\\', '/')
             $shell = New-Object -ComObject Shell.Application
@@ -62,12 +71,13 @@ public class LocalFolderFocus {
               try { $path = $w.Document.Folder.Self.Path } catch { continue }
               if ($path -and ($path.TrimEnd('\\', '/') -ieq $norm)) {
                 $h = [IntPtr]$w.HWND
+                $moved = [CsMv]::Here($h)
                 if ([CsFg]::IsIconic($h)) { [CsFg]::ShowWindow($h, 9) | Out-Null }
                 [CsFg]::keybd_event(0x12, 0, 0, [IntPtr]::Zero)
                 [CsFg]::keybd_event(0x12, 0, 2, [IntPtr]::Zero)
                 [CsFg]::SetForegroundWindow($h) | Out-Null
                 [CsFg]::SwitchToThisWindow($h, $true)
-                Write-Output ("focused: " + $target)
+                if ($moved -eq 'moved') { Write-Output ("moved here: " + $target) } else { Write-Output ("focused: " + $target) }
                 exit 0
               }
             }
@@ -105,7 +115,8 @@ public class LocalFolderFocus {
 
     /// The PowerShell script that focuses (or opens) the given folder.
     static String script(String folder) {
-        return SCRIPT_TEMPLATE.replace("__PATH__", escape(folder));
+        return SCRIPT_TEMPLATE.replace("__MOVE_TYPES__", WindowsWindowMove.TYPES.strip())
+                .replace("__PATH__", escape(folder));
     }
 
     /// The local argv: the script as a base64 `-EncodedCommand` (UTF-16LE).

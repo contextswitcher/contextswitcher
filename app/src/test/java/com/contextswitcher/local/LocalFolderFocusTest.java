@@ -29,6 +29,16 @@ class LocalFolderFocusTest {
                 .contains("Start-Process explorer.exe");
     }
 
+    // [utest->dsn~window-move-here~1]
+    @Test
+    void scriptMovesAWindowFromAnotherDesktopHereBeforeFocusingIt() {
+        String script = LocalFolderFocus.script("C:\\p");
+        assertThat(script).contains(WindowsWindowMove.TYPES.strip())
+                .contains("$moved = [CsMv]::Here($h)")
+                .contains("moved here: ");
+        assertThat(script.indexOf("[CsMv]::Here($h)")).isLessThan(script.indexOf("SetForegroundWindow($h)"));
+    }
+
     @Test
     void commandIsAnEncodedPowershellInvocation() {
         var command = LocalFolderFocus.command("C:\\p");

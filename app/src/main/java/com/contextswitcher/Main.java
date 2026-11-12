@@ -73,6 +73,7 @@ import com.contextswitcher.local.WindowsDesktopPin;
 import com.contextswitcher.local.LocalFolderFocus;
 import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
+import com.contextswitcher.local.WindowsWindowMove;
 import com.contextswitcher.local.ClaudeCliSummarizer;
 import com.contextswitcher.local.LocalCommandRunner;
 import com.contextswitcher.local.RequiredTools;
@@ -653,8 +654,11 @@ public class Main extends Application {
                                 (desktop, url) -> openOnDesktop(extensionServer, desktop, url),
                                 task -> rewriteTaskFile(files, task,
                                         TaskFileParser::withoutStoredTabs)),
+                        // [impl->dsn~window-move-here~1]
                         new NoteFocusAction(this::openUrl,
-                                group -> groupLink(files, group, TaskFileParser::groupNote)),
+                                group -> groupLink(files, group, TaskFileParser::groupNote),
+                                () -> new WindowsWindowMove(new LocalCommandRunner())
+                                        .bringHere("OneNote", "ONENOTE", "Framework::CFrame").note()),
                         new ChatFocusAction(this::openUrl,
                                 group -> groupLink(files, group, TaskFileParser::groupChat)),
                         environmentProfile),

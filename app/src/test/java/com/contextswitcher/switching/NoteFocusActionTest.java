@@ -12,6 +12,7 @@ import com.contextswitcher.tasks.TaskStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // [utest->dsn~note-focus-action~1]
+// [utest->dsn~window-move-here~1]
 class NoteFocusActionTest {
 
     private static Task task(String id, @Nullable String note) {
@@ -84,5 +85,31 @@ class NoteFocusActionTest {
         ActionResult result = action.run(task("jabref/fix", "onenote:task"));
         assertThat(result.ok()).isFalse();
         assertThat(result.detail()).contains("boom");
+    }
+
+    @Test
+    void movesOneNoteHereBeforeOpeningAOneNoteLink() {
+        java.util.List<String> calls = new java.util.ArrayList<>();
+        NoteFocusAction action = new NoteFocusAction(url -> calls.add("open " + url), group -> null,
+                () -> {
+                    calls.add("move");
+                    return "moved OneNote here";
+                });
+        ActionResult result = action.run(task("jabref/fix", "onenote:https://x/y.one#Page"));
+        assertThat(calls).containsExactly("move", "open onenote:https://x/y.one#Page");
+        assertThat(result.detail()).isEqualTo("opening task note (moved OneNote here)");
+    }
+
+    @Test
+    void leavesWindowsAloneForAWebNote() {
+        java.util.List<String> calls = new java.util.ArrayList<>();
+        NoteFocusAction action = new NoteFocusAction(url -> calls.add("open " + url), group -> null,
+                () -> {
+                    calls.add("move");
+                    return null;
+                });
+        ActionResult result = action.run(task("jabref/fix", "https://example.org/note"));
+        assertThat(calls).containsExactly("open https://example.org/note");
+        assertThat(result.detail()).isEqualTo("opening task note");
     }
 }
