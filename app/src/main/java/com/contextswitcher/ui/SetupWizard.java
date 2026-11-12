@@ -345,9 +345,22 @@ public final class SetupWizard {
         @Nullable String clipFolder = clipboardFolder(clipText);
         (clipFolder != null ? localChoice
                 : offerClone && prefill.host() == null ? remoteChoice : configured).setSelected(true);
+        // A dialog sizes itself to its content once, at show; a taller page —
+        // or a verdict grown by a few lines — would otherwise push its
+        // buttons out of the window.
+        Runnable fit = () -> {
+            javafx.scene.Scene scene = dialog.getDialogPane().getScene();
+            if (scene != null && scene.getWindow() != null) {
+                // New content is not styled yet; measured unstyled, its
+                // wrapped text gets too few lines.
+                dialog.getDialogPane().applyCss();
+                scene.getWindow().sizeToScene();
+            }
+        };
         Label localVerdict = new Label();
         localVerdict.setId("setup-local-verdict");
         localVerdict.setWrapText(true);
+        localVerdict.textProperty().addListener((obs, was, now) -> fit.run());
         boolean[] localOk = {false};
         // This machine's tools, checked in the background as soon as the
         // wizard opens; `onOk` runs (on the FX thread) after a success,
@@ -879,15 +892,7 @@ public final class SetupWizard {
                     folderSession.setSelected(false);
                 }
             }
-            // A dialog sizes itself to its content once, at show; a taller
-            // page would otherwise push its buttons out of the window.
-            javafx.scene.Scene scene = dialog.getDialogPane().getScene();
-            if (scene != null && scene.getWindow() != null) {
-                // The new page is not styled yet; measured unstyled, its
-                // wrapped text gets too few lines.
-                dialog.getDialogPane().applyCss();
-                scene.getWindow().sizeToScene();
-            }
+            fit.run();
             Platform.runLater(() -> (current[0] == 1
                     ? (wslChoice.isSelected() ? (Node) distro : host) : current[0] == 4 ? cloneUrl
                     : current[0] == last ? (fromFolder.isSelected() ? folder : repoUrl)

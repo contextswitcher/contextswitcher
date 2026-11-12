@@ -22,6 +22,8 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Fixed
 
 - The setup wizard's *Finish* stays disabled while a local folder for a new category does not exist or cannot be read, and says so under the field.
+- The setup wizard's buttons no longer slip out of the window when the check of this machine reports a missing tool.
+- Qodo review prompts are found again in comments with Windows line endings.
 
 ## [2026-11-09] - 2026-11-09
 
