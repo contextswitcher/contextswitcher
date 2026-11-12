@@ -8,6 +8,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Changed
+
+- A project created by the setup wizard for a local folder lists that folder under *Local folders*, so switching to it opens the folder in the file manager.
+
 ### Fixed
 
 - The setup wizard's *Finish* stays disabled while a local folder for a new category does not exist or cannot be read, and says so under the field.

@@ -109,5 +109,15 @@ class CategoryFromUrlTest {
         assertThat(config.workspacesRoot()).isEqualTo("C:\\Users\\me\\OneDrive\\paper");
         assertThat(config.mainCheckout()).isNull();
         assertThat(config.repo()).isNull();
+        assertThat(config.folders()).containsExactly("C:\\Users\\me\\OneDrive\\paper");
+    }
+
+    /// On a remote the folder is not this machine's, so no `folders:` entry.
+    // [utest->dsn~category-from-folder~3]
+    @Test
+    void aRemoteFolderCategoryListsNoLocalFolder() {
+        String content = TaskFileParser.groupConfigForRepo("paper", null, "koppor@devbox",
+                "/home/me/paper", null);
+        assertThat(new TaskFileParser().parseGroupConfig(content).folders()).isEmpty();
     }
 }
