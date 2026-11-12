@@ -103,6 +103,19 @@ Covers:
 
 Needs: dsn
 
+### App windows on the desktop in view
+`req~app-window-on-current-desktop~1`
+
+Opening a task's note or folder must not drag the user to another virtual desktop.
+Single-instance apps (OneNote) and window-reusing ones (File Explorer) activate their existing window, wherever it sits; that window is brought to the desktop in view instead, so the project's desktop keeps the project's windows.
+
+Tags: windows
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Open the task's chat room
 `req~open-task-chat~2`
 
@@ -530,6 +543,25 @@ Tags: windows, linux
 
 Covers:
 - req~open-task-note~1
+
+Needs: impl, utest
+
+### Window move to the current desktop
+`dsn~window-move-here~1`
+
+`WindowsWindowMove` moves another app's window to the virtual desktop in view with `IVirtualDesktopManagerInternal::MoveViewToDesktop(view, GetCurrentDesktop())`, the view coming from `IApplicationViewCollection::GetViewForHwnd`.
+The documented `IVirtualDesktopManager::MoveWindowToDesktop` only accepts the calling process's own windows, so the undocumented interface is the only route; it is pinned to the Windows 11 24H2 IID that `dsn~category-desktop-focus~4` uses, and another build fails `QueryService` cleanly — the window is then simply not moved and the old desktop jump remains.
+A window already on the current desktop, or pinned to all desktops (`IsWindowOnCurrentVirtualDesktop` is true for both), is left alone.
+
+`bringHere(label, process, class)` picks the app's visible, titled, unowned top-level windows of that process and class, prefers one already on the current desktop, else moves the topmost one here, and brings the chosen window to the front; outcomes `none` (not running), `here`, `moved`, `failed`.
+`NoteFocusAction` calls it for OneNote (`ONENOTE`, `Framework::CFrame`) before opening an `onenote:` link — so the link activates a window on this desktop — and adds `moved OneNote here` to the chip detail when it moved one; with OneNote not running, the link starts it here anyway.
+`LocalFolderFocus` (`dsn~explorer-folder-focus~3`) moves a matching Explorer window here before focusing it and reports `moved here: <folder>`.
+The C# types live once in `WindowsWindowMove.TYPES` and are embedded by every script that moves windows; more apps (VS Code, SumatraPDF) take a process/class pair.
+
+Tags: windows
+
+Covers:
+- req~app-window-on-current-desktop~1
 
 Needs: impl, utest
 

@@ -14,6 +14,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - Android: tapping a category header lists all categories; picking one scrolls to it.
 - A new local category lists the Claude sessions already recorded for its folder as suspended tasks, each resuming its own conversation.
 - A local category's header has a sync button that adds the Claude sessions recorded for its folder since; *Sync tmux windows…* does the same for every local category.
+- Opening a OneNote note or a folder on switch moves the OneNote or Explorer window to the desktop in view, instead of jumping to the desktop it was on.
 
 ### Fixed
 
