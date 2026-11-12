@@ -1,5 +1,6 @@
 package com.contextswitcher.android.ui
 
+import com.contextswitcher.tasks.TaskEntry
 import java.io.File
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -44,6 +45,36 @@ class TaskListModelTest {
         assertThat(groupAtTop(groups, 99)).isEqualTo("beta")
         assertThat(groupAtTop(emptyList(), 0)).isEmpty()
     }
+
+    // [utest->dsn~android-task-list-navigation~1]
+    @Test
+    fun `headerIndex is the inverse of groupAtTop`() {
+        val groups = listOf(TaskGroupUi("alpha", listOf(failed("a"), failed("b"))), TaskGroupUi("beta", listOf(failed("c"))))
+        assertThat(headerIndex(groups, "alpha")).isEqualTo(0)
+        assertThat(headerIndex(groups, "beta")).isEqualTo(3)
+        assertThat(groupAtTop(groups, headerIndex(groups, "beta"))).isEqualTo("beta")
+        assertThat(headerIndex(groups, "missing")).isEqualTo(0)
+    }
+
+    // [utest->dsn~android-task-list-navigation~1]
+    @Test
+    fun `filterTaskList matches title, tag and group name and drops empty groups`(@TempDir tmp: File) {
+        File(tmp, "alpha").mkdirs()
+        File(tmp, "beta").mkdirs()
+        File(tmp, "alpha/one.md").writeText(task("Fix Login", "active"))
+        File(tmp, "alpha/two.md").writeText(task("Other", "active").replace("status: active", "status: active\ntags: [urgent]"))
+        File(tmp, "beta/three.md").writeText(task("Third", "active"))
+        val groups = buildTaskListModel(tmp.toPath())
+
+        fun titles(query: String) = filterTaskList(groups, query).map { g -> g.name to g.entries.map { (it as TaskEntry.Loaded).task().title() } }
+        assertThat(titles("login")).containsExactly("alpha" to listOf("Fix Login"))
+        assertThat(titles("URG")).containsExactly("alpha" to listOf("Other"))
+        assertThat(titles("bet")).containsExactly("beta" to listOf("Third"))
+        assertThat(titles("nothing")).isEmpty()
+        assertThat(filterTaskList(groups, " ")).isSameAs(groups)
+    }
+
+    private fun failed(name: String) = TaskEntry.Failed(name, "$name.md", "broken")
 
     private fun task(title: String, status: String) = """
         ---

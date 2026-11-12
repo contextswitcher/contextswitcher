@@ -247,6 +247,19 @@ Covers:
 
 Needs: impl, utest
 
+### Search and jump to a category
+`dsn~android-task-list-navigation~1`
+
+The task list's top bar has a 🔍 action that turns the title into a search field (focused, *✕* or *Back* closes it); `filterTaskList(groups, query)` narrows the list case-insensitively to the tasks whose title or a tag matches, keeping a whole group whose name matches and dropping groups left empty, with *No task matches* when nothing does.
+Tapping a group header opens *Go to category*, listing the shown groups; picking one scrolls the list to that group's header (`headerIndex`, the inverse of `groupAtTop`).
+
+Tags: android
+
+Covers:
+- req~android-task-list~1
+
+Needs: impl, utest
+
 ### `SshjCommandRunner`
 `dsn~android-ssh-runner~2`
 

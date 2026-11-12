@@ -59,3 +59,34 @@ fun groupAtTop(groups: List<TaskGroupUi>, firstVisibleItemIndex: Int): String {
     }
     return groups.lastOrNull()?.name ?: ""
 }
+
+/// The `LazyColumn` index of [name]'s group header in [TaskListBody] — the
+/// inverse of [groupAtTop]; 0 when no group has that name.
+// [impl->dsn~android-task-list-navigation~1]
+fun headerIndex(groups: List<TaskGroupUi>, name: String): Int {
+    var index = 0
+    for (group in groups) {
+        if (group.name == name) return index
+        index += 1 + group.entries.size
+    }
+    return 0
+}
+
+/// The task list narrowed to [query] (case-insensitive): a group whose name
+/// matches keeps all its tasks, otherwise only the tasks whose title or a tag
+/// matches (a failed row by its file name); groups left empty are dropped.
+/// A blank query returns [groups] unchanged.
+// [impl->dsn~android-task-list-navigation~1]
+fun filterTaskList(groups: List<TaskGroupUi>, query: String): List<TaskGroupUi> {
+    val q = query.trim()
+    if (q.isEmpty()) return groups
+    fun matches(entry: TaskEntry) = when (entry) {
+        is TaskEntry.Loaded -> entry.task().title().contains(q, ignoreCase = true) ||
+            entry.task().tags().any { it.contains(q, ignoreCase = true) }
+        is TaskEntry.Failed -> entry.fileName.contains(q, ignoreCase = true)
+    }
+    return groups.mapNotNull { group ->
+        if (group.name.contains(q, ignoreCase = true)) group
+        else group.entries.filter(::matches).takeIf { it.isNotEmpty() }?.let { TaskGroupUi(group.name, it) }
+    }
+}

@@ -11,7 +11,10 @@ import org.assertj.core.api.Assertions.assertThat
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import java.io.File
 import org.junit.Rule
 import org.junit.Test
@@ -91,6 +94,30 @@ class TaskListScreenTest {
 
         assertThat(state.firstVisibleItemIndex).isEqualTo(40)
         composeRule.onNodeWithText("Task 49").assertExists()
+    }
+
+    // [utest->dsn~android-task-list-navigation~1]
+    @Test
+    fun `tapping a group header lists the groups and picking one scrolls to it`() {
+        val tasksDir = tmpFolder.newFolder("jump")
+        for (folder in listOf("alpha", "omega")) {
+            File(tasksDir, folder).mkdirs()
+            for (i in 10..39) File(tasksDir, "$folder/t$i.md").writeText(task("$folder $i", "active"))
+        }
+        val groups = buildTaskListModel(tasksDir.toPath())
+        lateinit var state: LazyListState
+        composeRule.setContent {
+            state = rememberLazyListState()
+            MaterialTheme { Surface { TaskListBody(groups, listState = state) } }
+        }
+
+        composeRule.onNodeWithText("alpha").performClick()
+        composeRule.onNodeWithText("Go to category").assertExists()
+        composeRule.onAllNodesWithText("omega").onLast().performClick()
+        composeRule.waitForIdle()
+
+        assertThat(state.firstVisibleItemIndex).isEqualTo(headerIndex(groups, "omega"))
+        composeRule.onNodeWithText("Go to category").assertDoesNotExist()
     }
 
     private fun task(title: String, status: String) = """

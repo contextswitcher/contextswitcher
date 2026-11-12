@@ -35,6 +35,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -49,6 +50,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.contextswitcher.android.provenance.PhoneProvenance
@@ -70,6 +73,7 @@ import com.contextswitcher.android.ui.EXPANDED_WIDTH
 import com.contextswitcher.android.ui.TaskDetailScreen
 import com.contextswitcher.android.ui.TaskGroupUi
 import com.contextswitcher.android.ui.TaskListBody
+import com.contextswitcher.android.ui.filterTaskList
 import com.contextswitcher.android.ui.groupAtTop
 import com.contextswitcher.android.ui.buildTaskListModel
 import com.contextswitcher.android.voice.VoiceTour
@@ -399,6 +403,10 @@ internal fun TaskListScreen(
     var lastError by remember { mutableStateOf<String?>(null) }
     var addingTask by rememberSaveable { mutableStateOf(false) }
     var pickingTour by rememberSaveable { mutableStateOf(false) }
+    // null: search closed; otherwise the list shows only what matches.
+    var searchQuery by rememberSaveable { mutableStateOf<String?>(null) }
+    val shownGroups = filterTaskList(groups, searchQuery ?: "")
+    BackHandler(enabled = searchQuery != null) { searchQuery = null }
     var taskBeingAdded by remember { mutableStateOf(false) }
     var addTaskError by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -546,24 +554,50 @@ internal fun TaskListScreen(
         },
         topBar = {
             TopAppBar(
-                title = { Text("ContextSwitcher") },
+                title = {
+                    // [impl->dsn~android-task-list-navigation~1]
+                    val query = searchQuery
+                    if (query == null) {
+                        Text("ContextSwitcher")
+                    } else {
+                        val focus = remember { FocusRequester() }
+                        TextField(
+                            value = query,
+                            onValueChange = {
+                                searchQuery = it
+                                scope.launch { listState.scrollToItem(0) }
+                            },
+                            placeholder = { Text("Search tasks") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                        )
+                        LaunchedEffect(Unit) { focus.requestFocus() }
+                    }
+                },
                 actions = {
-                    if (update is AppUpdates.Check.Available) {
-                        TextButton(onClick = { installUpdate() }, enabled = !updating) { Text(if (updating) "Updating…" else "Update") }
+                    if (searchQuery != null) {
+                        TextButton(onClick = { searchQuery = null }) { Text("✕") }
+                    } else {
+                        TextButton(onClick = { searchQuery = "" }) { Text("🔍") }
+                        if (update is AppUpdates.Check.Available) {
+                            TextButton(onClick = { installUpdate() }, enabled = !updating) { Text(if (updating) "Updating…" else "Update") }
+                        }
+                        TextButton(onClick = { sync() }, enabled = !syncing) { Text(if (syncing) "Syncing…" else "Sync") }
+                        if (onStartTour != null && VoiceTour.categories(groups).isNotEmpty()) {
+                            TextButton(onClick = { pickingTour = true }) { Text("Tour") }
+                        }
+                        TextButton(onClick = onOpenSettings) { Text("Settings") }
                     }
-                    TextButton(onClick = { sync() }, enabled = !syncing) { Text(if (syncing) "Syncing…" else "Sync") }
-                    if (onStartTour != null && VoiceTour.categories(groups).isNotEmpty()) {
-                        TextButton(onClick = { pickingTour = true }) { Text("Tour") }
-                    }
-                    TextButton(onClick = onOpenSettings) { Text("Settings") }
                 },
             )
         },
     ) { padding ->
         if (groups.isEmpty()) {
             EmptyTaskList(syncing, lastError, onRetry = { sync() }, modifier = Modifier.padding(padding))
+        } else if (shownGroups.isEmpty()) {
+            Text("No task matches", modifier = Modifier.padding(padding).padding(16.dp))
         } else {
-            TaskListBody(groups, modifier = Modifier.padding(padding), onTaskClick = onOpenTask, listState = listState)
+            TaskListBody(shownGroups, modifier = Modifier.padding(padding), onTaskClick = onOpenTask, listState = listState)
         }
     }
 
@@ -590,7 +624,7 @@ internal fun TaskListScreen(
         val categories = groups.map { it.name }.ifEmpty { listOf("") }
         AddTaskDialog(
             categories = categories,
-            initialCategory = groupAtTop(groups, listState.firstVisibleItemIndex)
+            initialCategory = groupAtTop(shownGroups, listState.firstVisibleItemIndex)
                 .ifEmpty { categories.firstOrNull { it.isNotEmpty() } ?: "" },
             adding = taskBeingAdded,
             error = addTaskError,

@@ -13,9 +13,18 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -24,6 +33,7 @@ import com.contextswitcher.tasks.Task
 import com.contextswitcher.tasks.TaskEntry
 import com.contextswitcher.tasks.TaskStatus
 import com.contextswitcher.tasks.TaskTags
+import kotlinx.coroutines.launch
 
 /// The task list's body: group header rows (sticky while their group scrolls)
 /// followed by their task rows, in
@@ -31,7 +41,9 @@ import com.contextswitcher.tasks.TaskTags
 /// loaded task's row opens its detail pager ([onTaskClick]); a failed row
 /// has nothing to open. [listState] belongs to the caller, so the scroll
 /// position outlives this list while a task is open in its place.
+/// Tapping a group header lists all groups; picking one scrolls to it.
 // [impl->dsn~android-task-list~1]
+// [impl->dsn~android-task-list-navigation~1]
 @Composable
 fun TaskListBody(
     groups: List<TaskGroupUi>,
@@ -39,22 +51,44 @@ fun TaskListBody(
     onTaskClick: (Task) -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
 ) {
+    var pickingGroup by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     LazyColumn(modifier = modifier.fillMaxSize(), state = listState) {
         for (group in groups) {
-            stickyHeader { GroupHeader(group.name) }
+            stickyHeader { GroupHeader(group.name) { pickingGroup = true } }
             items(group.entries) { entry -> TaskRow(entry, onTaskClick) }
         }
     }
+    if (pickingGroup) {
+        AlertDialog(
+            onDismissRequest = { pickingGroup = false },
+            title = { Text("Go to category") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    for (group in groups) {
+                        TextButton(onClick = {
+                            pickingGroup = false
+                            scope.launch { listState.scrollToItem(headerIndex(groups, group.name)) }
+                        }, modifier = Modifier.fillMaxWidth()) { Text(groupLabel(group.name)) }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { pickingGroup = false }) { Text("Cancel") } },
+        )
+    }
 }
 
+private fun groupLabel(name: String) = name.ifEmpty { "(ungrouped)" }
+
 @Composable
-private fun GroupHeader(name: String) {
+private fun GroupHeader(name: String, onClick: () -> Unit) {
     Text(
-        text = name.ifEmpty { "(ungrouped)" },
+        text = groupLabel(name),
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
         // Opaque: as a sticky header it lies over the rows scrolling beneath it.
         modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onClick)
             .padding(top = 16.dp, bottom = 4.dp, start = 8.dp),
     )
 }
