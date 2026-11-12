@@ -2032,7 +2032,14 @@ public class MainWindow {
     /// ([#promptRemoteWindow]) — instead of a pause with nothing to suspend.
     // [impl->dsn~task-row-hover-actions~7]
     private boolean neverWindowed(Task task) {
-        return task.remote() != null && task.tmux() == null && !creations.containsKey(task.id());
+        return taskRemote(task) != null && task.tmux() == null && !creations.containsKey(task.id());
+    }
+
+    /// The task's own `remote:`, else its category's — a failed creation in a
+    /// category with a `remote:` leaves a task without one of its own.
+    // [impl->dsn~remote-window-choice~7]
+    private @Nullable String taskRemote(Task task) {
+        return task.remote() != null ? task.remote() : groupDefaults(groupOf(task.id())).remote();
     }
 
     // [impl->dsn~terminal-owned-session~4]
@@ -4374,7 +4381,7 @@ public class MainWindow {
         Task task = freshTask(staleTask);
         // A remote-only task has no window to focus yet: ask whether to open a
         // plain tmux shell or a Claude session on the remote, then create it.
-        if (task.remote() != null && task.tmux() == null) {
+        if (task.tmux() == null && taskRemote(task) != null) {
             promptRemoteWindow(task);
             return;
         }
@@ -4415,7 +4422,7 @@ public class MainWindow {
     /// section, so the next play focuses it normally.
     // [impl->dsn~remote-window-choice~7]
     private void promptRemoteWindow(Task task) {
-        RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, task.remote(), true);
+        RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, taskRemote(task), true);
         if (choice != null) {
             onStartRemoteWindow.start(task, choice.withClaude(), choice.mode());
         }
