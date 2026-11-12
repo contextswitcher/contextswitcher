@@ -13,6 +13,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - Android: the task list has a search button (🔍) that narrows it to the tasks whose title, tag or category matches.
 - Android: tapping a category header lists all categories; picking one scrolls to it.
 
+### Fixed
+
+- Android: the app registers the `contextswitcher://` scheme; `task/<id>` and `switch/<id>` links open the task.
+
 ## [2026-11-12] - 2026-11-12
 
 ### Added

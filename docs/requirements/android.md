@@ -427,6 +427,20 @@ Covers:
 
 Needs: impl, utest
 
+### Deep links open the task
+`dsn~android-deep-link~1`
+
+`MainActivity` has an `android.intent.action.VIEW` filter for the `contextswitcher` scheme (`BROWSABLE`, so links in a browser or note app reach it).
+`requestedTaskId` maps `contextswitcher://task/<id>` and `contextswitcher://switch/<id>` to the percent-decoded task id, which opens the task's detail like a tapped finish notification; the phone runs no switch, and other links (`category/…`) just bring the app up.
+A task id not in the synced clone leaves the screen as it is.
+
+Tags: android
+
+Covers:
+- req~deep-link-url~1
+
+Needs: impl, utest
+
 ### Update hint
 `dsn~android-update-hint~3`
 

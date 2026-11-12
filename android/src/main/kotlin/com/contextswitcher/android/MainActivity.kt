@@ -131,13 +131,23 @@ private fun findTask(repoDir: File, id: String): Task? =
         null
     }
 
+/// The task an intent asks to open: a tapped finish notification's, or a
+/// `contextswitcher://task/<id>` / `contextswitcher://switch/<id>` link's —
+/// the phone has no switch, so both open the task. Other links just open the app.
+// [impl->dsn~android-deep-link~1]
+internal fun requestedTaskId(intent: Intent): String? {
+    intent.getStringExtra(TaskWatchService.EXTRA_TASK_ID)?.let { return it }
+    val uri = intent.data?.takeIf { it.scheme == "contextswitcher" && it.host in setOf("task", "switch") } ?: return null
+    return uri.path?.trim('/')?.takeIf { it.isNotEmpty() }
+}
+
 class MainActivity : ComponentActivity() {
     /// The task a tapped notification asks to open; consumed by the screen flow.
     private val openTaskRequest = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        openTaskRequest.value = intent?.getStringExtra(TaskWatchService.EXTRA_TASK_ID)
+        openTaskRequest.value = intent?.let(::requestedTaskId)
         val settingsStore = SettingsStore(applicationContext)
         val repoDir = File(filesDir, "taskrepo")
         val knownHosts = KnownHostsStore(File(filesDir, "known_hosts.properties"))
@@ -161,7 +171,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        intent.getStringExtra(TaskWatchService.EXTRA_TASK_ID)?.let { openTaskRequest.value = it }
+        requestedTaskId(intent)?.let { openTaskRequest.value = it }
     }
 
     override fun onStart() {
