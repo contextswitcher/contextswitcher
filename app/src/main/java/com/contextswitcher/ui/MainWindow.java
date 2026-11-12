@@ -570,9 +570,15 @@ public class MainWindow {
             Preferences.userNodeForPackage(MainWindow.class).node("lastTaskByDesktop");
     /// When on, the list shows only running (active) tasks — suspended and done
     /// ones drop out. Kept across restarts like the other filters.
-    // [impl->dsn~running-tasks-filter~1]
+    // [impl->dsn~running-tasks-filter~2]
     // [impl->dsn~filter-persistence~1]
     private boolean runningTasksOnly = PREFERENCES.getBoolean(FILTER_RUNNING_TASKS, false);
+    /// Widens [#runningTasksOnly] by the suspended tasks whose file changed in
+    /// the last [#RECENT_SUSPENDED_DAYS] days — still resumable, while older
+    /// ones stay out of the way until the user manages them.
+    // [impl->dsn~running-tasks-filter~2]
+    private boolean recentSuspendedToo = PREFERENCES.getBoolean(FILTER_RECENT_SUSPENDED, false);
+    static final int RECENT_SUSPENDED_DAYS = 14;
     private @Nullable Task previewedTask;
 
     /// What the *Browser URLs* field asks the browser; set by `Main`.
@@ -785,6 +791,7 @@ public class MainWindow {
     // [impl->dsn~filter-persistence~1]
     static final String FILTER_AWAITS_INPUT = "filterAwaitsInput";
     static final String FILTER_RUNNING_TASKS = "filterRunningTasks";
+    static final String FILTER_RECENT_SUSPENDED = "filterRecentSuspended";
     static final String FILTER_ACTIVE_DESKTOP = "filterActiveDesktop";
     static final String FILTER_NO_DESKTOP_CATEGORIES = "filterNoDesktopCategories";
     static final String FILTER_TAGS = "filterTags";
@@ -2620,8 +2627,10 @@ public class MainWindow {
         boolean filtering = !searching && !activeTags.isEmpty();
         // [impl->dsn~awaits-input-filter~1]
         boolean awaiting = !searching && awaitsInputOnly;
-        // [impl->dsn~running-tasks-filter~1]
+        // [impl->dsn~running-tasks-filter~2]
         boolean running = !searching && runningTasksOnly;
+        long recentSuspendedCutoff = System.currentTimeMillis()
+                - java.time.Duration.ofDays(RECENT_SUSPENDED_DAYS).toMillis();
         // The active-desktop filter narrows only when we actually know the
         // active desktop (null on non-Windows / unnamed / not-yet-read, so the
         // toggle is a harmless no-op there). Captured into a non-null local so
@@ -2716,9 +2725,15 @@ public class MainWindow {
             }
             // Show only running work: suspended and done tasks fall out (error
             // rows stay — a parse failure must be seen).
-            // [impl->dsn~running-tasks-filter~1]
+            // [impl->dsn~running-tasks-filter~2]
+            // With "recent suspended" ticked, a suspended task touched in the
+            // last 14 days stays: it is what the user may resume next.
+            // [impl->dsn~running-tasks-filter~2]
             if (running && entry instanceof TaskEntry.Loaded loaded
-                    && loaded.task().status() != TaskStatus.ACTIVE) {
+                    && loaded.task().status() != TaskStatus.ACTIVE
+                    && !(recentSuspendedToo && loaded.task().status() == TaskStatus.SUSPENDED
+                            && modifiedById.computeIfAbsent(entry.id(), this::lastModifiedMillis)
+                                    >= recentSuspendedCutoff)) {
                 continue;
             }
             // Completed tasks leave their group and gather in one bottom "Done"
@@ -7075,13 +7090,14 @@ public class MainWindow {
     // [impl->dsn~task-list-toolbar~3]
     // [impl->dsn~awaits-input-filter~1]
     // [impl->dsn~active-desktop-filter~6]
-    // [impl->dsn~running-tasks-filter~1]
+    // [impl->dsn~running-tasks-filter~2]
     // [impl->dsn~task-tag-filter~2]
     private MenuButton filterButton() {
         MenuButton button = iconMenuButton(MDIInterface.FILTER, "Filter the task list");
         this.filterButton = button;
         CheckMenuItem desktopItem = activeDesktopItem();
-        button.getItems().addAll(awaitsInputItem(), runningTasksItem(), desktopItem,
+        CheckMenuItem runningItem = runningTasksItem();
+        button.getItems().addAll(awaitsInputItem(), runningItem, recentSuspendedItem(runningItem), desktopItem,
                 noDesktopCategoriesItem(desktopItem), new SeparatorMenuItem(), tagFilterMenu(),
                 hostsMenu());
         updateFilterButton();
@@ -7268,7 +7284,7 @@ public class MainWindow {
     /// The filter menu's "Show running tasks only" check item: while ticked,
     /// [#rebuildRows] narrows the list to active tasks — suspended and done ones
     /// are hidden. Restored from the last run ([#runningTasksOnly]).
-    // [impl->dsn~running-tasks-filter~1]
+    // [impl->dsn~running-tasks-filter~2]
     private CheckMenuItem runningTasksItem() {
         CheckMenuItem item = new CheckMenuItem("Show running tasks only");
         runningTasksCheck = item;
@@ -7280,6 +7296,24 @@ public class MainWindow {
         });
         // [impl->dsn~filter-persistence~1]
         item.setSelected(runningTasksOnly);
+        return item;
+    }
+
+    /// The filter menu's "Also show suspended tasks of the last 14 days" item,
+    /// directly under the running filter it widens; disabled while that filter
+    /// is off, like [#noDesktopCategoriesItem]. Restored from the last run.
+    // [impl->dsn~running-tasks-filter~2]
+    // [impl->dsn~filter-persistence~1]
+    private CheckMenuItem recentSuspendedItem(CheckMenuItem runningItem) {
+        CheckMenuItem item = new CheckMenuItem(
+                "Also show suspended tasks of the last " + RECENT_SUSPENDED_DAYS + " days");
+        item.disableProperty().bind(runningItem.selectedProperty().not());
+        item.selectedProperty().addListener((obs, was, selected) -> {
+            recentSuspendedToo = selected;
+            PREFERENCES.putBoolean(FILTER_RECENT_SUSPENDED, selected);
+            rebuildRows();
+        });
+        item.setSelected(recentSuspendedToo);
         return item;
     }
 

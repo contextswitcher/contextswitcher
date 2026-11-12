@@ -97,10 +97,11 @@ Covers:
 Needs: dsn
 
 ### Filter the task list to running tasks
-`req~running-tasks-filter~1`
+`req~running-tasks-filter~2`
 
 The user can narrow the task list to only the running tasks, from the task-list toolbar's filter menu (`req~task-list-toolbar~2`).
 A running task is a task with status `active`; paused (`suspended`) and `done` tasks are hidden while the filter is on.
+A sub-option also keeps the suspended tasks touched in the last 14 days, so the ones the user may resume next stay at hand while older ones wait for later clean-up.
 The filter is not persisted — the app always starts with it off.
 
 Tags: windows, linux
@@ -130,7 +131,7 @@ Needs: dsn
 `req~filter-persistence~1`
 
 The task list comes up filtered the way the user left it: the toolbar filter menu's toggles and the selected tags are restored on the next launch, like the sort order (`req~task-sort-modes~2`).
-This deliberately overrides the "the filter is not persisted — the app always starts with it off" sentence of `req~task-tag-filter~1`, `req~awaits-input-filter~1`, `req~active-desktop-filter~2` and `req~running-tasks-filter~1` (without bumping them).
+This deliberately overrides the "the filter is not persisted — the app always starts with it off" sentence of `req~task-tag-filter~1`, `req~awaits-input-filter~1`, `req~active-desktop-filter~2` and `req~running-tasks-filter~2` (without bumping them).
 A narrowed list is how the user chose to read their tasks — re-ticking the same two filters after every launch is busywork, and the filter button's badge already says the view is narrowed.
 A tag that no longer exists anywhere is dropped from the restored selection instead of hiding every task.
 
@@ -965,7 +966,7 @@ It runs at three points:
 - the sync icon button (MDI `sync`, id `group-sync-sessions-button`) right of the name of every local category's header that has a directory — where a remote category carries its terminal icon — disabled for the round-trip, with "Looking for Claude sessions in …" → "Added N Claude sessions in … as tasks." / "No new Claude sessions in …." on the status bar;
 - *Sync tmux windows…* (`dsn~tmux-sync~7`), for every local category at once.
 
-The imported tasks are suspended, so the standing filters (*Show running tasks only*, `dsn~running-tasks-filter~1`) hide them — and a category whose every task is filtered out drops from the list, which left the list empty right after adding a category.
+The imported tasks are suspended, so the standing filters (*Show running tasks only*, `dsn~running-tasks-filter~2`) hide them — and a category whose every task is filtered out drops from the list, which left the list empty right after adding a category.
 A category created in this window (`MainWindow.createdCategories`) therefore keeps its header under the standing filters for the rest of the session; a typed query or a tag filter still hides it, those look for tasks.
 An import that added tasks makes them visible (`MainWindow.revealImported`): a sync that added six tasks otherwise looked like it had done nothing.
 It unticks *Show running tasks only* — persisted like a click on the item — and its status line says so; the creation and the header button also select the first imported task (the newest session), which `selectTask` keeps pending until the watcher has loaded the file.
@@ -1237,7 +1238,7 @@ Needs: impl, utest
 ### Running-task accent and header count
 `dsn~running-task-accent~1`
 
-Every active task (`TaskStatus.ACTIVE` — what the running-tasks filter keeps, `dsn~running-tasks-filter~1`) carries an accent bar on its row's left edge: `TaskListCell` adds `running-task-cell` to the cell, and `main.css` colours the reserved 3 px left border `-color-accent-muted`; a selected row keeps the selection's stronger `-color-accent-emphasis` edge.
+Every active task (`TaskStatus.ACTIVE` — what the running-tasks filter keeps, `dsn~running-tasks-filter~2`) carries an accent bar on its row's left edge: `TaskListCell` adds `running-task-cell` to the cell, and `main.css` colours the reserved 3 px left border `-color-accent-muted`; a selected row keeps the selection's stronger `-color-accent-emphasis` edge.
 A **collapsed** category header counts them as a bare, accent-coloured number (`running-count`, tooltip "N running tasks", only when above zero) just left of the header's buttons; expanded, the bars show them and the number is left out. `MainWindow.rebuildRows` counts the active entries of the category's rows on screen into `GroupHeader.running`.
 Carl, 2026-09-16: "Accent bar marks each running task; the header counts them."
 
@@ -2478,7 +2479,7 @@ Needs: impl
 `dsn~task-list-toolbar~3`
 
 `MainWindow.toolBar` builds a `ToolBar` placed at the top of the left `VBox`, above the find bar and the list (it was previously the whole window's top bar) — so every list-wide action sits over the list it acts on.
-The controls, left to right: the back/forward history `Button`s (`ARROW_LEFT`/`ARROW_RIGHT`, `dsn~task-history-navigation~2`); an add `MenuButton` (`PLUS`) whose items open `Add task…`/`Add category…` (the setup wizard, `dsn~category-create-ui~3`); the filter `MenuButton` (`FILTER_VARIANT`) holding the three narrowing filters as `CheckMenuItem`s (`dsn~awaits-input-filter~1`, `dsn~active-desktop-filter~6`, `dsn~running-tasks-filter~1`) plus, after a separator, the tag filter as a `Tags` submenu (`Menu`, `dsn~task-tag-filter~2`) and the `Hosts` submenu that switches hosts on and off (`dsn~host-on-off~2`); the sort `MenuButton` (`SORT_VARIANT`, `dsn~task-sort-modes~2`); the group `MenuButton` (`FORMAT_LIST_GROUP`, one `CheckMenuItem` per grouping, `dsn~task-label-grouping~3`, `dsn~pr-status-grouping~1`, `dsn~nested-grouping~1`); the energy-saver `ToggleButton` (`LEAF`, `dsn~energy-saver~1`); the restart-to-update `Button` (`UPDATE`, always shown, blue once an update exists, with a badge counting the pending changes, its tooltip listing the pending news of `dsn~whats-new-upstream~7`, `dsn~restart-to-update~12`); a "more" `MenuButton` (`DOTS_VERTICAL`) whose items — each a `CustomMenuItem` label carrying a tooltip that explains the action, since a plain `MenuItem` takes none — are open-tasks-directory, sync-tmux-windows (`dsn~tmux-sync~7`), restart-running-tasks (`dsn~tmux-restart-running~1`), and refresh-now (`dsn~energy-saver~1`); and the settings gear (`COG`, `settingsButton`, `dsn~settings-editor~4`) at the right end.
+The controls, left to right: the back/forward history `Button`s (`ARROW_LEFT`/`ARROW_RIGHT`, `dsn~task-history-navigation~2`); an add `MenuButton` (`PLUS`) whose items open `Add task…`/`Add category…` (the setup wizard, `dsn~category-create-ui~3`); the filter `MenuButton` (`FILTER_VARIANT`) holding the three narrowing filters as `CheckMenuItem`s (`dsn~awaits-input-filter~1`, `dsn~active-desktop-filter~6`, `dsn~running-tasks-filter~2`) plus, after a separator, the tag filter as a `Tags` submenu (`Menu`, `dsn~task-tag-filter~2`) and the `Hosts` submenu that switches hosts on and off (`dsn~host-on-off~2`); the sort `MenuButton` (`SORT_VARIANT`, `dsn~task-sort-modes~2`); the group `MenuButton` (`FORMAT_LIST_GROUP`, one `CheckMenuItem` per grouping, `dsn~task-label-grouping~3`, `dsn~pr-status-grouping~1`, `dsn~nested-grouping~1`); the energy-saver `ToggleButton` (`LEAF`, `dsn~energy-saver~1`); the restart-to-update `Button` (`UPDATE`, always shown, blue once an update exists, with a badge counting the pending changes, its tooltip listing the pending news of `dsn~whats-new-upstream~7`, `dsn~restart-to-update~12`); a "more" `MenuButton` (`DOTS_VERTICAL`) whose items — each a `CustomMenuItem` label carrying a tooltip that explains the action, since a plain `MenuItem` takes none — are open-tasks-directory, sync-tmux-windows (`dsn~tmux-sync~7`), restart-running-tasks (`dsn~tmux-restart-running~1`), and refresh-now (`dsn~energy-saver~1`); and the settings gear (`COG`, `settingsButton`, `dsn~settings-editor~4`) at the right end.
 The four occasional actions used to be icon buttons of their own; with a fifteenth control on the way the bar outgrew the narrow list pane, so they share one menu (a ribbon library was considered and dropped: unmaintained since 2018, and a tabbed band costs more list height than it saves width).
 Every control is icon-only via the shared `iconButton`/`iconMenuButton`/`iconToggle` helpers (`SvgNode`, MADR 0010 — `Styles.SMALL`/`BUTTON_ICON`/`FLAT`, muted fill, a tooltip naming it), so the whole bar stays narrow over a list that can be squeezed to `minWidth`.
 The filter button's text badges the count of active narrowing dimensions — each of the three toggles plus a non-empty tag selection — blank when none, since an icon alone cannot show that a filter is on.
@@ -2575,7 +2576,7 @@ A *changed* query empties the list at once and sets the match label — and the 
 Emptying the rows clears the list's selection, which `rebuildRows` does not preserve under a search, so `applySearch` remembers the selected task first and re-selects it once the hits land — when it is one of them and nothing else was selected meanwhile.
 A change to the entries re-runs the current query the same way, so a task edited or created while searching is matched against the new content; since the query text is unchanged, the rebuild shows the previous hits until that result lands, so a file write does not blank the list.
 Enter selects and scrolls to the first matching task (and focuses the list); Escape (or the clear button) clears the query, returns focus to the list, and scrolls the selected row back into view — in the restored full list the found task usually sits outside the viewport. A blank query matches everything, so an empty bar shows the full list.
-A running query **suspends the narrowing content filters** — tag, awaits-input and running-tasks (`dsn~task-tag-filter~2`, `dsn~awaits-input-filter~1`, `dsn~running-tasks-filter~1`): `rebuildRows` reads each of them as `!searching && <flag>`, so while the find bar has text the query alone decides which *tasks* show.
+A running query **suspends the narrowing content filters** — tag, awaits-input and running-tasks (`dsn~task-tag-filter~2`, `dsn~awaits-input-filter~1`, `dsn~running-tasks-filter~2`): `rebuildRows` reads each of them as `!searching && <flag>`, so while the find bar has text the query alone decides which *tasks* show.
 Find is an explicit "where is this task", those filters are ambient state the user set at some other moment, and ANDing the two made the bar answer "0 matches" for a task that plainly exists (field report 2026-09-09: a PR URL found nothing because its category lives on another virtual desktop while the desktop filter was on).
 The active-desktop filter is the exception and keeps narrowing (`dsn~search-hits-off-desktop~2`): suspending it moved the list to another desktop behind the user's back, which reads as the app switching context on its own (field report 2026-09-10).
 The filters stay ticked and take effect again the moment the query is cleared.
@@ -2788,27 +2789,29 @@ Covers:
 Needs: impl, utest
 
 ### Running-tasks filter
-`dsn~running-tasks-filter~1`
+`dsn~running-tasks-filter~2`
 
 A "Show running tasks only" `CheckMenuItem` sits in the task-list toolbar's filter menu (`dsn~task-list-toolbar~3`), below "Show active desktop only".
 Ticking it flips an in-memory `runningTasksOnly` flag (reset off on launch — never persisted) and rebuilds the rows.
 `MainWindow.rebuildRows` treats a set `runningTasksOnly` like the other toolbar filters — a narrowed view: it force-expands all groups and the Done section and hides empty groups — and drops every `TaskEntry.Loaded` whose status is not `ACTIVE`, so paused and done tasks vanish and the Done section disappears with them.
 Parse-failure rows (`TaskEntry.Failed`) stay visible: they carry no status and a broken file must be seen.
+An "Also show suspended tasks of the last 14 days" `CheckMenuItem` directly below it (disabled while the running filter is off, like "Also show categories without a desktop") sets `recentSuspendedToo`: a `SUSPENDED` task then stays when its task file was modified within `RECENT_SUSPENDED_DAYS` (14) days — the same file time *last update* sorting reads, which suspending and editing refresh.
+It is persisted like the other filters (`dsn~filter-persistence~1`).
 The filter reuses the status already parsed from the task file, so no new state or polling is introduced; this UI wiring is not separately unit-tested (house convention, as with the other toolbar filters).
 
 Tags: windows, linux
 
 Covers:
-- req~running-tasks-filter~1
+- req~running-tasks-filter~2
 
-Needs: impl
+Needs: impl, utest
 
 ### Filter persistence
 `dsn~filter-persistence~1`
 
 The toolbar filters are kept in the same `Preferences` node as the sort mode and the label grouping (`MainWindow.PREFERENCES`, `dsn~task-sort-modes~2`): `filterAwaitsInput`, `filterRunningTasks`, `filterActiveDesktop`, `filterNoDesktopCategories` (booleans) and `filterTags` (the selected tag names, newline-joined — a tag name may carry spaces, never a newline).
 Each `CheckMenuItem`'s listener writes its key as it flips, so the store follows the UI without a save step; the flags are read back into their fields at construction, so the very first `rebuildRows` is already narrowed.
-This deliberately overrides the "reset off on launch — never persisted" sentences of `dsn~task-tag-filter~2`, `dsn~awaits-input-filter~1`, `dsn~active-desktop-filter~6` and `dsn~running-tasks-filter~1` without bumping them (like `dsn~tag-auto-color~2`).
+This deliberately overrides the "reset off on launch — never persisted" sentences of `dsn~task-tag-filter~2`, `dsn~awaits-input-filter~1`, `dsn~active-desktop-filter~6` and `dsn~running-tasks-filter~2` without bumping them (like `dsn~tag-auto-color~2`).
 Each item is `setSelected(<restored flag>)` **after** its listener is installed, so the restore runs exactly the code path a user tick runs — the badge count, the rebuild, and, for the desktop filter, `Main.watchActiveDesktop(true)`, which starts the desktop watch a restored filter needs to narrow at all (`dsn~active-desktop-filter~6`). Until that first read arrives the desktop is unknown and the filter narrows nothing, as it does on any other unknown desktop.
 The tag selection is restored in `populateTagFilterMenu` rather than in the field initializer, because the selectable names only become known as the palette and the task files load: each populate re-applies the stored names intersected (case-insensitively) with the selectable ones, so a tag that is not offered yet at the first build still comes back, while a tag that no longer exists anywhere drops out (`dsn~tag-selection-union~2`) — the store stays the newer truth because every toggle writes it.
 The UI tests clear these keys after the filter classes (`UiTestSupport.clearStoredFilters`, hence the package-private key constants): a filter one test leaves on would otherwise narrow the next test's list, since the `uiTest` prefs store outlives the app restart.

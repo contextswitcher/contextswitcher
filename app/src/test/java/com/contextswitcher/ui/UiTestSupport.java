@@ -246,7 +246,7 @@ final class UiTestSupport {
     /// every test touching a filter clears them when it is done.
     static void clearStoredFilters() {
         Preferences prefs = Preferences.userNodeForPackage(MainWindow.class);
-        for (String key : List.of(MainWindow.FILTER_AWAITS_INPUT, MainWindow.FILTER_RUNNING_TASKS,
+        for (String key : List.of(MainWindow.FILTER_AWAITS_INPUT, MainWindow.FILTER_RUNNING_TASKS, MainWindow.FILTER_RECENT_SUSPENDED,
                 MainWindow.FILTER_ACTIVE_DESKTOP, MainWindow.FILTER_NO_DESKTOP_CATEGORIES,
                 MainWindow.FILTER_TAGS, MainWindow.FILTER_RECENT_TAGS, MainWindow.GROUPING)) {
             prefs.remove(key);
