@@ -809,7 +809,13 @@ public class Main extends Application {
                     int open = countOpenTabs(extensionServer, urls);
                     Platform.runLater(() -> answer.accept(open));
                 }),
-                name -> actionExecutor.execute(() -> reportFocusDesktop(name)),
+                (name, then) -> actionExecutor.execute(() -> {
+                    try {
+                        reportFocusDesktop(name);
+                    } finally {
+                        Platform.runLater(then);
+                    }
+                }),
                 (folders, onSettled) -> actionExecutor.execute(
                         () -> reportOpenFolders(explorerFolders, folders, onSettled)),
                 this::watchActiveDesktop,

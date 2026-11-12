@@ -195,6 +195,20 @@ Covers:
 
 Needs: dsn
 
+### Switch to a category without a task
+`req~category-switch~1`
+
+Work on a category does not always come with a task: preparing a lecture is just going to its folder, note and pages.
+The category header carries a play button that switches to the category itself — its virtual desktop first, then every switch action the category configures (local folders, note, chat room, browser URLs, IntelliJ, environment profile), reported in the status bar like a task switch.
+The desktop button next to it keeps doing only the desktop.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Open a task's link on its category's desktop
 `req~pr-open-on-category-desktop~2`
 
@@ -553,6 +567,21 @@ Tags: windows, linux
 
 Covers:
 - req~category-folders-button~1
+
+Needs: impl, utest
+
+### Category switch button
+`dsn~category-switch~1`
+
+Every named category's header renders an always-visible "Switch to category" icon button (MDI `play`, id `group-switch-button`) right of the desktop button.
+A click (`MainWindow.switchCategory`) flushes the editor, then runs the ordinary task switch (`Main.switchTo`, status-bar chips and all) on `Task.forCategory(group, remote)`: a stand-in task with id `<group>/`, the category's default host and no section of its own.
+`Main.withCategoryDefaults` fills in the category's `intellij`, `browser` and `folders` (`dsn~category-action-defaults~1`), and the note, chat and environment-profile actions resolve their category fallback from the id's group part, so exactly the category's own actions run.
+When the category resolves to a desktop (its own or the fallback, `dsn~fallback-desktop~2`) the switch waits for the desktop focus (`Main.reportFocusDesktop`, on the action executor) to finish first, because Explorer and new browser tabs open on the desktop in view.
+
+Tags: windows, linux
+
+Covers:
+- req~category-switch~1
 
 Needs: impl, utest
 

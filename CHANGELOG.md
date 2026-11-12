@@ -8,6 +8,11 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Added
+
+- A category's header has a play button that switches to the category itself — its desktop, folders, note, chat, URLs and environment profile — when there is no task to pick.
+- A category's environment profile can be set on its *Switch actions* tab.
+
 ### Changed
 
 - A project created by the setup wizard for a local folder lists that folder under *Local folders*, so switching to it opens the folder in the file manager.

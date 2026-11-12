@@ -265,10 +265,12 @@ public class MainWindow {
     /// "Close N browser tabs" tick.
     // [impl->dsn~claude-session-kill~6]
     private final BiConsumer<List<String>, IntConsumer> onCountOpenTabs;
-    /// Switches Windows to a named virtual desktop (`Main.focusDesktop`). Backs
-    /// the category header's desktop-focus button.
+    /// Switches Windows to a named virtual desktop (`Main.focusDesktop`), then
+    /// runs the `Runnable` on the FX thread. Backs the category header's
+    /// desktop-focus and category-switch buttons.
     // [impl->dsn~category-desktop-focus~4]
-    private final Consumer<String> onFocusDesktop;
+    // [impl->dsn~category-switch~1]
+    private final BiConsumer<String, Runnable> onFocusDesktop;
     /// Opens local folders (the category header's folder icon), off the FX
     /// thread; the `Runnable` settles the button once every folder is handled.
     // [impl->dsn~category-folders-button~1]
@@ -981,7 +983,7 @@ public class MainWindow {
             BiConsumer<Task, Runnable> onRefreshClaude,
             BiConsumer<Task, String> onRenamed, Consumer<String> onOpenUrl,
             BiConsumer<String, @Nullable String> onFocusUrlInBrowser,
-            BiConsumer<List<String>, IntConsumer> onCountOpenTabs, Consumer<String> onFocusDesktop,
+            BiConsumer<List<String>, IntConsumer> onCountOpenTabs, BiConsumer<String, Runnable> onFocusDesktop,
             BiConsumer<List<String>, Runnable> onOpenFolders,
             Consumer<Boolean> onActiveDesktopFilter,
             Path tasksDir, Path queuesDir, Runnable onOpenTasksDir, Consumer<Runnable> onSyncTmux,
@@ -1191,7 +1193,7 @@ public class MainWindow {
                 group -> groupDefaults(group).pinned(), this::toggleGroupPinned,
                 onFocusTerminal, this::queuedCountFor,
                 this::deleteCorruptFile, name -> tasksDir.resolve(name).toString(),
-                this::groupDesktop, this::focusDesktop, this::openGroupFolders, () -> !groupings.contains(Grouping.FOLDER),
+                this::groupDesktop, this::focusDesktop, this::switchCategory, this::openGroupFolders, () -> !groupings.contains(Grouping.FOLDER),
                 this::newTmuxWindow,
                 this::refactoringSummaryFor, this::showRefactorings,
                 task -> creations.get(task.id()),
@@ -1950,7 +1952,7 @@ public class MainWindow {
     /// later report of the same desktop is then a no-op.
     // [impl->dsn~search-hits-off-desktop~2]
     private void goToHitOffDesktop(String taskId, String desktop) {
-        onFocusDesktop.accept(desktop);
+        onFocusDesktop.accept(desktop, () -> { });
         updateActiveDesktop(desktop);
         selectTask(taskId);
     }
@@ -5040,7 +5042,23 @@ public class MainWindow {
         saveEditorIfDirty();
         String desktop = groupDesktop(group);
         if (desktop != null) {
-            onFocusDesktop.accept(desktop);
+            onFocusDesktop.accept(desktop, () -> { });
+        }
+    }
+
+    /// Switches to the category itself, for work that has no task: focuses its
+    /// desktop first — Explorer and the browser open on the desktop in view —
+    /// then runs a regular switch of [Task#forCategory], which leaves exactly
+    /// the category's own switch actions.
+    // [impl->dsn~category-switch~1]
+    private void switchCategory(String group) {
+        saveEditorIfDirty();
+        Task task = Task.forCategory(group, groupDefaults(group).remote());
+        String desktop = groupDesktop(group);
+        if (desktop == null) {
+            onSwitch.accept(task);
+        } else {
+            onFocusDesktop.accept(desktop, () -> onSwitch.accept(task));
         }
     }
 
