@@ -260,6 +260,20 @@ Covers:
 
 Needs: impl, utest
 
+### Status filter
+`dsn~android-status-filter~1`
+
+The task list's top bar has a button cycling *All* → *Active* → *Active+14*, the phone's form of the desktop's *Show running tasks only* and *Also show suspended tasks of the last 14 days* (`dsn~running-tasks-filter~2`); the choice is kept across restarts.
+`filterByStatus` keeps active tasks (*Active+14* also suspended ones changed in the last 14 days) and error rows, dropping groups left empty.
+"Changed" is read from the clone's commits (`recentlyChangedIds`, first parent), since the phone's file times are those of the clone or pull.
+
+Tags: android
+
+Covers:
+- req~android-task-list~1
+
+Needs: impl, utest
+
 ### `SshjCommandRunner`
 `dsn~android-ssh-runner~2`
 

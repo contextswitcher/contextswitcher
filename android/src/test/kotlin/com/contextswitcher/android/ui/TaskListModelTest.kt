@@ -2,6 +2,10 @@ package com.contextswitcher.android.ui
 
 import com.contextswitcher.tasks.TaskEntry
 import java.io.File
+import java.time.Duration
+import java.time.Instant
+import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.lib.PersonIdent
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -72,6 +76,34 @@ class TaskListModelTest {
         assertThat(titles("bet")).containsExactly("beta" to listOf("Third"))
         assertThat(titles("nothing")).isEmpty()
         assertThat(filterTaskList(groups, " ")).isSameAs(groups)
+    }
+
+    // [utest->dsn~android-status-filter~1]
+    @Test
+    fun `status filter keeps active tasks, recently committed suspended ones on RECENT, and error rows`(@TempDir tmp: File) {
+        File(tmp, "alpha").mkdirs()
+        File(tmp, "beta").mkdirs()
+        File(tmp, "alpha/run.md").writeText(task("Run", "active"))
+        File(tmp, "alpha/old.md").writeText(task("Old", "suspended"))
+        File(tmp, "beta/fresh.md").writeText(task("Fresh", "suspended"))
+        File(tmp, "beta/broken.md").writeText("not valid frontmatter at all")
+        Git.init().setDirectory(tmp).call().use { git ->
+            val author = PersonIdent(PersonIdent("t", "t@example.org"), Instant.now().minus(Duration.ofDays(30)))
+            git.add().addFilepattern(".").call()
+            git.commit().setMessage("old").setAuthor(author).setCommitter(author).call()
+            File(tmp, "beta/fresh.md").appendText("\nnote\n")
+            git.add().addFilepattern(".").call()
+            git.commit().setMessage("fresh").setAuthor("t", "t@example.org").setCommitter("t", "t@example.org").call()
+        }
+        val groups = buildTaskListModel(tmp.toPath())
+        val recent = recentlyChangedIds(tmp)
+        assertThat(recent).containsExactly("beta/fresh")
+
+        fun shown(filter: StatusFilter) = filterByStatus(groups, filter, recent).flatMap { g -> g.entries.map { it.id() } }
+        assertThat(shown(StatusFilter.ACTIVE)).containsExactlyInAnyOrder("alpha/run", "beta/broken")
+        assertThat(shown(StatusFilter.RECENT)).containsExactlyInAnyOrder("alpha/run", "beta/fresh", "beta/broken")
+        assertThat(filterByStatus(groups, StatusFilter.ALL, recent)).isSameAs(groups)
+        assertThat(StatusFilter.RECENT.next()).isEqualTo(StatusFilter.ALL)
     }
 
     private fun failed(name: String) = TaskEntry.Failed(name, "$name.md", "broken")

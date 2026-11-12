@@ -4,7 +4,18 @@ import com.contextswitcher.tasks.TaskEntry
 import com.contextswitcher.tasks.TaskFileParser
 import com.contextswitcher.tasks.TaskOrder
 import com.contextswitcher.tasks.TaskRepository
+import com.contextswitcher.tasks.TaskStatus
+import java.io.File
 import java.nio.file.Path
+import java.time.Duration
+import java.time.Instant
+import java.util.Date
+import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.revwalk.RevWalk
+import org.eclipse.jgit.revwalk.filter.CommitTimeRevFilter
+import org.eclipse.jgit.treewalk.EmptyTreeIterator
+import org.eclipse.jgit.treewalk.TreeWalk
+import org.eclipse.jgit.treewalk.filter.TreeFilter
 import java.util.TreeMap
 
 /// One project-group section of the task list. `name` is `""` for the
@@ -89,4 +100,57 @@ fun filterTaskList(groups: List<TaskGroupUi>, query: String): List<TaskGroupUi> 
         if (group.name.contains(q, ignoreCase = true)) group
         else group.entries.filter(::matches).takeIf { it.isNotEmpty() }?.let { TaskGroupUi(group.name, it) }
     }
+}
+
+/// The desktop's *Show running tasks only* and its *Also show suspended tasks
+/// of the last 14 days*, as one cycling top-bar button.
+// [impl->dsn~android-status-filter~1]
+enum class StatusFilter(val label: String) {
+    ALL("All"), ACTIVE("Active"), RECENT("Active+$RECENT_SUSPENDED_DAYS");
+
+    fun next() = entries[(ordinal + 1) % entries.size]
+}
+
+const val RECENT_SUSPENDED_DAYS = 14L
+
+/// [groups] narrowed by [filter]: [StatusFilter.ACTIVE] keeps active tasks,
+/// [StatusFilter.RECENT] also suspended ones whose id is in [recentIds]; error
+/// rows always stay, groups left empty are dropped.
+// [impl->dsn~android-status-filter~1]
+fun filterByStatus(groups: List<TaskGroupUi>, filter: StatusFilter, recentIds: Set<String>): List<TaskGroupUi> {
+    if (filter == StatusFilter.ALL) return groups
+    fun keep(entry: TaskEntry) = entry !is TaskEntry.Loaded || entry.task().status() == TaskStatus.ACTIVE ||
+        (filter == StatusFilter.RECENT && entry.task().status() == TaskStatus.SUSPENDED && entry.id() in recentIds)
+    return groups.mapNotNull { group -> group.entries.filter(::keep).takeIf { it.isNotEmpty() }?.let { TaskGroupUi(group.name, it) } }
+}
+
+/// The ids of the tasks whose file a commit of the last [days] days touched.
+/// The desktop reads the file's modification time; on the phone that is the
+/// clone's or pull's time, so the commit history answers instead (first
+/// parent only: a merge's other side is walked as its own commits).
+// [impl->dsn~android-status-filter~1]
+fun recentlyChangedIds(repoDir: File, days: Long = RECENT_SUSPENDED_DAYS, now: Instant = Instant.now()): Set<String> {
+    val ids = HashSet<String>()
+    Git.open(repoDir).use { git ->
+        val repo = git.repository
+        val head = repo.resolve("HEAD") ?: return ids
+        RevWalk(repo).use { walk ->
+            walk.markStart(walk.parseCommit(head))
+            walk.revFilter = CommitTimeRevFilter.after(Date.from(now.minus(Duration.ofDays(days))))
+            TreeWalk(repo).use { tree ->
+                tree.isRecursive = true
+                tree.filter = TreeFilter.ANY_DIFF
+                for (commit in walk) {
+                    tree.reset()
+                    if (commit.parentCount > 0) tree.addTree(commit.getParent(0).also(walk::parseHeaders).tree)
+                    else tree.addTree(EmptyTreeIterator())
+                    tree.addTree(commit.tree)
+                    while (tree.next()) {
+                        tree.pathString.takeIf { it.endsWith(".md") }?.let { ids.add(it.removeSuffix(".md")) }
+                    }
+                }
+            }
+        }
+    }
+    return ids
 }

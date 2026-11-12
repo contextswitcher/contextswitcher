@@ -12,6 +12,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - Android: the task list has a search button (🔍) that narrows it to the tasks whose title, tag or category matches.
 - Android: tapping a category header lists all categories; picking one scrolls to it.
+- Android: a top-bar button switches the task list between all tasks, active ones only, and active ones plus suspended tasks changed in the last 14 days.
 - A new local category lists the Claude sessions already recorded for its folder as suspended tasks, each resuming its own conversation.
 - A local category's header has a sync button that adds the Claude sessions recorded for its folder since; *Sync tmux windows…* does the same for every local category.
 - *Show running tasks only* has a sub-option *Also show suspended tasks of the last 14 days*, keeping recently paused tasks at hand for resuming.

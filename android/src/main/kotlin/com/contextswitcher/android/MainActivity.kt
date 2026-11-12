@@ -74,6 +74,9 @@ import com.contextswitcher.android.ui.TaskDetailScreen
 import com.contextswitcher.android.ui.TaskGroupUi
 import com.contextswitcher.android.ui.TaskListBody
 import com.contextswitcher.android.ui.filterTaskList
+import com.contextswitcher.android.ui.StatusFilter
+import com.contextswitcher.android.ui.filterByStatus
+import com.contextswitcher.android.ui.recentlyChangedIds
 import com.contextswitcher.android.ui.groupAtTop
 import com.contextswitcher.android.ui.buildTaskListModel
 import com.contextswitcher.android.voice.VoiceTour
@@ -415,7 +418,15 @@ internal fun TaskListScreen(
     var pickingTour by rememberSaveable { mutableStateOf(false) }
     // null: search closed; otherwise the list shows only what matches.
     var searchQuery by rememberSaveable { mutableStateOf<String?>(null) }
-    val shownGroups = filterTaskList(groups, searchQuery ?: "")
+    // [impl->dsn~android-status-filter~1]
+    var statusFilter by remember { mutableStateOf(settingsStore.loadStatusFilter()) }
+    var recentIds by remember { mutableStateOf(emptySet<String>()) }
+    LaunchedEffect(groups, statusFilter) {
+        if (statusFilter == StatusFilter.RECENT) {
+            recentIds = withContext(Dispatchers.IO) { runCatching { recentlyChangedIds(repoDir) }.getOrDefault(emptySet()) }
+        }
+    }
+    val shownGroups = filterTaskList(filterByStatus(groups, statusFilter, recentIds), searchQuery ?: "")
     BackHandler(enabled = searchQuery != null) { searchQuery = null }
     var taskBeingAdded by remember { mutableStateOf(false) }
     var addTaskError by remember { mutableStateOf<String?>(null) }
@@ -589,6 +600,10 @@ internal fun TaskListScreen(
                         TextButton(onClick = { searchQuery = null }) { Text("✕") }
                     } else {
                         TextButton(onClick = { searchQuery = "" }) { Text("🔍") }
+                        TextButton(onClick = {
+                            statusFilter = statusFilter.next()
+                            settingsStore.saveStatusFilter(statusFilter)
+                        }) { Text(statusFilter.label) }
                         if (update is AppUpdates.Check.Available) {
                             TextButton(onClick = { installUpdate() }, enabled = !updating) { Text(if (updating) "Updating…" else "Update") }
                         }
