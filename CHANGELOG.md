@@ -12,19 +12,11 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - A category's header has a play button that switches to the category itself — its desktop, folders, note, chat, URLs and environment profile — when there is no task to pick.
 - A category's environment profile can be set on its *Switch actions* tab.
+- The setup wizard's category page asks for the category's virtual desktop, pre-filled with the current one; empty it to use the fallback desktop.
 
 ### Changed
 
 - *Add category…* in the add menu and the task list's context menu now opens the setup wizard, which asks for everything a category needs; the former *Setup wizard…* item and the name-only *Add category* dialog are gone.
-
-### Added
-
-- The setup wizard's category page asks for the category's virtual desktop, pre-filled with the current one; empty it to use the fallback desktop.
-
-## [Unreleased]
-
-### Changed
-
 - A project created by the setup wizard for a local folder lists that folder under *Local folders*, so switching to it opens the folder in the file manager.
 
 ### Fixed
