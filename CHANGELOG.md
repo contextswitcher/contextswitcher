@@ -16,6 +16,12 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - The setup wizard's category page asks for the category's virtual desktop, pre-filled with the current one; empty it to use the fallback desktop.
 
+## [Unreleased]
+
+### Changed
+
+- A project created by the setup wizard for a local folder lists that folder under *Local folders*, so switching to it opens the folder in the file manager.
+
 ## [2026-11-09] - 2026-11-09
 
 ### Changed
