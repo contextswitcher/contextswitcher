@@ -4613,7 +4613,7 @@ public class MainWindow {
                 if (added > 0) {
                     statusBar().message("Added %d existing Claude session%s in %s as suspended task%s%s.".formatted(
                             added, added == 1 ? "" : "s", name, added == 1 ? "" : "s",
-                            runningTasksOnly ? " — hidden while \"Show running tasks only\" is on" : ""));
+                            hiddenByRunningFilter()));
                 }
             });
         }
@@ -5097,10 +5097,20 @@ public class MainWindow {
         importLocalSessions(List.of(group), added -> {
             statusBar().message(added == 0
                     ? "No new Claude sessions in " + dir + "."
-                    : "Added %d Claude session%s in %s as task%s.".formatted(added,
-                            added == 1 ? "" : "s", group, added == 1 ? "" : "s"));
+                    : "Added %d Claude session%s in %s as suspended task%s%s.".formatted(added,
+                            added == 1 ? "" : "s", group, added == 1 ? "" : "s",
+                            hiddenByRunningFilter()));
             onSettled.run();
         });
+    }
+
+    /// The status-line suffix saying the imported (suspended) tasks are out
+    /// of sight: with "Show running tasks only" on, a sync that added six
+    /// tasks looked like it had done nothing (field report 2026-11-12).
+    // [impl->dsn~local-category-session-import~1]
+    private String hiddenByRunningFilter() {
+        return runningTasksOnly
+                ? " — hidden while \"Show running tasks only\" is on (filter menu)" : "";
     }
 
     /// The directory whose Claude sessions belong to `group`: its
@@ -6672,8 +6682,9 @@ public class MainWindow {
             // come in on the same press. [impl->dsn~local-category-session-import~1]
             importLocalSessions(localSessionGroups(), added -> {
                 if (added > 0) {
-                    statusBar().message("Added %d local Claude session%s as task%s.".formatted(
-                            added, added == 1 ? "" : "s", added == 1 ? "" : "s"));
+                    statusBar().message("Added %d local Claude session%s as suspended task%s%s.".formatted(
+                            added, added == 1 ? "" : "s", added == 1 ? "" : "s",
+                            hiddenByRunningFilter()));
                 }
             });
         });

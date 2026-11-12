@@ -967,7 +967,7 @@ It runs at three points:
 
 The imported tasks are suspended, so the standing filters (*Show running tasks only*, `dsn~running-tasks-filter~1`) hide them — and a category whose every task is filtered out drops from the list, which left the list empty right after adding a category.
 A category created in this window (`MainWindow.createdCategories`) therefore keeps its header under the standing filters for the rest of the session; a typed query or a tag filter still hides it, those look for tasks.
-The creation's status line says when the running-tasks filter hides the imported tasks.
+Every status line reporting an import (creation, header button, *Sync tmux windows…*) says when the running-tasks filter hides the imported tasks — a sync that added six tasks otherwise looked like it had done nothing.
 
 Tags: windows, linux
 
