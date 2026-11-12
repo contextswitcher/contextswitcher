@@ -4609,11 +4609,11 @@ public class MainWindow {
         // A local category's folder may already hold Claude conversations:
         // each becomes a task right away. [impl->dsn~local-category-session-import~1]
         if (remote == null) {
-            importLocalSessions(List.of(name), added -> {
+            importLocalSessions(List.of(name), true, added -> {
                 if (added > 0) {
                     statusBar().message("Added %d existing Claude session%s in %s as suspended task%s%s.".formatted(
                             added, added == 1 ? "" : "s", name, added == 1 ? "" : "s",
-                            hiddenByRunningFilter()));
+                            importFilterNote));
                 }
             });
         }
@@ -5094,23 +5094,47 @@ public class MainWindow {
             return;
         }
         statusBar().message("Looking for Claude sessions in " + dir + " …");
-        importLocalSessions(List.of(group), added -> {
+        importLocalSessions(List.of(group), true, added -> {
             statusBar().message(added == 0
                     ? "No new Claude sessions in " + dir + "."
                     : "Added %d Claude session%s in %s as suspended task%s%s.".formatted(added,
                             added == 1 ? "" : "s", group, added == 1 ? "" : "s",
-                            hiddenByRunningFilter()));
+                            importFilterNote));
             onSettled.run();
         });
     }
 
-    /// The status-line suffix saying the imported (suspended) tasks are out
-    /// of sight: with "Show running tasks only" on, a sync that added six
-    /// tasks looked like it had done nothing (field report 2026-11-12).
-    // [impl->dsn~local-category-session-import~1]
-    private String hiddenByRunningFilter() {
-        return runningTasksOnly
-                ? " — hidden while \"Show running tasks only\" is on (filter menu)" : "";
+    /// The filter menu's "Show running tasks only" item, so an import can
+    /// untick it. Null until the toolbar is built.
+    private @Nullable CheckMenuItem runningTasksCheck;
+
+    /// The status-line suffix of the last import: set by
+    /// [#revealImported] when it switched the running-tasks filter off.
+    private String importFilterNote = "";
+
+    /// Makes an import's tasks visible: they are suspended, and with "Show
+    /// running tasks only" on a sync that added six tasks looked like it had
+    /// done nothing (field report 2026-11-12) — so the filter is unticked
+    /// (persisted like a click on it), and `firstTaskId`, when given, is
+    /// selected; `selectTask` keeps it pending until the watcher has loaded
+    /// the file. FX thread. [impl->dsn~local-category-session-import~1]
+    private void revealImported(@Nullable String firstTaskId) {
+        importFilterNote = "";
+        if (runningTasksOnly) {
+            importFilterNote = " — \"Show running tasks only\" switched off to show them";
+            CheckMenuItem item = runningTasksCheck;
+            if (item != null) {
+                item.setSelected(false);
+            } else {
+                runningTasksOnly = false;
+                PREFERENCES.putBoolean(FILTER_RUNNING_TASKS, false);
+                updateFilterButton();
+                rebuildRows();
+            }
+        }
+        if (firstTaskId != null) {
+            selectTask(firstTaskId);
+        }
     }
 
     /// The directory whose Claude sessions belong to `group`: its
@@ -5135,7 +5159,7 @@ public class MainWindow {
     /// many it wrote to `onDone` (FX thread). A session is claimed by any
     /// task — in any category — whose `claude.sessionId` names it.
     // [impl->dsn~local-category-session-import~1]
-    private void importLocalSessions(List<String> groups, IntConsumer onDone) {
+    private void importLocalSessions(List<String> groups, boolean selectFirst, IntConsumer onDone) {
         Map<String, String> dirs = new LinkedHashMap<>();
         for (String group : groups) {
             String dir = localSessionDir(group);
@@ -5158,14 +5182,25 @@ public class MainWindow {
                 return;
             }
             int added = 0;
+            String first = null;
             Set<String> claimed = claimedSessionIds();
             for (Map.Entry<String, List<LocalClaudeSessions.Session>> entry : found.entrySet()) {
                 String dir = Objects.requireNonNull(dirs.get(entry.getKey()));
                 for (LocalClaudeSessions.Session session : entry.getValue()) {
-                    if (claimed.add(session.id()) && createSessionTask(entry.getKey(), dir, session)) {
+                    String taskId = claimed.add(session.id())
+                            ? createSessionTask(entry.getKey(), dir, session) : null;
+                    if (taskId != null) {
                         added++;
+                        if (first == null) {
+                            first = taskId;
+                        }
                     }
                 }
+            }
+            // Sessions come newest first, so `first` is the latest conversation.
+            importFilterNote = "";
+            if (added > 0) {
+                revealImported(selectFirst ? first : null);
             }
             onDone.accept(added);
         }));
@@ -5190,7 +5225,7 @@ public class MainWindow {
     /// process runs it — the terminal pane offers to resume it), and the
     /// `claude:` section naming the directory and the session, which is what
     /// resumes exactly this conversation. [impl->dsn~local-category-session-import~1]
-    private boolean createSessionTask(String group, String dir, LocalClaudeSessions.Session session) {
+    private @Nullable String createSessionTask(String group, String dir, LocalClaudeSessions.Session session) {
         String fileName = uniqueFileName(TaskFileParser.newTaskFileName(group + "/" + session.title()));
         String content = TaskFileParser.withClaudeSessionId(TaskFileParser.withClaudeSection(
                 TaskFileParser.withStatus(TaskFileParser.newTaskContent(session.title(), null, null, false),
@@ -5198,11 +5233,11 @@ public class MainWindow {
         String error = files.save(fileName, content);
         if (error != null) {
             Logger.warn("Cannot create the task {} for Claude session {}: {}", fileName, session.id(), error);
-            return false;
+            return null;
         }
         importedSessionIds.add(session.id());
         Logger.info("Local category {}: added {} for Claude session {}", group, fileName, session.id());
-        return true;
+        return fileName.substring(0, fileName.length() - ".md".length());
     }
 
     private void openGroupFolders(String group, Runnable onSettled) {
@@ -6680,11 +6715,11 @@ public class MainWindow {
             onSyncTmux.accept(() -> syncTmux.setDisable(false));
             // Local categories have no tmux to sync, but their Claude sessions
             // come in on the same press. [impl->dsn~local-category-session-import~1]
-            importLocalSessions(localSessionGroups(), added -> {
+            importLocalSessions(localSessionGroups(), false, added -> {
                 if (added > 0) {
                     statusBar().message("Added %d local Claude session%s as suspended task%s%s.".formatted(
                             added, added == 1 ? "" : "s", added == 1 ? "" : "s",
-                            hiddenByRunningFilter()));
+                            importFilterNote));
                 }
             });
         });
@@ -7206,6 +7241,7 @@ public class MainWindow {
     // [impl->dsn~running-tasks-filter~1]
     private CheckMenuItem runningTasksItem() {
         CheckMenuItem item = new CheckMenuItem("Show running tasks only");
+        runningTasksCheck = item;
         item.selectedProperty().addListener((obs, was, selected) -> {
             runningTasksOnly = selected;
             PREFERENCES.putBoolean(FILTER_RUNNING_TASKS, selected);

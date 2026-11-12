@@ -25,7 +25,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// (`dsn~local-category-session-import~1`): only the local category carries
 /// it, and a click turns the Claude session recorded for the category's
 /// folder — a folder with spaces in its path, as OneDrive's have — into a
-/// suspended task holding that session; a second click adds nothing more.
+/// suspended task holding that session — switching "Show running tasks only"
+/// off, which would hide it, and selecting it; a second click adds nothing
+/// more.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
 // [utest->dsn~local-category-session-import~1]
@@ -73,6 +75,10 @@ class LocalCategorySessionSyncUiTest {
                     remotes: []
                     """.formatted(tasksDir, freePort()));
             System.setProperty("contextswitcher.configDir", configDir.toString());
+            // The running filter on, as in the field report: the import must
+            // switch it off, or its suspended tasks stay out of sight.
+            java.util.prefs.Preferences.userNodeForPackage(MainWindow.class)
+                    .putBoolean(MainWindow.FILTER_RUNNING_TASKS, true);
             super.start(stage);
         }
     }
@@ -101,6 +107,10 @@ class LocalCategorySessionSyncUiTest {
                     .contains("title: Plan the next lecture")
                     .contains("status: suspended")
                     .contains("sessionId: " + SESSION);
+            await(() -> selectedTaskId().filter("localcat/plan-the-next-lecture"::equals),
+                    "the imported task selected");
+            assertThat(java.util.prefs.Preferences.userNodeForPackage(MainWindow.class)
+                    .getBoolean(MainWindow.FILTER_RUNNING_TASKS, true)).isFalse();
             // The new row rebuilds the header, so the button is looked up
             // afresh — attached and enabled once the import settled.
             Button again = await(() -> syncButtons()
@@ -119,6 +129,7 @@ class LocalCategorySessionSyncUiTest {
             }
         } finally {
             System.setProperty("user.home", realHome);
+            UiTestSupport.clearStoredFilters();
         }
     }
 
@@ -134,6 +145,15 @@ class LocalCategorySessionSyncUiTest {
             }
         }
         return true;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Optional<String> selectedTaskId() {
+        return FX_ROBOT.selectNodes(javafx.scene.control.ListView.class).fromAll()
+                .map(view -> ((javafx.scene.control.ListView<Object>) view).getSelectionModel().getSelectedItem())
+                .filter(com.contextswitcher.tasks.TaskEntry.Loaded.class::isInstance)
+                .map(item -> ((com.contextswitcher.tasks.TaskEntry.Loaded) item).id())
+                .findFirst();
     }
 
     private static Stream<Button> syncButtons() {

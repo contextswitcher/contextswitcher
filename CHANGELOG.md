@@ -22,7 +22,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - The terminal's status messages ("Connection lost — reconnecting…", "Connecting to …") show dashes and ellipses instead of garbled characters.
 - Deleting a local task offers to remove its Claude transcript on this machine, as it already did for remote tasks.
 - A task whose creation failed before its tmux window came up shows play instead of pause on hover; play opens the same dialog as the terminal's *Start Claude* button.
-- Importing Claude sessions into a local category says on the status bar when *Show running tasks only* hides the new (suspended) tasks.
+- Importing Claude sessions into a local category switches *Show running tasks only* off so the new (suspended) tasks show, and selects the newest one.
 - A category just added stays in the list while *Show running tasks only* hides its tasks, instead of vanishing.
 - With *Show active desktop only* on, a category belonging to the desktop in view stays in the list even when *Show running tasks only* hides all its tasks.
 - *Awaits input only (N)* counts only the tasks the filter would show — with *Show active desktop only* on, those of the desktop in view.
