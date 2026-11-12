@@ -75,7 +75,7 @@ class CategoryFromUrlTest {
     /// Created while the active-desktop filter is on: the config names that
     /// desktop, so the new category is not hidden by the very filter it was
     /// created under.
-    // [utest->dsn~category-create-ui~2]
+    // [utest->dsn~category-create-ui~3]
     @Test
     void theConfigCarriesTheFilteredDesktop() {
         String content = TaskFileParser.groupConfigForRepo("sailor", "https://github.com/Gram21/SaiLoR",
@@ -87,7 +87,7 @@ class CategoryFromUrlTest {
 
     /// The setup wizard's local choice: no `remote:` line, so the category
     /// is a local one (`Add local Claude`), the rest as for a remote.
-    // [utest->dsn~setup-wizard~12]
+    // [utest->dsn~setup-wizard~13]
     @Test
     void withoutARemoteTheConfigIsALocalCategory() {
         String content = TaskFileParser.groupConfigForRepo("sailor", "https://github.com/Gram21/SaiLoR",

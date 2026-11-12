@@ -209,7 +209,7 @@ public class MainWindow {
 
         /// Creates a (possibly empty) project-group folder.
         /// Returns null on success, otherwise the error text.
-        // [impl->dsn~category-create-ui~2]
+        // [impl->dsn~category-create-ui~3]
         @Nullable String createFolder(String folder);
 
         /// Renames a project-group folder (the watcher re-scans the moved
@@ -864,7 +864,7 @@ public class MainWindow {
     }
 
     /// Re-runs the first-start wizard (remote, tools, first project); set by
-    /// `Main`, a no-op until then. [impl->dsn~setup-wizard~12]
+    /// `Main`, a no-op until then. [impl->dsn~setup-wizard~13]
     private Runnable onSetupWizard = () -> { };
 
     /// The host table's workspaces directory per ssh destination (null: none
@@ -879,7 +879,7 @@ public class MainWindow {
     }
 
     /// Installs the setup-wizard handler (see [#onSetupWizard]).
-    // [impl->dsn~setup-wizard~12]
+    // [impl->dsn~setup-wizard~13]
     public void setOnSetupWizard(Runnable handler) {
         this.onSetupWizard = handler;
     }
@@ -1207,10 +1207,8 @@ public class MainWindow {
         installDragAutoScroll(list);
         // Fallback menu for the empty area below the last row (cells with
         // their own menu override it).
-        // [impl->dsn~category-create-ui~2]
-        MenuItem addCategory = new MenuItem("Add category…");
-        addCategory.setOnAction(event -> addCategory());
-        list.setContextMenu(new ContextMenu(addCategory, setupWizardItem()));
+        // [impl->dsn~category-create-ui~3]
+        list.setContextMenu(new ContextMenu(addCategoryItem()));
         // Keeps title, status, and action icons legible; the dock layout
         // shrinks the other panes first once the window gets this narrow.
         list.setMinWidth(220);
@@ -2858,7 +2856,7 @@ public class MainWindow {
         // The stock "No tasks yet" placeholder is wrong when tasks exist but
         // the filters hide them all: swap in a filter-aware one, which for the
         // desktop filter offers creating a category for the desktop in view.
-        // [impl->dsn~desktop-filter-empty-state~2]
+        // [impl->dsn~desktop-filter-empty-state~3]
         // The category offer is only right when the desktop filter is the sole
         // narrowing — a search that matches nothing on a desktop *with*
         // categories must not claim the desktop has none.
@@ -2910,7 +2908,7 @@ public class MainWindow {
         // folder and the header row appears — before any preserved task
         // selection, so the new category wins instead of the task that was
         // selected when `Add category…` ran.
-        // [impl->dsn~category-create-ui~2]
+        // [impl->dsn~category-create-ui~3]
         if (pendingGroupSelection != null && selectGroupHeaderRow(pendingGroupSelection)) {
             pendingGroupSelection = null;
             return;
@@ -3974,7 +3972,7 @@ public class MainWindow {
 
     /// As above; a non-null `desktop` pre-fills a freshly created config's
     /// `desktop:` line (no effect on an existing config).
-    // [impl->dsn~desktop-filter-empty-state~2]
+    // [impl->dsn~desktop-filter-empty-state~3]
     private void openGroupConfig(String group, @Nullable String desktop) {
         if (ensureGroupConfig(group, desktop)) {
             openInEditor(groupConfigFileName(group));
@@ -4046,7 +4044,7 @@ public class MainWindow {
         return ensureGroupConfig(group, null);
     }
 
-    // [impl->dsn~desktop-filter-empty-state~2]
+    // [impl->dsn~desktop-filter-empty-state~3]
     private boolean ensureGroupConfig(String group, @Nullable String desktop) {
         String fileName = groupConfigFileName(group);
         if (files.exists(fileName)) {
@@ -4499,73 +4497,29 @@ public class MainWindow {
         }
     }
 
-    /// Creates a new (empty) project-group folder from a dialog-entered name
-    /// (slugged like task file names); the folder watcher shows it as a group
-    /// with an "Add…" row. Reachable from the toolbar and the empty-area menu.
-    /// With the active-desktop filter on, the new category is created for the
-    /// desktop in view — the same pre-fill the filter's empty state does, so a
-    /// category added while filtering does not immediately vanish from the list.
-    // [impl->dsn~category-create-ui~2]
-    private void addCategory() {
-        addCategory(filterDesktop());
-    }
-
-    /// The desktop a category created right now belongs to: the active desktop
-    /// while the desktop filter is on and it is known, else null.
-    // [impl->dsn~category-create-ui~2]
-    private @Nullable String filterDesktop() {
-        return activeDesktopOnly ? activeDesktop : null;
-    }
-
-    /// With a `desktop`, the created config's `desktop:` line is pre-filled
-    /// with it — the entry point of the desktop-filter empty state, which
-    /// already knows the desktop the category is for.
-    // [impl->dsn~desktop-filter-empty-state~2]
-    private void addCategory(@Nullable String desktop) {
-        TextInputDialog dialog = Alerts.owned(dialogOwner(), new TextInputDialog());
-        dialog.setTitle("Add category");
-        dialog.setHeaderText("Creates a project folder in the tasks directory;\n"
-                + "it shows as a group and can hold tasks and a CS config."
-                + (desktop == null ? ""
-                        : "\nIts desktop: is pre-set to \"" + desktop + "\"."));
-        dialog.setContentText("Name");
-        dialog.showAndWait().map(TaskFileParser::slug).filter(name -> !name.isEmpty())
-                .ifPresent(name -> {
-                    String error = files.createFolder(name);
-                    if (error != null) {
-                        Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
-                                "Cannot create category %s: %s".formatted(name, error)).show();
-                        return;
-                    }
-                    // A typed query hides task-less categories — this one
-                    // included; clear it so the new folder is visible.
-                    // [impl->dsn~task-folder-grouping-ui~8]
-                    if (!searchQuery.strip().isEmpty()) {
-                        closeFind();
-                    }
-                    // Create the CS config right away and open it, so the user
-                    // lands in the defaults editor (remote, workspacesRoot).
-                    openGroupConfig(name, desktop);
-                });
+    /// The current virtual desktop, null while unknown — what the setup
+    /// wizard proposes for a new category (`dsn~setup-wizard~13`).
+    public @Nullable String activeDesktop() {
+        return activeDesktop;
     }
 
     /// The category-from-URL flow behind the setup wizard's last page
-    /// (`dsn~setup-wizard~12`): creates the folder
+    /// (`dsn~setup-wizard~13`): creates the folder
     /// and its config, then starts the setup session. With a `remote` that is
     /// a live task there; with none (a local category) the same description is
     /// handed to a local Claude in the workspaces root, the template appended
     /// to the prompt, since the local launcher carries no appendix of its own.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~setup-wizard~12]
+    // [impl->dsn~setup-wizard~13]
     public void createCategoryFromRepo(String url, String workspacesRoot, @Nullable String remote,
-            RepoType type, ClaudeMode mode, @Nullable String firstMessage) {
+            RepoType type, ClaudeMode mode, @Nullable String firstMessage, @Nullable String desktop) {
         String web = TaskFileParser.repoWebUrl(url);
         String name = TaskFileParser.repoName(url);
         if (web == null || name == null) {
             Alerts.plain(dialogOwner(), Alert.AlertType.ERROR, "Not a repository URL: " + url).show();
             return;
         }
-        if (!createConfiguredCategory(name, web, remote, workspacesRoot)) {
+        if (!createConfiguredCategory(name, web, remote, workspacesRoot, desktop)) {
             return;
         }
         // An ssh URL is what the session clones with; an https one may be a
@@ -4584,10 +4538,11 @@ public class MainWindow {
     /// is, for someone who does not use Claude there.
     // [impl->dsn~category-from-folder~3]
     public void createCategoryFromFolder(String name, String folder, @Nullable String remote,
-            ClaudeMode mode, @Nullable String firstMessage, boolean setupSession) {
+            ClaudeMode mode, @Nullable String firstMessage, boolean setupSession,
+            @Nullable String desktop) {
         String group = TaskFileParser.slug(name);
         if (group.isEmpty() || !freeCategoryName(group, "Cancel")
-                || !createConfiguredCategory(group, null, remote, folder)) {
+                || !createConfiguredCategory(group, null, remote, folder, desktop)) {
             return;
         }
         if (!setupSession) {
@@ -4598,17 +4553,18 @@ public class MainWindow {
                 folder, null, RepoType.localFolderTemplate(), mode);
     }
 
-    /// Creates the category folder and its `CONTEXTSWITCHER.md`; false after
-    /// an error alert.
+    /// Creates the category folder and its `CONTEXTSWITCHER.md` naming
+    /// `desktop` (none: the fallback applies); false after an error alert.
+    /// A typed query hides task-less categories — this one included — so it
+    /// is cleared to show the new folder. [impl->dsn~task-folder-grouping-ui~8]
     // [impl->dsn~category-from-url~5]
     // [impl->dsn~category-from-folder~3]
     private boolean createConfiguredCategory(String name, @Nullable String web,
-            @Nullable String remote, String workspacesRoot) {
+            @Nullable String remote, String workspacesRoot, @Nullable String desktop) {
         String error = files.createFolder(name);
         if (error == null) {
             error = files.save(groupConfigFileName(name),
-                    TaskFileParser.groupConfigForRepo(name, web, remote, workspacesRoot,
-                            filterDesktop()));
+                    TaskFileParser.groupConfigForRepo(name, web, remote, workspacesRoot, desktop));
         }
         if (error != null) {
             Alerts.plain(dialogOwner(), Alert.AlertType.ERROR,
@@ -4616,6 +4572,9 @@ public class MainWindow {
             return false;
         }
         groupConfigCache.remove(name);
+        if (!searchQuery.strip().isEmpty()) {
+            closeFind();
+        }
         return true;
     }
 
@@ -4643,7 +4602,7 @@ public class MainWindow {
     /// directory, else the parent of that host's existing roots
     /// ([#categoriesWorkspacesParent]), else null — the setup wizard then
     /// proposes one under the checked home.
-    // [impl->dsn~setup-wizard~12]
+    // [impl->dsn~setup-wizard~13]
     // [impl->dsn~host-table~1]
     public @Nullable String configuredWorkspacesParent(String host) {
         String table = hostWorkspaces.apply(host);
@@ -4655,7 +4614,7 @@ public class MainWindow {
     /// categories count: another machine's `/data/kopp` does not exist on
     /// this one, and `tmux new-window -c` on a missing directory silently
     /// starts in the home directory instead.
-    // [impl->dsn~setup-wizard~12]
+    // [impl->dsn~setup-wizard~13]
     private @Nullable String categoriesWorkspacesParent(String host) {
         return folders.stream().sorted()
                 .map(this::groupDefaults)
@@ -4769,7 +4728,7 @@ public class MainWindow {
 
     /// Whether any category exists — the setup wizard's last page then
     /// adds one instead of creating the first.
-    // [impl->dsn~setup-wizard~12]
+    // [impl->dsn~setup-wizard~13]
     public boolean hasCategories() {
         return !folders.isEmpty();
     }
@@ -7272,7 +7231,7 @@ public class MainWindow {
     /// (`selectedGroup`) or a new category. Given an id so a UI test can target
     /// it among the toolbar's several menu buttons.
     // [impl->dsn~task-create-ui~15]
-    // [impl->dsn~category-create-ui~2]
+    // [impl->dsn~category-create-ui~3]
     // [impl->dsn~task-list-toolbar~3]
     private MenuButton addButton() {
         MenuButton button = iconMenuButton(MDIInterface.PLUS, "Add…");
@@ -7282,19 +7241,17 @@ public class MainWindow {
         // a task is usually added to the context in view. (dsn~task-create-ui~15)
         MenuItem addTask = new MenuItem("Add task…");
         addTask.setOnAction(event -> addTask(selectedGroup()));
-        MenuItem addCategory = new MenuItem("Add category…");
-        addCategory.setOnAction(event -> addCategory());
-        button.getItems().addAll(addTask, addCategory,
-                new SeparatorMenuItem(), setupWizardItem());
+        button.getItems().addAll(addTask, addCategoryItem());
         return button;
     }
 
-    /// The wizard's re-entry, next to the other creation actions in the add
-    /// menu and the list's context menu: a second remote, the tools on a new
-    /// host, another first project — the same pages as on the first start.
-    // [impl->dsn~setup-wizard~12]
-    private MenuItem setupWizardItem() {
-        MenuItem item = new MenuItem("Setup wizard…");
+    /// `Add category…` is the setup wizard's re-entry, in the add menu and
+    /// the list's context menu: its last page creates the category, the
+    /// pages before it set up a second remote or the tools on a new host.
+    // [impl->dsn~setup-wizard~13]
+    // [impl->dsn~category-create-ui~3]
+    private MenuItem addCategoryItem() {
+        MenuItem item = new MenuItem("Add category…");
         item.setId("setup-wizard");
         item.setOnAction(event -> onSetupWizard.run());
         return item;
@@ -7752,7 +7709,7 @@ public class MainWindow {
         openDir.setOnAction(event -> onOpenTasksDir.run());
 
         // The wizard from the empty state too: a newcomer who cancelled it
-        // is looking right here. [impl->dsn~setup-wizard~12]
+        // is looking right here. [impl->dsn~setup-wizard~13]
         Hyperlink wizard = new Hyperlink("Run the setup wizard…");
         wizard.setOnAction(event -> onSetupWizard.run());
         VBox placeholder = new VBox(4,
@@ -7767,7 +7724,7 @@ public class MainWindow {
     /// filter as the sole narrowing, it names the desktop and offers creating a
     /// category for it (its config's `desktop:` pre-filled with the active
     /// desktop); any other combination gets a plain "nothing matches" line.
-    // [impl->dsn~desktop-filter-empty-state~2]
+    // [impl->dsn~desktop-filter-empty-state~3]
     private VBox filteredEmptyPlaceholder(@Nullable String desktop, int offDesktop) {
         VBox placeholder;
         if (offDesktop > 0) {
@@ -7781,7 +7738,7 @@ public class MainWindow {
         } else {
             Hyperlink addCategory =
                     new Hyperlink("Add category for desktop \"%s\"…".formatted(desktop));
-            addCategory.setOnAction(event -> addCategory(desktop));
+            addCategory.setOnAction(event -> onSetupWizard.run());
             placeholder = new VBox(4,
                     new Label("No categories on desktop \"%s\".".formatted(desktop)), addCategory);
         }

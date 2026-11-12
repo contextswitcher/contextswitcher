@@ -25,7 +25,7 @@ import static com.contextswitcher.ui.UiTestSupport.clickButton;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The first-start wizard's page logic (`dsn~setup-wizard~12`): Next on the
+/// The first-start wizard's page logic (`dsn~setup-wizard~13`): Next on the
 /// remote page runs the connection check and only a success moves on, the
 /// checked remote's home becomes the proposed workspaces root, and the
 /// local choice skips the remote page and proposes a root under the local
@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// local check — no host is contacted, no tool run.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~setup-wizard~12]
+// [utest->dsn~setup-wizard~13]
 // [utest->dsn~full-labels~1]
 @Tag("ui")
 @TestFxApplication(SetupWizardUiTest.TestApp.class)
@@ -276,7 +276,7 @@ class SetupWizardUiTest {
         AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
         Platform.runLater(() -> result.set(SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS,
                 "/home/local", false, false, new SetupWizard.Prefill("devbox", sessionHost -> "/data/me", null, true,
-                java.util.List.of("other", "devbox")), EXTENSION)));
+                java.util.List.of("other", "devbox"), "Work"), EXTENSION)));
         clickButton("Next");
         // The configured hosts are choices; the prefilled one is picked, and
         // its workspaces directory is there before any check.
@@ -292,6 +292,8 @@ class SetupWizardUiTest {
         clickButton("Next");
         type(field("#setup-repo-url"), "https://github.com/org/proj");
         assertThat(field("#setup-root").getText()).isEqualTo("/data/me/proj-workspaces");
+        // The new category is proposed for the current desktop. [utest->dsn~setup-wizard~13]
+        assertThat(field("#setup-desktop").getText()).isEqualTo("Work");
         clickButton("Cancel");
     }
 
@@ -304,7 +306,7 @@ class SetupWizardUiTest {
     void theHostPageShowsAllLabelsInFull() {
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS,
                 "/home/local", false, false, new SetupWizard.Prefill("koppor@nixos", sessionHost -> "/home/koppor/workspaces",
-                null, true, java.util.List.of("koppor@swkgpu1", "koppor@nixos")), EXTENSION));
+                null, true, java.util.List.of("koppor@swkgpu1", "koppor@nixos"), null), EXTENSION));
         clickButton("Next");
         TextField host = field("#setup-host");
         Platform.runLater(() -> host.getScene().getWindow().setWidth(480));
@@ -322,7 +324,7 @@ class SetupWizardUiTest {
                 com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
                 () -> com.contextswitcher.config.Browser.FIREFOX, () -> null);
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
-                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of()), connected));
+                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of(), null), connected));
         RadioButton local = awaitPresent(
                 () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
         FX_ROBOT.mouse().moveTo(local).click();
@@ -346,7 +348,7 @@ class SetupWizardUiTest {
                 com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
                 () -> null, () -> com.contextswitcher.config.Browser.FIREFOX);
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
-                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of()), installed));
+                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of(), null), installed));
         RadioButton local = awaitPresent(
                 () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
         FX_ROBOT.mouse().moveTo(local).click();

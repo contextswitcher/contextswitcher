@@ -54,7 +54,7 @@ import com.contextswitcher.tasks.TaskFileParser;
 ///
 /// One `Dialog` with swapped pages rather than six dialogs: Back works, and
 /// Cancel on any page leaves everything as it was.
-// [impl->dsn~setup-wizard~12]
+// [impl->dsn~setup-wizard~13]
 public final class SetupWizard {
 
     /// The wizard's answers. `remote` is null for local sessions; every
@@ -67,11 +67,12 @@ public final class SetupWizard {
     /// path is then `workspacesRoot`, `repoUrl` being null
     /// (`dsn~category-from-folder~3`). `setupSession` is false when such a
     /// folder category is to be created without a Claude session writing its
-    /// `CLAUDE.md` — for someone who does not use Claude there.
+    /// `CLAUDE.md` — for someone who does not use Claude there. `desktop` is
+    /// the virtual desktop the category's config names, null for the fallback.
     public record Result(@Nullable String remote, @Nullable String taskRepoUrl,
             @Nullable String repoUrl, @Nullable String workspacesRoot, RepoType repoType,
             @Nullable String refactoringMinerHome, boolean checkup, @Nullable String workspaces,
-            @Nullable String folderCategory, boolean setupSession) {
+            @Nullable String folderCategory, boolean setupSession, @Nullable String desktop) {
 
         public boolean local() {
             return remote == null;
@@ -95,12 +96,14 @@ public final class SetupWizard {
     /// `refactoringMinerHome` to probe, whether `categoriesExist` — then
     /// the last page adds one rather than creating the first — and the
     /// `knownHosts`, the host table's ssh destinations the remote page offers
-    /// as choices next to typing a new one. `EMPTY` on the first start.
+    /// as choices next to typing a new one, and the `desktop` the new category
+    /// is proposed for (the current one). `EMPTY` on the first start.
     public record Prefill(@Nullable String host,
             java.util.function.Function<String, @Nullable String> workspacesParent,
-            @Nullable String refactoringMinerHome, boolean categoriesExist, List<String> knownHosts) {
+            @Nullable String refactoringMinerHome, boolean categoriesExist, List<String> knownHosts,
+            @Nullable String desktop) {
 
-        public static final Prefill EMPTY = new Prefill(null, sessionHost -> null, null, false, List.of());
+        public static final Prefill EMPTY = new Prefill(null, sessionHost -> null, null, false, List.of(), null);
 
         public Prefill {
             knownHosts = List.copyOf(knownHosts);
@@ -283,7 +286,7 @@ public final class SetupWizard {
             Prefill prefill, Extension extension, Predicate<String> freeCategoryName,
             @Nullable Window owner) {
         Dialog<Result> dialog = Alerts.owned(owner, new Dialog<>());
-        dialog.setTitle(offerClone ? "Welcome to ContextSwitcher" : "ContextSwitcher setup");
+        dialog.setTitle(offerClone ? "Welcome to ContextSwitcher" : "Add category");
         dialog.setGraphic(new ImageView(AppIcon.image(48)));
         dialog.setResizable(true);
         ButtonType back = new ButtonType("Back", ButtonBar.ButtonData.BACK_PREVIOUS);
@@ -820,8 +823,15 @@ public final class SetupWizard {
                         ? null : TaskFileParser.slug(folderName.getText()))
                 : TaskFileParser.repoName(repoUrl.getText()) == null || root.getText().isBlank()
                         ? null : TaskFileParser.repoName(repoUrl.getText());
+        // The current desktop, so the category shows where it was added;
+        // emptied, the config names none and the fallback desktop applies.
+        // [impl->dsn~setup-wizard~13]
+        TextField desktop = new TextField(prefill.desktop() == null ? "" : prefill.desktop());
+        desktop.setId("setup-desktop");
+        desktop.setPrefColumnCount(20);
         VBox page6 = page(prefill.categoriesExist() ? "Add a category" : "First category",
-                new HBox(16, fromRepo, fromFolder), repoRows, folderRows);
+                new HBox(16, fromRepo, fromFolder), repoRows, folderRows,
+                caption("Virtual desktop (empty: the fallback desktop)"), desktop);
 
         List<Node> pages = List.of(page1, page2, page3, page4, page5, page6);
         StackPane content = new StackPane(page1);
@@ -971,7 +981,8 @@ public final class SetupWizard {
                     category == null ? null : blankToNull((plain ? folder : root).getText()),
                     repoType.getValue(), rmHome[0], button == checkup,
                     localChoice.isSelected() ? null : blankToNull(workspaces.getText()),
-                    plain ? category : null, !plain || folderSession.isSelected());
+                    plain ? category : null, !plain || folderSession.isSelected(),
+                    blankToNull(desktop.getText()));
         });
         // The first start shows the wizard before the main window, which is
         // what otherwise installs `main.css` and forces the theme to take.

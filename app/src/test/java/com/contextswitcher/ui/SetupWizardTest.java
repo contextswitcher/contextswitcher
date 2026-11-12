@@ -12,8 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// The wizard's checks read the home and the tmux and Claude Code versions
 /// from one answer; ssh refused, tmux missing or `claude` missing each name
-/// what to fix (`dsn~setup-wizard~12`).
-// [utest->dsn~setup-wizard~12]
+/// what to fix (`dsn~setup-wizard~13`).
+// [utest->dsn~setup-wizard~13]
 class SetupWizardTest {
 
     @Test
