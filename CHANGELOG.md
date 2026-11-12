@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [Unreleased]
+
+### Changed
+
+- *Add category…* in the add menu and the task list's context menu now opens the setup wizard, which asks for everything a category needs; the former *Setup wizard…* item and the name-only *Add category* dialog are gone.
+
+### Added
+
+- The setup wizard's category page asks for the category's virtual desktop, pre-filled with the current one; empty it to use the fallback desktop.
+
 ## [2026-11-09] - 2026-11-09
 
 ### Changed

@@ -409,7 +409,7 @@ class GroupConfigTest {
 
     // A skeleton created from the desktop-filter empty state carries a real
     // (uncommented) `desktop:` line with the active desktop, in both flavors.
-    // [utest->dsn~desktop-filter-empty-state~2]
+    // [utest->dsn~desktop-filter-empty-state~3]
     @Test
     void groupConfigSkeletonPreFillsDesktop() {
         for (boolean hints : new boolean[] {true, false}) {

@@ -599,14 +599,10 @@ Code-complete + unit-tested + trace-green; **not yet run against devbox.**
       in the editor (creating the skeleton first when missing); no cog icon
       appears on hover.
       Clicking the header's ▸/▾ arrow only collapses/expands the group.
-- [ ] `Add category…` creates the folder **and** opens its
-      `CONTEXTSWITCHER.md`, labelled "Category config file"; `remote` is
-      pre-filled from the first `settings.yaml` remote.
-- [ ] With a task selected (editor/terminal mirroring it) and having just
-      created a new tmux window manually, `Add category…` leaves the new
-      category focused — the config stays in the editor, its header is
-      selected, the terminal shows the "Select a task…" placeholder — and does
-      **not** flip back to the previously selected task a moment later.
+- [ ] `Add category…` opens the setup wizard (titled "Add category"); the
+      add menu has no separator and no *Setup wizard…* item any more.
+- [ ] Its last page's *Virtual desktop* field holds the current desktop; the
+      created `CONTEXTSWITCHER.md` names it. Emptied → no `desktop:` line.
 - [ ] A new task in a group inherits `remote` and `claude.cwd` =
       `workspacesRoot` (verbatim, no task suffix) / `workdir`.
 - [ ] `Add task…` shows three buttons; **Add remote Claude** is enabled +
@@ -765,7 +761,7 @@ Setup (one-time, in `%USERPROFILE%\.contextswitcher\tasks`):
       (or what is missing) within a second of opening; with `claude` off the
       PATH, *Next* with "On this machine" stays on the page.
 - [ ] With tasks already present (dir non-empty) → no wizard on start.
-- [ ] **Wizard re-run:** add menu → *Setup wizard…* → the host field holds
+- [ ] **Wizard re-run:** add menu → *Add category…* → the host field holds
       the first configured remote, the tools page finds RefactoringMiner at
       the configured directory, a project root is proposed next to the
       existing ones; no clone page; a new
@@ -1096,7 +1092,6 @@ Precondition: a live remote-Claude task with `claude.sessionId` and a published 
 ## Category selection clears the panes (dsn~group-config-create~9)
 
 - [ ] With a live task selected (mirror running, queue populated), click another group's header → editor shows the category config, terminal shows the "Select a task…" placeholder, queue lane is empty, the header row is selected.
-- [ ] `Add category…` while a task is selected → same: the new config opens, terminal and queue cleared (header row selected once the list picks the folder up).
 - [ ] Click a task again → mirror attaches and queue returns as usual.
 
 ## Selection survives list rebuilds (dsn~task-folder-grouping-ui~4)

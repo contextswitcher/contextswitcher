@@ -35,7 +35,7 @@ import org.tinylog.Logger;
 ///
 /// Every unreadable file counts as *not installed*: this only decides whether
 /// the setup wizard's extension page is still worth showing.
-// [impl->dsn~setup-wizard~12]
+// [impl->dsn~setup-wizard~13]
 public final class InstalledExtension {
 
     /// The Firefox extension's `browser_specific_settings.gecko.id`.
