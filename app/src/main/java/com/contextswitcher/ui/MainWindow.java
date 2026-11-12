@@ -2792,9 +2792,19 @@ public class MainWindow {
             // task to begin with has nothing to filter out, so it stays.
             // The scoped category itself always stays: it is what the user
             // asked to see, even when nothing in it matches.
+            // Under the standing filters alone, a category stays when it was
+            // created in this window or names the desktop in view as its own:
+            // "Show active desktop only" promises this desktop's categories,
+            // and one holding only suspended tasks is still one of them
+            // (field report 2026-11-12: the desktop's only category vanished
+            // under "Show running tasks only", leaving an empty list).
+            // [impl->dsn~active-desktop-filter~6]
+            boolean standingOnly = !searching && !filtering;
+            boolean ownDesktop = activeDesktopFilter != null
+                    && activeDesktopFilter.equalsIgnoreCase(groupDefaults(name).desktop());
             if (narrowed && tasks.isEmpty() && groupsWithEntries.contains(name)
                     && !name.equals(scope)
-                    && !(createdCategories.contains(name) && !searching && !filtering)) {
+                    && !(standingOnly && (createdCategories.contains(name) || ownDesktop))) {
                 continue;
             }
             // A scoped category shows its tasks even when it was collapsed.
@@ -7361,7 +7371,17 @@ public class MainWindow {
         if (button == null) {
             return;
         }
-        long count = entries.stream().filter(this::awaitsInput).count();
+        // Counts what ticking the item would show: with "Show active desktop
+        // only" on, the desktop in view's tasks — a count of tasks on other
+        // desktops read as "15 waiting" over an empty list.
+        // [impl->dsn~awaits-input-filter~1]
+        @Nullable String desktopFilter = activeDesktopOnly ? activeDesktop : null;
+        Map<String, @Nullable String> desktopByGroup = new HashMap<>();
+        long count = entries.stream().filter(this::awaitsInput)
+                .filter(entry -> !onInactiveHost(entry))
+                .filter(entry -> desktopFilter == null
+                        || onActiveDesktop(entry.group(), desktopFilter, desktopByGroup))
+                .count();
         button.setText(count == 0 ? "Awaits input only" : "Awaits input only (" + count + ")");
     }
 

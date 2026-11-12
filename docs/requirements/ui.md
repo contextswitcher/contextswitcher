@@ -2681,7 +2681,7 @@ Needs: impl
 The task-list toolbar's filter menu (`dsn~task-list-toolbar~3`) leads with an "Awaits input only" `CheckMenuItem`. Ticking it flips an in-memory `awaitsInputOnly` flag (reset off on launch — never persisted) and rebuilds the rows.
 `MainWindow.rebuildRows` treats a set `awaitsInputOnly` like an active search or tag filter — a narrowed view: it force-expands all groups and the Done section, hides empty groups, and drops every entry that is not `awaitsInput`.
 `awaitsInput(entry)` is true only for a `TaskEntry.Loaded` whose task is `ACTIVE` and whose `runningStatusFor(task)` (the live `@cs_status`, `dsn~task-running-indicator~7`) is `waiting`, `attention` or `limit`; so done, suspended, `working`, and status-less rows are all excluded, and the Done section vanishes while the filter is on.
-The item's text carries the current awaiting count (`Awaits input only (N)`), refreshed from `rebuildRows` and, so it stays live while the filter is off, from `updateRunningStatuses` — which, while the filter is on, calls `rebuildRows` instead of a plain `taskList.refresh()` because a status change alters row membership, not just the dot color. The filter button badges the number of narrowing filters that are active.
+The item's text carries the current awaiting count (`Awaits input only (N)`) — of the tasks ticking it would show, so with *Show active desktop only* on only those of the desktop in view, and none of a switched-off host — refreshed from `rebuildRows` and, so it stays live while the filter is off, from `updateRunningStatuses` — which, while the filter is on, calls `rebuildRows` instead of a plain `taskList.refresh()` because a status change alters row membership, not just the dot color. The filter button badges the number of narrowing filters that are active.
 The filter/count logic reuses the running-status map, so no new polling or state is introduced; this UI wiring is not separately unit-tested (house convention, as with the tag filter).
 
 Tags: windows, linux
@@ -2720,6 +2720,7 @@ The same test applies to the **task-less folders** added as groups after that pe
 A find query does not suspend this filter, unlike the content filters (`dsn~task-find~9`); the hits it hides are counted and reported instead (`dsn~search-hits-off-desktop~2`).
 No row of another desktop can therefore reach the list while the filter is on, and the earlier `unfilterForeignDesktop` — which unticked the filter when such a row was selected out of a suspended-filter search — is gone with the state it repaired.
 The filter composes with the other toolbar filters as an AND — with "Show running tasks only" also on, the list is the running tasks *of the active desktop* (`FilterAndCombineUiTest`); `current()`'s parsing, the script's fallback, and the watcher's compile-once shape and line protocol are unit-tested.
+A category whose own `desktop:` names the desktop in view keeps its header under the standing filters even when they hide all its tasks: the filter promises *this desktop's categories*, and one holding only suspended tasks is still one of them — dropping it left an empty list on a desktop with a single, freshly imported category (field report 2026-11-12). A typed query or a tag filter still hides it.
 
 Tags: windows
 
