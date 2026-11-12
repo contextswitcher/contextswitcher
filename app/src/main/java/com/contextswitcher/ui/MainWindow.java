@@ -5224,16 +5224,29 @@ public class MainWindow {
     /// Writes the task for one recorded session: its title, `suspended` (no
     /// process runs it — the terminal pane offers to resume it), and the
     /// `claude:` section naming the directory and the session, which is what
-    /// resumes exactly this conversation. [impl->dsn~local-category-session-import~1]
+    /// resumes exactly this conversation.
+    /// Both of the row's times are the **session's** last activity, not the
+    /// import's: the `suspended:` stamp the row shows and the file time "last
+    /// update" sorts by — stamped with the import, six imported tasks all
+    /// read "21:42" and could hardly be told apart (field report 2026-11-12).
+    // [impl->dsn~local-category-session-import~1]
     private @Nullable String createSessionTask(String group, String dir, LocalClaudeSessions.Session session) {
         String fileName = uniqueFileName(TaskFileParser.newTaskFileName(group + "/" + session.title()));
         String content = TaskFileParser.withClaudeSessionId(TaskFileParser.withClaudeSection(
                 TaskFileParser.withStatus(TaskFileParser.newTaskContent(session.title(), null, null, false),
-                        TaskStatus.SUSPENDED), dir), session.id());
+                        TaskStatus.SUSPENDED,
+                        LocalDateTime.ofInstant(session.lastModified(), java.time.ZoneId.systemDefault())),
+                dir), session.id());
         String error = files.save(fileName, content);
         if (error != null) {
             Logger.warn("Cannot create the task {} for Claude session {}: {}", fileName, session.id(), error);
             return null;
+        }
+        try {
+            Files.setLastModifiedTime(tasksDir.resolve(fileName),
+                    java.nio.file.attribute.FileTime.from(session.lastModified()));
+        } catch (IOException e) {
+            Logger.debug("Cannot date {} back to its session: {}", fileName, e.getMessage());
         }
         importedSessionIds.add(session.id());
         Logger.info("Local category {}: added {} for Claude session {}", group, fileName, session.id());

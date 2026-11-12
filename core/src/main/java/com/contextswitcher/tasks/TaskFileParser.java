@@ -54,8 +54,22 @@ public class TaskFileParser {
     /// A string serialized as a single-line YAML scalar — SnakeYAML decides
     /// quoting and escaping — for textual insertion into frontmatter
     /// templates (which keep their comments, so no document round-trip).
+    /// Line splitting is off: SnakeYAML folds a plain scalar past 80 columns
+    /// at a space, and the continuation line, inserted under a nested key
+    /// such as `claude:`'s `cwd:`, read as a key of its own — a long local
+    /// path with spaces (`…\OneDrive - Uni\TH Ulm`) left the task file
+    /// unparseable (2026-11-12).
     public static String yamlScalar(String value) {
-        return new Yaml().dump(value).stripTrailing();
+        return SINGLE_LINE_YAML.dump(value).stripTrailing();
+    }
+
+    private static final Yaml SINGLE_LINE_YAML = singleLineYaml();
+
+    private static Yaml singleLineYaml() {
+        org.yaml.snakeyaml.DumperOptions options = new org.yaml.snakeyaml.DumperOptions();
+        options.setSplitLines(false);
+        options.setWidth(Integer.MAX_VALUE);
+        return new Yaml(options);
     }
 
     public Task parse(Path file) throws TaskParseException {

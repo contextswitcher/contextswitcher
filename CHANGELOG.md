@@ -22,10 +22,12 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - The terminal's status messages ("Connection lost — reconnecting…", "Connecting to …") show dashes and ellipses instead of garbled characters.
 - Deleting a local task offers to remove its Claude transcript on this machine, as it already did for remote tasks.
 - A task whose creation failed before its tmux window came up shows play instead of pause on hover; play opens the same dialog as the terminal's *Start Claude* button.
+- Imported Claude sessions carry the session's last activity as their date (shown on the row, used by *last update* sorting), not the time of the import.
 - Importing Claude sessions into a local category switches *Show running tasks only* off so the new (suspended) tasks show, and selects the newest one.
 - A category just added stays in the list while *Show running tasks only* hides its tasks, instead of vanishing.
 - With *Show active desktop only* on, a category belonging to the desktop in view stays in the list even when *Show running tasks only* hides all its tasks.
 - *Awaits input only (N)* counts only the tasks the filter would show — with *Show active desktop only* on, those of the desktop in view.
+- A task whose folder path is long and contains spaces no longer gets a broken (unparseable) `claude:` section when the app writes it.
 - A local task in a folder whose path contains spaces (OneDrive's do) finds its Claude transcript again, so it resumes the right conversation and *Delete* can remove the transcript.
 
 ## [2026-11-12] - 2026-11-12

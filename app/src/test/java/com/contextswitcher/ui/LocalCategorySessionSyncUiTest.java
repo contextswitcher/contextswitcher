@@ -92,6 +92,11 @@ class LocalCategorySessionSyncUiTest {
                 {"type":"user","message":{"role":"user","content":"What's next?"}}
                 {"type":"ai-title","aiTitle":"Plan the next lecture"}
                 """);
+        // Two days old: the task must carry this, not the import's time.
+        java.time.LocalDateTime sessionTime = java.time.LocalDateTime.now().minusDays(2).withSecond(0).withNano(0);
+        java.time.Instant sessionInstant = sessionTime.atZone(java.time.ZoneId.systemDefault()).toInstant();
+        Files.setLastModifiedTime(projects.resolve(SESSION + ".jsonl"),
+                java.nio.file.attribute.FileTime.from(sessionInstant));
 
         Button sync = await(() -> syncButtons().filter(LocalCategorySessionSyncUiTest::shown).findFirst(),
                 "the local category's sync icon");
@@ -106,7 +111,9 @@ class LocalCategorySessionSyncUiTest {
             assertThat(Files.readString(task))
                     .contains("title: Plan the next lecture")
                     .contains("status: suspended")
-                    .contains("sessionId: " + SESSION);
+                    .contains("sessionId: " + SESSION)
+                    .contains(sessionTime.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+            assertThat(Files.getLastModifiedTime(task).toInstant()).isEqualTo(sessionInstant);
             await(() -> selectedTaskId().filter("localcat/plan-the-next-lecture"::equals),
                     "the imported task selected");
             assertThat(java.util.prefs.Preferences.userNodeForPackage(MainWindow.class)
