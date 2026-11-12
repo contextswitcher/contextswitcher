@@ -557,7 +557,7 @@ Needs: impl, utest
 
 The import format additionally carries `#{pane_current_path}`, `#{pane_current_command}`, and `#{@cs_session_id}`.
 The **exact** session id comes from the `@cs_session_id` window user option, published by Claude Code's `SessionStart` hook (README snippet; needs `jq` on the remote).
-Only windows without it fall back to `ClaudeSessionLookup`, which guesses: it fetches the newest transcript under `~/.claude/projects/<encoded-cwd>/*.jsonl` on the host (cwd encoded with `/` and `.` as `-`) — wrong when two sessions started in the same directory, so a guessed id that would be assigned twice (or collides with an exact one) is dropped with a warning: no id beats a wrong one, which would let resume hijack another task's session.
+Only windows without it fall back to `ClaudeSessionLookup`, which guesses: it fetches the newest transcript under `~/.claude/projects/<encoded-cwd>/*.jsonl` on the host (cwd encoded with every character but an ASCII letter or digit as `-`, as Claude Code does — spaces included) — wrong when two sessions started in the same directory, so a guessed id that would be assigned twice (or collides with an exact one) is dropped with a warning: no id beats a wrong one, which would let resume hijack another task's session.
 The skeleton gains a `claude:` section only for windows actually hosting Claude (the pane runs `claude`, an id is known, or `@cs_workspace` is published) — every pane has a cwd, that alone proves nothing.
 
 Tags: windows, linux

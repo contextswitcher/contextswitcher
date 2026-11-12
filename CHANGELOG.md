@@ -12,6 +12,8 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - Android: the task list has a search button (🔍) that narrows it to the tasks whose title, tag or category matches.
 - Android: tapping a category header lists all categories; picking one scrolls to it.
+- A new local category lists the Claude sessions already recorded for its folder as suspended tasks, each resuming its own conversation.
+- A local category's header has a sync button that adds the Claude sessions recorded for its folder since; *Sync tmux windows…* does the same for every local category.
 
 ### Fixed
 
@@ -19,6 +21,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - The terminal's status messages ("Connection lost — reconnecting…", "Connecting to …") show dashes and ellipses instead of garbled characters.
 - Deleting a local task offers to remove its Claude transcript on this machine, as it already did for remote tasks.
 - A task whose creation failed before its tmux window came up shows play instead of pause on hover; play opens the same dialog as the terminal's *Start Claude* button.
+- A local task in a folder whose path contains spaces (OneDrive's do) finds its Claude transcript again, so it resumes the right conversation and *Delete* can remove the transcript.
 
 ## [2026-11-12] - 2026-11-12
 

@@ -578,6 +578,20 @@ Covers:
 
 Needs: dsn
 
+### Local category lists its Claude sessions
+`req~local-category-session-import~1`
+
+A local category's folder often holds Claude conversations already — started in a terminal, or before the category existed.
+When the category is created, each of them becomes a task of it that resumes that very conversation, and a sync button on the category's header adds the ones started since.
+A conversation some task already holds is not added a second time.
+
+Tags: windows, linux
+
+Covers:
+- feat~tasks-as-markdown-files~1
+
+Needs: dsn
+
 ### Guided first start
 `req~setup-wizard~1`
 
@@ -933,6 +947,28 @@ Tags: windows, linux
 
 Covers:
 - req~setup-wizard~1
+
+Needs: impl, utest
+
+### Import a local category's Claude sessions
+`dsn~local-category-session-import~1`
+
+A local category — no `remote`, a directory from its `workspacesRoot` (else `workdir`, `MainWindow.groupPath`) — imports the Claude sessions recorded for that directory on this machine, `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` (`ClaudeSessionLookup.encodeProjectDir`: every character but an ASCII letter or digit becomes `-`, so `C:\Users\o\OneDrive - THU` is `C--Users-o-OneDrive---THU`).
+`LocalClaudeSessions.of(dir)` lists them newest first: only files named `<uuid>.jsonl` (Claude's `….orphaned-….jsonl` side files are not sessions), and only those with a typed prompt — a title-only stub has no conversation to resume.
+A transcript can exceed 100 MB, so it is read in two slices: the title is the last `custom-title` (a `/rename`) in the file's last 512 KiB, else its last `ai-title`, else the first line of the first typed prompt in the first 256 KiB (tool results and `<command-…>` wrappers skipped), cut to 80 characters.
+
+`MainWindow.importLocalSessions` reads them off the FX thread and writes, back on it, one task per session no task claims — a session is claimed by the `claude.sessionId` of any loaded task, in any category, or of a task this window wrote and the watcher has not loaded yet.
+The task is `<category>/<slugged title>.md` (`-2`, … when taken), `status: suspended` — no process runs it; on Windows the terminal pane offers to resume it (`dsn~terminal-owned-session~4`) — and a `claude:` section with the directory as `cwd` and the session's id as `sessionId`, so the resume continues exactly that conversation.
+
+It runs at three points:
+- `createConfiguredCategory`, for a category created without a remote (`dsn~category-from-folder~3`, `dsn~category-from-url~5`), reporting the count on the status bar when there was any;
+- the sync icon button (MDI `sync`, id `group-sync-sessions-button`) right of the name of every local category's header that has a directory — where a remote category carries its terminal icon — disabled for the round-trip, with "Looking for Claude sessions in …" → "Added N Claude sessions in … as tasks." / "No new Claude sessions in …." on the status bar;
+- *Sync tmux windows…* (`dsn~tmux-sync~7`), for every local category at once.
+
+Tags: windows, linux
+
+Covers:
+- req~local-category-session-import~1
 
 Needs: impl, utest
 

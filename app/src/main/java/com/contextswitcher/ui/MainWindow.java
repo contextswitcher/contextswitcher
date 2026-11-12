@@ -56,6 +56,7 @@ import com.contextswitcher.config.AppSettings;
 import com.contextswitcher.config.Browser;
 import com.contextswitcher.config.EnergySaver;
 import com.contextswitcher.discovery.ClaudeSessionCleanup;
+import com.contextswitcher.discovery.LocalClaudeSessions;
 import com.contextswitcher.local.AppUpdate;
 import com.contextswitcher.local.LocalCommandRunner;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
@@ -1199,7 +1200,7 @@ public class MainWindow {
                 task -> creations.get(task.id()),
                 this::groupAutoQuery, this::openAutoSearch,
                 this::toggleCategoryScope, this::groupPath, this::isCurrentGroup, this::syncGroupsMenu,
-                this::sessionStopped));
+                this::sessionStopped, this::syncLocalSessions));
         // A session started or ended flips its row's pause/play toggle.
         // [impl->dsn~task-row-hover-actions~7]
         terminal.setOnOwnedChanged(list::refresh);
@@ -4593,6 +4594,16 @@ public class MainWindow {
         if (!searchQuery.strip().isEmpty()) {
             closeFind();
         }
+        // A local category's folder may already hold Claude conversations:
+        // each becomes a task right away. [impl->dsn~local-category-session-import~1]
+        if (remote == null) {
+            importLocalSessions(List.of(name), added -> {
+                if (added > 0) {
+                    statusBar().message("Added %d existing Claude session%s in %s as task%s.".formatted(
+                            added, added == 1 ? "" : "s", name, added == 1 ? "" : "s"));
+                }
+            });
+        }
         return true;
     }
 
@@ -5044,6 +5055,125 @@ public class MainWindow {
     /// a just-edited list is the one that opens, and it settles the button
     /// through `onSettled` whether the folders opened or not.
     // [impl->dsn~category-folders-button~1]
+    /// Session ids this window wrote a task for, until the watcher has loaded
+    /// the file: a second sync right after the first must not import them
+    /// again. FX thread only.
+    // [impl->dsn~local-category-session-import~1]
+    private final Set<String> importedSessionIds = new HashSet<>();
+
+    /// The local category header's sync button
+    /// (`dsn~local-category-session-import~1`): adds every Claude session
+    /// recorded on this machine for the category's directory that no task
+    /// records yet. `onSettled` re-enables the button, success or not.
+    // [impl->dsn~local-category-session-import~1]
+    private void syncLocalSessions(String group, Runnable onSettled) {
+        String dir = localSessionDir(group);
+        if (dir == null) {
+            onSettled.run();
+            return;
+        }
+        statusBar().message("Looking for Claude sessions in " + dir + " …");
+        importLocalSessions(List.of(group), added -> {
+            statusBar().message(added == 0
+                    ? "No new Claude sessions in " + dir + "."
+                    : "Added %d Claude session%s in %s as task%s.".formatted(added,
+                            added == 1 ? "" : "s", group, added == 1 ? "" : "s"));
+            onSettled.run();
+        });
+    }
+
+    /// The directory whose Claude sessions belong to `group`: its
+    /// workspaces root (else workdir) — null for a remote category, whose
+    /// sessions live on the host and come in through the tmux sync.
+    // [impl->dsn~local-category-session-import~1]
+    private @Nullable String localSessionDir(String group) {
+        if (group.isEmpty() || groupDefaults(group).remote() != null) {
+            return null;
+        }
+        return groupPath(group);
+    }
+
+    /// Every local category, for the toolbar's "Sync tmux windows…", which
+    /// imports their sessions too. [impl->dsn~local-category-session-import~1]
+    private List<String> localSessionGroups() {
+        return folders.stream().sorted().filter(group -> localSessionDir(group) != null).toList();
+    }
+
+    /// Reads the sessions of `groups`' directories off the FX thread, then
+    /// writes one suspended task per session no task claims and reports how
+    /// many it wrote to `onDone` (FX thread). A session is claimed by any
+    /// task — in any category — whose `claude.sessionId` names it.
+    // [impl->dsn~local-category-session-import~1]
+    private void importLocalSessions(List<String> groups, IntConsumer onDone) {
+        Map<String, String> dirs = new LinkedHashMap<>();
+        for (String group : groups) {
+            String dir = localSessionDir(group);
+            if (dir != null) {
+                dirs.put(group, dir);
+            }
+        }
+        if (dirs.isEmpty()) {
+            onDone.accept(0);
+            return;
+        }
+        CompletableFuture.supplyAsync(() -> {
+            Map<String, List<LocalClaudeSessions.Session>> found = new LinkedHashMap<>();
+            dirs.forEach((group, dir) -> found.put(group, LocalClaudeSessions.of(dir)));
+            return found;
+        }).whenComplete((found, error) -> Platform.runLater(() -> {
+            if (error != null || found == null) {
+                Logger.warn(error, "Cannot read the local Claude sessions");
+                onDone.accept(0);
+                return;
+            }
+            int added = 0;
+            Set<String> claimed = claimedSessionIds();
+            for (Map.Entry<String, List<LocalClaudeSessions.Session>> entry : found.entrySet()) {
+                String dir = Objects.requireNonNull(dirs.get(entry.getKey()));
+                for (LocalClaudeSessions.Session session : entry.getValue()) {
+                    if (claimed.add(session.id()) && createSessionTask(entry.getKey(), dir, session)) {
+                        added++;
+                    }
+                }
+            }
+            onDone.accept(added);
+        }));
+    }
+
+    /// The `claude.sessionId` of every loaded task, plus the ones written but
+    /// not loaded yet. [impl->dsn~local-category-session-import~1]
+    private Set<String> claimedSessionIds() {
+        Set<String> claimed = new HashSet<>(importedSessionIds);
+        for (TaskEntry entry : entries) {
+            if (entry instanceof TaskEntry.Loaded loaded) {
+                Task.ClaudeConfig claude = loaded.task().claude();
+                if (claude != null && claude.sessionId() != null) {
+                    claimed.add(claude.sessionId());
+                }
+            }
+        }
+        return claimed;
+    }
+
+    /// Writes the task for one recorded session: its title, `suspended` (no
+    /// process runs it — the terminal pane offers to resume it), and the
+    /// `claude:` section naming the directory and the session, which is what
+    /// resumes exactly this conversation. [impl->dsn~local-category-session-import~1]
+    private boolean createSessionTask(String group, String dir, LocalClaudeSessions.Session session) {
+        String fileName = uniqueFileName(TaskFileParser.newTaskFileName(group + "/" + session.title()));
+        String content = TaskFileParser.withClaudeSessionId(TaskFileParser.withClaudeSection(
+                TaskFileParser.withStatus(TaskFileParser.newTaskContent(session.title(), null, null, false),
+                        TaskStatus.SUSPENDED), dir), session.id());
+        String error = files.save(fileName, content);
+        if (error != null) {
+            Logger.warn("Cannot create the task {} for Claude session {}: {}", fileName, session.id(), error);
+            return false;
+        }
+        importedSessionIds.add(session.id());
+        Logger.info("Local category {}: added {} for Claude session {}", group, fileName, session.id());
+        return true;
+    }
+
     private void openGroupFolders(String group, Runnable onSettled) {
         saveEditorIfDirty();
         List<String> folders = groupDefaults(group).folders();
@@ -6517,6 +6647,14 @@ public class MainWindow {
         syncTmux.setOnAction(event -> {
             syncTmux.setDisable(true);
             onSyncTmux.accept(() -> syncTmux.setDisable(false));
+            // Local categories have no tmux to sync, but their Claude sessions
+            // come in on the same press. [impl->dsn~local-category-session-import~1]
+            importLocalSessions(localSessionGroups(), added -> {
+                if (added > 0) {
+                    statusBar().message("Added %d local Claude session%s as task%s.".formatted(
+                            added, added == 1 ? "" : "s", added == 1 ? "" : "s"));
+                }
+            });
         });
 
         // [impl->dsn~energy-saver~1]

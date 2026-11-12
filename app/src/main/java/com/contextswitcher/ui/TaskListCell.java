@@ -395,6 +395,10 @@ public class TaskListCell extends ListCell<Object> {
     /// bare shell. The hover toggle then offers play instead of pause.
     // [impl->dsn~task-row-hover-actions~7]
     private final Predicate<Task> sessionStopped;
+    /// Imports the Claude sessions recorded for a local category's folder as
+    /// tasks; the `Runnable` re-enables the header's sync button.
+    // [impl->dsn~local-category-session-import~1]
+    private final BiConsumer<String, Runnable> onSyncLocalSessions;
 
     public TaskListCell(Consumer<Task> onSwitch, Consumer<Task> onOpenInIntellij,
             Consumer<Task> onRename, Consumer<Task> onDelete,
@@ -431,7 +435,9 @@ public class TaskListCell extends ListCell<Object> {
             Consumer<String> onScopeCategory, Function<String, @Nullable String> groupPath,
             Predicate<String> groupCurrent,
             Function<Task, javafx.scene.control.@Nullable Menu> syncGroupsMenu,
-            Predicate<Task> sessionStopped) {
+            Predicate<Task> sessionStopped,
+            BiConsumer<String, Runnable> onSyncLocalSessions) {
+        this.onSyncLocalSessions = onSyncLocalSessions;
         this.syncGroupsMenu = syncGroupsMenu;
         this.sessionStopped = sessionStopped;
         this.creationOf = creationOf;
@@ -937,6 +943,23 @@ public class TaskListCell extends ListCell<Object> {
                 onNewTmuxWindow.accept(header.name(), () -> scratch.setDisable(false));
             });
             nameLine.getChildren().add(scratch);
+        }
+
+        // A local category — no `remote`, a directory its tasks work in —
+        // carries a sync icon in the terminal icon's place: it adds every
+        // Claude session recorded for that directory on this machine that no
+        // task holds yet, so a conversation started outside the app (or before
+        // the category existed) becomes a task that resumes it.
+        // [impl->dsn~local-category-session-import~1]
+        if (header.remote() == null && header.path() != null && !header.name().isEmpty()) {
+            Button syncSessions = iconButton(MDIInterface.SYNC,
+                    "Add the Claude sessions in \"" + header.path() + "\" as tasks");
+            syncSessions.setId("group-sync-sessions-button");
+            syncSessions.setOnAction(event -> {
+                syncSessions.setDisable(true);
+                onSyncLocalSessions.accept(header.name(), () -> syncSessions.setDisable(false));
+            });
+            nameLine.getChildren().add(syncSessions);
         }
 
         // A category naming local `folders:` opens them from the header —
