@@ -22,6 +22,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - A project created by the setup wizard for a local folder lists that folder under *Local folders*, so switching to it opens the folder in the file manager.
 
+### Fixed
+
+- The setup wizard's *Finish* stays disabled while a local folder for a new category does not exist or cannot be read, and says so under the field.
+
 ## [2026-11-09] - 2026-11-09
 
 ### Changed
@@ -286,6 +290,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-09...main
 [2026-11-09]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-05...v2026-11-09
 [2026-11-05]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-03...v2026-11-05
 [2026-11-03]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-02...v2026-11-03

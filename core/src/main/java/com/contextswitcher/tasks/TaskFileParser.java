@@ -865,11 +865,11 @@ public class TaskFileParser {
     /// passed (the active-desktop filter's, `dsn~category-create-ui~3`). A
     /// null `remote` writes no `remote:` line — a local category
     /// (`dsn~task-create-local~4`), the setup wizard's local choice. A null
-    /// `url` is a plain folder (`dsn~category-from-folder~2`): no clone, so
+    /// `url` is a plain folder (`dsn~category-from-folder~3`): no clone, so
     /// neither `mainCheckout` nor `repo`; a local one also lists the folder
     /// under `folders:`, so a switch opens it in the file manager.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~category-from-folder~2]
+    // [impl->dsn~category-from-folder~3]
     // [impl->dsn~setup-wizard~13]
     public static String groupConfigForRepo(String group, @Nullable String url, @Nullable String remote,
             String workspacesRoot, @Nullable String desktop) {

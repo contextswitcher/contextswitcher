@@ -3184,9 +3184,9 @@ public class Main extends Application {
     }
 
     /// The category the wizard's last page asked for, if any: from a
-    /// repository, or for a plain folder (`dsn~category-from-folder~2`).
+    /// repository, or for a plain folder (`dsn~category-from-folder~3`).
     // [impl->dsn~setup-wizard~13]
-    // [impl->dsn~category-from-folder~2]
+    // [impl->dsn~category-from-folder~3]
     private static void createWizardCategory(MainWindow window, SetupWizard.Result result) {
         String root = result.workspacesRoot();
         if (root == null) {
