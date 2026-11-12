@@ -204,6 +204,14 @@ class QodoReviewLookupTest {
     }
 
     @Test
+    void extractsThePromptFromACrlfBody() {
+        String body = summaryBodyWithPrompt("## Issue description\nThe finding.\n## Recommended Fix\nFix it.")
+                .replace("\n", "\r\n");
+        assertThat(QodoReviewLookup.extractPrompts(body))
+                .containsExactly("## Issue description\nThe finding.\n## Recommended Fix\nFix it.");
+    }
+
+    @Test
     void extractsEveryPromptWhenACommentBundlesSeveral() {
         String body = bodyWithPrompt("First prompt.") + "\n" + bodyWithPrompt("Second prompt.");
         assertThat(QodoReviewLookup.extractPrompts(body))

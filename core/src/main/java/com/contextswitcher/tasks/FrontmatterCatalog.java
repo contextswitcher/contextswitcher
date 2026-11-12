@@ -134,7 +134,8 @@ public final class FrontmatterCatalog {
     /// shows every other field.
     // [impl->dsn~task-field-form~6]
     public static final Set<String> SWITCH_ACTION_KEYS =
-            Set.of("intellij", "intellij.projectPath", "browser.urls", "folders", "chat", "note");
+            Set.of("intellij", "intellij.projectPath", "browser.urls", "folders", "chat", "note",
+                    "profile");
 
     /// Whether `field` belongs on the Switch actions pane ([#SWITCH_ACTION_KEYS]).
     public static boolean isSwitchAction(Field field) {
@@ -167,6 +168,10 @@ public final class FrontmatterCatalog {
             new Field("chat", "Chat room", "Category", Type.STRING,
                     "Matrix room opened on every switch into the category "
                             + "(a task's own chat wins)."),
+            new Field("profile", "Environment profile", "Category", Type.STRING,
+                    "Name of a profile from settings.yaml's profiles: (screens, projector mode, "
+                            + "taskbar, bookmarks bar), applied on every switch into the category; "
+                            + "empty means default."),
             new Field("repo", "GitHub repository", "Repository", Type.STRING,
                     "The category's GitHub repository, opened by the header's repository icon "
                             + "and named in a live task's bootstrap prompt."),

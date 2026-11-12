@@ -347,6 +347,18 @@ public record Task(
         return prUrls().stream().findFirst().orElse(null);
     }
 
+    /// A stand-in task for switching to a category itself, without a task of
+    /// its own: it configures nothing, so [#withCategoryDefaults] and the
+    /// actions' own category fallbacks (note, chat, environment profile — all
+    /// resolved from the id's group part, the text before its last `/`)
+    /// leave exactly the category's switch actions. `remote` is the category's
+    /// default host, which the IntelliJ action needs.
+    // [impl->dsn~category-switch~1]
+    public static Task forCategory(String group, @Nullable String remote) {
+        return new Task(group + "/", group, TaskStatus.ACTIVE, remote, null, null, null, null, null, null,
+                List.of(), List.of(), "");
+    }
+
     /// The task as it switches inside its category: every action section the
     /// task does not configure itself falls back to the category's default
     /// from its `CONTEXTSWITCHER.md` (`intellij`, `browser`, `folders`).

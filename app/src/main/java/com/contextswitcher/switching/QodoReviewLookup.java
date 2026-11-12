@@ -198,7 +198,7 @@ public class QodoReviewLookup {
     /// are normalised away, so the same finding yields the same text either way.
     static List<String> extractPrompts(String body) {
         List<String> prompts = new ArrayList<>();
-        Matcher matcher = AGENT_PROMPT.matcher(QUOTE.matcher(body).replaceAll(""));
+        Matcher matcher = AGENT_PROMPT.matcher(QUOTE.matcher(body.replace("\r\n", "\n")).replaceAll(""));
         while (matcher.find()) {
             String prompt = PROMPT_PREAMBLE.matcher(matcher.group(1)).replaceFirst("").strip();
             if (!prompt.isEmpty()) {

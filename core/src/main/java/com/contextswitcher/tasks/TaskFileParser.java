@@ -357,7 +357,7 @@ public class TaskFileParser {
     /// `desktop`) instead of the `# desktop: <group>` example — for a category
     /// created from the desktop-filter empty state, which already knows the
     /// desktop the category is for.
-    // [impl->dsn~desktop-filter-empty-state~2]
+    // [impl->dsn~desktop-filter-empty-state~3]
     public static String groupConfigSkeleton(String group, @Nullable String remote,
             @Nullable String desktop, boolean hints) {
         String remoteLine = remote == null
@@ -791,7 +791,7 @@ public class TaskFileParser {
     /// boundary) — a pasted multi-sentence task description must still yield
     /// a Windows-safe path (MAX_PATH). Also used for new category (group
     /// folder) names.
-    // [impl->dsn~category-create-ui~2]
+    // [impl->dsn~category-create-ui~3]
     // [impl->dsn~task-create-ui~15]
     public static String slug(String value) {
         String slug = value.strip()
@@ -862,14 +862,15 @@ public class TaskFileParser {
     /// `workspacesRoot` the setup task creates on the remote, the
     /// `mainCheckout` (the primary clone inside it, named like the group)
     /// and `repo`, plus a `desktop:` line when a `desktop` is
-    /// passed (the active-desktop filter's, `dsn~category-create-ui~2`). A
+    /// passed (the active-desktop filter's, `dsn~category-create-ui~3`). A
     /// null `remote` writes no `remote:` line — a local category
     /// (`dsn~task-create-local~4`), the setup wizard's local choice. A null
-    /// `url` is a plain folder (`dsn~category-from-folder~2`): no clone, so
-    /// neither `mainCheckout` nor `repo`.
+    /// `url` is a plain folder (`dsn~category-from-folder~3`): no clone, so
+    /// neither `mainCheckout` nor `repo`; a local one also lists the folder
+    /// under `folders:`, so a switch opens it in the file manager.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~category-from-folder~2]
-    // [impl->dsn~setup-wizard~12]
+    // [impl->dsn~category-from-folder~3]
+    // [impl->dsn~setup-wizard~13]
     public static String groupConfigForRepo(String group, @Nullable String url, @Nullable String remote,
             String workspacesRoot, @Nullable String desktop) {
         return """
@@ -880,8 +881,9 @@ public class TaskFileParser {
                 # %s — group defaults
                 """.formatted(remote == null ? "" : "remote: " + yamlScalar(remote) + "\n",
                 yamlScalar(workspacesRoot),
-                url == null ? "" : "mainCheckout: " + yamlScalar(workspacesRoot + "/" + group)
-                        + "\nrepo: " + yamlScalar(url.strip()) + "\n",
+                url != null ? "mainCheckout: " + yamlScalar(workspacesRoot + "/" + group)
+                        + "\nrepo: " + yamlScalar(url.strip()) + "\n"
+                        : remote == null ? "folders:\n  - " + yamlScalar(workspacesRoot) + "\n" : "",
                 desktop == null ? "" : "desktop: " + yamlScalar(desktop) + "\n", group);
     }
 

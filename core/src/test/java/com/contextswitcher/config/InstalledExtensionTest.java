@@ -9,7 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~setup-wizard~12]
+// [utest->dsn~setup-wizard~13]
 class InstalledExtensionTest {
 
     @Test

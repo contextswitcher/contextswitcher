@@ -195,6 +195,20 @@ Covers:
 
 Needs: dsn
 
+### Switch to a category without a task
+`req~category-switch~1`
+
+Work on a category does not always come with a task: preparing a lecture is just going to its folder, note and pages.
+The category header carries a play button that switches to the category itself — its virtual desktop first, then every switch action the category configures (local folders, note, chat room, browser URLs, IntelliJ, environment profile), reported in the status bar like a task switch.
+The desktop button next to it keeps doing only the desktop.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Open a task's link on its category's desktop
 `req~pr-open-on-category-desktop~2`
 
@@ -344,7 +358,7 @@ A row left without a destination is dropped on save.
 The RefactoringMiner directory is per host: `RefactoringMinerPoller` asks `Main.refactoringMinerHome(remote)` per target, read fresh from the table, and skips a host without one; the poller itself starts when any host has one (the first needs a restart, further ones none).
 The refactoring view takes the directory of the task's own remote and says which host to configure when it has none; the port stays one global setting.
 
-The workspaces directory is where new workspaces roots go on that host: `MainWindow.configuredWorkspacesParent(host)` is the table's value first, then the parent of that host's existing categories' roots (`dsn~setup-wizard~12`).
+The workspaces directory is where new workspaces roots go on that host: `MainWindow.configuredWorkspacesParent(host)` is the table's value first, then the parent of that host's existing categories' roots (`dsn~setup-wizard~13`).
 It is asked in the setup wizard.
 The setup wizard's remote page offers the table's ssh destinations as radio choices plus *Another machine:* with the destination field (`Prefill.knownHosts`; a choice fills the field, read-only, so the check and the result read it as before; a re-run picks the first switched-on host), and has a *Workspaces directory there* field — for a known host filled as soon as the host is picked, from the table or that host's existing roots, otherwise once the connection check knows the remote's home (`<home>/workspaces`) — until typed into; the wizard writes it into the host's entry, and the last page proposes the first category's root under it.
 
@@ -553,6 +567,21 @@ Tags: windows, linux
 
 Covers:
 - req~category-folders-button~1
+
+Needs: impl, utest
+
+### Category switch button
+`dsn~category-switch~1`
+
+Every named category's header renders an always-visible "Switch to category" icon button (MDI `play`, id `group-switch-button`) right of the desktop button.
+A click (`MainWindow.switchCategory`) flushes the editor, then runs the ordinary task switch (`Main.switchTo`, status-bar chips and all) on `Task.forCategory(group, remote)`: a stand-in task with id `<group>/`, the category's default host and no section of its own.
+`Main.withCategoryDefaults` fills in the category's `intellij`, `browser` and `folders` (`dsn~category-action-defaults~1`), and the note, chat and environment-profile actions resolve their category fallback from the id's group part, so exactly the category's own actions run.
+When the category resolves to a desktop (its own or the fallback, `dsn~fallback-desktop~2`) the switch waits for the desktop focus (`Main.reportFocusDesktop`, on the action executor) to finish first, because Explorer and new browser tabs open on the desktop in view.
+
+Tags: windows, linux
+
+Covers:
+- req~category-switch~1
 
 Needs: impl, utest
 

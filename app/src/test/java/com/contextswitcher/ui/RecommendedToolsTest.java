@@ -62,7 +62,7 @@ class RecommendedToolsTest {
     }
 
     /// A configured RefactoringMiner directory is what the probe looks at.
-    // [utest->dsn~setup-wizard~12]
+    // [utest->dsn~setup-wizard~13]
     @Test
     void aConfiguredRefactoringMinerDirectoryIsProbed() {
         assertThat(String.join(" ", RecommendedTools.refactoringMiner("/data/me/RM").probe()))

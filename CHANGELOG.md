@@ -6,6 +6,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-12] - 2026-11-12
+
+### Added
+
+- A category's header has a play button that switches to the category itself — its desktop, folders, note, chat, URLs and environment profile — when there is no task to pick.
+- A category's environment profile can be set on its *Switch actions* tab.
+- The setup wizard's category page asks for the category's virtual desktop, pre-filled with the current one; empty it to use the fallback desktop.
+
+### Changed
+
+- *Add category…* in the add menu and the task list's context menu now opens the setup wizard, which asks for everything a category needs; the former *Setup wizard…* item and the name-only *Add category* dialog are gone.
+- A project created by the setup wizard for a local folder lists that folder under *Local folders*, so switching to it opens the folder in the file manager.
+
+### Fixed
+
+- The setup wizard's *Finish* stays disabled while a local folder for a new category does not exist or cannot be read, and says so under the field.
+- The setup wizard's buttons no longer slip out of the window when the check of this machine reports a missing tool.
+- Qodo review prompts are found again in comments with Windows line endings.
+
 ## [2026-11-09] - 2026-11-09
 
 ### Changed
@@ -270,6 +289,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-12]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-09...v2026-11-12
 [2026-11-09]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-05...v2026-11-09
 [2026-11-05]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-03...v2026-11-05
 [2026-11-03]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-02...v2026-11-03

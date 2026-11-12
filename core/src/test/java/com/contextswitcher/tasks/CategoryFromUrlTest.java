@@ -75,7 +75,7 @@ class CategoryFromUrlTest {
     /// Created while the active-desktop filter is on: the config names that
     /// desktop, so the new category is not hidden by the very filter it was
     /// created under.
-    // [utest->dsn~category-create-ui~2]
+    // [utest->dsn~category-create-ui~3]
     @Test
     void theConfigCarriesTheFilteredDesktop() {
         String content = TaskFileParser.groupConfigForRepo("sailor", "https://github.com/Gram21/SaiLoR",
@@ -87,7 +87,7 @@ class CategoryFromUrlTest {
 
     /// The setup wizard's local choice: no `remote:` line, so the category
     /// is a local one (`Add local Claude`), the rest as for a remote.
-    // [utest->dsn~setup-wizard~12]
+    // [utest->dsn~setup-wizard~13]
     @Test
     void withoutARemoteTheConfigIsALocalCategory() {
         String content = TaskFileParser.groupConfigForRepo("sailor", "https://github.com/Gram21/SaiLoR",
@@ -100,7 +100,7 @@ class CategoryFromUrlTest {
 
     /// A plain folder (OneDrive, no git): its path is the root, as written
     /// on Windows, and there is no clone to point `mainCheckout` or `repo` at.
-    // [utest->dsn~category-from-folder~2]
+    // [utest->dsn~category-from-folder~3]
     @Test
     void aFolderCategoryHasNoCheckoutAndNoRepo() {
         String content = TaskFileParser.groupConfigForRepo("paper", null, null,
@@ -109,5 +109,15 @@ class CategoryFromUrlTest {
         assertThat(config.workspacesRoot()).isEqualTo("C:\\Users\\me\\OneDrive\\paper");
         assertThat(config.mainCheckout()).isNull();
         assertThat(config.repo()).isNull();
+        assertThat(config.folders()).containsExactly("C:\\Users\\me\\OneDrive\\paper");
+    }
+
+    /// On a remote the folder is not this machine's, so no `folders:` entry.
+    // [utest->dsn~category-from-folder~3]
+    @Test
+    void aRemoteFolderCategoryListsNoLocalFolder() {
+        String content = TaskFileParser.groupConfigForRepo("paper", null, "koppor@devbox",
+                "/home/me/paper", null);
+        assertThat(new TaskFileParser().parseGroupConfig(content).folders()).isEmpty();
     }
 }

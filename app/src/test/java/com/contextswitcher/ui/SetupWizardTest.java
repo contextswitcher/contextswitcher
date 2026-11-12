@@ -12,8 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// The wizard's checks read the home and the tmux and Claude Code versions
 /// from one answer; ssh refused, tmux missing or `claude` missing each name
-/// what to fix (`dsn~setup-wizard~12`).
-// [utest->dsn~setup-wizard~12]
+/// what to fix (`dsn~setup-wizard~13`).
+// [utest->dsn~setup-wizard~13]
 class SetupWizardTest {
 
     @Test
@@ -89,7 +89,7 @@ class SetupWizardTest {
 
     /// A folder path on the clipboard — bare or in *Copy as path*'s quotes —
     /// counts only when it is one absolute line naming an existing directory.
-    // [utest->dsn~category-from-folder~2]
+    // [utest->dsn~category-from-folder~3]
     @Test
     void aClipboardFolderIsAnExistingAbsoluteDirectory(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
             throws java.io.IOException {

@@ -54,7 +54,7 @@ import com.contextswitcher.tasks.TaskFileParser;
 ///
 /// One `Dialog` with swapped pages rather than six dialogs: Back works, and
 /// Cancel on any page leaves everything as it was.
-// [impl->dsn~setup-wizard~12]
+// [impl->dsn~setup-wizard~13]
 public final class SetupWizard {
 
     /// The wizard's answers. `remote` is null for local sessions; every
@@ -65,13 +65,14 @@ public final class SetupWizard {
     /// remote, asked on its page (`dsn~host-table~1`). `folderCategory` is
     /// the name of a category for a plain folder — no git, no remote — whose
     /// path is then `workspacesRoot`, `repoUrl` being null
-    /// (`dsn~category-from-folder~2`). `setupSession` is false when such a
+    /// (`dsn~category-from-folder~3`). `setupSession` is false when such a
     /// folder category is to be created without a Claude session writing its
-    /// `CLAUDE.md` — for someone who does not use Claude there.
+    /// `CLAUDE.md` — for someone who does not use Claude there. `desktop` is
+    /// the virtual desktop the category's config names, null for the fallback.
     public record Result(@Nullable String remote, @Nullable String taskRepoUrl,
             @Nullable String repoUrl, @Nullable String workspacesRoot, RepoType repoType,
             @Nullable String refactoringMinerHome, boolean checkup, @Nullable String workspaces,
-            @Nullable String folderCategory, boolean setupSession) {
+            @Nullable String folderCategory, boolean setupSession, @Nullable String desktop) {
 
         public boolean local() {
             return remote == null;
@@ -95,12 +96,14 @@ public final class SetupWizard {
     /// `refactoringMinerHome` to probe, whether `categoriesExist` — then
     /// the last page adds one rather than creating the first — and the
     /// `knownHosts`, the host table's ssh destinations the remote page offers
-    /// as choices next to typing a new one. `EMPTY` on the first start.
+    /// as choices next to typing a new one, and the `desktop` the new category
+    /// is proposed for (the current one). `EMPTY` on the first start.
     public record Prefill(@Nullable String host,
             java.util.function.Function<String, @Nullable String> workspacesParent,
-            @Nullable String refactoringMinerHome, boolean categoriesExist, List<String> knownHosts) {
+            @Nullable String refactoringMinerHome, boolean categoriesExist, List<String> knownHosts,
+            @Nullable String desktop) {
 
-        public static final Prefill EMPTY = new Prefill(null, sessionHost -> null, null, false, List.of());
+        public static final Prefill EMPTY = new Prefill(null, sessionHost -> null, null, false, List.of(), null);
 
         public Prefill {
             knownHosts = List.copyOf(knownHosts);
@@ -219,7 +222,7 @@ public final class SetupWizard {
     /// optionally in the double quotes Windows' *Copy as path* adds, naming an
     /// absolute path to an existing directory — say
     /// `c:\git-repositories\git.overleaf.com\6aad3ebf9a43af8873645708`.
-    // [impl->dsn~category-from-folder~2]
+    // [impl->dsn~category-from-folder~3]
     static @Nullable String clipboardFolder(@Nullable String clip) {
         if (clip == null) {
             return null;
@@ -283,7 +286,7 @@ public final class SetupWizard {
             Prefill prefill, Extension extension, Predicate<String> freeCategoryName,
             @Nullable Window owner) {
         Dialog<Result> dialog = Alerts.owned(owner, new Dialog<>());
-        dialog.setTitle(offerClone ? "Welcome to ContextSwitcher" : "ContextSwitcher setup");
+        dialog.setTitle(offerClone ? "Welcome to ContextSwitcher" : "Add category");
         dialog.setGraphic(new ImageView(AppIcon.image(48)));
         dialog.setResizable(true);
         ButtonType back = new ButtonType("Back", ButtonBar.ButtonData.BACK_PREVIOUS);
@@ -337,14 +340,27 @@ public final class SetupWizard {
                 : offerWsl && TmuxHost.isWsl(prefill.host()) ? wslChoice : remoteChoice;
         // A folder of this machine on the clipboard is what the wizard was
         // opened for: a category for it, so sessions run here.
-        // [impl->dsn~category-from-folder~2]
+        // [impl->dsn~category-from-folder~3]
         String clipText = javafx.scene.input.Clipboard.getSystemClipboard().getString();
         @Nullable String clipFolder = clipboardFolder(clipText);
         (clipFolder != null ? localChoice
                 : offerClone && prefill.host() == null ? remoteChoice : configured).setSelected(true);
+        // A dialog sizes itself to its content once, at show; a taller page —
+        // or a verdict grown by a few lines — would otherwise push its
+        // buttons out of the window.
+        Runnable fit = () -> {
+            javafx.scene.Scene scene = dialog.getDialogPane().getScene();
+            if (scene != null && scene.getWindow() != null) {
+                // New content is not styled yet; measured unstyled, its
+                // wrapped text gets too few lines.
+                dialog.getDialogPane().applyCss();
+                scene.getWindow().sizeToScene();
+            }
+        };
         Label localVerdict = new Label();
         localVerdict.setId("setup-local-verdict");
         localVerdict.setWrapText(true);
+        localVerdict.textProperty().addListener((obs, was, now) -> fit.run());
         boolean[] localOk = {false};
         // This machine's tools, checked in the background as soon as the
         // wizard opens; `onOk` runs (on the FX thread) after a success,
@@ -724,7 +740,7 @@ public final class SetupWizard {
                         + "to add categories later from the toolbar."));
         // The other source: a plain folder on the session host — no git, no
         // remote (one synced by OneDrive, say). Its name follows the folder's
-        // last segment until typed into. [impl->dsn~category-from-folder~2]
+        // last segment until typed into. [impl->dsn~category-from-folder~3]
         TextField folder = new TextField();
         folder.setId("setup-folder");
         folder.setPrefColumnCount(40);
@@ -751,16 +767,36 @@ public final class SetupWizard {
             }
         });
         // Claude is optional for a folder: without the session the category
-        // is only created, the folder left as it is. [impl->dsn~category-from-folder~2]
+        // is only created, the folder left as it is. [impl->dsn~category-from-folder~3]
         CheckBox folderSession = new CheckBox("Start a Claude session that writes its CLAUDE.md");
         folderSession.setId("setup-folder-session");
         folderSession.setSelected(true);
         folderSession.setWrapText(true);
         folderSession.setMinHeight(Region.USE_PREF_SIZE);
+        // Only a session on this machine can be checked here; a remote or
+        // WSL folder would need a round-trip. [impl->dsn~category-from-folder~3]
+        java.util.function.BooleanSupplier folderUnusable = () -> {
+            String path = folder.getText().strip();
+            if (path.isEmpty() || !localChoice.isSelected()) {
+                return false;
+            }
+            try {
+                java.nio.file.Path dir = java.nio.file.Path.of(path);
+                return !java.nio.file.Files.isDirectory(dir) || !java.nio.file.Files.isReadable(dir);
+            } catch (java.nio.file.InvalidPathException e) {
+                return true;
+            }
+        };
+        Label folderMissing = new Label("No readable folder at this path on this machine.");
+        folderMissing.setId("setup-folder-missing");
+        folderMissing.getStyleClass().add(Styles.DANGER);
+        folderMissing.visibleProperty().bind(Bindings.createBooleanBinding(
+                folderUnusable::getAsBoolean, folder.textProperty(), localChoice.selectedProperty()));
+        folderMissing.managedProperty().bind(folderMissing.visibleProperty());
         VBox folderRows = new VBox(8,
                 caption("Folder (on the machine the sessions run on)"), withButton(folder, browse),
                 caption("Category name"), folderName,
-                folderSession,
+                folderMissing, folderSession,
                 muted("A category is created for the folder. Nothing is cloned and git is not "
                         + "used — fine for a folder synced by OneDrive. Without the Claude session "
                         + "the folder is left as it is."));
@@ -795,12 +831,20 @@ public final class SetupWizard {
         showSource.run();
         // The category the last page would create, null for none.
         Supplier<@Nullable String> categoryName = () -> fromFolder.isSelected()
-                ? (folder.getText().isBlank() || TaskFileParser.slug(folderName.getText()).isEmpty()
+                ? (folder.getText().isBlank() || folderUnusable.getAsBoolean()
+                        || TaskFileParser.slug(folderName.getText()).isEmpty()
                         ? null : TaskFileParser.slug(folderName.getText()))
                 : TaskFileParser.repoName(repoUrl.getText()) == null || root.getText().isBlank()
                         ? null : TaskFileParser.repoName(repoUrl.getText());
+        // The current desktop, so the category shows where it was added;
+        // emptied, the config names none and the fallback desktop applies.
+        // [impl->dsn~setup-wizard~13]
+        TextField desktop = new TextField(prefill.desktop() == null ? "" : prefill.desktop());
+        desktop.setId("setup-desktop");
+        desktop.setPrefColumnCount(20);
         VBox page6 = page(prefill.categoriesExist() ? "Add a category" : "First category",
-                new HBox(16, fromRepo, fromFolder), repoRows, folderRows);
+                new HBox(16, fromRepo, fromFolder), repoRows, folderRows,
+                caption("Virtual desktop (empty: the fallback desktop)"), desktop);
 
         List<Node> pages = List.of(page1, page2, page3, page4, page5, page6);
         StackPane content = new StackPane(page1);
@@ -848,15 +892,7 @@ public final class SetupWizard {
                     folderSession.setSelected(false);
                 }
             }
-            // A dialog sizes itself to its content once, at show; a taller
-            // page would otherwise push its buttons out of the window.
-            javafx.scene.Scene scene = dialog.getDialogPane().getScene();
-            if (scene != null && scene.getWindow() != null) {
-                // The new page is not styled yet; measured unstyled, its
-                // wrapped text gets too few lines.
-                dialog.getDialogPane().applyCss();
-                scene.getWindow().sizeToScene();
-            }
+            fit.run();
             Platform.runLater(() -> (current[0] == 1
                     ? (wslChoice.isSelected() ? (Node) distro : host) : current[0] == 4 ? cloneUrl
                     : current[0] == last ? (fromFolder.isSelected() ? folder : repoUrl)
@@ -915,7 +951,7 @@ public final class SetupWizard {
                 // Claude here, and a missing one is better found now than at
                 // the first task's empty terminal. Yet Claude is not a must:
                 // Next once more goes on without it, for a folder used without
-                // sessions. [impl->dsn~category-from-folder~2]
+                // sessions. [impl->dsn~category-from-folder~3]
                 boolean again = localFailedAtNext[0];
                 runLocalCheck.accept(forward, () -> {
                     if (again) {
@@ -950,7 +986,8 @@ public final class SetupWizard {
                     category == null ? null : blankToNull((plain ? folder : root).getText()),
                     repoType.getValue(), rmHome[0], button == checkup,
                     localChoice.isSelected() ? null : blankToNull(workspaces.getText()),
-                    plain ? category : null, !plain || folderSession.isSelected());
+                    plain ? category : null, !plain || folderSession.isSelected(),
+                    blankToNull(desktop.getText()));
         });
         // The first start shows the wizard before the main window, which is
         // what otherwise installs `main.css` and forces the theme to take.

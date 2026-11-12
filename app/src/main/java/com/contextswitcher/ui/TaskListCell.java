@@ -355,6 +355,10 @@ public class TaskListCell extends ListCell<Object> {
     /// Focuses the category's virtual desktop by group name; resolved fresh at
     /// click time (the editor may hold an unsaved config edit), like the note.
     private final Consumer<String> onFocusDesktop;
+    /// Switches to the category itself, by group name: its desktop, then its
+    /// switch actions — the header's play button.
+    // [impl->dsn~category-switch~1]
+    private final Consumer<String> onSwitchCategory;
     /// Opens the category's local `folders:` — the header's folder icon — by
     /// group name, the list resolved fresh at click time like the desktop.
     /// The `Runnable` is called (FX thread) once every folder settled, so the
@@ -415,6 +419,7 @@ public class TaskListCell extends ListCell<Object> {
             Runnable onFocusTerminal, ToIntFunction<Task> queueCount,
             Consumer<String> onDeleteFile, Function<String, String> taskFilePath,
             Function<String, @Nullable String> groupDesktop, Consumer<String> onFocusDesktop,
+            Consumer<String> onSwitchCategory,
             BiConsumer<String, Runnable> onOpenGroupFolders,
             java.util.function.BooleanSupplier labelView,
             BiConsumer<String, Runnable> onNewTmuxWindow,
@@ -474,6 +479,7 @@ public class TaskListCell extends ListCell<Object> {
         this.taskFilePath = taskFilePath;
         this.groupDesktop = groupDesktop;
         this.onFocusDesktop = onFocusDesktop;
+        this.onSwitchCategory = onSwitchCategory;
         this.onOpenGroupFolders = onOpenGroupFolders;
         this.labelView = labelView;
         this.onNewTmuxWindow = onNewTmuxWindow;
@@ -1029,6 +1035,17 @@ public class TaskListCell extends ListCell<Object> {
             focusDesktop.setId("group-desktop-button");
             focusDesktop.setOnAction(event -> onFocusDesktop.accept(header.name()));
             row.getChildren().add(focusDesktop);
+        }
+
+        // A full switch into the category without picking one of its tasks:
+        // its desktop, then every action it configures (folders, note, chat,
+        // browser URLs, IntelliJ, environment profile). [impl->dsn~category-switch~1]
+        if (!header.name().isEmpty()) {
+            Button switchCategory = iconButton(MDIInterface.PLAY,
+                    "Switch to category \"" + header.name() + "\" — desktop, folders, note, chat, URLs, profile");
+            switchCategory.setId("group-switch-button");
+            switchCategory.setOnAction(event -> onSwitchCategory.accept(header.name()));
+            row.getChildren().add(switchCategory);
         }
 
         // Always-visible note icon when the group config carries a note: URL.
