@@ -373,9 +373,11 @@ class SetupWizardUiTest {
 
     /// The last page's second source: a plain folder, named after its last
     /// segment, handed back as the root with no repository URL.
-    // [utest->dsn~category-from-folder~2]
+    // [utest->dsn~category-from-folder~3]
     @Test
-    void aLocalFolderBecomesACategoryWithoutARepository() {
+    void aLocalFolderBecomesACategoryWithoutARepository(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
+            throws java.io.IOException {
+        String path = java.nio.file.Files.createDirectories(dir.resolve("My Paper")).toString();
         AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
         Platform.runLater(() -> result.set(SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, true, SetupWizard.Prefill.EMPTY, EXTENSION)));
         RadioButton local = awaitPresent(
@@ -390,22 +392,29 @@ class SetupWizardUiTest {
         RadioButton fromFolder = awaitPresent(
                 () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-from-folder").fetchOptional(), "folder choice");
         FX_ROBOT.mouse().moveTo(fromFolder).click();
-        type(field("#setup-folder"), "/home/local/OneDrive/My Paper");
+        type(field("#setup-folder"), path + "-gone");
+        awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-folder-missing").fetchOptional()
+                .filter(Label::isVisible), "missing-folder hint");
+        awaitPresent(() -> FX_ROBOT.selectNodes(javafx.scene.control.Button.class, "#setup-checkup")
+                .fetchOptional().filter(javafx.scene.control.Button::isDisabled), "checkup disabled");
+        type(field("#setup-folder"), path);
         assertThat(field("#setup-folder-name").getText()).isEqualTo("my-paper");
+        awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-folder-missing").fetchOptional()
+                .filter(label -> !label.isVisible()), "hint gone");
         assertThat(UiTestSupport.truncatedTexts(field("#setup-folder"))).isEmpty();
         clickButtonById("setup-checkup");
         awaitPresent(() -> Optional.ofNullable(result.get()), "wizard result");
         assertThat(result.get()).hasValueSatisfying(r -> {
             assertThat(r.repoUrl()).isNull();
             assertThat(r.folderCategory()).isEqualTo("my-paper");
-            assertThat(r.workspacesRoot()).isEqualTo("/home/local/OneDrive/My Paper");
+            assertThat(r.workspacesRoot()).isEqualTo(path);
         });
     }
 
     /// A folder of this machine on the clipboard preselects local sessions
     /// and opens the last page on that folder; unticking the session hands
     /// back a category without one, and the checkup goes with it.
-    // [utest->dsn~category-from-folder~2]
+    // [utest->dsn~category-from-folder~3]
     @Test
     void aClipboardFolderIsPrefilledAndNeedsNoSession(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) {
         String path = dir.resolve("paper").toAbsolutePath().toString();
@@ -454,7 +463,7 @@ class SetupWizardUiTest {
 
     /// Claude missing here stops Next once; Next again goes on without it,
     /// and the last page then starts without a session.
-    // [utest->dsn~category-from-folder~2]
+    // [utest->dsn~category-from-folder~3]
     @Test
     void nextAgainGoesOnWithoutClaude() {
         java.util.function.Supplier<SetupWizard.Verdict> noClaude = () -> SetupWizard.toolsVerdict(

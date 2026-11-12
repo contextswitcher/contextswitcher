@@ -89,7 +89,7 @@ class SetupWizardTest {
 
     /// A folder path on the clipboard — bare or in *Copy as path*'s quotes —
     /// counts only when it is one absolute line naming an existing directory.
-    // [utest->dsn~category-from-folder~2]
+    // [utest->dsn~category-from-folder~3]
     @Test
     void aClipboardFolderIsAnExistingAbsoluteDirectory(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
             throws java.io.IOException {

@@ -4580,7 +4580,7 @@ public class MainWindow {
     /// `CLAUDE.md` from [RepoType#localFolderTemplate] — unless `setupSession`
     /// is false: then the category is only created and the folder left as it
     /// is, for someone who does not use Claude there.
-    // [impl->dsn~category-from-folder~2]
+    // [impl->dsn~category-from-folder~3]
     public void createCategoryFromFolder(String name, String folder, @Nullable String remote,
             ClaudeMode mode, @Nullable String firstMessage, boolean setupSession) {
         String group = TaskFileParser.slug(name);
@@ -4599,7 +4599,7 @@ public class MainWindow {
     /// Creates the category folder and its `CONTEXTSWITCHER.md`; false after
     /// an error alert.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~category-from-folder~2]
+    // [impl->dsn~category-from-folder~3]
     private boolean createConfiguredCategory(String name, @Nullable String web,
             @Nullable String remote, String workspacesRoot) {
         String error = files.createFolder(name);
@@ -4621,7 +4621,7 @@ public class MainWindow {
     /// on `remote`, or with none a local Claude given the template appended
     /// to the prompt, since the local launcher carries no appendix of its own.
     // [impl->dsn~category-from-url~5]
-    // [impl->dsn~category-from-folder~2]
+    // [impl->dsn~category-from-folder~3]
     private void startCategorySetup(String description, String name, @Nullable String remote,
             String workspacesRoot, @Nullable String web, String template, ClaudeMode mode) {
         if (remote != null) {
@@ -4807,7 +4807,7 @@ public class MainWindow {
     /// The setup task's description for [#createCategoryFromFolder]: the
     /// folder is neither a git repository nor to become one — write its
     /// `CLAUDE.md` from the appended template, keeping one that is there.
-    // [impl->dsn~category-from-folder~2]
+    // [impl->dsn~category-from-folder~3]
     static String folderSetupDescription(String folder, String group, @Nullable String firstMessage) {
         String description = ("Set up the folder %s (the current directory) as the workspace of %s. "
                 + "It is not a git repository and has no remote — it may be synced by a cloud drive "

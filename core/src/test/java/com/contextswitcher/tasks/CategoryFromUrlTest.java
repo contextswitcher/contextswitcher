@@ -100,7 +100,7 @@ class CategoryFromUrlTest {
 
     /// A plain folder (OneDrive, no git): its path is the root, as written
     /// on Windows, and there is no clone to point `mainCheckout` or `repo` at.
-    // [utest->dsn~category-from-folder~2]
+    // [utest->dsn~category-from-folder~3]
     @Test
     void aFolderCategoryHasNoCheckoutAndNoRepo() {
         String content = TaskFileParser.groupConfigForRepo("paper", null, null,

@@ -65,7 +65,7 @@ public final class SetupWizard {
     /// remote, asked on its page (`dsn~host-table~1`). `folderCategory` is
     /// the name of a category for a plain folder — no git, no remote — whose
     /// path is then `workspacesRoot`, `repoUrl` being null
-    /// (`dsn~category-from-folder~2`). `setupSession` is false when such a
+    /// (`dsn~category-from-folder~3`). `setupSession` is false when such a
     /// folder category is to be created without a Claude session writing its
     /// `CLAUDE.md` — for someone who does not use Claude there.
     public record Result(@Nullable String remote, @Nullable String taskRepoUrl,
@@ -219,7 +219,7 @@ public final class SetupWizard {
     /// optionally in the double quotes Windows' *Copy as path* adds, naming an
     /// absolute path to an existing directory — say
     /// `c:\git-repositories\git.overleaf.com\6aad3ebf9a43af8873645708`.
-    // [impl->dsn~category-from-folder~2]
+    // [impl->dsn~category-from-folder~3]
     static @Nullable String clipboardFolder(@Nullable String clip) {
         if (clip == null) {
             return null;
@@ -337,7 +337,7 @@ public final class SetupWizard {
                 : offerWsl && TmuxHost.isWsl(prefill.host()) ? wslChoice : remoteChoice;
         // A folder of this machine on the clipboard is what the wizard was
         // opened for: a category for it, so sessions run here.
-        // [impl->dsn~category-from-folder~2]
+        // [impl->dsn~category-from-folder~3]
         String clipText = javafx.scene.input.Clipboard.getSystemClipboard().getString();
         @Nullable String clipFolder = clipboardFolder(clipText);
         (clipFolder != null ? localChoice
@@ -724,7 +724,7 @@ public final class SetupWizard {
                         + "to add categories later from the toolbar."));
         // The other source: a plain folder on the session host — no git, no
         // remote (one synced by OneDrive, say). Its name follows the folder's
-        // last segment until typed into. [impl->dsn~category-from-folder~2]
+        // last segment until typed into. [impl->dsn~category-from-folder~3]
         TextField folder = new TextField();
         folder.setId("setup-folder");
         folder.setPrefColumnCount(40);
@@ -751,16 +751,36 @@ public final class SetupWizard {
             }
         });
         // Claude is optional for a folder: without the session the category
-        // is only created, the folder left as it is. [impl->dsn~category-from-folder~2]
+        // is only created, the folder left as it is. [impl->dsn~category-from-folder~3]
         CheckBox folderSession = new CheckBox("Start a Claude session that writes its CLAUDE.md");
         folderSession.setId("setup-folder-session");
         folderSession.setSelected(true);
         folderSession.setWrapText(true);
         folderSession.setMinHeight(Region.USE_PREF_SIZE);
+        // Only a session on this machine can be checked here; a remote or
+        // WSL folder would need a round-trip. [impl->dsn~category-from-folder~3]
+        java.util.function.BooleanSupplier folderUnusable = () -> {
+            String path = folder.getText().strip();
+            if (path.isEmpty() || !localChoice.isSelected()) {
+                return false;
+            }
+            try {
+                java.nio.file.Path dir = java.nio.file.Path.of(path);
+                return !java.nio.file.Files.isDirectory(dir) || !java.nio.file.Files.isReadable(dir);
+            } catch (java.nio.file.InvalidPathException e) {
+                return true;
+            }
+        };
+        Label folderMissing = new Label("No readable folder at this path on this machine.");
+        folderMissing.setId("setup-folder-missing");
+        folderMissing.getStyleClass().add(Styles.DANGER);
+        folderMissing.visibleProperty().bind(Bindings.createBooleanBinding(
+                folderUnusable::getAsBoolean, folder.textProperty(), localChoice.selectedProperty()));
+        folderMissing.managedProperty().bind(folderMissing.visibleProperty());
         VBox folderRows = new VBox(8,
                 caption("Folder (on the machine the sessions run on)"), withButton(folder, browse),
                 caption("Category name"), folderName,
-                folderSession,
+                folderMissing, folderSession,
                 muted("A category is created for the folder. Nothing is cloned and git is not "
                         + "used — fine for a folder synced by OneDrive. Without the Claude session "
                         + "the folder is left as it is."));
@@ -795,7 +815,8 @@ public final class SetupWizard {
         showSource.run();
         // The category the last page would create, null for none.
         Supplier<@Nullable String> categoryName = () -> fromFolder.isSelected()
-                ? (folder.getText().isBlank() || TaskFileParser.slug(folderName.getText()).isEmpty()
+                ? (folder.getText().isBlank() || folderUnusable.getAsBoolean()
+                        || TaskFileParser.slug(folderName.getText()).isEmpty()
                         ? null : TaskFileParser.slug(folderName.getText()))
                 : TaskFileParser.repoName(repoUrl.getText()) == null || root.getText().isBlank()
                         ? null : TaskFileParser.repoName(repoUrl.getText());
@@ -915,7 +936,7 @@ public final class SetupWizard {
                 // Claude here, and a missing one is better found now than at
                 // the first task's empty terminal. Yet Claude is not a must:
                 // Next once more goes on without it, for a folder used without
-                // sessions. [impl->dsn~category-from-folder~2]
+                // sessions. [impl->dsn~category-from-folder~3]
                 boolean again = localFailedAtNext[0];
                 runLocalCheck.accept(forward, () -> {
                     if (again) {
