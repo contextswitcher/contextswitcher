@@ -2016,12 +2016,23 @@ public class MainWindow {
     // [impl->dsn~start-claude-button~2]
     /// Whether the task's Claude is *known* not to run: an app-owned session
     /// with no live process, a window the poll saw at a bare shell
-    /// ([#lacksClaude]), or no window recorded at all (switch resurrects it).
+    /// ([#lacksClaude]), no window recorded at all (switch resurrects it), or
+    /// no window ever created ([#neverWindowed]).
     /// Unknown counts as running — a row only offers play on evidence.
     // [impl->dsn~task-row-hover-actions~7]
     private boolean sessionStopped(Task task) {
-        return ownedSessionStopped(task) || lacksClaude(task)
+        return ownedSessionStopped(task) || lacksClaude(task) || neverWindowed(task)
                 || com.contextswitcher.switching.TmuxFocusAction.windowGone(task);
+    }
+
+    /// A remote task with no `tmux:` section whose creation is not running
+    /// (anymore): typically one whose creation failed before the window came
+    /// up. Nothing runs, so its row offers play — which opens the same
+    /// window-choice dialog as the mirror placeholder's `Start Claude`
+    /// ([#promptRemoteWindow]) — instead of a pause with nothing to suspend.
+    // [impl->dsn~task-row-hover-actions~7]
+    private boolean neverWindowed(Task task) {
+        return task.remote() != null && task.tmux() == null && !creations.containsKey(task.id());
     }
 
     // [impl->dsn~terminal-owned-session~4]
