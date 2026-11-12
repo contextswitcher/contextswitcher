@@ -48,6 +48,9 @@ final class UpdateNews {
 
     /// The main window, the What's new window's owner; null before it is shown.
     private final Supplier<@Nullable Stage> owner;
+    /// Asked before the restart leaves the app: false keeps it running
+    /// (`dsn~owned-session-close-confirm~1`).
+    private final java.util.function.BooleanSupplier confirmLeave;
 
     /// The status bar's message line.
     private final Consumer<String> status;
@@ -90,8 +93,9 @@ final class UpdateNews {
 
     /// `button` is the toolbar's icon button, which this takes over: its
     /// graphic gains the badge, its action opens the window.
-    UpdateNews(Button button, Supplier<@Nullable Stage> owner, Consumer<String> status,
-            Consumer<String> openUrl) {
+    UpdateNews(java.util.function.BooleanSupplier confirmLeave, Button button,
+            Supplier<@Nullable Stage> owner, Consumer<String> status, Consumer<String> openUrl) {
+        this.confirmLeave = confirmLeave;
         this.button = button;
         this.owner = owner;
         this.status = status;
@@ -235,6 +239,10 @@ final class UpdateNews {
         // and push), so the window says so first and only then exits — after
         // the frame showing "Closing …" is on its way to the screen.
         restart.setOnAction(event -> {
+            // [impl->dsn~owned-session-close-confirm~1]
+            if (!confirmLeave.getAsBoolean()) {
+                return;
+            }
             announceShownNews();
             restart.disableProperty().unbind();
             restart.setDisable(true);

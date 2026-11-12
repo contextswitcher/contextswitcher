@@ -151,13 +151,28 @@ The way back is a resume, so the pane keeps owned sessions across selections —
 The transcript is the task's `claude.sessionId` when that file exists, else the newest one no other task's `claude.sessionId` names (`~3`→`~4`): several tasks can then share one folder, each resuming its own conversation — which is also how an existing local session is taken over, by a task file naming its id.
 For that to hold the id has to be in the task file, so a fresh start picks a UUID and pins it with `claude --session-id <uuid>`, and every start or resume writes the id it used to `claude.sessionId`.
 Without it a task recorded only its `cwd`, and two tasks in one folder both fell back to the same newest transcript — one conversation shown under two tasks (field report 2026-10-22).
-The encoding replaces every separator and dot with `-`, the drive colon and the backslashes included: `C:\git-repositories\github.com\contextswitcher\contextswitcher` → `C--git-repositories-github-com-contextswitcher-contextswitcher`.
+The encoding replaces every character but an ASCII letter or digit with `-` — separators, dots, the drive colon, the backslashes and spaces: `C:\git-repositories\github.com\contextswitcher\contextswitcher` → `C--git-repositories-github-com-contextswitcher-contextswitcher`.
 With no unclaimed transcript the same placeholder offers a plain **start**.
 `Main.ownsSession` is the whole marker: on Windows, a task with no `remote:` and no `tmux:`.
 It is checked **before** the remote-window offer of `dsn~remote-window-choice~7`, and it is deliberately not gated on a `claude:` section — such a task has no host for that button to open a window on, and a local one whose creation died before the write-back would otherwise sit in the remote flow's placeholder with nothing to click.
 The directory is the `claude.cwd` a started session recorded, else the task's own `folder:` (seeded from the group defaults at creation, `dsn~group-config-apply~2`); a task naming neither has nowhere to run and keeps the plain "No tmux configured for this task." placeholder.
 
 Linux and macOS are untouched: they have a real tmux, and the mirror of `dsn~terminal-local-mirror~2` is the better answer — it detaches, survives an app restart, and carries the status dots.
+
+Tags: windows
+
+Covers:
+- req~terminal-live-mirror~1
+
+Needs: impl, utest
+
+### Leaving the app asks while owned sessions run
+`dsn~owned-session-close-confirm~1`
+
+Since leaving the app ends the owned sessions (`dsn~terminal-owned-session~4`), closing the main window and the update's restart button (`dsn~restart-to-update~12`) first ask `MainWindow.confirmLeave` — silent when no owned process runs (`TerminalPane.runningOwnedKeys`).
+Otherwise a confirmation (`CloseConfirmation`) says that leaving ends the sessions, that each can be resumed but a turn in progress is cut off, and lists their tasks by category — the task id's folder, categories alphabetically with the root last as "(no category)", tasks by title — each task a link.
+*Close and end them* leaves; *Cancel* stays; a click on a task stays too and selects that task, which brings its session into the terminal pane, so the user can look whether Claude is mid-turn before deciding (Oliver, 2026-11-12).
+`Main` installs it as a `WINDOW_CLOSE_REQUEST` handler on the main stage that consumes the event unless the answer is to leave.
 
 Tags: windows
 

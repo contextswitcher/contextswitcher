@@ -1386,6 +1386,14 @@ public class TerminalPane {
         return running != null && running.isAlive();
     }
 
+    /// The keys (task ids) of every app-owned session whose process is still
+    /// running — what leaving the app would end.
+    // [impl->dsn~owned-session-close-confirm~1]
+    public List<String> runningOwnedKeys() {
+        return owned.entrySet().stream().filter(entry -> entry.getValue().isAlive())
+                .map(Map.Entry::getKey).sorted().toList();
+    }
+
     /// Installs the hook [#onOwnedChanged] calls.
     // [impl->dsn~terminal-owned-session~4]
     public void setOnOwnedChanged(Runnable handler) {

@@ -1044,6 +1044,14 @@ public class Main extends Application {
         repository.setOnGroupConfigChange(window::groupConfigChanged);
         // The shell needs the Application for its host services (MADR 0032).
         window.show(stage, this);
+        // Leaving ends the Claude sessions the app hosts on Windows, so the
+        // window's close asks first while one runs.
+        // [impl->dsn~owned-session-close-confirm~1]
+        stage.addEventHandler(javafx.stage.WindowEvent.WINDOW_CLOSE_REQUEST, event -> {
+            if (!window.confirmLeave("Closing ContextSwitcher")) {
+                event.consume();
+            }
+        });
         // The wizard's first project, created once the window is up: the
         // category and its setup session need the repository and the live-task
         // machinery that did not exist while the wizard ran.

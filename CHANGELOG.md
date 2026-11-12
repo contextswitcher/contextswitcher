@@ -22,6 +22,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - The terminal's status messages ("Connection lost — reconnecting…", "Connecting to …") show dashes and ellipses instead of garbled characters.
 - Deleting a local task offers to remove its Claude transcript on this machine, as it already did for remote tasks.
 - A task whose creation failed before its tmux window came up shows play instead of pause on hover; play opens the same dialog as the terminal's *Start Claude* button.
+- Closing the app (or restarting it for an update) while it runs Claude sessions on Windows asks first, listing their tasks by category; clicking one shows its terminal instead of closing.
 - Imported Claude sessions carry the session's last activity as their date (shown on the row, used by *last update* sorting), not the time of the import.
 - Importing Claude sessions into a local category switches *Show running tasks only* off so the new (suspended) tasks show, and selects the newest one.
 - A category just added stays in the list while *Show running tasks only* hides its tasks, instead of vanishing.

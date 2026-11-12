@@ -1019,7 +1019,7 @@ public class MainWindow {
         this.onOpenUrl = onOpenUrl;
         // Built here, not with the toolbar: the update check may report before
         // the window is shown, and that report must not be dropped.
-        this.updateNews = new UpdateNews(iconButton(MDIInterface.UPDATE, ""), () -> stage,
+        this.updateNews = new UpdateNews(() -> confirmLeave("Restarting"), iconButton(MDIInterface.UPDATE, ""), () -> stage,
                 message -> statusBar.message(message), onOpenUrl);
         this.onFocusUrlInBrowser = onFocusUrlInBrowser;
         this.onCountOpenTabs = onCountOpenTabs;
@@ -1164,6 +1164,23 @@ public class MainWindow {
         // A MenuButton with no items never opens, so the showing handler
         // would never run.
         profileOverride.getItems().setAll(new MenuItem());
+    }
+
+    /// Whether to leave the app — closing it or restarting it for an update —
+    /// with its owned Claude sessions running: asks with the list of their
+    /// tasks by category, and a task clicked there is selected (its terminal
+    /// comes into view) instead. True at once when none runs.
+    // [impl->dsn~owned-session-close-confirm~1]
+    public boolean confirmLeave(String action) {
+        Map<String, String> titles = new HashMap<>();
+        for (TaskEntry entry : entries) {
+            if (entry instanceof TaskEntry.Loaded loaded) {
+                titles.put(loaded.id(), loaded.task().title());
+            }
+        }
+        List<CloseConfirmation.Row> rows = terminal.runningOwnedKeys().stream()
+                .map(id -> new CloseConfirmation.Row(id, titles.getOrDefault(id, id))).toList();
+        return CloseConfirmation.confirm(dialogOwner(), action, rows, this::selectTask);
     }
 
     public void show(Stage stage, Application application) {
