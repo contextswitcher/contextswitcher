@@ -16,6 +16,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Fixed
 
 - Android: the app registers the `contextswitcher://` scheme; `task/<id>` and `switch/<id>` links open the task.
+- The terminal's status messages ("Connection lost — reconnecting…", "Connecting to …") show dashes and ellipses instead of garbled characters.
 
 ## [2026-11-12] - 2026-11-12
 

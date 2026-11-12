@@ -31,9 +31,9 @@ import org.tinylog.Logger;
 /// session ([TmuxMirrorCommands]), so the mirror's current window is
 /// independent of the real session's. Selecting another window of the same
 /// session only sends a `select-window` over a plain ssh side channel
-/// ([#select]) â no reconnect; anything else is a fresh session. The mirror
+/// ([#select]) — no reconnect; anything else is a fresh session. The mirror
 /// session stays behind on the remote when the app quits (detached, no
-/// processes of its own) â harmless by design. An unexpected pty exit
+/// processes of its own) — harmless by design. An unexpected pty exit
 /// auto-reconnects with backoff (https://github.com/contextswitcher/contextswitcher-private/issues/36); [#detach] is intentional and does not.
 // [impl->dsn~terminal-pane~14]
 // [impl->dsn~terminal-reconnect~2]
@@ -72,12 +72,12 @@ final class TmuxSession implements TerminalSession {
 
     /// The window the user is viewing. The same-session fast path moves it
     /// too, so an unexpected pty exit (e.g. after the PC sleeps and ssh
-    /// keepalive kills the stale link) re-attaches the window in view â not
+    /// keepalive kills the stale link) re-attaches the window in view — not
     /// the one of the last full attach.
     private Task.TmuxConfig tmux;
 
     /// Serializes async outcomes: a result only applies while its generation
-    /// is still the latest â a re-attach and [#detach] both move it on.
+    /// is still the latest — a re-attach and [#detach] both move it on.
     private final AtomicLong generation = new AtomicLong();
 
     /// Coalesces window selects: only the newest one reaches the remote.
@@ -87,7 +87,7 @@ final class TmuxSession implements TerminalSession {
     private final AtomicLong selectSequence = new AtomicLong();
 
     /// `connectionKey|window` of the last `select-window` the remote confirmed,
-    /// with the time it did â see [#SELECT_VERIFY_INTERVAL_MS].
+    /// with the time it did — see [#SELECT_VERIFY_INTERVAL_MS].
     private @Nullable String confirmedSelect;
     private long confirmedSelectMs;
 
@@ -142,7 +142,7 @@ final class TmuxSession implements TerminalSession {
         // left the value advanced, a window resurrected under another
         // session, anything that moved the pty out from under us), and
         // then keystrokes would go to whichever window the mirror is
-        // actually on â not the selected task's. The select is
+        // actually on — not the selected task's. The select is
         // idempotent and is itself the correction, so verifying is
         // cheaper than a separate `display-message` round-trip first.
         boolean believedChange = TmuxMirrorCommands.changedWindow(currentWindow, target) != null;
@@ -160,7 +160,7 @@ final class TmuxSession implements TerminalSession {
         if (!believedChange && select.equals(confirmedSelect)
                 && System.currentTimeMillis() - confirmedSelectMs < SELECT_VERIFY_INTERVAL_MS) {
             // A list rebuild re-applying the selection the remote just
-            // confirmed â no round-trip, no ssh slot taken.
+            // confirmed — no round-trip, no ssh slot taken.
             return true;
         }
         long mySelect = selectSequence.incrementAndGet();
@@ -188,7 +188,7 @@ final class TmuxSession implements TerminalSession {
                 // exit code: the select rides with a `display-message`
                 // that prints the window it ended on, and a mismatch
                 // means the pane would be showing another task's
-                // session while reporting success â the one failure
+                // session while reporting success — the one failure
                 // this pane cannot see for itself. A tmux that printed
                 // nothing yields null = "cannot tell", which is not
                 // taken for a mismatch.
@@ -202,7 +202,7 @@ final class TmuxSession implements TerminalSession {
                     return;
                 }
                 confirmedSelect = null;
-                // The select failed or did not take â uncovering would
+                // The select failed or did not take — uncovering would
                 // put the *previous* task's window back on screen as if
                 // it were this one's, and every later selection would
                 // fail the same way, so every task would mirror one
@@ -211,7 +211,7 @@ final class TmuxSession implements TerminalSession {
                 // restart, which the full attach repairs
                 // ([TmuxMirrorCommands#repairMirrorCommand]); a window
                 // that is really gone ends in a placeholder there.
-                Logger.info("Mirror select of {} on {} {} â re-attaching",
+                Logger.info("Mirror select of {} on {} {} — re-attaching",
                         window, remote, selected.ok()
                                 ? "left the mirror on " + shown
                                 : "failed (" + selected.stderr().strip() + ")");
@@ -221,16 +221,16 @@ final class TmuxSession implements TerminalSession {
         return true;
     }
 
-    /// Lifts the "Switchingâ¦" cover once the mirror has actually repainted â
-    /// the pty delivering output â rather than when the `select-window` reply
+    /// Lifts the "Switching…" cover once the mirror has actually repainted —
+    /// the pty delivering output — rather than when the `select-window` reply
     /// comes back over the ssh side channel. The reply only says tmux accepted
     /// the select; the redraw travels the pty a moment later, so uncovering on
     /// the reply flashes the previous task's window (field report 2026-09-10).
     /// A timer backs the wait up, so a select that changes nothing on screen
     /// (the mirror was already on that window, and tmux redraws nothing) can
     /// never leave the cover stuck. Both routes carry the same guard the reply
-    /// itself has â the session must still show this select's connection and
-    /// window â and not the select sequence number, which the background list
+    /// itself has — the session must still show this select's connection and
+    /// window — and not the select sequence number, which the background list
     /// rebuilds bump every few seconds and would leave the cover up for good.
     // [impl->dsn~terminal-pane~14]
     private void uncoverOnRedraw(String key, String window) {
@@ -250,7 +250,7 @@ final class TmuxSession implements TerminalSession {
         fallback.play();
     }
 
-    /// Opens a fresh pty attach under a new generation â the first attach of
+    /// Opens a fresh pty attach under a new generation — the first attach of
     /// a selection, an auto-reconnect, a select that did not take, a live
     /// theme switch.
     void attach() {
@@ -263,20 +263,20 @@ final class TmuxSession implements TerminalSession {
         String key = TmuxMirrorCommands.connectionKey(remote, target);
         teardown();
         long myGeneration = generation.incrementAndGet();
-        view.showStatus("Connecting to %s â¦".formatted(key));
+        view.showStatus("Connecting to %s …".formatted(key));
         List<String> command = TmuxMirrorCommands.attachCommand(remote, target);
         executor.execute(() -> {
             // A mirror stranded by a base-session restart re-attaches by name
             // and never re-groups, so the attach's own `select-window` fails
             // silently and the pty lands on the mirror's arbitrary current
-            // window â another task's Claude session. Repair it first, and
+            // window — another task's Claude session. Repair it first, and
             // stop here when the task's window turns out to be gone.
             SshCommandRunner.SshResult repair =
                     ssh.run(remote, TmuxMirrorCommands.repairMirrorCommand(target));
             if (TmuxMirrorCommands.windowGone(repair)) {
                 Platform.runLater(() -> {
                     if (generation.get() == myGeneration) {
-                        view.end("Window %s on %s is gone â Switch resurrects it."
+                        view.end("Window %s on %s is gone — Switch resurrects it."
                                 .formatted(target.window(), remote));
                     }
                 });
@@ -319,7 +319,7 @@ final class TmuxSession implements TerminalSession {
         terminal.getTerminal().addApplicationTitleListener(text ->
                 Platform.runLater(() -> {
                     if (generation.get() == myGeneration) {
-                        view.setTitle(text == null || text.isBlank() ? "" : "â " + text);
+                        view.setTitle(text == null || text.isBlank() ? "" : "— " + text);
                     }
                 }));
         // On an unexpected pty exit (still the current connection), auto-
@@ -349,12 +349,12 @@ final class TmuxSession implements TerminalSession {
         this.currentWindow = window;
         this.connectStartMs = System.currentTimeMillis();
         view.showTerminal(terminal);
-        // The canvas â not the outer pane â carries the key handlers and the
+        // The canvas — not the outer pane — carries the key handlers and the
         // cursor; focusing it draws the solid (blinking) cursor and routes
         // typing to the tty. JediTermFX already refocuses the canvas on click;
         // the attach takes the keyboard only when someone asked for it
         // (`focusTerminal` before the attach completed) or when nothing holds
-        // it â which is the case of the attach that replaced its own focused
+        // it — which is the case of the attach that replaced its own focused
         // canvas (an auto-reconnect while the user was typing here). An attach
         // runs without a user action too (auto-reconnect, failed-select
         // re-attach) and a task row's play keeps the keyboard on the list, so
@@ -364,7 +364,7 @@ final class TmuxSession implements TerminalSession {
     }
 
     /// Schedules the next auto-reconnect (https://github.com/contextswitcher/contextswitcher-private/issues/36) after an exponential backoff
-    /// (1, 2, 4, â¦ capped at 30 s), showing a countdown-style message. Gives
+    /// (1, 2, 4, … capped at 30 s), showing a countdown-style message. Gives
     /// up after [#MAX_RECONNECT_ATTEMPTS] consecutive tries. Must run on the
     /// FX thread; the sleep runs on the executor and re-checks the generation
     /// so a selection or a detach during the wait cancels the reconnect.
@@ -377,7 +377,7 @@ final class TmuxSession implements TerminalSession {
         int attempt = ++reconnectAttempts;
         long gen = generation.get();
         long delayMs = Math.min(30_000L, 1000L << Math.min(attempt - 1, 5));
-        view.showStatus("Connection lost â reconnecting (attempt %d/%d)â¦"
+        view.showStatus("Connection lost — reconnecting (attempt %d/%d)…"
                 .formatted(attempt, MAX_RECONNECT_ATTEMPTS));
         executor.execute(() -> {
             try {
@@ -401,12 +401,12 @@ final class TmuxSession implements TerminalSession {
     private void giveUp() {
         teardown();
         reconnectAttempts = 0;
-        view.showStatus("Connection lost â select the task again to reconnect.");
+        view.showStatus("Connection lost — select the task again to reconnect.");
     }
 
     /// Ends the connection (idempotent). Bumps the generation first: the
     /// teardown is intentional, so the pty exit it causes must not be taken
-    /// for a lost connection and schedule an auto-reconnect â at shutdown that
+    /// for a lost connection and schedule an auto-reconnect — at shutdown that
     /// reconnect hits an already-shut-down executor
     /// (`RejectedExecutionException`). An attach takes its own generation
     /// *after* this.
@@ -442,8 +442,8 @@ final class TmuxSession implements TerminalSession {
     }
 
     /// Discards whatever is typed but not yet sent, over the ssh side
-    /// channel: leaves copy-mode first, then sends `^U` (kill line) â the
-    /// readline convention a shell and Claude Code's input both honour â
+    /// channel: leaves copy-mode first, then sends `^U` (kill line) — the
+    /// readline convention a shell and Claude Code's input both honour —
     /// repeatedly, since one `^U` takes only one line of a multi-line
     /// draft ([TmuxMirrorCommands#clearInputCommand]). Not written to the
     /// pty: while the pane is in copy-mode (the mouse wheel puts it there),
@@ -504,7 +504,7 @@ final class TmuxSession implements TerminalSession {
 
     /// The diff window and the generated-file listing both work over ssh, so
     /// a locally mirrored session (`dsn~terminal-local-mirror~2`) has nothing
-    /// for them to reach â better greyed out than failing against a host
+    /// for them to reach — better greyed out than failing against a host
     /// called "(local)".
     // [impl->dsn~terminal-local-mirror~2]
     @Override
@@ -537,7 +537,7 @@ final class TmuxSession implements TerminalSession {
     /// selected task's (`dsn~terminal-pane~14`), and a local memory would
     /// confirm exactly that lie. So the window comes from a
     /// `display-message` round-trip and the pane selects whichever task owns
-    /// it â the list then agrees with the screen, and a jump to a *different*
+    /// it — the list then agrees with the screen, and a jump to a *different*
     /// task is the mismatch made visible.
     // [impl->dsn~terminal-mirrored-task~1]
     @Override
