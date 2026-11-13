@@ -1003,6 +1003,19 @@ public class TaskFileParser {
     /// or null when the file has no frontmatter, no such key, a blank one, or
     /// does not parse — a half-edited config must not break the group menu.
     private static @Nullable String groupString(String content, String key) {
+        return groupValue(content, key) instanceof String value && !value.isBlank()
+                ? value.strip() : null;
+    }
+
+    /// Whether a top-level key of a frontmatter (a task file's or a group's)
+    /// is `true` — how a plain on/off switch action such as `vscode:` reads
+    /// its key without a field of its own on [Task].
+    // [impl->dsn~vscode-action~1]
+    public static boolean frontmatterFlag(String content, String key) {
+        return Boolean.TRUE.equals(groupValue(content, key));
+    }
+
+    private static @Nullable Object groupValue(String content, String key) {
         String normalized = content.replace("\r\n", "\n");
         if (!normalized.startsWith(FENCE + "\n")) {
             return null;
@@ -1016,10 +1029,8 @@ public class TaskFileParser {
                     .load(normalized.substring(FENCE.length() + 1, close + 1));
             // Folded like every other reader, so `note-linux:` wins on Linux.
             // [impl->dsn~machine-key-variants~1]
-            if (data instanceof Map<?, ?> map
-                    && applyMachineVariants(map, MACHINE_TOKENS).get(key) instanceof String value
-                    && !value.isBlank()) {
-                return value.strip();
+            if (data instanceof Map<?, ?> map) {
+                return applyMachineVariants(map, MACHINE_TOKENS).get(key);
             }
         } catch (YAMLException e) {
             // A half-edited config file must not break the group menu.

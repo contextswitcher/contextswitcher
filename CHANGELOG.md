@@ -10,6 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Added
 
+- *Switch actions* has *Open in VS Code*: a switch opens a new VS Code window on the current desktop at the task's project directory (via Remote-SSH for a task on a host).
 - Android: the task list has a search button (🔍) that narrows it to the tasks whose title, tag or category matches.
 - Android: tapping a category header lists all categories; picking one scrolls to it.
 - Android: a top-bar button switches the task list between all tasks, active ones only, and active ones plus suspended tasks changed in the last 14 days.

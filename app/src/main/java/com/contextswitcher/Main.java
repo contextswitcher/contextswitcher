@@ -98,6 +98,7 @@ import com.contextswitcher.switching.ClaudeWindowLauncher;
 import com.contextswitcher.switching.BrowserFocusAction;
 import com.contextswitcher.switching.EnvironmentProfileAction;
 import com.contextswitcher.switching.ExplorerFolderAction;
+import com.contextswitcher.switching.VsCodeAction;
 import com.contextswitcher.switching.IntellijGatewayAction;
 import com.contextswitcher.switching.LocalDiff;
 import com.contextswitcher.switching.LocalTerminalAction;
@@ -648,6 +649,20 @@ public class Main extends Application {
                                 60, 3000L),
                         // Reopens a complete-control suspend's stored tabs on
                         // resume, then clears the storedTabs: key.
+                        new VsCodeAction(task -> {
+                                    String content = files.read(task.id() + ".md");
+                                    return content != null
+                                            && TaskFileParser.frontmatterFlag(content, "vscode");
+                                }, argv -> {
+                                    // `code` is a .cmd shim on Windows, which needs cmd to run.
+                                    List<String> command = new ArrayList<>(argv);
+                                    if (LocalCommandRunner.onWindows()) {
+                                        command.addAll(0, List.of("cmd", "/c"));
+                                    }
+                                    LocalCommandRunner.LocalResult result =
+                                            new LocalCommandRunner().run(command);
+                                    return result.ok() ? null : "code failed: " + result.stderr().strip();
+                                }),
                         // [impl->dsn~complete-control-desktop~1]
                         new BrowserFocusAction(extensionServer,
                                 task -> completeControlDesktop(files, task),

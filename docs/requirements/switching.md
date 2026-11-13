@@ -130,6 +130,18 @@ Covers:
 
 Needs: dsn
 
+### Open the task in VS Code
+`req~open-vscode~1`
+
+A task can tick *Open in VS Code*: activating it opens a new VS Code window on the virtual desktop in view, at the task's project directory, remote tasks via Remote-SSH.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Open project in remote IntelliJ
 `req~open-remote-intellij-project~1`
 
@@ -416,6 +428,20 @@ Tags: windows
 
 Covers:
 - req~focus-local-terminal~1
+
+Needs: impl, utest
+
+### VS Code action
+`dsn~vscode-action~1`
+
+`VsCodeAction` (chip `vscode`) is configured when the task file's frontmatter has `vscode: true` (`TaskFileParser.frontmatterFlag`; no field on `Task`).
+It runs `code -n <path>` — `-n` forces a new window, which Windows opens on the current virtual desktop — with the IntelliJ action's path (`Task.intellijProjectPath()`), and `--remote ssh-remote+<host>` ahead of it when the task has a host (`Task.intellijRemote()`); without a path it opens an empty window.
+On Windows `code` is a `.cmd` shim, so it runs under `cmd /c`; a non-zero exit fails the chip with `code`'s stderr.
+
+Tags: windows, linux
+
+Covers:
+- req~open-vscode~1
 
 Needs: impl, utest
 

@@ -118,6 +118,10 @@ public final class FrontmatterCatalog {
             new Field("intellij.projectPath", "IntelliJ project path", "Switch actions",
                     Type.STRING,
                     "Project directory; empty falls back to the Claude session's workspace."),
+            // [impl->dsn~vscode-action~1]
+            new Field("vscode", "Open in VS Code", "Switch actions", Type.BOOLEAN,
+                    "Opens a VS Code window on the current desktop at the IntelliJ project path "
+                            + "(else the Claude session's workspace); via Remote-SSH for a task with a host."),
             // [impl->dsn~browser-url-title~1]
             new Field("browser.urls", "Browser URLs", "Switch actions", Type.LIST,
                     BROWSER_URLS_HELP),
@@ -134,7 +138,7 @@ public final class FrontmatterCatalog {
     /// shows every other field.
     // [impl->dsn~task-field-form~6]
     public static final Set<String> SWITCH_ACTION_KEYS =
-            Set.of("intellij", "intellij.projectPath", "browser.urls", "folders", "chat", "note",
+            Set.of("intellij", "intellij.projectPath", "vscode", "browser.urls", "folders", "chat", "note",
                     "profile");
 
     /// Whether `field` belongs on the Switch actions pane ([#SWITCH_ACTION_KEYS]).
