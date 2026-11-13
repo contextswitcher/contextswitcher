@@ -46,6 +46,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- contextswitcher://task/<id> and …/switch/<id> links (MainActivity.requestedTaskId). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="contextswitcher" />
+            </intent-filter>
         </activity>
 
         <receiver

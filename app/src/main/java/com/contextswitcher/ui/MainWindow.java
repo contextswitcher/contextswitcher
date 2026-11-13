@@ -56,6 +56,7 @@ import com.contextswitcher.config.AppSettings;
 import com.contextswitcher.config.Browser;
 import com.contextswitcher.config.EnergySaver;
 import com.contextswitcher.discovery.ClaudeSessionCleanup;
+import com.contextswitcher.discovery.LocalClaudeSessions;
 import com.contextswitcher.local.AppUpdate;
 import com.contextswitcher.local.LocalCommandRunner;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
@@ -263,7 +264,7 @@ public class MainWindow {
     /// it — `-1` when the question cannot be asked at all (no extension
     /// connected, or the request timed out). Backs the delete dialog's
     /// "Close N browser tabs" tick.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private final BiConsumer<List<String>, IntConsumer> onCountOpenTabs;
     /// Switches Windows to a named virtual desktop (`Main.focusDesktop`), then
     /// runs the `Runnable` on the FX thread. Backs the category header's
@@ -315,11 +316,11 @@ public class MainWindow {
     private final Runnable onRethemeTerminal;
     /// Runs the delete dialog's ticked cleanup (window teardown, transcript,
     /// working directory) off the FX thread.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private final BiConsumer<Task, ClaudeSessionCleanup.Choices> onKillSession;
     /// Sends the canned "tidy up before deletion" prompt into the task's
     /// Claude window instead of deleting.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private final Consumer<Task> onAskClaudeCleanup;
     /// Creates a task (tmux window + Claude) for a PR URL on a remote,
     /// placed in the given group (empty = root).
@@ -569,9 +570,15 @@ public class MainWindow {
             Preferences.userNodeForPackage(MainWindow.class).node("lastTaskByDesktop");
     /// When on, the list shows only running (active) tasks — suspended and done
     /// ones drop out. Kept across restarts like the other filters.
-    // [impl->dsn~running-tasks-filter~1]
+    // [impl->dsn~running-tasks-filter~2]
     // [impl->dsn~filter-persistence~1]
     private boolean runningTasksOnly = PREFERENCES.getBoolean(FILTER_RUNNING_TASKS, false);
+    /// Widens [#runningTasksOnly] by the suspended tasks whose file changed in
+    /// the last [#RECENT_SUSPENDED_DAYS] days — still resumable, while older
+    /// ones stay out of the way until the user manages them.
+    // [impl->dsn~running-tasks-filter~2]
+    private boolean recentSuspendedToo = PREFERENCES.getBoolean(FILTER_RECENT_SUSPENDED, false);
+    static final int RECENT_SUSPENDED_DAYS = 14;
     private @Nullable Task previewedTask;
 
     /// What the *Browser URLs* field asks the browser; set by `Main`.
@@ -750,7 +757,7 @@ public class MainWindow {
     /// Delete-dialog cleanup checkboxes, pre-filled from the last run
     /// (UI state, not configuration). The workdir box is deliberately
     /// **not** persisted — `rm -rf` starts unticked every time.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private static final String KILL_END_WINDOW = "killEndWindow";
     private static final String KILL_CLOSE_BROWSER_TABS = "killCloseBrowserTabs";
     private static final String KILL_TRANSCRIPT = "killTranscript";
@@ -784,6 +791,7 @@ public class MainWindow {
     // [impl->dsn~filter-persistence~1]
     static final String FILTER_AWAITS_INPUT = "filterAwaitsInput";
     static final String FILTER_RUNNING_TASKS = "filterRunningTasks";
+    static final String FILTER_RECENT_SUSPENDED = "filterRecentSuspended";
     static final String FILTER_ACTIVE_DESKTOP = "filterActiveDesktop";
     static final String FILTER_NO_DESKTOP_CATEGORIES = "filterNoDesktopCategories";
     static final String FILTER_TAGS = "filterTags";
@@ -1018,7 +1026,7 @@ public class MainWindow {
         this.onOpenUrl = onOpenUrl;
         // Built here, not with the toolbar: the update check may report before
         // the window is shown, and that report must not be dropped.
-        this.updateNews = new UpdateNews(iconButton(MDIInterface.UPDATE, ""), () -> stage,
+        this.updateNews = new UpdateNews(() -> confirmLeave("Restarting"), iconButton(MDIInterface.UPDATE, ""), () -> stage,
                 message -> statusBar.message(message), onOpenUrl);
         this.onFocusUrlInBrowser = onFocusUrlInBrowser;
         this.onCountOpenTabs = onCountOpenTabs;
@@ -1165,6 +1173,23 @@ public class MainWindow {
         profileOverride.getItems().setAll(new MenuItem());
     }
 
+    /// Whether to leave the app — closing it or restarting it for an update —
+    /// with its owned Claude sessions running: asks with the list of their
+    /// tasks by category, and a task clicked there is selected (its terminal
+    /// comes into view) instead. True at once when none runs.
+    // [impl->dsn~owned-session-close-confirm~1]
+    public boolean confirmLeave(String action) {
+        Map<String, String> titles = new HashMap<>();
+        for (TaskEntry entry : entries) {
+            if (entry instanceof TaskEntry.Loaded loaded) {
+                titles.put(loaded.id(), loaded.task().title());
+            }
+        }
+        List<CloseConfirmation.Row> rows = terminal.runningOwnedKeys().stream()
+                .map(id -> new CloseConfirmation.Row(id, titles.getOrDefault(id, id))).toList();
+        return CloseConfirmation.confirm(dialogOwner(), action, rows, this::selectTask);
+    }
+
     public void show(Stage stage, Application application) {
         this.stage = stage;
         ListView<Object> list = new ListView<>(visibleRows);
@@ -1199,7 +1224,7 @@ public class MainWindow {
                 task -> creations.get(task.id()),
                 this::groupAutoQuery, this::openAutoSearch,
                 this::toggleCategoryScope, this::groupPath, this::isCurrentGroup, this::syncGroupsMenu,
-                this::sessionStopped));
+                this::sessionStopped, this::syncLocalSessions));
         // A session started or ended flips its row's pause/play toggle.
         // [impl->dsn~task-row-hover-actions~7]
         terminal.setOnOwnedChanged(list::refresh);
@@ -2016,12 +2041,30 @@ public class MainWindow {
     // [impl->dsn~start-claude-button~2]
     /// Whether the task's Claude is *known* not to run: an app-owned session
     /// with no live process, a window the poll saw at a bare shell
-    /// ([#lacksClaude]), or no window recorded at all (switch resurrects it).
+    /// ([#lacksClaude]), no window recorded at all (switch resurrects it), or
+    /// no window ever created ([#neverWindowed]).
     /// Unknown counts as running — a row only offers play on evidence.
     // [impl->dsn~task-row-hover-actions~7]
     private boolean sessionStopped(Task task) {
-        return ownedSessionStopped(task) || lacksClaude(task)
+        return ownedSessionStopped(task) || lacksClaude(task) || neverWindowed(task)
                 || com.contextswitcher.switching.TmuxFocusAction.windowGone(task);
+    }
+
+    /// A remote task with no `tmux:` section whose creation is not running
+    /// (anymore): typically one whose creation failed before the window came
+    /// up. Nothing runs, so its row offers play — which opens the same
+    /// window-choice dialog as the mirror placeholder's `Start Claude`
+    /// ([#promptRemoteWindow]) — instead of a pause with nothing to suspend.
+    // [impl->dsn~task-row-hover-actions~7]
+    private boolean neverWindowed(Task task) {
+        return taskRemote(task) != null && task.tmux() == null && !creations.containsKey(task.id());
+    }
+
+    /// The task's own `remote:`, else its category's — a failed creation in a
+    /// category with a `remote:` leaves a task without one of its own.
+    // [impl->dsn~remote-window-choice~7]
+    private @Nullable String taskRemote(Task task) {
+        return task.remote() != null ? task.remote() : groupDefaults(groupOf(task.id())).remote();
     }
 
     // [impl->dsn~terminal-owned-session~4]
@@ -2584,8 +2627,10 @@ public class MainWindow {
         boolean filtering = !searching && !activeTags.isEmpty();
         // [impl->dsn~awaits-input-filter~1]
         boolean awaiting = !searching && awaitsInputOnly;
-        // [impl->dsn~running-tasks-filter~1]
+        // [impl->dsn~running-tasks-filter~2]
         boolean running = !searching && runningTasksOnly;
+        long recentSuspendedCutoff = System.currentTimeMillis()
+                - java.time.Duration.ofDays(RECENT_SUSPENDED_DAYS).toMillis();
         // The active-desktop filter narrows only when we actually know the
         // active desktop (null on non-Windows / unnamed / not-yet-read, so the
         // toggle is a harmless no-op there). Captured into a non-null local so
@@ -2680,9 +2725,15 @@ public class MainWindow {
             }
             // Show only running work: suspended and done tasks fall out (error
             // rows stay — a parse failure must be seen).
-            // [impl->dsn~running-tasks-filter~1]
+            // [impl->dsn~running-tasks-filter~2]
+            // With "recent suspended" ticked, a suspended task touched in the
+            // last 14 days stays: it is what the user may resume next.
+            // [impl->dsn~running-tasks-filter~2]
             if (running && entry instanceof TaskEntry.Loaded loaded
-                    && loaded.task().status() != TaskStatus.ACTIVE) {
+                    && loaded.task().status() != TaskStatus.ACTIVE
+                    && !(recentSuspendedToo && loaded.task().status() == TaskStatus.SUSPENDED
+                            && modifiedById.computeIfAbsent(entry.id(), this::lastModifiedMillis)
+                                    >= recentSuspendedCutoff)) {
                 continue;
             }
             // Completed tasks leave their group and gather in one bottom "Done"
@@ -2773,8 +2824,19 @@ public class MainWindow {
             // task to begin with has nothing to filter out, so it stays.
             // The scoped category itself always stays: it is what the user
             // asked to see, even when nothing in it matches.
+            // Under the standing filters alone, a category stays when it was
+            // created in this window or names the desktop in view as its own:
+            // "Show active desktop only" promises this desktop's categories,
+            // and one holding only suspended tasks is still one of them
+            // (field report 2026-11-12: the desktop's only category vanished
+            // under "Show running tasks only", leaving an empty list).
+            // [impl->dsn~active-desktop-filter~6]
+            boolean standingOnly = !searching && !filtering;
+            boolean ownDesktop = activeDesktopFilter != null
+                    && activeDesktopFilter.equalsIgnoreCase(groupDefaults(name).desktop());
             if (narrowed && tasks.isEmpty() && groupsWithEntries.contains(name)
-                    && !name.equals(scope)) {
+                    && !name.equals(scope)
+                    && !(standingOnly && (createdCategories.contains(name) || ownDesktop))) {
                 continue;
             }
             // A scoped category shows its tasks even when it was collapsed.
@@ -4363,7 +4425,7 @@ public class MainWindow {
         Task task = freshTask(staleTask);
         // A remote-only task has no window to focus yet: ask whether to open a
         // plain tmux shell or a Claude session on the remote, then create it.
-        if (task.remote() != null && task.tmux() == null) {
+        if (task.tmux() == null && taskRemote(task) != null) {
             promptRemoteWindow(task);
             return;
         }
@@ -4404,7 +4466,7 @@ public class MainWindow {
     /// section, so the next play focuses it normally.
     // [impl->dsn~remote-window-choice~7]
     private void promptRemoteWindow(Task task) {
-        RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, task.remote(), true);
+        RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, taskRemote(task), true);
         if (choice != null) {
             onStartRemoteWindow.start(task, choice.withClaude(), choice.mode());
         }
@@ -4572,8 +4634,20 @@ public class MainWindow {
             return false;
         }
         groupConfigCache.remove(name);
+        createdCategories.add(name);
         if (!searchQuery.strip().isEmpty()) {
             closeFind();
+        }
+        // A local category's folder may already hold Claude conversations:
+        // each becomes a task right away. [impl->dsn~local-category-session-import~1]
+        if (remote == null) {
+            importLocalSessions(List.of(name), true, added -> {
+                if (added > 0) {
+                    statusBar().message("Added %d existing Claude session%s in %s as suspended task%s%s.".formatted(
+                            added, added == 1 ? "" : "s", name, added == 1 ? "" : "s",
+                            importFilterNote));
+                }
+            });
         }
         return true;
     }
@@ -5026,6 +5100,191 @@ public class MainWindow {
     /// a just-edited list is the one that opens, and it settles the button
     /// through `onSettled` whether the folders opened or not.
     // [impl->dsn~category-folders-button~1]
+    /// Session ids this window wrote a task for, until the watcher has loaded
+    /// the file: a second sync right after the first must not import them
+    /// again. FX thread only.
+    // [impl->dsn~local-category-session-import~1]
+    private final Set<String> importedSessionIds = new HashSet<>();
+
+    /// Categories created in this window, which stay on screen under the
+    /// standing filters even when those hide every task in them: the import
+    /// fills a new local category with suspended tasks, and "Running tasks
+    /// only" then hid the category the user had just made (field report
+    /// 2026-11-12, an empty list right after adding a category).
+    // [impl->dsn~local-category-session-import~1]
+    private final Set<String> createdCategories = new HashSet<>();
+
+    /// The local category header's sync button
+    /// (`dsn~local-category-session-import~1`): adds every Claude session
+    /// recorded on this machine for the category's directory that no task
+    /// records yet. `onSettled` re-enables the button, success or not.
+    // [impl->dsn~local-category-session-import~1]
+    private void syncLocalSessions(String group, Runnable onSettled) {
+        String dir = localSessionDir(group);
+        if (dir == null) {
+            onSettled.run();
+            return;
+        }
+        statusBar().message("Looking for Claude sessions in " + dir + " …");
+        importLocalSessions(List.of(group), true, added -> {
+            statusBar().message(added == 0
+                    ? "No new Claude sessions in " + dir + "."
+                    : "Added %d Claude session%s in %s as suspended task%s%s.".formatted(added,
+                            added == 1 ? "" : "s", group, added == 1 ? "" : "s",
+                            importFilterNote));
+            onSettled.run();
+        });
+    }
+
+    /// The filter menu's "Show running tasks only" item, so an import can
+    /// untick it. Null until the toolbar is built.
+    private @Nullable CheckMenuItem runningTasksCheck;
+
+    /// The status-line suffix of the last import: set by
+    /// [#revealImported] when it switched the running-tasks filter off.
+    private String importFilterNote = "";
+
+    /// Makes an import's tasks visible: they are suspended, and with "Show
+    /// running tasks only" on a sync that added six tasks looked like it had
+    /// done nothing (field report 2026-11-12) — so the filter is unticked
+    /// (persisted like a click on it), and `firstTaskId`, when given, is
+    /// selected; `selectTask` keeps it pending until the watcher has loaded
+    /// the file. FX thread. [impl->dsn~local-category-session-import~1]
+    private void revealImported(@Nullable String firstTaskId) {
+        importFilterNote = "";
+        if (runningTasksOnly) {
+            importFilterNote = " — \"Show running tasks only\" switched off to show them";
+            CheckMenuItem item = runningTasksCheck;
+            if (item != null) {
+                item.setSelected(false);
+            } else {
+                runningTasksOnly = false;
+                PREFERENCES.putBoolean(FILTER_RUNNING_TASKS, false);
+                updateFilterButton();
+                rebuildRows();
+            }
+        }
+        if (firstTaskId != null) {
+            selectTask(firstTaskId);
+        }
+    }
+
+    /// The directory whose Claude sessions belong to `group`: its
+    /// workspaces root (else workdir) — null for a remote category, whose
+    /// sessions live on the host and come in through the tmux sync.
+    // [impl->dsn~local-category-session-import~1]
+    private @Nullable String localSessionDir(String group) {
+        if (group.isEmpty() || groupDefaults(group).remote() != null) {
+            return null;
+        }
+        return groupPath(group);
+    }
+
+    /// Every local category, for the toolbar's "Sync tmux windows…", which
+    /// imports their sessions too. [impl->dsn~local-category-session-import~1]
+    private List<String> localSessionGroups() {
+        return folders.stream().sorted().filter(group -> localSessionDir(group) != null).toList();
+    }
+
+    /// Reads the sessions of `groups`' directories off the FX thread, then
+    /// writes one suspended task per session no task claims and reports how
+    /// many it wrote to `onDone` (FX thread). A session is claimed by any
+    /// task — in any category — whose `claude.sessionId` names it.
+    // [impl->dsn~local-category-session-import~1]
+    private void importLocalSessions(List<String> groups, boolean selectFirst, IntConsumer onDone) {
+        Map<String, String> dirs = new LinkedHashMap<>();
+        for (String group : groups) {
+            String dir = localSessionDir(group);
+            if (dir != null) {
+                dirs.put(group, dir);
+            }
+        }
+        if (dirs.isEmpty()) {
+            onDone.accept(0);
+            return;
+        }
+        CompletableFuture.supplyAsync(() -> {
+            Map<String, List<LocalClaudeSessions.Session>> found = new LinkedHashMap<>();
+            dirs.forEach((group, dir) -> found.put(group, LocalClaudeSessions.of(dir)));
+            return found;
+        }).whenComplete((found, error) -> Platform.runLater(() -> {
+            if (error != null || found == null) {
+                Logger.warn(error, "Cannot read the local Claude sessions");
+                onDone.accept(0);
+                return;
+            }
+            int added = 0;
+            String first = null;
+            Set<String> claimed = claimedSessionIds();
+            for (Map.Entry<String, List<LocalClaudeSessions.Session>> entry : found.entrySet()) {
+                String dir = Objects.requireNonNull(dirs.get(entry.getKey()));
+                for (LocalClaudeSessions.Session session : entry.getValue()) {
+                    String taskId = claimed.add(session.id())
+                            ? createSessionTask(entry.getKey(), dir, session) : null;
+                    if (taskId != null) {
+                        added++;
+                        if (first == null) {
+                            first = taskId;
+                        }
+                    }
+                }
+            }
+            // Sessions come newest first, so `first` is the latest conversation.
+            importFilterNote = "";
+            if (added > 0) {
+                revealImported(selectFirst ? first : null);
+            }
+            onDone.accept(added);
+        }));
+    }
+
+    /// The `claude.sessionId` of every loaded task, plus the ones written but
+    /// not loaded yet. [impl->dsn~local-category-session-import~1]
+    private Set<String> claimedSessionIds() {
+        Set<String> claimed = new HashSet<>(importedSessionIds);
+        for (TaskEntry entry : entries) {
+            if (entry instanceof TaskEntry.Loaded loaded) {
+                Task.ClaudeConfig claude = loaded.task().claude();
+                if (claude != null && claude.sessionId() != null) {
+                    claimed.add(claude.sessionId());
+                }
+            }
+        }
+        return claimed;
+    }
+
+    /// Writes the task for one recorded session: its title, `suspended` (no
+    /// process runs it — the terminal pane offers to resume it), and the
+    /// `claude:` section naming the directory and the session, which is what
+    /// resumes exactly this conversation.
+    /// Both of the row's times are the **session's** last activity, not the
+    /// import's: the `suspended:` stamp the row shows and the file time "last
+    /// update" sorts by — stamped with the import, six imported tasks all
+    /// read "21:42" and could hardly be told apart (field report 2026-11-12).
+    // [impl->dsn~local-category-session-import~1]
+    private @Nullable String createSessionTask(String group, String dir, LocalClaudeSessions.Session session) {
+        String fileName = uniqueFileName(TaskFileParser.newTaskFileName(group + "/" + session.title()));
+        String content = TaskFileParser.withClaudeSessionId(TaskFileParser.withClaudeSection(
+                TaskFileParser.withStatus(TaskFileParser.newTaskContent(session.title(), null, null, false),
+                        TaskStatus.SUSPENDED,
+                        LocalDateTime.ofInstant(session.lastModified(), java.time.ZoneId.systemDefault())),
+                dir), session.id());
+        String error = files.save(fileName, content);
+        if (error != null) {
+            Logger.warn("Cannot create the task {} for Claude session {}: {}", fileName, session.id(), error);
+            return null;
+        }
+        try {
+            Files.setLastModifiedTime(tasksDir.resolve(fileName),
+                    java.nio.file.attribute.FileTime.from(session.lastModified()));
+        } catch (IOException e) {
+            Logger.debug("Cannot date {} back to its session: {}", fileName, e.getMessage());
+        }
+        importedSessionIds.add(session.id());
+        Logger.info("Local category {}: added {} for Claude session {}", group, fileName, session.id());
+        return fileName.substring(0, fileName.length() - ".md".length());
+    }
+
     private void openGroupFolders(String group, Runnable onSettled) {
         saveEditorIfDirty();
         List<String> folders = groupDefaults(group).folders();
@@ -5610,7 +5869,7 @@ public class MainWindow {
     /// The "Close browser tabs" checkbox text — always naming *browser tabs*,
     /// with the number of tabs that are **actually open** once the browser has
     /// answered; the checkbox is disabled for anything but a positive number,
-    /// there being nothing to close (`dsn~claude-session-kill~6`).
+    /// there being nothing to close (`dsn~claude-session-kill~7`).
     /// Never "Close 1 PR": that reads as GitHub's close-the-pull-request, not
     /// as closing a tab (field report 2026-09-09).
     /// The count comes from the task's own `browser.urls` only, never a
@@ -5629,7 +5888,7 @@ public class MainWindow {
     }
 
     /// Shows the delete confirmation for one (already fresh) task, with the
-    /// kill checkboxes of `dsn~claude-session-kill~6`: end the tmux window,
+    /// kill checkboxes of `dsn~claude-session-kill~7`: end the tmux window,
     /// close browser tabs (independent of each other — the old combined
     /// "Terminate and delete" tick), remove the Claude transcript, and remove
     /// the per-task working directory (`claude.workspace` only —
@@ -5642,13 +5901,16 @@ public class MainWindow {
     /// deleted file. Returns which button the user pressed so a bulk caller
     /// can stop; a failed file delete reports [#CANCELLED].
     // [impl->dsn~task-delete~6]
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private DeleteChoice confirmAndDeleteTask(Task task) {
         String fileName = task.id() + ".md";
         boolean liveContext = hasLiveContext(task);
         boolean working = liveContext && "working".equals(runningStatusFor(task));
         Task.ClaudeConfig claude = task.claude();
-        boolean hasTranscript = task.remote() != null && claude != null && claude.sessionId() != null;
+        // A local task (no `remote:`) has its transcript on this machine,
+        // under the same encoded `claude.cwd` — offered just like a remote one.
+        boolean hasTranscript = claude != null && claude.sessionId() != null
+                && (task.remote() != null || claude.cwd() != null);
         String workspace = task.remote() != null && claude != null ? claude.workspace() : null;
         List<String> browserUrls = task.browser() == null ? List.of() : task.browser().urls();
         int queued = QueueFile.load(QueueFile.file(queuesDir, task.id())).size();
@@ -5673,7 +5935,7 @@ public class MainWindow {
         // How many tabs are really open is a round-trip to the browser, so the
         // tick starts off and says it is asking rather than blocking the
         // dialog on it; the answer enables it (or explains why it stays off).
-        // [impl->dsn~claude-session-kill~6]
+        // [impl->dsn~claude-session-kill~7]
         CheckBox closeBrowserTabs = new CheckBox(BROWSER_TABS_CHECKING);
         closeBrowserTabs.setWrapText(true);
         closeBrowserTabs.setSelected(false);
@@ -5688,14 +5950,15 @@ public class MainWindow {
         } else {
             closeBrowserTabs.setText(browserTabsLabel(0));
         }
-        CheckBox transcript = new CheckBox("Remove the Claude transcript on " + task.remote());
+        CheckBox transcript = new CheckBox("Remove the Claude transcript "
+                + (task.remote() != null ? "on " + task.remote() : "on this machine"));
         transcript.setSelected(PREFERENCES.getBoolean(KILL_TRANSCRIPT, false));
         // A workspace that is one of the category's own directories — the main
         // checkout, the shared workspaces root, a pinned workdir — is not this
         // task's worktree, and removing it would take the whole category with
         // it (field report 2026-09-12). The same `rejectWorkdir` the cleanup
         // itself runs decides that here, so the dialog never offers what the
-        // `rm -rf` would refuse. [impl->dsn~claude-session-kill~6]
+        // `rm -rf` would refuse. [impl->dsn~claude-session-kill~7]
         String rejected = workspace == null ? null : ClaudeSessionCleanup.rejectWorkdir(
                 workspace, groupDefaults(groupOf(task.id())).protectedDirs());
         CheckBox workdir = new CheckBox(rejected == null
@@ -5773,7 +6036,7 @@ public class MainWindow {
         }
         // Only the user's own answer is remembered: a tick the app forced off
         // (nothing open, no extension) would otherwise stop closing tabs on
-        // every later delete. [impl->dsn~claude-session-kill~6]
+        // every later delete. [impl->dsn~claude-session-kill~7]
         boolean canCloseTabs = !closeBrowserTabs.isDisabled();
         if (canCloseTabs) {
             PREFERENCES.putBoolean(KILL_CLOSE_BROWSER_TABS, closeBrowserTabs.isSelected());
@@ -6495,6 +6758,15 @@ public class MainWindow {
         syncTmux.setOnAction(event -> {
             syncTmux.setDisable(true);
             onSyncTmux.accept(() -> syncTmux.setDisable(false));
+            // Local categories have no tmux to sync, but their Claude sessions
+            // come in on the same press. [impl->dsn~local-category-session-import~1]
+            importLocalSessions(localSessionGroups(), false, added -> {
+                if (added > 0) {
+                    statusBar().message("Added %d local Claude session%s as suspended task%s%s.".formatted(
+                            added, added == 1 ? "" : "s", added == 1 ? "" : "s",
+                            importFilterNote));
+                }
+            });
         });
 
         // [impl->dsn~energy-saver~1]
@@ -6818,13 +7090,14 @@ public class MainWindow {
     // [impl->dsn~task-list-toolbar~3]
     // [impl->dsn~awaits-input-filter~1]
     // [impl->dsn~active-desktop-filter~6]
-    // [impl->dsn~running-tasks-filter~1]
+    // [impl->dsn~running-tasks-filter~2]
     // [impl->dsn~task-tag-filter~2]
     private MenuButton filterButton() {
         MenuButton button = iconMenuButton(MDIInterface.FILTER, "Filter the task list");
         this.filterButton = button;
         CheckMenuItem desktopItem = activeDesktopItem();
-        button.getItems().addAll(awaitsInputItem(), runningTasksItem(), desktopItem,
+        CheckMenuItem runningItem = runningTasksItem();
+        button.getItems().addAll(awaitsInputItem(), runningItem, recentSuspendedItem(runningItem), desktopItem,
                 noDesktopCategoriesItem(desktopItem), new SeparatorMenuItem(), tagFilterMenu(),
                 hostsMenu());
         updateFilterButton();
@@ -7011,9 +7284,10 @@ public class MainWindow {
     /// The filter menu's "Show running tasks only" check item: while ticked,
     /// [#rebuildRows] narrows the list to active tasks — suspended and done ones
     /// are hidden. Restored from the last run ([#runningTasksOnly]).
-    // [impl->dsn~running-tasks-filter~1]
+    // [impl->dsn~running-tasks-filter~2]
     private CheckMenuItem runningTasksItem() {
         CheckMenuItem item = new CheckMenuItem("Show running tasks only");
+        runningTasksCheck = item;
         item.selectedProperty().addListener((obs, was, selected) -> {
             runningTasksOnly = selected;
             PREFERENCES.putBoolean(FILTER_RUNNING_TASKS, selected);
@@ -7022,6 +7296,24 @@ public class MainWindow {
         });
         // [impl->dsn~filter-persistence~1]
         item.setSelected(runningTasksOnly);
+        return item;
+    }
+
+    /// The filter menu's "Also show suspended tasks of the last 14 days" item,
+    /// directly under the running filter it widens; disabled while that filter
+    /// is off, like [#noDesktopCategoriesItem]. Restored from the last run.
+    // [impl->dsn~running-tasks-filter~2]
+    // [impl->dsn~filter-persistence~1]
+    private CheckMenuItem recentSuspendedItem(CheckMenuItem runningItem) {
+        CheckMenuItem item = new CheckMenuItem(
+                "Also show suspended tasks of the last " + RECENT_SUSPENDED_DAYS + " days");
+        item.disableProperty().bind(runningItem.selectedProperty().not());
+        item.selectedProperty().addListener((obs, was, selected) -> {
+            recentSuspendedToo = selected;
+            PREFERENCES.putBoolean(FILTER_RECENT_SUSPENDED, selected);
+            rebuildRows();
+        });
+        item.setSelected(recentSuspendedToo);
         return item;
     }
 
@@ -7190,7 +7482,17 @@ public class MainWindow {
         if (button == null) {
             return;
         }
-        long count = entries.stream().filter(this::awaitsInput).count();
+        // Counts what ticking the item would show: with "Show active desktop
+        // only" on, the desktop in view's tasks — a count of tasks on other
+        // desktops read as "15 waiting" over an empty list.
+        // [impl->dsn~awaits-input-filter~1]
+        @Nullable String desktopFilter = activeDesktopOnly ? activeDesktop : null;
+        Map<String, @Nullable String> desktopByGroup = new HashMap<>();
+        long count = entries.stream().filter(this::awaitsInput)
+                .filter(entry -> !onInactiveHost(entry))
+                .filter(entry -> desktopFilter == null
+                        || onActiveDesktop(entry.group(), desktopFilter, desktopByGroup))
+                .count();
         button.setText(count == 0 ? "Awaits input only" : "Awaits input only (" + count + ")");
     }
 

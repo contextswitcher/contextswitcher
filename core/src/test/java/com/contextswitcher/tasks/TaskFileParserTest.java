@@ -281,6 +281,16 @@ class TaskFileParserTest {
         assertThat(TaskFileParser.yamlScalar(value)).isEqualTo(expected);
     }
 
+    @Test
+    void aLongPathWithSpacesStaysOnOneLineUnderTheClaudeSection() {
+        String cwd = "C:\\Users\\olive\\AppData\\Local\\Temp\\cs-uitest10453267011653126027\\OneDrive - Uni\\TH Ulm";
+
+        String content = TaskFileParser.withClaudeSection("---\ntitle: t\n---\n", cwd);
+
+        assertThat(TaskFileParser.yamlScalar(cwd)).doesNotContain("\n");
+        assertThat(content).contains("  cwd: " + cwd + "\n---");
+    }
+
     // [utest->dsn~task-create-ui~15]
     @Test
     void newTaskFileNameSlugsTitleAndKeepsGroupFolder() {

@@ -1066,7 +1066,7 @@ Precondition: protocol registered once via `scripts/register-url-handler.cmd` (W
 - [ ] Category context menu → **Copy link** → the clipboard holds `contextswitcher://category/<name>`; opening it selects that category's header (expanding it when collapsed) and raises the app.
 - [ ] A link to a nonexistent id → app raises and the status bar reports the unknown task; a malformed link (`contextswitcher://focus/x`) reports too.
 
-## Delete-task kill dialog (dsn~claude-session-kill~6)
+## Delete-task kill dialog (dsn~claude-session-kill~7)
 
 Precondition: a live remote-Claude task with `claude.sessionId` and a published `@cs_workspace`.
 
@@ -1087,6 +1087,7 @@ Precondition: a live remote-Claude task with `claude.sessionId` and a published 
 - [ ] While Claude is `working` → dialog carries the mid-task warning line.
 - [ ] "Ask Claude to tidy up first" → prompt arrives in the window's Claude input and is submitted; task file still there; status line confirms; Claude actually merges + removes its worktree, then Delete finishes the rest.
 - [ ] Task without claude section → plain Delete/Cancel dialog, no checkboxes.
+- [ ] Delete a **local** task (no `remote:`, `claude:` with `sessionId` and `cwd`) → "Remove the Claude transcript on this machine" is offered (no workdir box); ticked, Delete → `%USERPROFILE%\.claude\projects\<encoded cwd>\<sessionId>.jsonl` is gone and the status bar says "transcript removed".
 - [ ] Let a session remove its own worktree and step back into the category's primary clone (`<workspacesRoot>/<repo>`, published as `@cs_workspace`), then delete the task → the workdir box reads "Remove the working directory — not available: refusing to remove the category's own directory: …", unticked and disabled — also when the category's `CONTEXTSWITCHER.md` spells no `mainCheckout:`.
 
 ## Category selection clears the panes (dsn~group-config-create~9)

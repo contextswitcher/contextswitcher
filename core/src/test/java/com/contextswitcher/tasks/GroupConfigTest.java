@@ -158,7 +158,7 @@ class GroupConfigTest {
     /// `mainCheckout:` commented out (the skeleton's default), so the delete
     /// dialog cannot offer it for `rm -rf` after a session stepped back into
     /// it from its removed worktree.
-    // [utest->dsn~claude-session-kill~6]
+    // [utest->dsn~claude-session-kill~7]
     @Test
     void protectedDirsCoverTheConventionalMainCheckout() {
         String content = """
@@ -179,7 +179,7 @@ class GroupConfigTest {
     }
 
     /// Nothing to derive from: no `repo`, or a `repo` that is no URL.
-    // [utest->dsn~claude-session-kill~6]
+    // [utest->dsn~claude-session-kill~7]
     @Test
     void protectedDirsWithoutARepoUrlStayAtTheNamedDirectories() {
         assertThat(parser.parseGroupConfig("""

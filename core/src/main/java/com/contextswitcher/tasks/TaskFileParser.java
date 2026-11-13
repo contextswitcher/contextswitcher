@@ -54,8 +54,22 @@ public class TaskFileParser {
     /// A string serialized as a single-line YAML scalar — SnakeYAML decides
     /// quoting and escaping — for textual insertion into frontmatter
     /// templates (which keep their comments, so no document round-trip).
+    /// Line splitting is off: SnakeYAML folds a plain scalar past 80 columns
+    /// at a space, and the continuation line, inserted under a nested key
+    /// such as `claude:`'s `cwd:`, read as a key of its own — a long local
+    /// path with spaces (`…\OneDrive - Uni\TH Ulm`) left the task file
+    /// unparseable (2026-11-12).
     public static String yamlScalar(String value) {
-        return new Yaml().dump(value).stripTrailing();
+        return SINGLE_LINE_YAML.dump(value).stripTrailing();
+    }
+
+    private static final Yaml SINGLE_LINE_YAML = singleLineYaml();
+
+    private static Yaml singleLineYaml() {
+        org.yaml.snakeyaml.DumperOptions options = new org.yaml.snakeyaml.DumperOptions();
+        options.setSplitLines(false);
+        options.setWidth(Integer.MAX_VALUE);
+        return new Yaml(options);
     }
 
     public Task parse(Path file) throws TaskParseException {
@@ -989,6 +1003,19 @@ public class TaskFileParser {
     /// or null when the file has no frontmatter, no such key, a blank one, or
     /// does not parse — a half-edited config must not break the group menu.
     private static @Nullable String groupString(String content, String key) {
+        return groupValue(content, key) instanceof String value && !value.isBlank()
+                ? value.strip() : null;
+    }
+
+    /// Whether a top-level key of a frontmatter (a task file's or a group's)
+    /// is `true` — how a plain on/off switch action such as `vscode:` reads
+    /// its key without a field of its own on [Task].
+    // [impl->dsn~vscode-action~1]
+    public static boolean frontmatterFlag(String content, String key) {
+        return Boolean.TRUE.equals(groupValue(content, key));
+    }
+
+    private static @Nullable Object groupValue(String content, String key) {
         String normalized = content.replace("\r\n", "\n");
         if (!normalized.startsWith(FENCE + "\n")) {
             return null;
@@ -1002,10 +1029,8 @@ public class TaskFileParser {
                     .load(normalized.substring(FENCE.length() + 1, close + 1));
             // Folded like every other reader, so `note-linux:` wins on Linux.
             // [impl->dsn~machine-key-variants~1]
-            if (data instanceof Map<?, ?> map
-                    && applyMachineVariants(map, MACHINE_TOKENS).get(key) instanceof String value
-                    && !value.isBlank()) {
-                return value.strip();
+            if (data instanceof Map<?, ?> map) {
+                return applyMachineVariants(map, MACHINE_TOKENS).get(key);
             }
         } catch (YAMLException e) {
             // A half-edited config file must not break the group menu.

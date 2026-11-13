@@ -6,6 +6,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-13] - 2026-11-13
+
+### Added
+
+- *Switch actions* has *Open in VS Code*: a switch opens a new VS Code window on the current desktop at the task's project directory (via Remote-SSH for a task on a host).
+- Android: the task list has a search button (🔍) that narrows it to the tasks whose title, tag or category matches.
+- Android: tapping a category header lists all categories; picking one scrolls to it.
+- Android: a top-bar button switches the task list between all tasks, active ones only, and active ones plus suspended tasks changed in the last 14 days.
+- A new local category lists the Claude sessions already recorded for its folder as suspended tasks, each resuming its own conversation.
+- A local category's header has a sync button that adds the Claude sessions recorded for its folder since; *Sync tmux windows…* does the same for every local category.
+- *Show running tasks only* has a sub-option *Also show suspended tasks of the last 14 days*, keeping recently paused tasks at hand for resuming.
+- Opening a OneNote note or a folder on switch moves the OneNote or Explorer window to the desktop in view, instead of jumping to the desktop it was on.
+
+### Fixed
+
+- Android: the app registers the `contextswitcher://` scheme; `task/<id>` and `switch/<id>` links open the task.
+- The terminal's status messages ("Connection lost — reconnecting…", "Connecting to …") show dashes and ellipses instead of garbled characters.
+- Deleting a local task offers to remove its Claude transcript on this machine, as it already did for remote tasks.
+- A task whose creation failed before its tmux window came up shows play instead of pause on hover; play opens the same dialog as the terminal's *Start Claude* button.
+- Closing the app (or restarting it for an update) while it runs Claude sessions on Windows asks first, listing their tasks by category; clicking one shows its terminal instead of closing.
+- Imported Claude sessions carry the session's last activity as their date (shown on the row, used by *last update* sorting), not the time of the import.
+- Importing Claude sessions into a local category switches *Show running tasks only* off so the new (suspended) tasks show, and selects the newest one.
+- A category just added stays in the list while *Show running tasks only* hides its tasks, instead of vanishing.
+- With *Show active desktop only* on, a category belonging to the desktop in view stays in the list even when *Show running tasks only* hides all its tasks.
+- *Awaits input only (N)* counts only the tasks the filter would show — with *Show active desktop only* on, those of the desktop in view.
+- A task whose folder path is long and contains spaces no longer gets a broken (unparseable) `claude:` section when the app writes it.
+- A local task in a folder whose path contains spaces (OneDrive's do) finds its Claude transcript again, so it resumes the right conversation and *Delete* can remove the transcript.
+
 ## [2026-11-12] - 2026-11-12
 
 ### Added
@@ -289,6 +317,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-13]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-12...v2026-11-13
 [2026-11-12]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-09...v2026-11-12
 [2026-11-09]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-05...v2026-11-09
 [2026-11-05]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-03...v2026-11-05

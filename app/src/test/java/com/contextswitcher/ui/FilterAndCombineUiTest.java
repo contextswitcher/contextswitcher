@@ -3,6 +3,9 @@ package com.contextswitcher.ui;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -76,6 +79,35 @@ class FilterAndCombineUiTest {
         // back — the two filters AND.
         Platform.runLater(() -> filterItem("Show running tasks only").setSelected(true));
         awaitTasks(list, List.of("alpha/build"));
+    }
+
+    /// "Also show suspended tasks of the last 14 days" widens the running
+    /// filter by the suspended tasks touched recently — resumable — while older
+    /// suspended and done tasks stay hidden.
+    // [utest->dsn~running-tasks-filter~2]
+    @Test
+    void recentSuspendedTasksJoinTheRunningFilter() throws Exception {
+        Path dir = UiTestSupport.tasksDir;
+        Files.createDirectories(dir.resolve("epsilon"));
+        Files.writeString(dir.resolve("epsilon/run.md"),
+                "---\ntitle: run\nstatus: active\n---\nnotes\n");
+        Files.writeString(dir.resolve("epsilon/fresh.md"),
+                "---\ntitle: fresh\nstatus: suspended\n---\nnotes\n");
+        Path stale = dir.resolve("epsilon/stale.md");
+        Files.writeString(stale, "---\ntitle: stale\nstatus: suspended\n---\nnotes\n");
+        Files.setLastModifiedTime(stale, FileTime.from(Instant.now().minus(Duration.ofDays(15))));
+
+        ListView<Object> list = awaitListView();
+        resetFilters();
+        awaitTasks(list, List.of("epsilon/fresh", "epsilon/run", "epsilon/stale"));
+
+        Platform.runLater(() -> filterItem("Show running tasks only").setSelected(true));
+        awaitTasks(list, List.of("epsilon/run"));
+
+        Platform.runLater(() -> filterItem("Also show suspended tasks of the last 14 days")
+                .setSelected(true));
+        awaitTasks(list, List.of("epsilon/fresh", "epsilon/run"));
+        resetFilters();
     }
 
     /// A category with no task file at all is exempt from the *content* filters
@@ -373,6 +405,7 @@ class FilterAndCombineUiTest {
     /// unfiltered list whatever the previous one left checked.
     private static void resetFilters() {
         Platform.runLater(() -> {
+            filterItem("Also show suspended tasks of the last 14 days").setSelected(false);
             filterItem("Show running tasks only").setSelected(false);
             filterItem("Also show categories without a desktop").setSelected(false);
             filterItem("Show active desktop only").setSelected(false);

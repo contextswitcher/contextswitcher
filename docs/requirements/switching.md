@@ -103,12 +103,37 @@ Covers:
 
 Needs: dsn
 
+### App windows on the desktop in view
+`req~app-window-on-current-desktop~1`
+
+Opening a task's note or folder must not drag the user to another virtual desktop.
+Single-instance apps (OneNote) and window-reusing ones (File Explorer) activate their existing window, wherever it sits; that window is brought to the desktop in view instead, so the project's desktop keeps the project's windows.
+
+Tags: windows
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Open the task's chat room
 `req~open-task-chat~2`
 
 A task can carry a `chat:` link to the Matrix room the work is discussed in — a `matrix.to` permalink as copied from Element's "Share room/message".
 Activating the task opens that room in the Element desktop app, so switching brings the conversation forward alongside the terminal, IDE, and browser targets.
 When the task has no `chat:` of its own, its category's chat is used — the group's `CONTEXTSWITCHER.md` `chat:` — because a project normally has one room and only some tasks a thread of their own.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
+### Open the task in VS Code
+`req~open-vscode~1`
+
+A task can tick *Open in VS Code*: activating it opens a new VS Code window on the virtual desktop in view, at the task's project directory, remote tasks via Remote-SSH.
 
 Tags: windows, linux
 
@@ -406,6 +431,20 @@ Covers:
 
 Needs: impl, utest
 
+### VS Code action
+`dsn~vscode-action~1`
+
+`VsCodeAction` (chip `vscode`) is configured when the task file's frontmatter has `vscode: true` (`TaskFileParser.frontmatterFlag`; no field on `Task`).
+It runs `code -n <path>` — `-n` forces a new window, which Windows opens on the current virtual desktop — with the IntelliJ action's path (`Task.intellijProjectPath()`), and `--remote ssh-remote+<host>` ahead of it when the task has a host (`Task.intellijRemote()`); without a path it opens an empty window.
+On Windows `code` is a `.cmd` shim, so it runs under `cmd /c`; a non-zero exit fails the chip with `code`'s stderr.
+
+Tags: windows, linux
+
+Covers:
+- req~open-vscode~1
+
+Needs: impl, utest
+
 ### Explorer folder focus action
 `dsn~explorer-folder-focus~3`
 
@@ -530,6 +569,25 @@ Tags: windows, linux
 
 Covers:
 - req~open-task-note~1
+
+Needs: impl, utest
+
+### Window move to the current desktop
+`dsn~window-move-here~1`
+
+`WindowsWindowMove` moves another app's window to the virtual desktop in view with `IVirtualDesktopManagerInternal::MoveViewToDesktop(view, GetCurrentDesktop())`, the view coming from `IApplicationViewCollection::GetViewForHwnd`.
+The documented `IVirtualDesktopManager::MoveWindowToDesktop` only accepts the calling process's own windows, so the undocumented interface is the only route; it is pinned to the Windows 11 24H2 IID that `dsn~category-desktop-focus~4` uses, and another build fails `QueryService` cleanly — the window is then simply not moved and the old desktop jump remains.
+A window already on the current desktop, or pinned to all desktops (`IsWindowOnCurrentVirtualDesktop` is true for both), is left alone.
+
+`bringHere(label, process, class)` picks the app's visible, titled, unowned top-level windows of that process and class, prefers one already on the current desktop, else moves the topmost one here, and brings the chosen window to the front; outcomes `none` (not running), `here`, `moved`, `failed`.
+`NoteFocusAction` calls it for OneNote (`ONENOTE`, `Framework::CFrame`) before opening an `onenote:` link — so the link activates a window on this desktop — and adds `moved OneNote here` to the chip detail when it moved one; with OneNote not running, the link starts it here anyway.
+`LocalFolderFocus` (`dsn~explorer-folder-focus~3`) moves a matching Explorer window here before focusing it and reports `moved here: <folder>`.
+The C# types live once in `WindowsWindowMove.TYPES` and are embedded by every script that moves windows; more apps (VS Code, SumatraPDF) take a process/class pair.
+
+Tags: windows
+
+Covers:
+- req~app-window-on-current-desktop~1
 
 Needs: impl, utest
 
@@ -662,7 +720,7 @@ A wrong kill is the one outcome on any of these paths that cannot be taken back 
 The `PaneSnapshots.capture` that normally runs just before the kill is skipped with it: capturing that pane would file another task's screen as this task's last screen.
 Nothing is lost by refusing — `MainWindow.tearDown` has already dropped the task's `window:` before dispatching, so the task resurrects into a window of its own on the next switch instead of pointing at the foreign one again.
 
-The delete dialog (`dsn~claude-session-kill~6`) reflects that instead of promising it: with a foreign owner, "End the tmux window" is unticked, disabled and renamed to name the other session, and the `KILL_END_WINDOW` preference is **not** written back — that "no" is the app's, not the user's, and persisting it would stop ending windows on every later delete. "Close browser tabs" is unrelated to tmux ownership and keeps its own tick regardless.
+The delete dialog (`dsn~claude-session-kill~7`) reflects that instead of promising it: with a foreign owner, "End the tmux window" is unticked, disabled and renamed to name the other session, and the `KILL_END_WINDOW` preference is **not** written back — that "no" is the app's, not the user's, and persisting it would stop ending windows on every later delete. "Close browser tabs" is unrelated to tmux ownership and keeps its own tick regardless.
 
 The terminal mirror needs the same guard — mirroring the recorded window would show that other task's terminal, the same failure `Main.previewTask` already blocks for a *missing* window — but it runs on the FX thread and must not do a round-trip.
 It reads the id from the status poll instead: `TmuxStatusPoller` carries `#{@cs_session_id}` as a sixth field on the `list-windows` it already runs per host per tick, `Main` stashes the `host windowId -> session id` map in the volatile `liveSessionIds`, and `previewTask` does a map lookup.
@@ -840,7 +898,7 @@ Needs: impl, utest
 
 `SwitchOrchestrator` determines the configured actions of a task, runs them concurrently on a background executor, and publishes per-action state transitions (pending → running → ok/failed with message) to the UI via `Platform.runLater`. An optional completion callback runs on the UI executor once every configured action has reported its final state — used to re-target the terminal mirror after a switch/suspend (`dsn~terminal-pane~14`).
 A caller can additionally pass a set of action names to further narrow the run to those (the rest are skipped as if unconfigured, with no state transition at all); a `null` set runs every configured action, the plain overloads' behavior.
-The delete dialog's independent "End the tmux window" / "Close browser tabs" ticks (`dsn~claude-session-kill~6`) use this to run only the actions the user selected.
+The delete dialog's independent "End the tmux window" / "Close browser tabs" ticks (`dsn~claude-session-kill~7`) use this to run only the actions the user selected.
 
 Tags: windows, linux
 

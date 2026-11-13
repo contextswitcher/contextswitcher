@@ -73,6 +73,7 @@ import com.contextswitcher.local.WindowsDesktopPin;
 import com.contextswitcher.local.LocalFolderFocus;
 import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
+import com.contextswitcher.local.WindowsWindowMove;
 import com.contextswitcher.local.ClaudeCliSummarizer;
 import com.contextswitcher.local.LocalCommandRunner;
 import com.contextswitcher.local.RequiredTools;
@@ -97,6 +98,7 @@ import com.contextswitcher.switching.ClaudeWindowLauncher;
 import com.contextswitcher.switching.BrowserFocusAction;
 import com.contextswitcher.switching.EnvironmentProfileAction;
 import com.contextswitcher.switching.ExplorerFolderAction;
+import com.contextswitcher.switching.VsCodeAction;
 import com.contextswitcher.switching.IntellijGatewayAction;
 import com.contextswitcher.switching.LocalDiff;
 import com.contextswitcher.switching.LocalTerminalAction;
@@ -647,14 +649,31 @@ public class Main extends Application {
                                 60, 3000L),
                         // Reopens a complete-control suspend's stored tabs on
                         // resume, then clears the storedTabs: key.
+                        new VsCodeAction(task -> {
+                                    String content = files.read(task.id() + ".md");
+                                    return content != null
+                                            && TaskFileParser.frontmatterFlag(content, "vscode");
+                                }, argv -> {
+                                    // `code` is a .cmd shim on Windows, which needs cmd to run.
+                                    List<String> command = new ArrayList<>(argv);
+                                    if (LocalCommandRunner.onWindows()) {
+                                        command.addAll(0, List.of("cmd", "/c"));
+                                    }
+                                    LocalCommandRunner.LocalResult result =
+                                            new LocalCommandRunner().run(command);
+                                    return result.ok() ? null : "code failed: " + result.stderr().strip();
+                                }),
                         // [impl->dsn~complete-control-desktop~1]
                         new BrowserFocusAction(extensionServer,
                                 task -> completeControlDesktop(files, task),
                                 (desktop, url) -> openOnDesktop(extensionServer, desktop, url),
                                 task -> rewriteTaskFile(files, task,
                                         TaskFileParser::withoutStoredTabs)),
+                        // [impl->dsn~window-move-here~1]
                         new NoteFocusAction(this::openUrl,
-                                group -> groupLink(files, group, TaskFileParser::groupNote)),
+                                group -> groupLink(files, group, TaskFileParser::groupNote),
+                                () -> new WindowsWindowMove(new LocalCommandRunner())
+                                        .bringHere("OneNote", "ONENOTE", "Framework::CFrame").note()),
                         new ChatFocusAction(this::openUrl,
                                 group -> groupLink(files, group, TaskFileParser::groupChat)),
                         environmentProfile),
@@ -723,7 +742,7 @@ public class Main extends Application {
                         .map(entry -> ((TaskEntry.Loaded) entry).task()).toList(), host, target),
                 category -> categoryRepo(settings.tasksDir(), category),
                 java.time.Clock.systemUTC(), () -> { }));
-        // [impl->dsn~claude-session-kill~6]
+        // [impl->dsn~claude-session-kill~7]
         ClaudeSessionCleanup sessionCleanup = new ClaudeSessionCleanup(ssh);
         // [impl->dsn~qodo-agent-prompt-queue~12]
         QodoReviewLookup qodoLookup = new QodoReviewLookup(new LocalCommandRunner());
@@ -1040,6 +1059,14 @@ public class Main extends Application {
         repository.setOnGroupConfigChange(window::groupConfigChanged);
         // The shell needs the Application for its host services (MADR 0032).
         window.show(stage, this);
+        // Leaving ends the Claude sessions the app hosts on Windows, so the
+        // window's close asks first while one runs.
+        // [impl->dsn~owned-session-close-confirm~1]
+        stage.addEventHandler(javafx.stage.WindowEvent.WINDOW_CLOSE_REQUEST, event -> {
+            if (!window.confirmLeave("Closing ContextSwitcher")) {
+                event.consume();
+            }
+        });
         // The wizard's first project, created once the window is up: the
         // category and its setup session need the repository and the live-task
         // machinery that did not exist while the wizard ran.
@@ -2321,7 +2348,7 @@ public class Main extends Application {
     /// The directories a category configures for itself — never a per-task
     /// worktree, so never something the delete cleanup may `rm -rf`. Read
     /// fresh like [#groupMainCheckout].
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private static List<String> groupProtectedDirs(MainWindow.TaskFileAccess files, String group) {
         if (group.isEmpty()) {
             return List.of();
@@ -4594,7 +4621,7 @@ public class Main extends Application {
     /// promises to close what it counted, so counting a sub-page tab that the
     /// close would then leave behind would be a lie.
     /// Runs off the FX thread — it is a round-trip with a 5 s timeout.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private static int countOpenTabs(ExtensionServer extensionServer, List<String> urls) {
         ExtensionProtocol.Result listed = extensionServer.listTabs();
         List<ExtensionProtocol.TabWindow> windows = listed.windows();
@@ -5361,7 +5388,7 @@ public class Main extends Application {
 
     /// The delete dialog's "Ask Claude to tidy up first" prompt: generic on
     /// purpose — the session in the window knows its own worktree and branch.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private static final String CLEANUP_PROMPT = """
             This task is about to be deleted in ContextSwitcher. Please tidy up: \
             push or merge to main whatever is worth keeping, then remove this \
@@ -5373,7 +5400,7 @@ public class Main extends Application {
     /// Sends [#CLEANUP_PROMPT] into the task's tmux window (same delivery as
     /// a queued message) and deletes nothing — the user deletes the task once
     /// Claude reports done. Outcome lands in the status line.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private void askClaudeCleanup(MessageSender sender, Task task) {
         MainWindow window = this.window;
         ExecutorService executor = this.actionExecutor;
@@ -5449,7 +5476,7 @@ public class Main extends Application {
     /// ticked ones — "tmux", "browser", or both — and — after it finished, so
     /// Claude's exit cannot recreate the transcript or hold the directory —
     /// transcript/workdir removal over ssh.
-    // [impl->dsn~claude-session-kill~6]
+    // [impl->dsn~claude-session-kill~7]
     private void killSession(MainWindow.TaskFileAccess files, SwitchOrchestrator orchestrator,
             ClaudeSessionCleanup cleanup, Task task, ClaudeSessionCleanup.Choices choices) {
         MainWindow window = this.window;
@@ -5461,7 +5488,19 @@ public class Main extends Application {
         Runnable remoteCleanup = () -> executor.execute(() -> {
             Task.ClaudeConfig claude = task.claude();
             String remote = task.remote();
-            if (claude == null || remote == null) {
+            if (claude == null) {
+                return;
+            }
+            // A local task's session ran on this machine: its transcript is
+            // removed here, and it has no remote working directory.
+            if (remote == null) {
+                if (choices.removeTranscript() && claude.sessionId() != null && claude.cwd() != null) {
+                    String error = ClaudeSessionCleanup.removeLocalTranscript(
+                            claude.cwd(), claude.sessionId());
+                    Platform.runLater(() -> window.statusBar().update("transcript",
+                            error == null ? ActionStatus.OK : ActionStatus.FAILED,
+                            error == null ? "transcript removed" : error));
+                }
                 return;
             }
             if (choices.removeTranscript() && claude.sessionId() != null) {

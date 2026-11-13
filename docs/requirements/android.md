@@ -247,6 +247,33 @@ Covers:
 
 Needs: impl, utest
 
+### Search and jump to a category
+`dsn~android-task-list-navigation~1`
+
+The task list's top bar has a 🔍 action that turns the title into a search field (focused, *✕* or *Back* closes it); `filterTaskList(groups, query)` narrows the list case-insensitively to the tasks whose title or a tag matches, keeping a whole group whose name matches and dropping groups left empty, with *No task matches* when nothing does.
+Tapping a group header opens *Go to category*, listing the shown groups; picking one scrolls the list to that group's header (`headerIndex`, the inverse of `groupAtTop`).
+
+Tags: android
+
+Covers:
+- req~android-task-list~1
+
+Needs: impl, utest
+
+### Status filter
+`dsn~android-status-filter~1`
+
+The task list's top bar has a button cycling *All* → *Active* → *Active+14*, the phone's form of the desktop's *Show running tasks only* and *Also show suspended tasks of the last 14 days* (`dsn~running-tasks-filter~2`); the choice is kept across restarts.
+`filterByStatus` keeps active tasks (*Active+14* also suspended ones changed in the last 14 days) and error rows, dropping groups left empty.
+"Changed" is read from the clone's commits (`recentlyChangedIds`, first parent), since the phone's file times are those of the clone or pull.
+
+Tags: android
+
+Covers:
+- req~android-task-list~1
+
+Needs: impl, utest
+
 ### `SshjCommandRunner`
 `dsn~android-ssh-runner~2`
 
@@ -411,6 +438,20 @@ Tags: android
 
 Covers:
 - req~android-finish-notification~1
+
+Needs: impl, utest
+
+### Deep links open the task
+`dsn~android-deep-link~1`
+
+`MainActivity` has an `android.intent.action.VIEW` filter for the `contextswitcher` scheme (`BROWSABLE`, so links in a browser or note app reach it).
+`requestedTaskId` maps `contextswitcher://task/<id>` and `contextswitcher://switch/<id>` to the percent-decoded task id, which opens the task's detail like a tapped finish notification; the phone runs no switch, and other links (`category/…`) just bring the app up.
+A task id not in the synced clone leaves the screen as it is.
+
+Tags: android
+
+Covers:
+- req~deep-link-url~1
 
 Needs: impl, utest
 

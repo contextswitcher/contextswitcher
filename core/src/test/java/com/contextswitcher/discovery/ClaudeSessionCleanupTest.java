@@ -1,14 +1,19 @@
 package com.contextswitcher.discovery;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-// [utest->dsn~claude-session-kill~6]
+// [utest->dsn~claude-session-kill~7]
 class ClaudeSessionCleanupTest {
 
     @Test
@@ -19,6 +24,28 @@ class ClaudeSessionCleanupTest {
                                 + "/0af7f1a2-1111-2222-3333-444455556666.jsonl"),
                 ClaudeSessionCleanup.transcriptCommand("/data/koppor/contextswitcher.workspaces",
                         "0af7f1a2-1111-2222-3333-444455556666"));
+    }
+
+    @Test
+    void localTranscriptIsRemovedFromTheEncodedWindowsStartDirectory(@TempDir Path home)
+            throws Exception {
+        Path dir = home.resolve(".claude/projects/"
+                + "C--git-repositories-github-com-contextswitcher-contextswitcher-workspaces");
+        Files.createDirectories(dir);
+        Path transcript = Files.writeString(dir.resolve("c43d5db9.jsonl"), "{}");
+        Path sibling = Files.writeString(dir.resolve("other.jsonl"), "{}");
+
+        assertNull(ClaudeSessionCleanup.removeLocalTranscript(home,
+                "C:\\git-repositories\\github.com\\contextswitcher\\contextswitcher-workspaces",
+                "c43d5db9"));
+
+        assertFalse(Files.exists(transcript));
+        assertTrue(Files.exists(sibling));
+    }
+
+    @Test
+    void aMissingLocalTranscriptCountsAsRemoved(@TempDir Path home) {
+        assertNull(ClaudeSessionCleanup.removeLocalTranscript(home, "C:\\ws", "gone"));
     }
 
     @Test

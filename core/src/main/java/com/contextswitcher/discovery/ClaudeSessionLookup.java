@@ -25,12 +25,15 @@ public class ClaudeSessionLookup {
         this.ssh = ssh;
     }
 
-    /// Claude Code encodes the project cwd by replacing every separator and
-    /// dot with `-`. On Windows the drive colon and the backslashes count too,
-    /// so `C:\\git\\cs` becomes `C--git-cs` — the shape actually found under
-    /// `%USERPROFILE%\\.claude\\projects`.
+    /// Claude Code encodes the project cwd by replacing every character that
+    /// is not an ASCII letter or digit with `-` — separators and dots, on
+    /// Windows the drive colon and the backslashes, and **spaces**: `C:\\git\\cs`
+    /// becomes `C--git-cs`, `C:\\Users\\o\\OneDrive - THU` becomes
+    /// `C--Users-o-OneDrive---THU` — the shapes actually found under
+    /// `%USERPROFILE%\\.claude\\projects`. Encoding only separators and dots
+    /// missed every folder with a space in its name, which OneDrive's have.
     static String encodeProjectDir(String cwd) {
-        return cwd.replaceAll("[/\\\\:.]", "-");
+        return cwd.replaceAll("[^A-Za-z0-9]", "-");
     }
 
     /// The session id to resume for a directory on **this** machine, read from

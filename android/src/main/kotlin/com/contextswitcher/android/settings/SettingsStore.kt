@@ -1,6 +1,7 @@
 package com.contextswitcher.android.settings
 
 import android.content.Context
+import com.contextswitcher.android.ui.StatusFilter
 
 private const val PREFS_NAME = "contextswitcher_settings"
 private const val KEY_URL = "repo_url"
@@ -10,6 +11,7 @@ private const val KEY_UPDATE_TOKEN = "update_token"
 private const val KEY_SSH_PRIVATE_KEY = "ssh_private_key"
 private const val KEY_SKIP_PERMISSIONS = "skip_permissions"
 private const val KEY_JUMP_HOSTS = "jump_hosts"
+private const val KEY_STATUS_FILTER = "status_filter"
 
 /// The task backup repo's clone URL plus HTTPS credentials
 /// (`UsernamePasswordCredentialsProvider`; any value works for username with
@@ -78,5 +80,14 @@ class SettingsStore(context: Context) {
 
     fun saveSkipPermissions(skip: Boolean) {
         prefs.edit().putBoolean(KEY_SKIP_PERMISSIONS, skip).apply()
+    }
+
+    /// The task list's status filter; kept across restarts like the desktop's filters.
+    // [impl->dsn~android-status-filter~1]
+    fun loadStatusFilter(): StatusFilter =
+        StatusFilter.entries.firstOrNull { it.name == prefs.getString(KEY_STATUS_FILTER, null) } ?: StatusFilter.ALL
+
+    fun saveStatusFilter(filter: StatusFilter) {
+        prefs.edit().putString(KEY_STATUS_FILTER, filter.name).apply()
     }
 }

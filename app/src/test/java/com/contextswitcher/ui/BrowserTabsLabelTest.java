@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~claude-session-kill~6]
+// [utest->dsn~claude-session-kill~7]
 class BrowserTabsLabelTest {
 
     /// The number is what is **open**, not what the task lists, so zero has to

@@ -14,7 +14,7 @@ import org.tinylog.Logger;
 /// through the listener on the UI executor. One failing action never blocks
 /// the others. A caller can further narrow the run to a subset of the
 /// configured actions by name (the delete dialog's per-target checkboxes,
-/// `dsn~claude-session-kill~6`) via the `only` overload.
+/// `dsn~claude-session-kill~7`) via the `only` overload.
 // [impl->dsn~switch-orchestrator~3]
 public class SwitchOrchestrator {
 
