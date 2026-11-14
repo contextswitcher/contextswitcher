@@ -11,7 +11,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~whats-new-upstream~7]
+// [utest->dsn~whats-new-upstream~8]
 class WhatsNewTest {
 
     private static final String OLD = "a".repeat(40);
@@ -121,5 +121,18 @@ class WhatsNewTest {
         WhatsNew.announce(copy, sources);
         assertThat(WhatsNew.pending(copy, sources)).isEmpty();
         assertThat(Files.readAllLines(copy)).contains("- Pushed.", "- **Local** edit.");
+    }
+    @Test
+    void releaseRenamingUnreleasedMakesNothingNew(@TempDir Path dir) throws Exception {
+        Path copy = dir.resolve("announced.md");
+        List<String> before = List.of("## [Unreleased]", "### Added", "- Seen.", "  Twice.");
+        List<String> released = List.of("## [2026-11-13] - 2026-11-13", "### Added", "- Seen.", "  Twice.");
+        String o = OLD + " Old x@y";
+        WhatsNew.announce(copy, Map.of(true, source(before, WhatsNew.ME, o, o, o, o)));
+
+        // Local still before the release, upstream after it: one bullet, already seen.
+        Map<Boolean, WhatsNew.Source> sources = Map.of(true, source(before, WhatsNew.ME, o, o, o, o),
+                false, source(released, WhatsNew.ME_REMOTELY, o, o, o, o));
+        assertThat(WhatsNew.pending(copy, sources)).isEmpty();
     }
 }

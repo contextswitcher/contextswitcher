@@ -40,8 +40,8 @@ import org.tinylog.Logger;
 /// the app starts) and the running app, whose [#pending] projection needs
 /// no commit at all: it diffs any blamed changelog — the working tree, a
 /// fetched `@{u}` — against the last announced copy on disk
-/// (`dsn~whats-new-upstream~7`).
-// [impl->dsn~whats-new-upstream~7]
+/// (`dsn~whats-new-upstream~8`).
+// [impl->dsn~whats-new-upstream~8]
 public final class WhatsNew {
 
     /// Who wrote a bullet in this checkout: uncommitted, or committed under `user.email`.
@@ -54,10 +54,14 @@ public final class WhatsNew {
     /// author's name, [#ME] or [#ME_REMOTELY].
     public record Item(String by, String day, String heading, List<String> lines) {
 
-        /// The bullet regardless of who wrote it — the identity the pending
-        /// projection deduplicates and diffs by.
+        /// The bullet's text alone — the identity the pending projection
+        /// deduplicates and diffs by. Neither who wrote it nor where it sits:
+        /// the morning release renames `[Unreleased]` to that day's version,
+        /// which must not make every bullet news again (field report
+        /// 2026-11-14), and a bullet the local tree still has under
+        /// *Unreleased* is the same one upstream has under the release.
         Item key() {
-            return new Item("", day, heading, lines);
+            return new Item("", "", "", lines);
         }
     }
 

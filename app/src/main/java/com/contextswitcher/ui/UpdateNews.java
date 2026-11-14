@@ -37,7 +37,7 @@ import org.jspecify.annotations.Nullable;
 /// `Main` owns the git calls and feeds the answers in; `MainWindow` only places
 /// the button.
 // [impl->dsn~restart-to-update~12]
-// [impl->dsn~whats-new-upstream~7]
+// [impl->dsn~whats-new-upstream~8]
 final class UpdateNews {
 
     private final Button button;

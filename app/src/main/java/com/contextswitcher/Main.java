@@ -1284,7 +1284,7 @@ public class Main extends Application {
     /// Asks git every five minutes whether the checkout the app runs out of is
     /// behind its upstream, offers the restart once it is, and feeds the
     /// fetched changelog to the pending-news projection
-    /// (`dsn~whats-new-upstream~7`); the local `CHANGELOG.md` is watched for
+    /// (`dsn~whats-new-upstream~8`); the local `CHANGELOG.md` is watched for
     /// the same projection, so a parallel session's edit shows up seconds
     /// after the write, committed or not. Started from a zip rather than a
     /// checkout there is no repository above the working directory and none
@@ -1294,7 +1294,7 @@ public class Main extends Application {
     /// and this scheduler is the single thread the memory log, the reconcile
     /// and the desktop watch tick on.
     // [impl->dsn~restart-to-update~12]
-    // [impl->dsn~whats-new-upstream~7]
+    // [impl->dsn~whats-new-upstream~8]
     private void scheduleUpdateCheck(MainWindow window) {
         ScheduledExecutorService scheduler = this.scheduler;
         Path repo = AppUpdate.repositoryRoot(Path.of(""));
@@ -1354,7 +1354,7 @@ public class Main extends Application {
     /// bullets no announced copy holds in the update button's tooltip. Without a copy
     /// yet (first run) the current local changelog becomes it silently. Any
     /// thread but FX.
-    // [impl->dsn~whats-new-upstream~7]
+    // [impl->dsn~whats-new-upstream~8]
     private void refreshNews(MainWindow window, Path repo, boolean local, WhatsNew.@Nullable Source text) {
         if (text == null) {
             return;
@@ -1369,7 +1369,7 @@ public class Main extends Application {
         String upstream = newsUpstream(repo);
         // Announcing is one small file write, done right away: it now runs from
         // the *Restart to update* button too, just before the app leaves, and
-        // stop() cuts the action pool short. [impl->dsn~whats-new-upstream~7]
+        // stop() cuts the action pool short. [impl->dsn~whats-new-upstream~8]
         Platform.runLater(() -> window.showPendingNews(items, upstream, () -> announceNews(copy)));
     }
 
@@ -1400,7 +1400,7 @@ public class Main extends Application {
 
     /// The bullets the current sources hold beyond the announced copy, empty
     /// while there is no copy yet (first run).
-    // [impl->dsn~whats-new-upstream~7]
+    // [impl->dsn~whats-new-upstream~8]
     private List<WhatsNew.Item> pendingNews() {
         Path copy = announcedChangelog();
         return Files.exists(copy) ? WhatsNew.pending(copy, newsSources) : List.of();
@@ -1411,7 +1411,7 @@ public class Main extends Application {
     /// say. Not a start for the pending count: that is measured against the
     /// announced copy, which has no commit. Any thread but FX \u2014 two
     /// `git show` calls.
-    // [impl->dsn~whats-new-upstream~7]
+    // [impl->dsn~whats-new-upstream~8]
     private static @Nullable String newsUpstream(Path repo) {
         String head = AppUpdate.describe(repo, AppUpdate.runningCommitOrHead());
         String upstream = AppUpdate.describe(repo, "@{u}");
@@ -1439,7 +1439,7 @@ public class Main extends Application {
     /// file; a rename lands as CREATE, a plain save as MODIFY. Only this
     /// checkout: a worktree writes another file, and a remote session's
     /// bullet arrives through the fetch tick once pushed.
-    // [impl->dsn~whats-new-upstream~7]
+    // [impl->dsn~whats-new-upstream~8]
     private void watchChangelog(Path repo, MainWindow window) {
         WatchService service;
         try {

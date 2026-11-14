@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~whats-new-upstream~7]
+// [utest->dsn~whats-new-upstream~8]
 // [utest->dsn~restart-to-update~12]
 class NewsTitleTest {
 
