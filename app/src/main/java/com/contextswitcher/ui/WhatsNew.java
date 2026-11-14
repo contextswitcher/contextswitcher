@@ -196,14 +196,26 @@ public final class WhatsNew {
         return fresh.entrySet().stream().filter(e -> !old.contains(e.getKey())).map(Map.Entry::getValue).toList();
     }
 
-    /// Replaces the announced copy with every source seen: their bullets are
-    /// old from now on, whichever trigger sees them next. Written on the
-    /// first run too, so the copy exists to diff against.
+    /// Adds every bullet of `sources` to the announced copy: they are old from
+    /// now on, whichever trigger sees them next — and stay old whatever is
+    /// checked out later, so going back to an older commit and forward again
+    /// shows nothing twice. The copy holds bullets only, each once by
+    /// [Item#key]; a copy from before, a whole changelog, reads the same.
+    /// Written on the first run too, so the copy exists to diff against.
     public static void announce(Path copy, Map<Boolean, Source> sources) throws IOException {
         Files.createDirectories(copy.getParent());
-        List<String> all = new ArrayList<>();
-        sources.values().forEach(s -> all.addAll(s.lines()));
-        Files.write(copy, all);
+        Set<Item> all = new java.util.LinkedHashSet<>();
+        List<String> announced = read(copy);
+        if (announced != null) {
+            bullets(announced, n -> "").forEach(it -> all.add(it.key()));
+        }
+        sources.values().forEach(s -> bullets(s.lines(), n -> "").forEach(it -> all.add(it.key())));
+        List<String> out = new ArrayList<>();
+        for (Item it : all) {
+            out.add("- " + it.lines().getFirst());
+            it.lines().stream().skip(1).forEach(l -> out.add("  " + l));
+        }
+        Files.write(copy, out);
     }
 
     private static @Nullable List<String> read(Path file) {

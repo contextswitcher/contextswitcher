@@ -32,7 +32,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - With *Show active desktop only* on, a category belonging to the desktop in view stays in the list even when *Show running tasks only* hides all its tasks.
 - *Awaits input only (N)* counts only the tasks the filter would show — with *Show active desktop only* on, those of the desktop in view.
 - A task whose folder path is long and contains spaces no longer gets a broken (unparseable) `claude:` section when the app writes it.
-- After the daily release, the "What's new" window no longer lists every change of that release again as pending, although they had already been seen.
+- After the daily release, the "What's new" window no longer lists every change of that release again as pending, although they had already been seen; a change seen once also stays seen after going back to an older version and forward again.
 - A local task in a folder whose path contains spaces (OneDrive's do) finds its Claude transcript again, so it resumes the right conversation and *Delete* can remove the transcript.
 
 ## [2026-11-12] - 2026-11-12

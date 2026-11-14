@@ -135,4 +135,17 @@ class WhatsNewTest {
                 false, source(released, WhatsNew.ME_REMOTELY, o, o, o, o));
         assertThat(WhatsNew.pending(copy, sources)).isEmpty();
     }
+    @Test
+    void announcedBulletsStayOldWhenAnOlderCheckoutDropsThem(@TempDir Path dir) throws Exception {
+        Path copy = dir.resolve("announced.md");
+        List<String> newer = List.of("## [Unreleased]", "### Added", "- Newer.", "  Continued.", "- Older.");
+        List<String> older = List.of("## [Unreleased]", "### Added", "- Older.");
+        String o = OLD + " Old x@y";
+        WhatsNew.announce(copy, Map.of(true, source(newer, WhatsNew.ME, o, o, o, o, o)));
+        // Back on a commit without "Newer.", seen there; forward again: still old.
+        WhatsNew.announce(copy, Map.of(true, source(older, WhatsNew.ME, o, o, o)));
+
+        assertThat(WhatsNew.pending(copy, Map.of(true, source(newer, WhatsNew.ME, o, o, o, o, o)))).isEmpty();
+        assertThat(Files.readAllLines(copy)).containsExactly("- Newer.", "  Continued.", "- Older.");
+    }
 }
