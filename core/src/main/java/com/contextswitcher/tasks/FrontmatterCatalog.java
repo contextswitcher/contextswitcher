@@ -103,10 +103,6 @@ public final class FrontmatterCatalog {
                     "Session holding the task's window, e.g. 0."),
             new Field("tmux.window", "tmux window", "Session", Type.STRING,
                     "Window id (@17 — survives renumbering), or a window name/index."),
-            // [impl->dsn~local-terminal-focus~5]
-            new Field("terminal.tabTitle", "Windows Terminal tab", "Session", Type.STRING,
-                    "Local terminal tab to focus instead of a remote tmux window "
-                            + "(the title pinned via \"Rename Tab\")."),
             // [impl->dsn~claude-session-capture~3]
             new Field("claude.cwd", "Claude directory", "Session", Type.STRING,
                     "Where the Claude session was started — enough to resume it after a reboot."),
@@ -131,7 +127,11 @@ public final class FrontmatterCatalog {
             new Field("chat", "Chat room", "Switch actions", Type.STRING,
                     "Matrix room opened in the Element app — a matrix.to permalink."),
             new Field("note", "OneNote", "Switch actions", Type.STRING,
-                    "Opened by \"Open note\" — the page's onenote:… link (any other link works too)."));
+                    "Opened by \"Open note\" — the page's onenote:… link (any other link works too)."),
+            // [impl->dsn~local-terminal-focus~5]
+            new Field("terminal.tabTitle", "Windows Terminal tab", "Switch actions", Type.STRING,
+                    "Local Windows Terminal tab focused on switch, e.g. a shell for gradlew "
+                            + "(the title pinned via \"Rename Tab\")."));
 
     /// The keys the **Switch actions** pane shows, in both catalogs: what a
     /// switch to the task (or into the category) opens. The Configuration pane
@@ -139,6 +139,7 @@ public final class FrontmatterCatalog {
     // [impl->dsn~task-field-form~6]
     public static final Set<String> SWITCH_ACTION_KEYS =
             Set.of("intellij", "intellij.projectPath", "vscode", "browser.urls", "folders", "chat", "note",
+                    "terminal.tabTitle",
                     "profile");
 
     /// Whether `field` belongs on the Switch actions pane ([#SWITCH_ACTION_KEYS]).

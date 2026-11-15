@@ -34,7 +34,8 @@ Needs: dsn
 ### Focus local Windows Terminal tab
 `req~focus-local-terminal~1`
 
-A task's session may run in a local Windows Terminal tab instead of a remote tmux window. Activating a task with a `terminal` section brings that tab (identified by its fixed tab title) to the foreground, across multiple terminal windows and — where possible — virtual desktops.
+A task may name a local Windows Terminal tab — a shell kept open for `gradlew` and the like, next to or instead of a remote tmux window.
+Activating a task with a `terminal` section brings that tab (identified by its fixed tab title) to the foreground, across multiple terminal windows and — where possible — virtual desktops.
 
 Tags: windows
 

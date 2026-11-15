@@ -21,6 +21,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Added
 
+- The *Windows Terminal tab* field moved from *Configuration* to *Switch actions*: it focuses a local terminal tab (e.g. a shell for gradlew) on every switch, also next to a tmux window.
 - *Switch actions* has *Open in VS Code*: a switch opens a new VS Code window on the current desktop at the task's project directory (via Remote-SSH for a task on a host).
 - Android: the task list has a search button (🔍) that narrows it to the tasks whose title, tag or category matches.
 - Android: tapping a category header lists all categories; picking one scrolls to it.
