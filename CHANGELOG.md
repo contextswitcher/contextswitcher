@@ -13,8 +13,6 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - Android: *Add task* has an optional description with *Attach* (photo or camera); for a started Claude the images are uploaded with the prompt.
 - Android: the terminal page has *Bottom*, right of *Refresh*, jumping back to the latest output after scrolling up.
 
-## [Unreleased]
-
 ### Fixed
 
 - Android: the task list's top bar no longer grows to half the screen; *Tour* and *Settings* moved into a ⋮ menu, and a long task title wraps instead of squeezing its status into a vertical column of letters.
