@@ -12,6 +12,11 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - Starting ContextSwitcher while it already runs brings the running window to the front instead of opening a second copy; `--new-instance` starts one anyway.
 
+### Fixed
+
+- Running the tests no longer writes into (and rotates away) the app's own logs in `~/.contextswitcher/logs`; test logs go to `app/build/test-logs/`.
+- The desktop-filter UI tests pass on Windows: the app under test no longer watches the real virtual desktop.
+
 ## [2026-11-15] - 2026-11-15
 
 ### Added

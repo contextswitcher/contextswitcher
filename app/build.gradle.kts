@@ -217,6 +217,16 @@ tasks.test {
 // config dir on JavaFX 26's headless glass platform — no display needed, and
 // the robot never touches the developer's real desktop. Fallback on a display:
 // `just uitest-xvfb`, or `-Dglass.platform=` to use the native platform.
+// Unit and UI tests log through the app's tinylog.properties, whose rolling
+// file is ~/.contextswitcher/logs with 10 backups: every test JVM rolled the
+// developer's real logs — a full UI run added ~9 files and pushed their own
+// history out. The tests write under build/ instead (a `tinylog.*` system
+// property overrides the file's key).
+tasks.withType<Test>().configureEach {
+    systemProperty("tinylog.writer2.file",
+        layout.buildDirectory.file("test-logs/$name/contextswitcher_{count}.log").get().asFile.path)
+}
+
 tasks.register<Test>("uiTest") {
     group = "verification"
     description = "Runs the TestFX UI tests on JavaFX's headless glass platform"
