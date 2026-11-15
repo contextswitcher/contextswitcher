@@ -88,6 +88,7 @@ import com.contextswitcher.tasks.TaskSearch;
 import com.contextswitcher.tasks.TaskStatus;
 import com.contextswitcher.tasks.TaskSync;
 import com.contextswitcher.tasks.TaskTags;
+import com.contextswitcher.tasks.TodoTxt;
 import com.contextswitcher.terminal.TmuxHost;
 import com.contextswitcher.ui.TaskListCell.GroupHeader;
 import com.contextswitcher.ui.TaskListCell.LabelHeader;
@@ -882,6 +883,16 @@ public class MainWindow {
 
     /// Installs the host table's workspaces lookup (see [#hostWorkspaces]).
     // [impl->dsn~host-table~1]
+    /// The todo.txt lines naming a task id (`cs:<id>`), shown on its row.
+    // [impl->dsn~todo-txt-line~1]
+    private Function<String, List<TodoTxt.Line>> todoLines = id -> List.of();
+
+    /// Sets where the rows read their todo.txt lines from.
+    // [impl->dsn~todo-txt-line~1]
+    public void setTodoLines(Function<String, List<TodoTxt.Line>> lookup) {
+        this.todoLines = lookup;
+    }
+
     public void setHostWorkspaces(Function<String, @Nullable String> lookup) {
         this.hostWorkspaces = lookup;
     }
@@ -1224,7 +1235,7 @@ public class MainWindow {
                 task -> creations.get(task.id()),
                 this::groupAutoQuery, this::openAutoSearch,
                 this::toggleCategoryScope, this::groupPath, this::isCurrentGroup, this::syncGroupsMenu,
-                this::sessionStopped, this::syncLocalSessions));
+                this::sessionStopped, this::syncLocalSessions, task -> todoLines.apply(task.id())));
         // A session started or ended flips its row's pause/play toggle.
         // [impl->dsn~task-row-hover-actions~7]
         terminal.setOnOwnedChanged(list::refresh);

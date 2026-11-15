@@ -331,6 +331,8 @@ public class Main extends Application {
     // [impl->dsn~environment-profile-override~1]
     private volatile @Nullable String profileOverride;
     private @Nullable TerminalPane terminalPane;
+    /// The `todoTxt` file the task rows read their todo lines from.
+    private final com.contextswitcher.tasks.TodoTxt.File todoTxt = new com.contextswitcher.tasks.TodoTxt.File();
     private @Nullable PaneSnapshots paneSnapshots;
 
     /// Hosts to poll for `@cs_status`; recomputed on the FX thread whenever the
@@ -726,6 +728,8 @@ public class Main extends Application {
                 selectWindowTask(repository, remote, window));
         // [impl->dsn~terminal-markdown-copy~1]
         terminalPane.setAutoCopyReplies(settings.autoCopyReplies());
+        // [impl->dsn~todo-txt-line~1]
+        todoTxt.setPath(settings.todoTxt());
         terminalPane.setClaudeResolver((remote, tmux) -> {
             Task task = tmux.window() == null ? null : windowTask(repository, remote, tmux.window());
             return task == null ? null : task.claude();
@@ -929,6 +933,8 @@ public class Main extends Application {
                             if (this.terminalPane != null) {
                                 this.terminalPane.setAutoCopyReplies(saved.autoCopyReplies());
                             }
+                            // [impl->dsn~todo-txt-line~1]
+                            todoTxt.setPath(saved.todoTxt());
                             // [impl->dsn~host-on-off~2]
                             applyInactiveHosts(saved.inactiveRemotes());
                         } catch (IOException e) {
@@ -998,6 +1004,8 @@ public class Main extends Application {
         // [impl->dsn~start-claude-button~2]
         // [impl->dsn~setup-wizard~13]
         window.setOnSetupWizard(this::rerunSetupWizard);
+        // [impl->dsn~todo-txt-line~1]
+        window.setTodoLines(todoTxt::linesFor);
         // [impl->dsn~task-field-form~6]
         window.setDesktopNamesReader(() -> {
             ExecutorService executor = this.actionExecutor;

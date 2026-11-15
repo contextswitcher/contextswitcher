@@ -18,6 +18,7 @@ import com.contextswitcher.switching.PrState;
 import com.contextswitcher.tasks.Task;
 import com.contextswitcher.tasks.TaskEntry;
 import com.contextswitcher.tasks.TaskStatus;
+import com.contextswitcher.tasks.TodoTxt;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -61,6 +62,8 @@ import tools.maran.svgnode.SvgNode;
 // [impl->dsn~main-window~2]
 // [impl->dsn~task-folder-grouping-ui~8]
 public class TaskListCell extends ListCell<Object> {
+
+    private final Function<Task, List<TodoTxt.Line>> todoLines;
 
     /// One collapsible section header in the flat task list. `tags` are the
     /// group's own tags (from its `CONTEXTSWITCHER.md`), shown as chips and
@@ -436,7 +439,9 @@ public class TaskListCell extends ListCell<Object> {
             Predicate<String> groupCurrent,
             Function<Task, javafx.scene.control.@Nullable Menu> syncGroupsMenu,
             Predicate<Task> sessionStopped,
-            BiConsumer<String, Runnable> onSyncLocalSessions) {
+            BiConsumer<String, Runnable> onSyncLocalSessions,
+            Function<Task, List<TodoTxt.Line>> todoLines) {
+        this.todoLines = todoLines;
         this.onSyncLocalSessions = onSyncLocalSessions;
         this.syncGroupsMenu = syncGroupsMenu;
         this.sessionStopped = sessionStopped;
@@ -1404,6 +1409,22 @@ public class TaskListCell extends ListCell<Object> {
                 secondLine.getChildren().add(subtitle);
             }
             text.getChildren().add(secondLine);
+        }
+        // A todo.txt line that names this task (`cs:<id>`) says what is still
+        // to do here in the user's own words; one line below per such todo.
+        // [impl->dsn~todo-txt-line~1]
+        for (TodoTxt.Line todo : todoLines.apply(task)) {
+            HBox todoLine = new HBox(6);
+            todoLine.setAlignment(Pos.CENTER_LEFT);
+            todoLine.setMinWidth(0);
+            Label todoText = new Label(todo.text());
+            todoText.setMinWidth(0);
+            todoText.getStyleClass().add(ROW_DETAIL);
+            todoLine.getChildren().add(todoText);
+            for (String label : todo.labels()) {
+                todoLine.getChildren().add(TagChips.chip(label, null));
+            }
+            text.getChildren().add(todoLine);
         }
         // Lets the title/subtitle ellipsize instead of pushing the status
         // label and action icons out of view when the pane is narrowed.

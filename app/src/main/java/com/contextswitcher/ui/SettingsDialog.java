@@ -391,7 +391,9 @@ final class SettingsDialog {
                 hosts, tags, hints, claudeAuto, theme, showOnAllDesktops,
                 refactoringMinerPort, readlineKeys,
                 fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies,
-                claudeUpdateRestart);
+                claudeUpdateRestart,
+                // [impl->dsn~todo-txt-line~1]
+                ((TextField) controls.get("todoTxt")).getText().trim());
     }
 
     /// The tag-palette editor: a row per tag pairing a name field with a color

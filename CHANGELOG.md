@@ -8,6 +8,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Added
+
+- The setting `todoTxt` names a todo.txt file, such as koppter's; a task row shows each open line of it tagged `cs:<task id>`.
+
 ### Changed
 
 - Starting ContextSwitcher while it already runs brings the running window to the front instead of opening a second copy; `--new-instance` starts one anyway.

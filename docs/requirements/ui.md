@@ -311,6 +311,19 @@ Covers:
 
 Needs: dsn
 
+### Todo lines from a todo.txt file
+`req~todo-txt-line~1`
+
+A task that a line of the user's todo.txt file names — koppter writes the tag `cs:<task id>` for that — shows that line on its row, rendered rather than raw, so what is still to do for the task is visible next to it.
+Completed lines are not shown.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Link icons for a task's other URLs
 `req~task-link-icons~2`
 
@@ -3466,5 +3479,21 @@ Tags: windows, linux
 Covers:
 - req~restart-to-update~2
 - req~running-commit~1
+
+Needs: impl, utest
+
+### Todo line under the task row
+`dsn~todo-txt-line~1`
+
+The setting `todoTxt` names the file; empty, the default, turns the lines off.
+`TodoTxt.byTask` reads every line that is not completed (`x `) and carries `cs:<id>`, the id decoded from the percent-encoded form a ContextSwitcher link has, as koppter stores it.
+It renders the line as its priority `(A)` and description, followed by chips for `+project`, `@context`, `#tag` and `due <date>`; the creation date, `cs:` and the other `key:value` tags (planning data such as `t:` or `rec:`) are left out.
+`TaskListCell` adds one line per such todo below the row's second line.
+`TodoTxt.File` reads the file again only when its modification time changes, so a row repaint costs one `stat`; an edit of the file shows on the next repaint of the list.
+
+Tags: windows, linux
+
+Covers:
+- req~todo-txt-line~1
 
 Needs: impl, utest
