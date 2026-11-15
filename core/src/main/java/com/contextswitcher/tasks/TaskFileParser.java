@@ -1836,7 +1836,7 @@ public class TaskFileParser {
         return new Task.TmuxConfig(session, window);
     }
 
-    // [impl->dsn~local-terminal-focus~5]
+    // [impl->dsn~local-terminal-focus~6]
     private Task.@Nullable TerminalConfig parseTerminal(@Nullable Map<String, Object> terminal) throws TaskParseException {
         if (terminal == null) {
             return null;

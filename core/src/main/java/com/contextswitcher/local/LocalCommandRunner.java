@@ -20,7 +20,7 @@ import org.tinylog.Logger;
 /// concurrently so output larger than the OS pipe buffer cannot deadlock
 /// `waitFor`. The local analog of the ssh runner, for desktop-integration
 /// actions that drive local tools such as `powershell`.
-// [impl->dsn~local-terminal-focus~5]
+// [impl->dsn~local-terminal-focus~6]
 public class LocalCommandRunner {
 
     /// Outcome of one local command; `stderr` is the debugging story on failure.

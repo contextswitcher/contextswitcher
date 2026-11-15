@@ -36,6 +36,7 @@ Needs: dsn
 
 A task may name a local Windows Terminal tab — a shell kept open for `gradlew` and the like, next to or instead of a remote tmux window.
 Activating a task with a `terminal` section brings that tab (identified by its fixed tab title) to the foreground, across multiple terminal windows and — where possible — virtual desktops.
+After a reboot the tab is gone; it is then reopened in the task's first local folder.
 
 Tags: windows
 
@@ -412,13 +413,14 @@ Covers:
 Needs: impl, utest
 
 ### Local Windows Terminal focus action
-`dsn~local-terminal-focus~5`
+`dsn~local-terminal-focus~6`
 
 `LocalTerminalAction` focuses the task's `terminal.tabTitle`. `WindowsTerminalFocus` builds a PowerShell UI Automation script (find the `CASCADIA_HOSTING_WINDOW_CLASS` window whose `TabItem` name equals the title, `SelectionItemPattern.Select` it, restore + Alt-tap + `SetForegroundWindow`/`BringWindowToTop`) and runs it as a base64 `-EncodedCommand` via `LocalCommandRunner` (a local child-process runner mirroring the ssh runner). The title is embedded as a single-quoted PowerShell literal with `'` doubled; exit code 0 = focused, 2 = no such tab.
 After the foreground calls, `SwitchToThisWindow` is issued as well — `SetForegroundWindow` alone does not make Windows follow a window parked on another virtual desktop; `SwitchToThisWindow` does.
 Windows parked on another virtual desktop are **cloaked** (`DWM_CLOAKED_SHELL`): absent from the UIA root, `Process.MainWindowHandle` skips them, and UIA cannot descend into their subtree — but `EnumWindows` does list them.
 When the desktop-local sweep finds no tab, the script enumerates `CASCADIA_HOSTING_WINDOW_CLASS` windows whose **window title equals the tab title** — the title shows the active tab, so a match needs no tab selection — and jumps there (`SwitchToThisWindow` switches to the window's virtual desktop; verified live).
 Accepted limitation: a non-active tab inside a window on another desktop stays unreachable — cloaked windows expose no tab list.
+When no tab has the title (exit 2) — typically after a reboot — and the task lists `folders`, the tab is reopened in the first of them: `wt -w 0 new-tab --title <title> --suppressApplicationTitle -d <folder>` (most recent window, a new one when none is open; `;`, wt's command separator, escaped), so the next switch finds it again.
 See MADR 0008.
 
 `LocalCommandRunner` does not attempt a **Windows-only program** (`powershell`, `rundll32`, `explorer`, `wt`) off Windows at all: it returns the failure `<program> is Windows-only` straight away.

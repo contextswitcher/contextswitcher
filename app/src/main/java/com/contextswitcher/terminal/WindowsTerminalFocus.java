@@ -4,6 +4,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import com.contextswitcher.local.LocalCommandRunner;
 
 /// Focuses a Windows Terminal tab by its (fixed) title using UI Automation,
@@ -15,7 +17,7 @@ import com.contextswitcher.local.LocalCommandRunner;
 /// The whole script is passed as a base64 `-EncodedCommand`, so there is no
 /// shell quoting to get wrong, no temp file, and no execution-policy prompt;
 /// the only escaping is doubling `'` for the single-quoted title literal.
-// [impl->dsn~local-terminal-focus~5]
+// [impl->dsn~local-terminal-focus~6]
 public class WindowsTerminalFocus {
 
     /// Outcome of a focus attempt.
@@ -121,9 +123,33 @@ public class WindowsTerminalFocus {
     }
 
     public FocusResult focus(String tabTitle) {
+        return focus(tabTitle, null);
+    }
+
+    /// `wt` argv opening a tab titled `tabTitle` in `folder` in the most recent
+    /// Windows Terminal window (a new window when none is open). The title is
+    /// pinned (`--suppressApplicationTitle`), so the next switch finds the tab
+    /// again; `;` is wt's command separator and is escaped.
+    // [impl->dsn~local-terminal-focus~6]
+    static List<String> openCommand(String tabTitle, String folder) {
+        return List.of("wt", "-w", "0", "new-tab", "--title", tabTitle.replace(";", "\\;"),
+                "--suppressApplicationTitle", "-d", folder.replace(";", "\\;"));
+    }
+
+    /// As [#focus(String)], but a tab that does not exist — after a reboot —
+    /// is opened in `folder` when one is given.
+    // [impl->dsn~local-terminal-focus~6]
+    public FocusResult focus(String tabTitle, @Nullable String folder) {
         LocalCommandRunner.LocalResult result = runner.run(command(tabTitle));
         if (result.exitCode() == 0) {
             return new FocusResult(true, "focused tab \"%s\"".formatted(tabTitle));
+        }
+        if (result.exitCode() == 2 && folder != null) {
+            LocalCommandRunner.LocalResult opened = runner.run(openCommand(tabTitle, folder));
+            return opened.ok()
+                    ? new FocusResult(true, "opened tab \"%s\" in %s".formatted(tabTitle, folder))
+                    : new FocusResult(false, "cannot open tab \"%s\": %s".formatted(tabTitle,
+                            opened.stderr().isBlank() ? "wt exit " + opened.exitCode() : opened.stderr().strip()));
         }
         if (result.exitCode() == 2) {
             return new FocusResult(false, "no Windows Terminal tab titled \"%s\"".formatted(tabTitle));

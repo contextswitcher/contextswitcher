@@ -131,7 +131,7 @@ class TaskFileParserTest {
         assertThat(task.intellijRemote()).isEqualTo("devbox");
     }
 
-    // [utest->dsn~local-terminal-focus~5]
+    // [utest->dsn~local-terminal-focus~6]
     @Test
     void terminalSectionParsesTabTitle() throws Exception {
         String content = """

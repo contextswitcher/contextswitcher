@@ -105,7 +105,8 @@ final class ConfigForm {
                 // [impl->dsn~browser-url-links~1]
                 case LIST -> {
                     ListFieldEditor editor = new ListFieldEditor(asStringList(seed),
-                            field.key().equals("browser.urls") ? urlActions : null);
+                            field.key().equals("browser.urls") ? urlActions : null,
+                            field.key().equals("folders"));
                     editor.setOnReordered(save);
                     yield editor;
                 }

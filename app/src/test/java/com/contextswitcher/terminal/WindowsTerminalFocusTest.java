@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~local-terminal-focus~5]
+// [utest->dsn~local-terminal-focus~6]
 class WindowsTerminalFocusTest {
 
     @Test
@@ -35,5 +35,13 @@ class WindowsTerminalFocusTest {
                 Base64.getDecoder().decode(command.getLast()), StandardCharsets.UTF_16LE);
         assertThat(decoded).isEqualTo(WindowsTerminalFocus.script("mytab"));
         assertThat(decoded).contains("$title = 'mytab'");
+    }
+
+    // [utest->dsn~local-terminal-focus~6]
+    @Test
+    void openCommandPinsTheTitleAndEscapesSemicolons() {
+        assertThat(WindowsTerminalFocus.openCommand("a;b", "C:\\p"))
+                .containsExactly("wt", "-w", "0", "new-tab", "--title", "a\\;b",
+                        "--suppressApplicationTitle", "-d", "C:\\p");
     }
 }

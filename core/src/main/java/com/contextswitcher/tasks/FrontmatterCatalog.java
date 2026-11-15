@@ -128,7 +128,7 @@ public final class FrontmatterCatalog {
                     "Matrix room opened in the Element app — a matrix.to permalink."),
             new Field("note", "OneNote", "Switch actions", Type.STRING,
                     "Opened by \"Open note\" — the page's onenote:… link (any other link works too)."),
-            // [impl->dsn~local-terminal-focus~5]
+            // [impl->dsn~local-terminal-focus~6]
             new Field("terminal.tabTitle", "Windows Terminal tab", "Switch actions", Type.STRING,
                     "Local Windows Terminal tab focused on switch, e.g. a shell for gradlew "
                             + "(the title pinned via \"Rename Tab\")."));

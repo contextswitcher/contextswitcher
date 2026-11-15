@@ -10,6 +10,8 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Added
 
+- *Local folders* has a browse button per row, and on Windows a pasted `/c/…` (Git Bash/Cygwin) path is converted to `C:\…`.
+- A task's *Windows Terminal tab* that is gone, e.g. after a reboot, is reopened in the task's first local folder on switch.
 - Android: *Add task* has an optional description with *Attach* (photo or camera); for a started Claude the images are uploaded with the prompt.
 - Android: the terminal page has *Bottom*, right of *Refresh*, jumping back to the latest output after scrolling up.
 

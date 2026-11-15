@@ -8,7 +8,7 @@ import org.junit.jupiter.api.condition.OS;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~local-terminal-focus~5]
+// [utest->dsn~local-terminal-focus~6]
 class LocalCommandRunnerTest {
 
     @Test
