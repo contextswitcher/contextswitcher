@@ -25,6 +25,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -38,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -581,7 +584,7 @@ internal fun TaskListScreen(
                     // [impl->dsn~android-task-list-navigation~1]
                     val query = searchQuery
                     if (query == null) {
-                        Text("ContextSwitcher")
+                        Text("ContextSwitcher", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     } else {
                         val focus = remember { FocusRequester() }
                         TextField(
@@ -610,10 +613,15 @@ internal fun TaskListScreen(
                             TextButton(onClick = { installUpdate() }, enabled = !updating) { Text(if (updating) "Updating…" else "Update") }
                         }
                         TextButton(onClick = { sync() }, enabled = !syncing) { Text(if (syncing) "Syncing…" else "Sync") }
-                        if (onStartTour != null && VoiceTour.categories(groups).isNotEmpty()) {
-                            TextButton(onClick = { pickingTour = true }) { Text("Tour") }
+                        // Tour and Settings behind ⋮: six buttons left the title no width.
+                        var menuOpen by remember { mutableStateOf(false) }
+                        TextButton(onClick = { menuOpen = true }) { Text("⋮") }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            if (onStartTour != null && VoiceTour.categories(groups).isNotEmpty()) {
+                                DropdownMenuItem(text = { Text("Tour") }, onClick = { menuOpen = false; pickingTour = true })
+                            }
+                            DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onOpenSettings() })
                         }
-                        TextButton(onClick = onOpenSettings) { Text("Settings") }
                     }
                 },
             )

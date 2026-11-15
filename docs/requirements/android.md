@@ -617,7 +617,7 @@ Needs: impl, utest
 ### Voice tour
 `dsn~android-voice-tour~1`
 
-`com.contextswitcher.android.voice.VoiceTour` is the tour's logic, shared by the phone's `VoiceTourScreen` and the head unit's `CarTourScreen` (reached from *Tour* in the car's task list, after picking a category in `CarTourCategoryScreen`; on the phone from *Tour* in the task list's top bar).
+`com.contextswitcher.android.voice.VoiceTour` is the tour's logic, shared by the phone's `VoiceTourScreen` and the head unit's `CarTourScreen` (reached from *Tour* in the car's task list, after picking a category in `CarTourCategoryScreen`; on the phone from *Tour* in the task list's ⋮ menu).
 `VoiceTour.of(category, groups, ssh)` takes the category's reachable tasks in `carTasks` order (`dsn~android-auto-tasks~1`: waiting first) with one status poll; `overview()` is "what is up" — the count, the waiting tasks' titles, how many work — and `announcement()` the current task's card: position, title, status, and Claude's last answer.
 That answer comes from :core's `ClaudeTranscript`: one ssh call reads the last five assistant lines of `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` (the task's `claude.cwd` and `claude.sessionId`; the encoding of `dsn~claude-session-capture~3`) and takes the text blocks of the newest line that has any — the API-request blobs on other lines never travel; a task without a session id has no answer.
 `Speaker` wraps Android's on-device `TextToSpeech`; `Dictation` is the former `CarDictation`, with the car's microphone optional: on the phone it listens through `SpeechRecognizer` directly.
