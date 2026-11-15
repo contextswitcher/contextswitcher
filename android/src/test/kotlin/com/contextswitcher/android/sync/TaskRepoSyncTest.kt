@@ -122,7 +122,7 @@ class TaskRepoSyncTest {
         assertThat(File(target, "work/lost.md")).doesNotExist()
     }
 
-    // [utest->dsn~android-queue-delete~1]
+    // [utest->dsn~android-queue-delete~2]
     @Test
     fun `deleting a queued message pushes the shorter queue, and the last one removes the file`(@TempDir tmp: File) {
         val queue = ".queues/work__first.yaml"
@@ -140,7 +140,7 @@ class TaskRepoSyncTest {
         assertThat(File(check, queue)).doesNotExist()
     }
 
-    // [utest->dsn~android-queue-delete~1]
+    // [utest->dsn~android-queue-delete~2]
     @Test
     fun `a message the desktop already removed needs no push`(@TempDir tmp: File) {
         val queue = ".queues/work__first.yaml"

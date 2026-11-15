@@ -57,12 +57,15 @@ import kotlinx.coroutines.withContext
 /// A desktop-queued message has *Delete* when [deleteQueued] is given (a touch
 /// screen has no hover to reveal it): after a confirmation it runs off the main
 /// thread and returns null on success, else the error for the Snackbar.
+/// Its *Edit* copies the message into the box; sending or enqueueing that
+/// text — edited or not, also after a detour as a draft — deletes the
+/// original, so it is not delivered twice.
 ///
 /// With [attachments], *Photo* (the system photo picker, no permission) and
 /// *Camera* (the camera app, writing through `FileProvider`) store an image and
 /// append its `[image: …]` marker to the box; the send uploads it.
 // [impl->dsn~android-queue-send~2]
-// [impl->dsn~android-queue-delete~1]
+// [impl->dsn~android-queue-delete~2]
 // [impl->dsn~android-message-images~1]
 // [impl->dsn~android-enqueue~1]
 // [impl->dsn~android-message-drafts~3]
@@ -92,6 +95,9 @@ fun QueuePage(
     var hadFocus by remember(task.id()) { mutableStateOf(false) }
     var confirmDelete by remember(task.id()) { mutableStateOf<String?>(null) }
     var deleting by remember(task.id()) { mutableStateOf(false) }
+    // The desktop-queued message the box's text, or a draft's, was edited from.
+    var boxOrigin by remember(task.id()) { mutableStateOf<String?>(null) }
+    var draftOrigins by remember(task.id()) { mutableStateOf(mapOf<String, String>()) }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
@@ -99,6 +105,9 @@ fun QueuePage(
     // few-KB text file; debounce if typing ever stutters.
     fun changeDraft(text: String) {
         draft = text
+        if (text.isBlank()) {
+            boxOrigin = null
+        }
         try {
             draftStore.saveUnsent(task.id(), text)
         } catch (e: IOException) {
@@ -112,6 +121,8 @@ fun QueuePage(
         }
         try {
             drafts = draftStore.add(task.id(), draft)
+            boxOrigin?.let { draftOrigins = draftOrigins + (draft to it) }
+            boxOrigin = null
             changeDraft("")
         } catch (e: IOException) {
             scope.launch { snackbarHostState.showSnackbar("Cannot keep the draft: ${e.message}") }
@@ -131,11 +142,27 @@ fun QueuePage(
 
     /// Puts `text` into the message box for editing — whatever the box held
     /// is kept as a draft first — and focuses the box, so the keyboard opens.
-    fun edit(text: String) {
+    fun edit(text: String, origin: String? = null) {
         keepDraft()
         changeDraft(text)
+        boxOrigin = origin
         boxFocus.requestFocus()
     }
+
+    /// Deletes the desktop-queued message `origin`, once its edit was sent.
+    fun dequeue(origin: String?) {
+        if (origin == null || deleteQueued == null) {
+            return
+        }
+        scope.launch {
+            val error = withContext(Dispatchers.IO) { deleteQueued(origin) }
+            if (error != null) {
+                snackbarHostState.showSnackbar("Sent, but cannot remove the queued message: $error")
+            }
+        }
+    }
+
+    fun takeDraftOrigin(text: String): String? = draftOrigins[text].also { draftOrigins = draftOrigins - text }
 
     fun sendText(text: String, onSent: () -> Unit) {
         sending = true
@@ -192,7 +219,7 @@ fun QueuePage(
                                 .fillMaxWidth()
                                 .clickable {
                                     if (removeDraft(text, "Cannot edit the draft")) {
-                                        edit(text)
+                                        edit(text, takeDraftOrigin(text))
                                     }
                                 }
                                 .padding(horizontal = 4.dp, vertical = 6.dp),
@@ -200,7 +227,7 @@ fun QueuePage(
                         Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                             TextButton(onClick = {
                                 if (removeDraft(text, "Cannot edit the draft")) {
-                                    edit(text)
+                                    edit(text, takeDraftOrigin(text))
                                 }
                             }) {
                                 Text("Edit")
@@ -209,7 +236,12 @@ fun QueuePage(
                                 Text("Delete")
                             }
                             TextButton(
-                                onClick = { sendText(text) { removeDraft(text, "Sent, but cannot remove the draft") } },
+                                onClick = {
+                                    sendText(text) {
+                                        removeDraft(text, "Sent, but cannot remove the draft")
+                                        dequeue(takeDraftOrigin(text))
+                                    }
+                                },
                                 enabled = !sending,
                             ) {
                                 Text("Send")
@@ -229,9 +261,9 @@ fun QueuePage(
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
                         )
-                        // Edit copies: the desktop's message stays until deleted.
+                        // Edit copies; sending the copy deletes the original.
                         Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                            TextButton(onClick = { edit(message) }) {
+                            TextButton(onClick = { edit(message, message) }) {
                                 Text("Edit")
                             }
                             if (deleteQueued != null) {
@@ -275,6 +307,7 @@ fun QueuePage(
                     onClick = {
                         try {
                             enqueued = enqueuedStore.add(task.id(), draft)
+                            dequeue(boxOrigin)
                             changeDraft("")
                         } catch (e: IOException) {
                             scope.launch { snackbarHostState.showSnackbar("Cannot enqueue: ${e.message}") }
@@ -286,7 +319,12 @@ fun QueuePage(
                 }
             }
             Button(
-                onClick = { sendText(draft) { changeDraft("") } },
+                onClick = {
+                    sendText(draft) {
+                        dequeue(boxOrigin)
+                        changeDraft("")
+                    }
+                },
                 enabled = !sending && draft.isNotBlank(),
                 modifier = Modifier.padding(start = 8.dp),
             ) {

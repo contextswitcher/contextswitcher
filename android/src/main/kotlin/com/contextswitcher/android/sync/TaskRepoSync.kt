@@ -130,7 +130,7 @@ class TaskRepoSync(private val beforePush: () -> Unit = {}) {
     /// [createTask] pushes a new task. A message already gone from the fetched
     /// queue — the desktop sent or deleted it meanwhile — needs no commit.
     /// Null on success, else the error to show.
-    // [impl->dsn~android-queue-delete~1]
+    // [impl->dsn~android-queue-delete~2]
     fun deleteQueuedMessage(dir: File, username: String, token: String, taskId: String, message: String): String? =
         pushChange(dir, username, token) { git ->
             val queueFile = QueueFile.file(dir.toPath().resolve(".queues"), taskId)

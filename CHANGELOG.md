@@ -19,6 +19,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- Android: sending (or enqueueing) a message edited from the desktop queue now removes the original from that queue, so it is not delivered twice.
 - Running the tests no longer writes into (and rotates away) the app's own logs in `~/.contextswitcher/logs`; test logs go to `app/build/test-logs/`.
 - The desktop-filter UI tests pass on Windows: the app under test no longer watches the real virtual desktop.
 - The empty terminal pane no longer says "tmux window" — a local Windows task runs in the app's own terminal, not in tmux.
