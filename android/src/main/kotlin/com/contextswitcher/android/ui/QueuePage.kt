@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.contextswitcher.android.queue.AttachmentStore
 import com.contextswitcher.android.queue.DraftStore
+import com.contextswitcher.queue.Attachments
 import com.contextswitcher.tasks.Task
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
@@ -59,13 +60,15 @@ import kotlinx.coroutines.withContext
 /// thread and returns null on success, else the error for the Snackbar.
 /// Its *Edit* copies the message into the box; sending or enqueueing that
 /// text — edited or not, also after a detour as a draft — deletes the
-/// original, so it is not delivered twice.
+/// original, so it is not delivered twice — unless the original has an
+/// attachment marker: its files are on the desktop, which the phone cannot
+/// upload, so the desktop keeps the message to send with them.
 ///
 /// With [attachments], *Photo* (the system photo picker, no permission) and
 /// *Camera* (the camera app, writing through `FileProvider`) store an image and
 /// append its `[image: …]` marker to the box; the send uploads it.
 // [impl->dsn~android-queue-send~2]
-// [impl->dsn~android-queue-delete~2]
+// [impl->dsn~android-queue-delete~3]
 // [impl->dsn~android-message-images~1]
 // [impl->dsn~android-enqueue~1]
 // [impl->dsn~android-message-drafts~3]
@@ -152,6 +155,10 @@ fun QueuePage(
     /// Deletes the desktop-queued message `origin`, once its edit was sent.
     fun dequeue(origin: String?) {
         if (origin == null || deleteQueued == null) {
+            return
+        }
+        if (Attachments.paths(origin).isNotEmpty()) {
+            scope.launch { snackbarHostState.showSnackbar("Sent; the desktop keeps its message, its attachments are there") }
             return
         }
         scope.launch {

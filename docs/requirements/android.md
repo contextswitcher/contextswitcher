@@ -76,7 +76,7 @@ Needs: dsn
 A message typed on the phone but not sent is kept as a draft of that task, the way the desktop's queue pane stores unsent text when the user clicks elsewhere: tapping outside the message box and a *Save draft* button keep it.
 Text still in the message box is never lost either: leaving the task, rotating the phone, or the app restarting — an update replacing it, a force stop — brings it back into the box.
 Drafts are listed on the queue page, each with *Edit* (back into the message box), *Delete* and *Send*.
-A message queued on the desktop has *Edit* too, which puts a copy into the message box; once that copy is sent or enqueued, the desktop's message is deleted, so it is not delivered twice.
+A message queued on the desktop has *Edit* too, which puts a copy into the message box; once that copy is sent or enqueued, the desktop's message is deleted, so it is not delivered twice — unless it has attachments, which are on the desktop and would be lost.
 Drafts stay on the phone — the desktop's queue is not changed, since the phone's copy of the task repo is replaced on every sync.
 
 Tags: android
@@ -451,12 +451,13 @@ Covers:
 Needs: impl, utest
 
 ### Delete a desktop-queued message
-`dsn~android-queue-delete~2`
+`dsn~android-queue-delete~3`
 
 The desktop deletes a queued message through a hover button; a touch screen has none, so `QueuePage` gives every message under *Queued on the desktop* a *Delete* button next to *Edit*, confirmed in a dialog and reading *Deleting…* during the round-trip.
 `TaskRepoSync.deleteQueuedMessage(dir, username, token, taskId, message)` removes the first equal message from `.queues/<task>.yaml` (`QueueFile.save`, which deletes an emptied file) and pushes it through the same write-back as `dsn~android-task-create~2` (fetch + reset, commit, push, one retry after a non-fast-forward, reset on any failure); a message already gone from the fetched queue — sent or deleted on the desktop meanwhile — needs no commit.
 `TaskDetailScreen` reloads the queue from the clone afterwards, success or not, and a failure shows in the Snackbar.
 *Edit* on such a message copies it into the message box and remembers the original, also when the box's text becomes a draft (in memory only); sending or enqueueing that text deletes the original the same way, without asking, and a failure shows as *Sent, but cannot remove the queued message* — the send itself stands.
+An original with an attachment marker (`Attachments.paths` not empty) is kept: its files lie on the desktop, which the phone cannot upload, so deleting it would lose them; a Snackbar says the desktop keeps it.
 The desktop pulls the deletion within its periodic sync (`dsn~task-git-backup~5`, five minutes); a desktop that changed the same queue meanwhile meets it in that pull, where git's line merge usually keeps both.
 
 Tags: android

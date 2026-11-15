@@ -162,7 +162,7 @@ class QueuePageTest {
         composeRule.onNodeWithText("Message").assertIsFocused()
     }
 
-    // [utest->dsn~android-queue-delete~2]
+    // [utest->dsn~android-queue-delete~3]
     @Test
     fun `Delete on a desktop message asks first, then deletes that message`() {
         val deleted = mutableListOf<String>()
@@ -197,7 +197,7 @@ class QueuePageTest {
         composeRule.onNodeWithText("Message").assertIsFocused()
     }
 
-    // [utest->dsn~android-queue-delete~2]
+    // [utest->dsn~android-queue-delete~3]
     @Test
     fun `sending an edited desktop message deletes the original`() {
         val sent = mutableListOf<String>()
@@ -216,7 +216,25 @@ class QueuePageTest {
         assertThat(deleted).containsExactly("queued on the desktop")
     }
 
-    // [utest->dsn~android-queue-delete~2]
+    // [utest->dsn~android-queue-delete~3]
+    @Test
+    fun `an edited desktop message with an attachment stays on the desktop`() {
+        val sent = mutableListOf<String>()
+        val deleted = mutableListOf<String>()
+        composeRule.setContent {
+            QueuePage(task, listOf("look [image: C:\\Users\\me\\shot.png]"), drafts, send = { sent += it; null },
+                snackbarHostState = SnackbarHostState(), deleteQueued = { deleted += it; null })
+        }
+
+        composeRule.onNodeWithText("Edit").performClick()
+        composeRule.onAllNodesWithText("Send").onLast().performClick()
+        composeRule.waitUntil(5_000) { sent.isNotEmpty() }
+        composeRule.waitForIdle()
+
+        assertThat(deleted).isEmpty()
+    }
+
+    // [utest->dsn~android-queue-delete~3]
     @Test
     fun `an edited desktop message kept as a draft still deletes the original when sent`() {
         val deleted = mutableListOf<String>()
