@@ -40,8 +40,8 @@ import org.tinylog.Logger;
 /// the app starts) and the running app, whose [#pending] projection needs
 /// no commit at all: it diffs any blamed changelog — the working tree, a
 /// fetched `@{u}` — against the last announced copy on disk
-/// (`dsn~whats-new-upstream~7`).
-// [impl->dsn~whats-new-upstream~7]
+/// (`dsn~whats-new-upstream~8`).
+// [impl->dsn~whats-new-upstream~8]
 public final class WhatsNew {
 
     /// Who wrote a bullet in this checkout: uncommitted, or committed under `user.email`.
@@ -54,10 +54,14 @@ public final class WhatsNew {
     /// author's name, [#ME] or [#ME_REMOTELY].
     public record Item(String by, String day, String heading, List<String> lines) {
 
-        /// The bullet regardless of who wrote it — the identity the pending
-        /// projection deduplicates and diffs by.
+        /// The bullet's text alone — the identity the pending projection
+        /// deduplicates and diffs by. Neither who wrote it nor where it sits:
+        /// the morning release renames `[Unreleased]` to that day's version,
+        /// which must not make every bullet news again (field report
+        /// 2026-11-14), and a bullet the local tree still has under
+        /// *Unreleased* is the same one upstream has under the release.
         Item key() {
-            return new Item("", day, heading, lines);
+            return new Item("", "", "", lines);
         }
     }
 
@@ -192,14 +196,26 @@ public final class WhatsNew {
         return fresh.entrySet().stream().filter(e -> !old.contains(e.getKey())).map(Map.Entry::getValue).toList();
     }
 
-    /// Replaces the announced copy with every source seen: their bullets are
-    /// old from now on, whichever trigger sees them next. Written on the
-    /// first run too, so the copy exists to diff against.
+    /// Adds every bullet of `sources` to the announced copy: they are old from
+    /// now on, whichever trigger sees them next — and stay old whatever is
+    /// checked out later, so going back to an older commit and forward again
+    /// shows nothing twice. The copy holds bullets only, each once by
+    /// [Item#key]; a copy from before, a whole changelog, reads the same.
+    /// Written on the first run too, so the copy exists to diff against.
     public static void announce(Path copy, Map<Boolean, Source> sources) throws IOException {
         Files.createDirectories(copy.getParent());
-        List<String> all = new ArrayList<>();
-        sources.values().forEach(s -> all.addAll(s.lines()));
-        Files.write(copy, all);
+        Set<Item> all = new java.util.LinkedHashSet<>();
+        List<String> announced = read(copy);
+        if (announced != null) {
+            bullets(announced, n -> "").forEach(it -> all.add(it.key()));
+        }
+        sources.values().forEach(s -> bullets(s.lines(), n -> "").forEach(it -> all.add(it.key())));
+        List<String> out = new ArrayList<>();
+        for (Item it : all) {
+            out.add("- " + it.lines().getFirst());
+            it.lines().stream().skip(1).forEach(l -> out.add("  " + l));
+        }
+        Files.write(copy, out);
     }
 
     private static @Nullable List<String> read(Path file) {

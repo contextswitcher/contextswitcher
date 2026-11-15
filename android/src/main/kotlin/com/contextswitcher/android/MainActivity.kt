@@ -25,6 +25,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -38,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -254,6 +257,7 @@ private fun ContextSwitcherApp(
                         updates = updates,
                         liveTasks = remember { LiveTaskStarter(TaskRepoSync(), ssh, messageSender) },
                         listState = taskListState,
+                        attachmentStore = remember { AttachmentStore(File(repoDir.parentFile, "attachments")) },
                     )
                 }
             }
@@ -406,6 +410,7 @@ internal fun TaskListScreen(
     updates: AppUpdates? = null,
     liveTasks: LiveTaskStarter? = null,
     listState: LazyListState = rememberLazyListState(),
+    attachmentStore: AttachmentStore? = null,
 ) {
     var groups by remember { mutableStateOf<List<TaskGroupUi>>(emptyList()) }
     var update by remember { mutableStateOf<AppUpdates.Check?>(null) }
@@ -478,13 +483,13 @@ internal fun TaskListScreen(
     }
 
     // [impl->dsn~android-task-create~2]
-    fun addTask(category: String, title: String) {
+    fun addTask(category: String, title: String, notes: String) {
         val settings = settingsStore.load() ?: return
         taskBeingAdded = true
         addTaskError = null
         scope.launch {
             val outcome = withContext(Dispatchers.IO) {
-                TaskRepoSync().createTask(repoDir, settings.username, settings.token, category, title)
+                TaskRepoSync().createTask(repoDir, settings.username, settings.token, category, title, notes)
             }
             taskBeingAdded = false
             when (outcome) {
@@ -505,7 +510,7 @@ internal fun TaskListScreen(
     var addProgress by remember { mutableStateOf<String?>(null) }
 
     // [impl->dsn~android-live-task~4]
-    fun startClaudeTask(category: String, title: String, mode: ClaudeMode, skipPermissions: Boolean) {
+    fun startClaudeTask(category: String, title: String, notes: String, mode: ClaudeMode, skipPermissions: Boolean) {
         val settings = settingsStore.load() ?: return
         val starter = liveTasks ?: return
         settingsStore.saveSkipPermissions(skipPermissions)
@@ -514,7 +519,7 @@ internal fun TaskListScreen(
         addProgress = null
         scope.launch {
             val outcome = withContext(Dispatchers.IO) {
-                starter.start(repoDir, settings.username, settings.token, category, title, mode, skipPermissions,
+                starter.start(repoDir, settings.username, settings.token, category, title, notes, mode, skipPermissions,
                     onStep = { addProgress = it },
                     onCreated = { taskId ->
                         // The task is in the repo: open it, so its terminal shows Claude starting.
@@ -579,7 +584,7 @@ internal fun TaskListScreen(
                     // [impl->dsn~android-task-list-navigation~1]
                     val query = searchQuery
                     if (query == null) {
-                        Text("ContextSwitcher")
+                        Text("ContextSwitcher", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     } else {
                         val focus = remember { FocusRequester() }
                         TextField(
@@ -608,10 +613,15 @@ internal fun TaskListScreen(
                             TextButton(onClick = { installUpdate() }, enabled = !updating) { Text(if (updating) "Updating…" else "Update") }
                         }
                         TextButton(onClick = { sync() }, enabled = !syncing) { Text(if (syncing) "Syncing…" else "Sync") }
-                        if (onStartTour != null && VoiceTour.categories(groups).isNotEmpty()) {
-                            TextButton(onClick = { pickingTour = true }) { Text("Tour") }
+                        // Tour and Settings behind ⋮: six buttons left the title no width.
+                        var menuOpen by remember { mutableStateOf(false) }
+                        TextButton(onClick = { menuOpen = true }) { Text("⋮") }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            if (onStartTour != null && VoiceTour.categories(groups).isNotEmpty()) {
+                                DropdownMenuItem(text = { Text("Tour") }, onClick = { menuOpen = false; pickingTour = true })
+                            }
+                            DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onOpenSettings() })
                         }
-                        TextButton(onClick = onOpenSettings) { Text("Settings") }
                     }
                 },
             )
@@ -653,12 +663,13 @@ internal fun TaskListScreen(
                 .ifEmpty { categories.firstOrNull { it.isNotEmpty() } ?: "" },
             adding = taskBeingAdded,
             error = addTaskError,
-            onAdd = { category, title -> addTask(category, title) },
+            onAdd = ::addTask,
             onDismiss = { addingTask = false },
             remoteOf = { category -> liveTasks?.remoteOf(repoDir, category) },
             onStartClaude = if (liveTasks == null) null else ::startClaudeTask,
             initialSkipPermissions = remember { settingsStore.loadSkipPermissions() },
             progress = addProgress,
+            attachments = attachmentStore,
         )
     }
 }

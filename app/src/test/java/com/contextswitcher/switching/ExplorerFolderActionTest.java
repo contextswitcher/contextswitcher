@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~explorer-folder-focus~3]
+// [utest->dsn~explorer-folder-focus~4]
 class ExplorerFolderActionTest {
 
     /// A focus that returns a canned local result, so no PowerShell runs —

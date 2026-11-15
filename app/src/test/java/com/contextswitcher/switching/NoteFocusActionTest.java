@@ -12,7 +12,7 @@ import com.contextswitcher.tasks.TaskStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // [utest->dsn~note-focus-action~1]
-// [utest->dsn~window-move-here~1]
+// [utest->dsn~window-move-here~2]
 class NoteFocusActionTest {
 
     private static Task task(String id, @Nullable String note) {

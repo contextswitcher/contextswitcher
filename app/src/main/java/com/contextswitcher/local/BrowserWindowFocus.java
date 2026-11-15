@@ -83,6 +83,9 @@ public class BrowserWindowFocus {
               }
             }
             "@
+            Add-Type -TypeDefinition @"
+            __MOVE_TYPES__
+            "@
             function Test-CsBrowserWindow($h) {
               if (-not [CsFf]::IsWindowVisible($h)) { return $false }
               $cls = New-Object System.Text.StringBuilder 256
@@ -94,13 +97,16 @@ public class BrowserWindowFocus {
 
     /// Raises `$found` (restoring it when minimized) past the foreground lock
     /// and prints its caption, so the caller can name the window elsewhere.
+    /// A window on another desktop is moved here first and left alone when
+    /// that fails (exit 3, `CsMv.Focus`, [WindowsWindowMove]): raising it would
+    /// switch the user to its desktop.
     private static final String RAISE = """
             if ($found -ne [IntPtr]::Zero) {
-              if ([CsFf]::IsIconic($found)) { [CsFf]::ShowWindow($found, 9) | Out-Null }
-              [CsFf]::keybd_event(0x12, 0, 0, [IntPtr]::Zero)
-              [CsFf]::keybd_event(0x12, 0, 2, [IntPtr]::Zero)
-              [CsFf]::SetForegroundWindow($found) | Out-Null
-              [CsFf]::BringWindowToTop($found) | Out-Null
+              $outcome = [CsMv]::Focus($found)
+              if ($outcome -like 'elsewhere*') {
+                Write-Output $outcome
+                exit 3
+              }
               $caption = New-Object System.Text.StringBuilder 1024
               [CsFf]::GetWindowText($found, $caption, 1024) | Out-Null
               Write-Output $caption.ToString()
@@ -170,7 +176,8 @@ public class BrowserWindowFocus {
     /// The class/process pair of the configured browser patched into a script
     /// template — what turns the shared PowerShell into *this* browser's.
     private String forBrowser(String template) {
-        return template.replace("__CLASS__", browser.windowClass())
+        return template.replace("__MOVE_TYPES__", WindowsWindowMove.TYPES.strip())
+                .replace("__CLASS__", browser.windowClass())
                 .replace("__PROCESS__", browser.processName());
     }
 
@@ -243,7 +250,9 @@ public class BrowserWindowFocus {
         if (result.exitCode() == 0) {
             return true;
         }
-        if (result.exitCode() != 2) {
+        if (result.exitCode() == 3) {
+            Logger.info("Browser window focus: left on its desktop: {}", result.stdout().strip());
+        } else if (result.exitCode() != 2) {
             Logger.debug("Browser window focus unavailable ({}): {}",
                     result.exitCode(), result.stderr().strip());
         }

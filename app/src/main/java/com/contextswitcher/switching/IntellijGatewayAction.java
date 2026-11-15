@@ -24,7 +24,7 @@ import com.contextswitcher.tasks.Task;
 /// `intellij.projectPath`, else Claude workspace, else Claude cwd); the IDE
 /// path via `intellij.ide`, else the injected remote lookup
 /// ([RemoteIdeLookup]) — Gateway 2026.1 refuses a link without one.
-// [impl->dsn~gateway-url-action~11]
+// [impl->dsn~gateway-url-action~12]
 public class IntellijGatewayAction implements SwitchAction {
 
     private final Consumer<String> urlLauncher;

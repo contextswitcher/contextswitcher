@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~gateway-url-action~11]
+// [utest->dsn~gateway-url-action~12]
 class IntellijGatewayActionTest {
 
     @Test

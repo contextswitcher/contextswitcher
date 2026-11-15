@@ -1,9 +1,14 @@
 package com.contextswitcher.ui;
 
+import java.io.File;
 import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import atlantafx.base.theme.Styles;
 
+import com.contextswitcher.local.LocalCommandRunner;
 import com.contextswitcher.tasks.Task;
 
 import javafx.beans.binding.Bindings;
@@ -16,6 +21,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
@@ -24,10 +30,12 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
 
 import org.jspecify.annotations.Nullable;
 
 import tools.maran.svg.materialdesign.MDIInterface;
+import tools.maran.svg.materialdesign.MDITechnology;
 import tools.maran.svgnode.SvgNode;
 
 /// A list field of the configuration forms (`dsn~task-field-form~6`): one
@@ -53,6 +61,9 @@ final class ListFieldEditor extends VBox {
     private static final PseudoClass DROP_TARGET = PseudoClass.getPseudoClass("drop-target");
 
     private final @Nullable BrowserUrlActions actions;
+    /// Entries are local folders: a browse button per row, and a pasted
+    /// Cygwin/Git-Bash path converted ([#windowsPath]).
+    private final boolean folders;
     /// The browser's tab in view, re-matched when an entry is edited.
     private @Nullable String browserTab;
     /// The row being dragged, so a drag from anywhere else is not accepted.
@@ -64,8 +75,13 @@ final class ListFieldEditor extends VBox {
     }
 
     ListFieldEditor(List<String> entries, @Nullable BrowserUrlActions actions) {
+        this(entries, actions, false);
+    }
+
+    ListFieldEditor(List<String> entries, @Nullable BrowserUrlActions actions, boolean folders) {
         super(2);
         this.actions = actions;
+        this.folders = folders;
         for (String entry : entries) {
             addRow(entry);
         }
@@ -137,6 +153,9 @@ final class ListFieldEditor extends VBox {
         if (actions != null) {
             addLink(row, field, actions);
         }
+        if (folders) {
+            addBrowse(row, field);
+        }
         field.textProperty().addListener((obs, old, now) -> {
             if (isLast(row) && !now.isEmpty()) {
                 addRow("");
@@ -153,6 +172,54 @@ final class ListFieldEditor extends VBox {
         });
         getChildren().add(row);
         renumber();
+    }
+
+    /// A `/c/…`, `/cygdrive/c/…` or `/mnt/c/…` path as Windows writes it
+    /// (`C:\\…`); anything else unchanged.
+    // [impl->dsn~task-field-form~6]
+    static String windowsPath(String text) {
+        Matcher m = POSIX_DRIVE.matcher(text.strip());
+        if (!m.matches()) {
+            return text;
+        }
+        String rest = m.group(2) == null ? "" : m.group(2);
+        return m.group(1).toUpperCase(Locale.ROOT) + ":" + (rest.isEmpty() ? "\\" : rest.replace('/', '\\'));
+    }
+
+    private static final Pattern POSIX_DRIVE = Pattern.compile("/(?:cygdrive/|mnt/)?([a-zA-Z])(/.*)?");
+
+    /// A folder row: a browse button at the right end, and a pasted
+    /// POSIX drive path converted on Windows (typing goes char by char, so
+    /// only an insertion longer than one char — a paste — is touched).
+    // [impl->dsn~task-field-form~6]
+    private void addBrowse(HBox row, TextField field) {
+        if (LocalCommandRunner.onWindows()) {
+            field.setTextFormatter(new TextFormatter<String>(change -> {
+                if (change.getText().length() > 1) {
+                    change.setText(windowsPath(change.getText()));
+                }
+                return change;
+            }));
+        }
+        Button browse = new Button(null, new SvgNode(MDITechnology.FOLDER_OPEN_OUTLINE.path(), 14));
+        browse.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
+        browse.setFocusTraversable(false);
+        browse.setTooltip(new Tooltip("Choose a folder"));
+        browse.setOnAction(event -> {
+            DirectoryChooser chooser = new DirectoryChooser();
+            chooser.setTitle("Local folder");
+            File current = new File(field.getText().strip());
+            if (current.isDirectory()) {
+                chooser.setInitialDirectory(current);
+            }
+            File picked = chooser.showDialog(getScene().getWindow());
+            if (picked != null) {
+                field.setText(picked.getAbsolutePath());
+                // The button took no focus, so no focus loss will save it.
+                onReordered.run();
+            }
+        });
+        row.getChildren().add(browse);
     }
 
     /// Turns the row into a link with an edit button next to the delete one,

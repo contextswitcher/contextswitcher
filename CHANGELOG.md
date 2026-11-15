@@ -6,10 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-15] - 2026-11-15
+
+### Added
+
+- *Local folders* has a browse button per row, and on Windows a pasted `/c/…` (Git Bash/Cygwin) path is converted to `C:\…`.
+- A task's *Windows Terminal tab* that is gone, e.g. after a reboot, is reopened in the task's first local folder on switch.
+- Android: *Add task* has an optional description with *Attach* (photo or camera); for a started Claude the images are uploaded with the prompt.
+- Android: the terminal page has *Bottom*, right of *Refresh*, jumping back to the latest output after scrolling up.
+
+### Fixed
+
+- A switch no longer pulls you to another virtual desktop when an Explorer, Windows Terminal, JetBrains Client or browser window it focuses sits there: the window is moved to the desktop in view first, and when that does not work it is left alone (Explorer opens a new window here instead).
+- The UI tests no longer open Explorer, switch virtual desktops or move windows on the machine running them.
+- Clicking another category's header opens its config in *Configuration* and *Switch actions* again; before, they kept showing the previously opened file.
+- Android: the task list's top bar no longer grows to half the screen; *Tour* and *Settings* moved into a ⋮ menu, and a long task title wraps (at most three lines) instead of squeezing its status into a vertical column of letters.
+
 ## [2026-11-13] - 2026-11-13
 
 ### Added
 
+- The *Windows Terminal tab* field moved from *Configuration* to *Switch actions*: it focuses a local terminal tab (e.g. a shell for gradlew) on every switch, also next to a tmux window.
 - *Switch actions* has *Open in VS Code*: a switch opens a new VS Code window on the current desktop at the task's project directory (via Remote-SSH for a task on a host).
 - Android: the task list has a search button (🔍) that narrows it to the tasks whose title, tag or category matches.
 - Android: tapping a category header lists all categories; picking one scrolls to it.
@@ -32,6 +49,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - With *Show active desktop only* on, a category belonging to the desktop in view stays in the list even when *Show running tasks only* hides all its tasks.
 - *Awaits input only (N)* counts only the tasks the filter would show — with *Show active desktop only* on, those of the desktop in view.
 - A task whose folder path is long and contains spaces no longer gets a broken (unparseable) `claude:` section when the app writes it.
+- After the daily release, the "What's new" window no longer lists every change of that release again as pending, although they had already been seen; a change seen once also stays seen after going back to an older version and forward again.
 - A local task in a folder whose path contains spaces (OneDrive's do) finds its Claude transcript again, so it resumes the right conversation and *Delete* can remove the transcript.
 
 ## [2026-11-12] - 2026-11-12
@@ -317,6 +335,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-15]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-13...v2026-11-15
 [2026-11-13]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-12...v2026-11-13
 [2026-11-12]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-09...v2026-11-12
 [2026-11-09]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-05...v2026-11-09

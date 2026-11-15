@@ -318,6 +318,19 @@ Covers:
 
 Needs: impl, utest
 
+### Jump to the end of the terminal
+`dsn~android-terminal-bottom~1`
+
+Right of *Refresh*, *Bottom* scrolls the terminal page to the end of what is loaded; it is enabled only while the reader is scrolled up (`followEnd` false).
+Reaching the end resumes following and the poll as in `dsn~android-terminal-snapshot~3`.
+
+Tags: android
+
+Covers:
+- req~android-terminal-snapshot~3
+
+Needs: impl, utest
+
 ### Queue page
 `dsn~android-queue-send~2`
 
@@ -376,6 +389,20 @@ Tags: android
 
 Covers:
 - req~message-queue~2
+
+Needs: impl, utest
+
+### Description and images when adding a task on the phone
+`dsn~android-task-images~1`
+
+`AddTaskDialog` has an optional multi-line *Description* under the title and, below it, the queue page's *Attach* menu (*Photo*, *Camera*; the shared `AttachMenu` composable of `dsn~android-message-images~1`), which appends the stored image's `Attachments.marker` to the description; a failed attach shows under the fields.
+A plain task (`TaskRepoSync.createTask`) gets the description under `# Notes`.
+A started Claude (`LiveTaskStarter.start`) gets title and description inside the prompt's fence, so `MessageSender` uploads the images and rewrites their markers like a queued message's; the task file keeps the description under `# Notes` after the title, and title, file name and tmux window stay the title alone.
+
+Tags: android
+
+Covers:
+- req~task-create~1
 
 Needs: impl, utest
 
@@ -590,7 +617,7 @@ Needs: impl, utest
 ### Voice tour
 `dsn~android-voice-tour~1`
 
-`com.contextswitcher.android.voice.VoiceTour` is the tour's logic, shared by the phone's `VoiceTourScreen` and the head unit's `CarTourScreen` (reached from *Tour* in the car's task list, after picking a category in `CarTourCategoryScreen`; on the phone from *Tour* in the task list's top bar).
+`com.contextswitcher.android.voice.VoiceTour` is the tour's logic, shared by the phone's `VoiceTourScreen` and the head unit's `CarTourScreen` (reached from *Tour* in the car's task list, after picking a category in `CarTourCategoryScreen`; on the phone from *Tour* in the task list's ⋮ menu).
 `VoiceTour.of(category, groups, ssh)` takes the category's reachable tasks in `carTasks` order (`dsn~android-auto-tasks~1`: waiting first) with one status poll; `overview()` is "what is up" — the count, the waiting tasks' titles, how many work — and `announcement()` the current task's card: position, title, status, and Claude's last answer.
 That answer comes from :core's `ClaudeTranscript`: one ssh call reads the last five assistant lines of `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` (the task's `claude.cwd` and `claude.sessionId`; the encoding of `dsn~claude-session-capture~3`) and takes the text blocks of the newest line that has any — the API-request blobs on other lines never travel; a task without a session id has no answer.
 `Speaker` wraps Android's on-device `TextToSpeech`; `Dictation` is the former `CarDictation`, with the car's microphone optional: on the phone it listens through `SpeechRecognizer` directly.

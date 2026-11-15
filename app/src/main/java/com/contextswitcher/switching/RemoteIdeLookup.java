@@ -11,7 +11,7 @@ import org.tinylog.Logger;
 /// `idePath` in connect links ("Invalid ssh link parameters: doesn't contain
 /// idePath"), so a task without a pinned `intellij.ide` falls back to this
 /// lookup.
-// [impl->dsn~gateway-url-action~11]
+// [impl->dsn~gateway-url-action~12]
 public class RemoteIdeLookup {
 
     private final SshCommandRunner ssh;

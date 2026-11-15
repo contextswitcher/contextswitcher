@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~window-move-here~1]
+// [utest->dsn~window-move-here~2]
 class WindowsWindowMoveTest {
 
     @Test
@@ -54,5 +54,23 @@ class WindowsWindowMoveTest {
         assertThat(WindowsWindowMove.parse("OneNote", "here\n").note()).isNull();
         assertThat(WindowsWindowMove.parse("OneNote", "none\n").note()).isNull();
         assertThat(WindowsWindowMove.parse("OneNote", "failed: E_NOINTERFACE\n").outcome()).isEqualTo("failed");
+    }
+
+    /// A move that throws, or returns without moving (a shifted COM slot on
+    /// another build), must not count: `Here` re-checks with the documented
+    /// `IsWindowOnCurrentVirtualDesktop`, and `Focus` raises a window only when
+    /// it is here — raising one elsewhere switches desktops (field report
+    /// 2026-11-15, Insider build 26300).
+    @Test
+    void aWindowIsRaisedOnlyOnceItIsVerifiablyOnThisDesktop() {
+        String types = WindowsWindowMove.TYPES;
+        assertThat(types).contains(
+                "return IsHere(hwnd) ? \"moved\" : \"failed: still on another desktop after the move\";");
+        String focus = types.substring(types.indexOf("public static string Focus("));
+        focus = focus.substring(0, focus.indexOf("return outcome;"));
+        assertThat(focus.indexOf("if (outcome.StartsWith(\"failed\")) { return \"elsewhere: \" + outcome; }"))
+                .isPositive()
+                .isLessThan(focus.indexOf("Front(hwnd);"));
+        assertThat(types).doesNotContain("SwitchToThisWindow");
     }
 }

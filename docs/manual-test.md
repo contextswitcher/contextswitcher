@@ -1226,7 +1226,7 @@ Only the parts a robot cannot reach — the chords in a plain text box are cover
 - [ ] In a **text input**, `Ctrl+F` moves the caret one character on instead of opening the find bar; with the focus on the task list or the terminal, `Ctrl+F` still opens it.
 - [ ] In the **embedded terminal**, `Ctrl+A`, `Ctrl+E`, `Ctrl+W` reach the remote shell/tmux unchanged (tmux prefix `Ctrl+A` still works if that is your binding).
 
-## Category action defaults, folder list, machine suffixes (`dsn~category-action-defaults~1`, `dsn~explorer-folder-focus~3`, `dsn~machine-key-variants~1`)
+## Category action defaults, folder list, machine suffixes (`dsn~category-action-defaults~1`, `dsn~explorer-folder-focus~4`, `dsn~machine-key-variants~1`)
 
 The parsing and merging are unit-tested; what needs a real box is Explorer, Firefox, and a second machine.
 
@@ -1369,7 +1369,7 @@ Install the debug APK (`:android:assembleDebug`), a task backup repo (MADR 0011)
 - [ ] Push a task change to the backup repo from the desktop, tap **Sync** on the phone → the change appears after the sync completes.
 - [ ] Corrupt one task file in the backup repo (e.g. remove the closing `---` fence), push, sync → that file shows as a red row naming the file and the parse error, the rest of the list is unaffected.
 - [ ] Sync with the phone offline, or with a wrong token → a Snackbar reports the failure and the previously synced list stays on screen, unchanged.
-- [ ] Tap **Settings** from the task list, change the URL, save → the app returns to the task list and re-syncs against the new repo.
+- [ ] Tap ⋮ → **Settings** from the task list, change the URL, save → the app returns to the task list and re-syncs against the new repo.
 
 ## Android tablet layout (`dsn~android-large-screen~1`)
 
@@ -1394,7 +1394,7 @@ Needs the debug APK on a phone with synced tasks, and a car or the Desktop Head 
 
 Needs the debug APK on a phone with synced tasks of a category whose tasks record `claude.sessionId`, a Claude session or two in that category, and the phone's audio on a speaker (the car's Bluetooth does).
 
-- [ ] Task list, *Tour* → the dialog lists only categories with a reachable task; pick one → the phone says "<category>: N tasks. Waiting for you: …" and then the first task's title, status and Claude's last answer, as prose, not as terminal lines.
+- [ ] Task list, ⋮ → *Tour* → the dialog lists only categories with a reachable task; pick one → the phone says "<category>: N tasks. Waiting for you: …" and then the first task's title, status and Claude's last answer, as prose, not as terminal lines.
 - [ ] *Next* / *Previous* step and speak; *Repeat* speaks the card again; the last task has *Next* disabled.
 - [ ] *Dictate* → the first time Android asks for the microphone; the spoken sentence appears under *Heard:*; *Send* delivers it, the session's reply comes in a few sentences without tables, and within about ten seconds of Claude finishing the phone reads it out.
 - [ ] Without network, *Send* → "Not sent, kept on the phone"; the message is in the task's enqueued list.

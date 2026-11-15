@@ -73,9 +73,10 @@ public class WhatsNew {
         // without this the user reads the news in this window and then finds
         // the very same bullets waiting as dots (field report 2026-09-12:
         // nine pending changes, all of them just installed). Two markers for
-        // one question; this keeps them agreeing.
-        Files.copy(Path.of("CHANGELOG.md"), announced,
-                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        // one question; this keeps them agreeing. Adds to the copy rather
+        // than replacing it, as the app does: a bullet seen once stays seen.
+        com.contextswitcher.ui.WhatsNew.announce(announced, java.util.Map.of(true,
+                new com.contextswitcher.ui.WhatsNew.Source(Files.readAllLines(Path.of("CHANGELOG.md")), List.of(), List.of())));
         if (last.isEmpty() || last.equals(head)) {
             return;
         }

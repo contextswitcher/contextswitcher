@@ -34,7 +34,9 @@ Needs: dsn
 ### Focus local Windows Terminal tab
 `req~focus-local-terminal~1`
 
-A task's session may run in a local Windows Terminal tab instead of a remote tmux window. Activating a task with a `terminal` section brings that tab (identified by its fixed tab title) to the foreground, across multiple terminal windows and — where possible — virtual desktops.
+A task may name a local Windows Terminal tab — a shell kept open for `gradlew` and the like, next to or instead of a remote tmux window.
+Activating a task with a `terminal` section brings that tab (identified by its fixed tab title) to the foreground, across multiple terminal windows and — where possible — virtual desktops.
+After a reboot the tab is gone; it is then reopened in the task's first local folder.
 
 Tags: windows
 
@@ -411,18 +413,20 @@ Covers:
 Needs: impl, utest
 
 ### Local Windows Terminal focus action
-`dsn~local-terminal-focus~5`
+`dsn~local-terminal-focus~7`
 
 `LocalTerminalAction` focuses the task's `terminal.tabTitle`. `WindowsTerminalFocus` builds a PowerShell UI Automation script (find the `CASCADIA_HOSTING_WINDOW_CLASS` window whose `TabItem` name equals the title, `SelectionItemPattern.Select` it, restore + Alt-tap + `SetForegroundWindow`/`BringWindowToTop`) and runs it as a base64 `-EncodedCommand` via `LocalCommandRunner` (a local child-process runner mirroring the ssh runner). The title is embedded as a single-quoted PowerShell literal with `'` doubled; exit code 0 = focused, 2 = no such tab.
-After the foreground calls, `SwitchToThisWindow` is issued as well — `SetForegroundWindow` alone does not make Windows follow a window parked on another virtual desktop; `SwitchToThisWindow` does.
+The raise goes through `CsMv.Focus` (`dsn~window-move-here~2`): a window is raised only when it is on the virtual desktop in view, after a move there when needed; one that stays elsewhere is left alone, since raising it switches the user to its desktop.
 Windows parked on another virtual desktop are **cloaked** (`DWM_CLOAKED_SHELL`): absent from the UIA root, `Process.MainWindowHandle` skips them, and UIA cannot descend into their subtree — but `EnumWindows` does list them.
-When the desktop-local sweep finds no tab, the script enumerates `CASCADIA_HOSTING_WINDOW_CLASS` windows whose **window title equals the tab title** — the title shows the active tab, so a match needs no tab selection — and jumps there (`SwitchToThisWindow` switches to the window's virtual desktop; verified live).
+When the desktop-local sweep finds no tab, the script enumerates `CASCADIA_HOSTING_WINDOW_CLASS` windows whose **window title equals the tab title** — the title shows the active tab, so a match needs no tab selection — and brings that window here (`CsMv.Focus`). When it cannot be moved, the script exits 3, the action fails with `tab "<title>" is on another desktop`, and no tab is reopened: the user is never switched to another desktop (field report 2026-11-15; the earlier `SwitchToThisWindow` jump is gone).
 Accepted limitation: a non-active tab inside a window on another desktop stays unreachable — cloaked windows expose no tab list.
+When no tab has the title (exit 2) — typically after a reboot — and the task lists `folders`, the tab is reopened in the first of them: `wt -w 0 new-tab --title <title> --suppressApplicationTitle -d <folder>` (most recent window, a new one when none is open; `;`, wt's command separator, escaped), so the next switch finds it again.
 See MADR 0008.
 
 `LocalCommandRunner` does not attempt a **Windows-only program** (`powershell`, `rundll32`, `explorer`, `wt`) off Windows at all: it returns the failure `<program> is Windows-only` straight away.
 The integrations driving them are Windows-only by design, and one of them — the active-desktop read (`dsn~active-desktop-filter~6`) — polls, so a spawn attempt per tick filled the log with `Cannot run program "powershell"` while telling the user nothing.
 The persistent active-desktop watcher, which spawns its process itself, checks the OS for the same reason.
+With the system property `contextswitcher.noDesktopSideEffects` set — the `uiTest` task sets it — `LocalCommandRunner` does not start the programs that act on the user's desktop either (`powershell`, `pwsh`, `explorer`, `wt`, `rundll32`, `code`) and fails them like a missing program: UI tests click folder buttons and run category switches, and those must not focus Explorer, switch the developer's virtual desktop or move their windows (field report 2026-11-15). The read-only active-desktop watcher is unaffected.
 
 Tags: windows
 
@@ -446,12 +450,12 @@ Covers:
 Needs: impl, utest
 
 ### Explorer folder focus action
-`dsn~explorer-folder-focus~3`
+`dsn~explorer-folder-focus~4`
 
 `ExplorerFolderAction` (chip `folder`) focuses each of the task's `folders`, in file order — so the last one ends up in front — and is configured exactly when the list is non-empty.
 A folder that fails does not stop the rest: the chip fails naming the folders that did not open (`n of m failed: …`), and a single-folder task keeps the plain wording of the one result.
 `TaskFileParser.parseFolders` reads the list from `folders`, accepting a `folder` scalar as the one-entry form (what a local category's generated task file writes, `dsn~group-config-apply~2`) and dropping blank entries; the same pair of keys is read from a category's `CONTEXTSWITCHER.md` (`dsn~category-action-defaults~1`).
-`LocalFolderFocus` handles one folder per call: it builds a PowerShell script that enumerates open File Explorer windows via the `Shell.Application` COM object (`.Windows()`) and matches each window's `Document.Folder.Self.Path` against the target (case-insensitive, trailing separators trimmed); a match is brought forward by its `HWND` (restore + Alt-tap + `SetForegroundWindow` + `SwitchToThisWindow`, the same cross-desktop foreground dance as the terminal action). With no window showing the folder, `explorer.exe <folder>` opens a fresh one. The script runs as a base64 `-EncodedCommand` via `LocalCommandRunner`; the folder is a single-quoted PowerShell literal with `'` doubled. Exit code 0 = focused or opened, 2 = the folder does not exist.
+`LocalFolderFocus` handles one folder per call: it builds a PowerShell script that enumerates open File Explorer windows via the `Shell.Application` COM object (`.Windows()`) and matches each window's `Document.Folder.Self.Path` against the target (case-insensitive, trailing separators trimmed); a match is brought forward by its `HWND` through `CsMv.Focus` (`dsn~window-move-here~2`): moved here when on another desktop, then raised; when it stays elsewhere it is left alone and `explorer.exe <folder>` opens a new window here instead, reported as `opened here, the open window is on another desktop (…)`. With no window showing the folder, `explorer.exe <folder>` opens a fresh one. The script runs as a base64 `-EncodedCommand` via `LocalCommandRunner`; the folder is a single-quoted PowerShell literal with `'` doubled. Exit code 0 = focused or opened, 2 = the folder does not exist.
 
 Off Windows there is no `powershell` and no window enumeration: the folder goes to `java.awt.Desktop.open`, i.e. to whatever file manager the desktop registered (`xdg-open` under GNOME/KDE), so the `folder` chip works there instead of reporting `explorer is Windows-only`.
 The file manager decides whether it reuses a window it already has for the folder — the focus half of the Windows behavior has no portable equivalent and is not attempted.
@@ -573,15 +577,18 @@ Covers:
 Needs: impl, utest
 
 ### Window move to the current desktop
-`dsn~window-move-here~1`
+`dsn~window-move-here~2`
 
 `WindowsWindowMove` moves another app's window to the virtual desktop in view with `IVirtualDesktopManagerInternal::MoveViewToDesktop(view, GetCurrentDesktop())`, the view coming from `IApplicationViewCollection::GetViewForHwnd`.
-The documented `IVirtualDesktopManager::MoveWindowToDesktop` only accepts the calling process's own windows, so the undocumented interface is the only route; it is pinned to the Windows 11 24H2 IID that `dsn~category-desktop-focus~4` uses, and another build fails `QueryService` cleanly — the window is then simply not moved and the old desktop jump remains.
+The documented `IVirtualDesktopManager::MoveWindowToDesktop` only accepts the calling process's own windows, so the undocumented interface is the only route; it is pinned to the Windows 11 24H2 IID that `dsn~category-desktop-focus~4` uses, and another build fails `QueryService` — or, with a shifted slot, binds a different method that returns without moving anything.
+So `Here` re-checks with the documented `IsWindowOnCurrentVirtualDesktop` after the move and reports `failed: still on another desktop after the move` when the window did not arrive.
+`CsMv.Focus` is the one raise every focus script uses (Explorer, Windows Terminal, JetBrains Client, browser): `Here`, then the foreground calls only if the window is now here; otherwise `elsewhere: <reason>` and the window is untouched, since `SetForegroundWindow` (let alone `SwitchToThisWindow`, which no script uses any more) on a window of another desktop switches the user there (field report 2026-11-15, desktop jumps on Insider build 26300).
+Each caller then falls back without a jump: Explorer opens a new window here, Windows Terminal reports the tab as on another desktop, a JetBrains Client counts as found (no Gateway relaunch), the browser raise is skipped.
 A window already on the current desktop, or pinned to all desktops (`IsWindowOnCurrentVirtualDesktop` is true for both), is left alone.
 
 `bringHere(label, process, class)` picks the app's visible, titled, unowned top-level windows of that process and class, prefers one already on the current desktop, else moves the topmost one here, and brings the chosen window to the front; outcomes `none` (not running), `here`, `moved`, `failed`.
 `NoteFocusAction` calls it for OneNote (`ONENOTE`, `Framework::CFrame`) before opening an `onenote:` link — so the link activates a window on this desktop — and adds `moved OneNote here` to the chip detail when it moved one; with OneNote not running, the link starts it here anyway.
-`LocalFolderFocus` (`dsn~explorer-folder-focus~3`) moves a matching Explorer window here before focusing it and reports `moved here: <folder>`.
+`LocalFolderFocus` (`dsn~explorer-folder-focus~4`) moves a matching Explorer window here before focusing it and reports `moved here: <folder>`; any outcome other than a plain focus is logged at INFO, so the behaviour on a new Windows build can be read off the user's log.
 The C# types live once in `WindowsWindowMove.TYPES` and are embedded by every script that moves windows; more apps (VS Code, SumatraPDF) take a process/class pair.
 
 Tags: windows
@@ -777,11 +784,11 @@ Covers:
 Needs: impl, utest
 
 ### JetBrains Gateway URL action
-`dsn~gateway-url-action~11`
+`dsn~gateway-url-action~12`
 
 `IntellijGatewayAction` builds a `jetbrains-gateway://connect#host=<host>[&user=<user>]&type=ssh&port=22&projectPath=<path>&idePath=<ide>&deploy=false` URL (spike outcome, amendments in MADR 0006) and launches it via the OS protocol handler (`Main.openUrl`: `java.awt.Desktop.browse` → ShellExecute/xdg-open, falling back to `HostServices.showDocument` where AWT cannot browse) — `showDocument` handed the URL to the default browser, and Firefox then asked for confirmation on every switch without an "always allow" option. `port=22` is always emitted: Gateway 2026.1 rejects the URL with "Invalid ssh link parameters: doesn't contain port" (surfaced as "Cannot Connect — There was an error in the connection provider") although the JetBrains docs call the parameter optional; non-22 ports are out of v0.1 scope. `idePath` is equally mandatory in 2026.1 ("doesn't contain idePath"): it comes from `intellij.ide` or, when unpinned, from `RemoteIdeLookup`, which resolves the newest installed backend on the remote via `ls -1td $HOME/.cache/JetBrains/RemoteDev/dist/* | head -n 1 | xargs realpath` (no quotes — Windows ssh.exe swallows embedded double quotes).
 The `realpath` canonicalization matters: the backend registers itself under its real path (e.g. `/export/home/…` behind a `/home` symlink), and Gateway treats a non-canonical `idePath` as a different IDE, prompting "Requested Project Is Already Running" with an empty target version.
-No pinned path and no installed backend fails the action with a message pointing at `intellij.ide`. The destination comes from the `intellij.remote` override, falling back to the task `remote`; the project path from `intellij.projectPath`, falling back to `claude.workspace`, then `claude.cwd` — the action counts as configured only when both resolve. A `user@host` value is split into the `user` and `host` parameters. All values are percent-encoded (fragment encoding, spaces as `%20`); `deploy=false` accompanies the always-present `idePath`. Before any of that, an already open local **JetBrains Client** window for the project is focused instead of launching the URL: `JetBrainsClientFocus` (PowerShell via `LocalCommandRunner`, base64 `-EncodedCommand` like MADR 0008) finds the `jetbrains_client64` **process** whose `MainWindowTitle` carries the project folder name (last path segment) and foregrounds its `MainWindowHandle` — a client titles itself `<IDE project name> – <file path>`, and the path carries the folder name; the words "JetBrains Client" appear nowhere in the title. The process route is deliberate: window enumeration (UI Automation root children, even `EnumWindows`) proved unreliable for client windows parked on another virtual desktop, while the process handle sees them regardless and `SetForegroundWindow` then also switches to that desktop. Exit 2 = none found → launch the URL; mechanism unavailable, e.g. no `powershell`, degrades the same way. Relaunching the URL while connected would trigger Gateway's "Requested Project Is Already Running" version prompt or open a second window.
+No pinned path and no installed backend fails the action with a message pointing at `intellij.ide`. The destination comes from the `intellij.remote` override, falling back to the task `remote`; the project path from `intellij.projectPath`, falling back to `claude.workspace`, then `claude.cwd` — the action counts as configured only when both resolve. A `user@host` value is split into the `user` and `host` parameters. All values are percent-encoded (fragment encoding, spaces as `%20`); `deploy=false` accompanies the always-present `idePath`. Before any of that, an already open local **JetBrains Client** window for the project is focused instead of launching the URL: `JetBrainsClientFocus` (PowerShell via `LocalCommandRunner`, base64 `-EncodedCommand` like MADR 0008) finds the `jetbrains_client64` **process** whose `MainWindowTitle` carries the project folder name (last path segment) and foregrounds its `MainWindowHandle` — a client titles itself `<IDE project name> – <file path>`, and the path carries the folder name; the words "JetBrains Client" appear nowhere in the title. The process route is deliberate: window enumeration (UI Automation root children, even `EnumWindows`) proved unreliable for client windows parked on another virtual desktop, while the process handle sees them regardless. The raise goes through `CsMv.Focus` (`dsn~window-move-here~2`): a client on another desktop is moved here first; one that cannot be moved is left alone (exit 3) but counts as found, so the URL is not relaunched. Exit 2 = none found → launch the URL; mechanism unavailable, e.g. no `powershell`, degrades the same way. Relaunching the URL while connected would trigger Gateway's "Requested Project Is Already Running" version prompt or open a second window.
 After launching the URL, the action does not return immediately: Gateway uploads the worker binary, connects over ssh, and opens the IDE — seconds to minutes on a cold start — so returning at launch flips the status chip green while the IDE is still coming up. Instead it polls the same `clientFocus` detector up to `upPollAttempts` times (sleeping `pollIntervalMillis` between checks; the app wires ~3 min at a 3 s cadence, the background switch thread absorbing the wait) until the project's client window appears, keeping the chip in its RUNNING (hourglass) state until then. When the window appears the poll also focuses it. On timeout the action still reports success (the launch worked and the IDE may yet come up) rather than a failure chip. The non-waiting three-argument constructor (`upPollAttempts = 0`) keeps launch-and-return for tests and callers that do not need the wait.
 
 Tags: windows, linux

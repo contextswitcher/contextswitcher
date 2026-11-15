@@ -192,6 +192,11 @@ fun TerminalPage(
             TextButton(onClick = { scope.launch { refresh() } }, enabled = !refreshing) {
                 Text(if (refreshing) "Refreshing…" else "Refresh", color = Color.White)
             }
+            // Back at the end the follow (and the poll) resumes on its own.
+            // [impl->dsn~android-terminal-bottom~1]
+            TextButton(onClick = { scope.launch { scrollState.animateScrollTo(scrollState.maxValue) } }, enabled = !followEnd) {
+                Text("Bottom", color = if (followEnd) Color.Gray else Color.White)
+            }
         }
         SelectionContainer(modifier = Modifier.weight(1f)) {
             Text(

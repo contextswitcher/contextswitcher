@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -35,7 +36,7 @@ class AddTaskDialogTest {
                 initialCategory = "jabref",
                 adding = false,
                 error = error,
-                onAdd = { category, title -> added += category to title },
+                onAdd = { category, title, _ -> added += category to title },
                 onDismiss = {},
             )
         }
@@ -53,6 +54,7 @@ class AddTaskDialogTest {
     }
 
     // [utest->dsn~android-live-task~4]
+    // [utest->dsn~android-task-images~1]
     @Test
     fun `a category with a remote starts Claude with the picked model`() {
         val started = mutableListOf<String>()
@@ -63,22 +65,23 @@ class AddTaskDialogTest {
                 initialCategory = "work",
                 adding = false,
                 error = null,
-                onAdd = { _, title -> added += title },
+                onAdd = { _, title, _ -> added += title },
                 onDismiss = {},
                 remoteOf = { if (it == "work") "me@box" else null },
-                onStartClaude = { category, title, mode, skip -> started += "$category|$title|${mode.model()}|${mode.effort()}|$skip" },
+                onStartClaude = { category, title, notes, mode, skip -> started += "$category|$title|$notes|${mode.model()}|${mode.effort()}|$skip" },
             )
         }
 
         composeRule.onNodeWithText("Start Claude on me@box").assertExists()
-        composeRule.onNodeWithText("Model: as is").performClick()
+        composeRule.onNodeWithText("Model: as is").performScrollTo().performClick()
         composeRule.onNodeWithText("opus").performClick()
         composeRule.onNodeWithText("Skip permission prompts").assertExists()
         composeRule.onNodeWithText("Title").performTextInput("Fix it")
+        composeRule.onNodeWithText("Description (optional)").performTextInput("  see the log  ")
         composeRule.onNodeWithText("Start").performClick()
-        assertEquals(listOf("work|Fix it|opus|null|false"), started)
+        assertEquals(listOf("work|Fix it|see the log|opus|null|false"), started)
 
-        composeRule.onNodeWithText("work").performClick()
+        composeRule.onNodeWithText("work").performScrollTo().performClick()
         composeRule.onNodeWithText("notes").performClick()
         composeRule.onNodeWithText("Start Claude on me@box").assertDoesNotExist()
         composeRule.onNodeWithText("Add").performClick()

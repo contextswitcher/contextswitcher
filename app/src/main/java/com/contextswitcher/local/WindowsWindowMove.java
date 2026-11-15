@@ -23,14 +23,24 @@ import org.tinylog.Logger;
 /// for a window already here or pinned to all desktops), `CsMv.BringAppHere`
 /// picks an app's top-level window by process and class — preferring one
 /// already on this desktop, else the topmost elsewhere — moves it here and
-/// brings it to the front. Other scripts ([LocalFolderFocus]) embed [#TYPES]
-/// and call `Here` themselves.
+/// brings it to the front. `CsMv.Focus(hwnd)` is what every focus script
+/// ([LocalFolderFocus], [com.contextswitcher.terminal.WindowsTerminalFocus],
+/// [JetBrainsClientFocus], [BrowserWindowFocus]) calls on a window it found:
+/// move it here, then raise it — or leave it alone.
 ///
-/// The internal interface is pinned to the Windows 11 24H2 layout (the IID
-/// [WindowsVirtualDesktopFocus] declares too); another build fails
-/// `QueryService` with `E_NOINTERFACE`, the move reports `failed:` and the
-/// caller carries on as before — the window is merely not moved.
-// [impl->dsn~window-move-here~1]
+/// **Fail safe.** Raising a window on another desktop (`SetForegroundWindow`,
+/// let alone `SwitchToThisWindow`) makes Windows switch to that desktop, so a
+/// window is raised only once the *documented*
+/// `IVirtualDesktopManager::IsWindowOnCurrentVirtualDesktop` says it is here.
+/// `Here` re-checks after the move: the internal interface is pinned to the
+/// Windows 11 24H2 layout (the IID [WindowsVirtualDesktopFocus] declares too),
+/// and on another build `QueryService` fails with `E_NOINTERFACE` — or worse, a
+/// shifted slot binds a different method that returns without moving
+/// anything. Either way the outcome is `failed:`, `Focus` returns
+/// `elsewhere: …`, and the caller falls back without touching the window
+/// (field report 2026-11-15, Insider build 26300: desktop jumps when
+/// ContextSwitcher focused an Explorer window).
+// [impl->dsn~window-move-here~2]
 public class WindowsWindowMove {
 
     /// Outcome of [#bringHere]: `outcome` is `here`, `moved`, `none` (no such
@@ -49,7 +59,7 @@ public class WindowsWindowMove {
     /// Slot positions matter (a COM method binds by position): `GetViewForHwnd`
     /// is slot 3 of `IApplicationViewCollection`, `MoveViewToDesktop` slot 1
     /// and `GetCurrentDesktop` slot 3 of the internal manager.
-    static final String TYPES = """
+    public static final String TYPES = """
             using System;
             using System.Text;
             using System.Runtime.InteropServices;
@@ -89,6 +99,7 @@ public class WindowsWindowMove {
               [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr h, uint cmd);
               [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
               [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+              [DllImport("user32.dll")] static extern bool BringWindowToTop(IntPtr h);
               [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int c);
               [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
               [DllImport("user32.dll")] static extern void keybd_event(byte k, byte s, uint f, IntPtr e);
@@ -101,8 +112,8 @@ public class WindowsWindowMove {
                 return vdm.IsWindowOnCurrentVirtualDesktop(hwnd, out on) == 0 && on;
               }
 
-              // "here" (already on this desktop, or pinned to all), "moved",
-              // or "failed: <reason>".
+              // "here" (already on this desktop, or pinned to all), "moved"
+              // (and verified to be here now), or "failed: <reason>".
               public static string Here(IntPtr hwnd) {
                 try {
                   if (IsHere(hwnd)) { return "here"; }
@@ -117,7 +128,7 @@ public class WindowsWindowMove {
                   IntPtr current = manager.GetCurrentDesktop();
                   try { manager.MoveViewToDesktop(view, current); }
                   finally { Marshal.Release(current); }
-                  return "moved";
+                  return IsHere(hwnd) ? "moved" : "failed: still on another desktop after the move";
                 } catch (Exception e) {
                   return "failed: " + e.Message;
                 }
@@ -128,6 +139,17 @@ public class WindowsWindowMove {
                 keybd_event(0x12, 0, 0, IntPtr.Zero);
                 keybd_event(0x12, 0, 2, IntPtr.Zero);
                 SetForegroundWindow(hwnd);
+                BringWindowToTop(hwnd);
+              }
+
+              // Raises the window only when it is (or was moved) here: "here",
+              // "moved", or "elsewhere: <reason>" — left untouched, since
+              // raising it would switch the user to its desktop.
+              public static string Focus(IntPtr hwnd) {
+                string outcome = Here(hwnd);
+                if (outcome.StartsWith("failed")) { return "elsewhere: " + outcome; }
+                Front(hwnd);
+                return outcome;
               }
 
               static string ProcessName(IntPtr h) {
@@ -164,10 +186,7 @@ public class WindowsWindowMove {
                 foreach (IntPtr h in windows) {
                   if (IsHere(h)) { Front(h); return "here"; }
                 }
-                IntPtr top = windows[0];
-                string outcome = Here(top);
-                if (!outcome.StartsWith("failed")) { Front(top); }
-                return outcome;
+                return Focus(windows[0]).Replace("elsewhere: ", "");
               }
             }
             """;
