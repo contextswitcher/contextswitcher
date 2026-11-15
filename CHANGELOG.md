@@ -17,6 +17,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- Clicking another category's header opens its config in *Configuration* and *Switch actions* again; before, they kept showing the previously opened file.
 - Android: the task list's top bar no longer grows to half the screen; *Tour* and *Settings* moved into a ⋮ menu, and a long task title wraps (at most three lines) instead of squeezing its status into a vertical column of letters.
 
 ## [2026-11-13] - 2026-11-13

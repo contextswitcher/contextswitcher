@@ -497,12 +497,8 @@ public class TaskListCell extends ListCell<Object> {
             if (event.getButton() != MouseButton.PRIMARY) {
                 return;
             }
-            if (getItem() instanceof GroupHeader header) {
-                // Collapse/expand is the arrow's job (which consumes its
-                // clicks); a click on the rest of the header opens the
-                // group's config in the editor.
-                onOpenGroupConfig.accept(header.name());
-            } else if (getItem() instanceof DoneHeader) {
+            // A category header acts on release (below), not here.
+            if (getItem() instanceof DoneHeader) {
                 onToggleDone.run();
             } else if (getItem() instanceof LabelHeader label) {
                 // No config file behind a label — a click anywhere on the
@@ -529,6 +525,23 @@ public class TaskListCell extends ListCell<Object> {
                 // terminal mirror, so the user can type straight away.
                 // [impl->dsn~terminal-pane~14]
                 onFocusTerminal.run();
+            }
+        });
+        // A click on a category header (outside the arrow, the name and the
+        // buttons, which consume their own events) opens the group's config
+        // in the editor. On **press**, not click: pressing the header of
+        // another category selects it, the selection marks it the current
+        // category, and that `ListView.refresh()` recreates every cell on the
+        // next pulse — before a human's release ~100 ms later. The click then
+        // goes to the list, not to a cell, and the Configuration / Switch
+        // actions panes kept showing the previous file (field report
+        // 2026-11-15). The release cannot be used either: it goes to the
+        // pressed (discarded) cell. This handler runs after the list's own
+        // press handling, while this cell still holds the header.
+        // [impl->dsn~group-config-create~9] [impl->dsn~collapse-on-press~1]
+        setOnMousePressed(event -> {
+            if (event.getButton() == MouseButton.PRIMARY && getItem() instanceof GroupHeader header) {
+                onOpenGroupConfig.accept(header.name());
             }
         });
         // Drag source on the cell, not the row graphic: pressing an
