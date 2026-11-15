@@ -875,7 +875,7 @@ public class Main extends Application {
                 () -> {
                     mirroredTaskId = null;
                     terminalPane.blankThen(() ->
-                            terminalPane.showMessage("Select a task to mirror its tmux window."));
+                            terminalPane.showMessage("Select a task to show its terminal."));
                     queuePane.showTask(null);
                 },
                 terminalPane::focusTerminal,

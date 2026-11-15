@@ -198,7 +198,7 @@ public class TerminalPane {
     private @Nullable String issueRepo;
 
     private final Label title = new Label("");
-    private final Label message = new Label("Select a task to mirror its tmux window.");
+    private final Label message = new Label("Select a task to show its terminal.");
     private final StackPane center = new StackPane(message);
     private final BorderPane root = new BorderPane(center);
 
