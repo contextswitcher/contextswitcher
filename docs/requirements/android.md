@@ -318,6 +318,19 @@ Covers:
 
 Needs: impl, utest
 
+### Jump to the end of the terminal
+`dsn~android-terminal-bottom~1`
+
+Right of *Refresh*, *Bottom* scrolls the terminal page to the end of what is loaded; it is enabled only while the reader is scrolled up (`followEnd` false).
+Reaching the end resumes following and the poll as in `dsn~android-terminal-snapshot~3`.
+
+Tags: android
+
+Covers:
+- req~android-terminal-snapshot~3
+
+Needs: impl, utest
+
 ### Queue page
 `dsn~android-queue-send~2`
 

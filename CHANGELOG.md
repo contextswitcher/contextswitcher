@@ -11,6 +11,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Added
 
 - Android: *Add task* has an optional description with *Attach* (photo or camera); for a started Claude the images are uploaded with the prompt.
+- Android: the terminal page has *Bottom*, right of *Refresh*, jumping back to the latest output after scrolling up.
 
 ## [2026-11-13] - 2026-11-13
 

@@ -2,6 +2,7 @@ package com.contextswitcher.android.ui
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -112,6 +113,22 @@ class TerminalPageTest {
         composeRule.waitForIdle()
 
         assertThat(scroll.value).isEqualTo(0)
+    }
+
+    // [utest->dsn~android-terminal-bottom~1]
+    @Test
+    fun `Bottom jumps back to the end and follows again`() {
+        val scroll = ScrollState(0)
+        show(Screen(200), scroll)
+        composeRule.onNodeWithText("Bottom").assertIsNotEnabled()
+        runBlocking { composeRule.awaitIdle(); scroll.scrollTo(0) }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Bottom").assertIsEnabled().performClick()
+        composeRule.waitForIdle()
+
+        assertThat(scroll.value).isEqualTo(scroll.maxValue)
+        composeRule.onNodeWithText("Bottom").assertIsNotEnabled()
     }
 
     @Test
