@@ -247,6 +247,20 @@ Covers:
 
 Needs: impl, utest
 
+### Swipe to the neighbouring task
+`dsn~android-task-swipe~1`
+
+On a phone, swiping left past the Queue page opens the next task of the list as shown (filter and search applied), at its Terminal page; swiping right past the Terminal page opens the previous one, at its Queue page — so the tasks page through quickly, as in a book.
+The pager carries an extra page at each end that has a neighbour, naming it (*Next task* / *Previous task* and its title); the task opens once the pager settles there.
+`ContextSwitcherApp` keeps the list's shown order (`onShownTasks`), so it still holds while the detail replaces the list.
+
+Tags: android
+
+Covers:
+- req~android-task-list~1
+
+Needs: impl, utest
+
 ### Search and jump to a category
 `dsn~android-task-list-navigation~1`
 
