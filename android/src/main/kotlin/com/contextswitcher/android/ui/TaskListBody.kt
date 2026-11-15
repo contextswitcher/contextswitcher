@@ -27,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.contextswitcher.tasks.Task
@@ -112,8 +113,8 @@ private fun TaskRow(entry: TaskEntry, onTaskClick: (Task) -> Unit) {
                     .padding(horizontal = 8.dp, vertical = 6.dp),
             ) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    // The title takes what the status leaves, so a long one wraps instead of squeezing it.
-                    Text(text = task.title(), color = textColor, modifier = Modifier.weight(1f))
+                    // The title takes what the status leaves, so a long one wraps instead of squeezing it; a whole prompt is cut at three lines.
+                    Text(text = task.title(), color = textColor, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     Text(text = task.status().yaml(), color = textColor, modifier = Modifier.padding(start = 8.dp))
                 }
                 if (task.tags().isNotEmpty()) {
