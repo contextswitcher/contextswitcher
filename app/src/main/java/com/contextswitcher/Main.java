@@ -448,21 +448,35 @@ public class Main extends Application {
         SNAKEYAML_LOGGER.setLevel(java.util.logging.Level.OFF);
     }
 
+    /// Program argument starting a second instance next to a running one.
+    // [impl->dsn~single-instance~1]
+    static final String NEW_INSTANCE_ARG = "--new-instance";
+
     public static void main(String[] args) {
         // A deep-link launch (`contextswitcher://…` from the OS protocol
         // handler, https://github.com/contextswitcher/contextswitcher-private/issues/47) first tries to hand the URL to an already-running
         // instance; only when none answers does this process start normally
         // and handle the URL itself after startup.
         // [impl->dsn~deep-link-forward~1]
+        //
+        // A plain launch does the same with `contextswitcher://show`: with an
+        // instance running, its window comes to the front and this process
+        // ends, so there is only ever one ContextSwitcher per config directory
+        // (two copies polled, switched and wrote task files side by side —
+        // field report 2026-11-15). `--new-instance` starts one regardless.
+        // [impl->dsn~single-instance~1]
         String deepLinkUrl = Arrays.stream(args).filter(DeepLink::isDeepLink).findFirst().orElse(null);
-        if (deepLinkUrl != null) {
+        boolean newInstance = Arrays.asList(args).contains(NEW_INSTANCE_ARG);
+        if (deepLinkUrl != null || !newInstance) {
+            String forwarded = deepLinkUrl != null ? deepLinkUrl : DeepLink.SHOW_URL;
             try {
                 AppSettings settings = AppSettings.loadOrCreate(configDir());
-                if (DeepLinkForwarder.forward(settings.wsPort(), settings.wsToken(), deepLinkUrl)) {
+                if (DeepLinkForwarder.forward(settings.wsPort(), settings.wsToken(), forwarded)) {
+                    Logger.info("Handed {} to the running instance; exiting", forwarded);
                     return;
                 }
             } catch (IOException e) {
-                Logger.warn("Cannot read settings for deep-link forwarding: {}", e.getMessage());
+                Logger.warn("Cannot read settings for forwarding to a running instance: {}", e.getMessage());
             }
         }
         launch(args);
@@ -2495,7 +2509,10 @@ public class Main extends Application {
             return;
         }
         TaskEntry.@Nullable Loaded loaded = null;
-        if (link.kind() == DeepLink.Kind.CATEGORY) {
+        if (link.kind() == DeepLink.Kind.SHOW) {
+            // A second launch: just the window, nothing selected or switched.
+            // [impl->dsn~single-instance~1]
+        } else if (link.kind() == DeepLink.Kind.CATEGORY) {
             if (!window.selectCategory(link.target())) {
                 window.statusBar().message("No category '" + link.target() + "' for link " + url);
                 return;

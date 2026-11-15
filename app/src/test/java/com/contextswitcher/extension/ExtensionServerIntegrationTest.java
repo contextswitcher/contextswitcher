@@ -248,6 +248,31 @@ class ExtensionServerIntegrationTest {
         assertThat(DeepLinkForwarder.forward(port, TOKEN, "contextswitcher://task/x")).isFalse();
     }
 
+    /// A second plain launch hands `show` over and exits — also while the
+    /// running instance is still starting (no handler yet: its window is about
+    /// to appear anyway). Any other link there is still refused, as before.
+    // [utest->dsn~single-instance~1]
+    @Test
+    void aSecondLaunchIsTakenOverEvenWhileTheInstanceIsStarting() {
+        assertThat(DeepLinkForwarder.forward(server.getPort(), TOKEN, DeepLink.SHOW_URL)).isTrue();
+        assertThat(DeepLinkForwarder.forward(server.getPort(), TOKEN, "contextswitcher://task/x")).isFalse();
+
+        java.util.concurrent.atomic.AtomicReference<String> received = new java.util.concurrent.atomic.AtomicReference<>();
+        server.setDeepLinkHandler(received::set);
+        assertThat(DeepLinkForwarder.forward(server.getPort(), TOKEN, DeepLink.SHOW_URL)).isTrue();
+        assertThat(received.get()).isEqualTo(DeepLink.SHOW_URL);
+    }
+
+    /// No instance, or one with another token: the launch starts normally.
+    // [utest->dsn~single-instance~1]
+    @Test
+    void aLaunchWithoutAnInstanceToTakeItOverStartsNormally() throws Exception {
+        assertThat(DeepLinkForwarder.forward(server.getPort(), "wrong", DeepLink.SHOW_URL)).isFalse();
+        int port = server.getPort();
+        server.stop(1000);
+        assertThat(DeepLinkForwarder.forward(port, TOKEN, DeepLink.SHOW_URL)).isFalse();
+    }
+
     @Test
     void requestWithoutConnectedExtensionFailsImmediately() {
         ExtensionProtocol.Result result = server.closeUrl("https://example.org/");

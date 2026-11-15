@@ -7,14 +7,21 @@ import java.nio.charset.StandardCharsets;
 /// A parsed `contextswitcher://` deep link (https://github.com/contextswitcher/contextswitcher-private/issues/47): `contextswitcher://task/<id>`
 /// selects the task and focuses the app, `contextswitcher://switch/<id>` runs
 /// the full switch, `contextswitcher://category/<name>` selects the category's
-/// header row. Task ids contain `/` (group folders) — they live in the URL's
+/// header row, `contextswitcher://show` only raises the window (what a second
+/// plain launch hands to the running instance, `dsn~single-instance~1`).
+/// Task ids contain `/` (group folders) — they live in the URL's
 /// path; other characters arrive percent-encoded and are decoded by the `URI`
 /// path accessor.
 // [impl->dsn~deep-link-url~1]
 public record DeepLink(Kind kind, String target) {
 
-    /// What the link points at — a task (by id) or a category (by name).
-    public enum Kind { TASK, SWITCH, CATEGORY }
+    /// What the link points at — a task (by id), a category (by name), or
+    /// just the app's window ([#SHOW_URL], no target).
+    public enum Kind { TASK, SWITCH, CATEGORY, SHOW }
+
+    /// The link a second plain launch forwards: raise the running window.
+    // [impl->dsn~single-instance~1]
+    public static final String SHOW_URL = "contextswitcher://show";
 
     /// Whether `arg` (e.g. a program argument) is a deep link at all.
     public static boolean isDeepLink(String arg) {
@@ -54,6 +61,9 @@ public record DeepLink(Kind kind, String target) {
         // In `contextswitcher://task/jabref/fix-npe` the kind parses as the
         // URI host and the task id as the (percent-decoded) path.
         String host = uri.getHost();
+        if ("show".equals(host)) {
+            return new DeepLink(Kind.SHOW, "");
+        }
         Kind kind = switch (host == null ? "" : host) {
             case "task" -> Kind.TASK;
             case "switch" -> Kind.SWITCH;

@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [Unreleased]
+
+### Changed
+
+- Starting ContextSwitcher while it already runs brings the running window to the front instead of opening a second copy; `--new-instance` starts one anyway.
+
 ## [2026-11-15] - 2026-11-15
 
 ### Added
@@ -335,6 +341,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-15...main
 [2026-11-15]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-13...v2026-11-15
 [2026-11-13]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-12...v2026-11-13
 [2026-11-12]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-09...v2026-11-12

@@ -646,6 +646,19 @@ Covers:
 
 Needs: dsn
 
+### One running instance
+`req~single-instance~1`
+
+Launching ContextSwitcher while it already runs (with the same configuration) brings the running window to the front instead of starting a second copy: two copies would poll, switch and write the same task files side by side.
+A developer can still start a separate copy on purpose.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Copy a category's deep link
 `req~category-link-copy~1`
 
@@ -1173,6 +1186,24 @@ Tags: windows, linux
 
 Covers:
 - req~deep-link-url~1
+
+Needs: impl, utest
+
+### Single instance via extension server
+`dsn~single-instance~1`
+
+A plain launch (no `contextswitcher://` argument) goes the deep-link route (`dsn~deep-link-forward~1`) with `DeepLink.SHOW_URL` (`contextswitcher://show`): `DeepLinkForwarder.forward` sends it to the extension server on the configured `wsPort` with the `wsToken`, and on a normal close (1000) `Main.main` returns without launching JavaFX.
+The running instance handles `show` like a task link minus the selection: deiconify, `toFront`, `requestFocus` — nothing is selected or switched.
+While that instance is still starting (no deep-link handler yet), the server accepts `show` all the same (close 1000, "starting"), since its window is about to appear; other deep links still get 4004 there and start a process of their own, as before.
+No instance answering (connect failure, token mismatch, timeouts) starts the app normally, so a stale or foreign port never blocks startup.
+The program argument `--new-instance` (`Main.NEW_INSTANCE_ARG`) skips the hand-off — a second copy for comparing builds; it then runs without the extension server, whose port the first one holds.
+The update loop (`scripts/run-loop`) starts the new build only after the old process has exited, so a restart never hands its launch to the instance that is going away.
+Field report 2026-11-15: two packaged instances running at the same time.
+
+Tags: windows, linux
+
+Covers:
+- req~single-instance~1
 
 Needs: impl, utest
 

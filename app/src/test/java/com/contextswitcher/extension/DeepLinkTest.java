@@ -64,6 +64,13 @@ class DeepLinkTest {
                 .isEqualTo(new DeepLink(DeepLink.Kind.TASK, "jabref/fix npe"));
     }
 
+    // [utest->dsn~single-instance~1]
+    @Test
+    void showLinkNeedsNoTarget() {
+        assertThat(DeepLink.isDeepLink(DeepLink.SHOW_URL)).isTrue();
+        assertThat(DeepLink.parse(DeepLink.SHOW_URL)).isEqualTo(new DeepLink(DeepLink.Kind.SHOW, ""));
+    }
+
     @Test
     void isDeepLinkChecksScheme() {
         assertThat(DeepLink.isDeepLink("contextswitcher://task/x")).isTrue();
