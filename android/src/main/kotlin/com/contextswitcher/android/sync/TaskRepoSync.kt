@@ -93,11 +93,15 @@ class TaskRepoSync(private val beforePush: () -> Unit = {}) {
     /// slugged title (`-2`, `-3`… when taken) and compact frontmatter carrying
     /// the category's `remote` default.
     // [impl->dsn~android-task-create~2]
-    fun createTask(dir: File, username: String, token: String, category: String, title: String): CreateResult =
+    /// Non-blank `notes` (the dialog's description, image markers included)
+    /// go under `# Notes`.
+    // [impl->dsn~android-task-images~1]
+    fun createTask(dir: File, username: String, token: String, category: String, title: String, notes: String = ""): CreateResult =
         createTaskFile(dir, username, token, category, title) { prefix ->
             val configFile = File(dir, prefix + TaskRepository.GROUP_CONFIG_FILE_NAME)
             val remote = if (configFile.isFile) TaskFileParser().parseGroupConfig(configFile.readText()).remote() else null
-            TaskFileParser.addUrlsFrom(TaskFileParser.newTaskContent(title, remote, null, false), title)
+            val content = TaskFileParser.newTaskContent(title, remote, null, false) + notes.trim().let { if (it.isEmpty()) "" else "$it\n" }
+            TaskFileParser.addUrlsFrom(content, "$title\n$notes")
         }
 
     /// As [createTask], but with the file's `name` (slugged; `-2`… when taken)

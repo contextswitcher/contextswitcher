@@ -61,6 +61,7 @@ class TaskRepoSyncTest {
     }
 
     // [utest->dsn~android-task-create~2]
+    // [utest->dsn~android-task-images~1]
     @Test
     fun `creating a task pushes it with the category's remote default`(@TempDir tmp: File) {
         val bare = pushFixture(tmp,
@@ -70,7 +71,7 @@ class TaskRepoSyncTest {
         TaskRepoSync().syncInto(target, bare.absolutePath, "user", "token")
 
         val first = TaskRepoSync().createTask(target, "user", "token", "jabref", "Fix the build / CI")
-        val second = TaskRepoSync().createTask(target, "user", "token", "jabref", "Fix the build / CI")
+        val second = TaskRepoSync().createTask(target, "user", "token", "jabref", "Fix the build / CI", "See https://ci.example/1")
 
         assertThat(first).isEqualTo(CreateResult.Created("jabref/fix-the-build-ci"))
         assertThat(second).isEqualTo(CreateResult.Created("jabref/fix-the-build-ci-2"))
@@ -81,6 +82,7 @@ class TaskRepoSyncTest {
         assertThat(tasks.keys).containsExactlyInAnyOrder("jabref/existing", "jabref/fix-the-build-ci", "jabref/fix-the-build-ci-2")
         assertThat(tasks.getValue("jabref/fix-the-build-ci").title()).isEqualTo("Fix the build / CI")
         assertThat(tasks.getValue("jabref/fix-the-build-ci").remote()).isEqualTo("devbox")
+        assertThat(tasks.getValue("jabref/fix-the-build-ci-2").notes()).contains("See https://ci.example/1")
     }
 
     // [utest->dsn~android-task-create~2]

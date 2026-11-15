@@ -42,6 +42,7 @@ class LiveTaskStarterTest {
         }
     }
 
+    // [utest->dsn~android-task-images~1]
     @Test
     fun `starts Claude in a new window and pushes the task with that window`(@TempDir tmp: File) {
         val bare = File(tmp, "bare.git")
@@ -63,14 +64,14 @@ class LiveTaskStarterTest {
         val createdIds = mutableListOf<String>()
 
         val outcome = LiveTaskStarter(sync, remote, MessageSender(remote, File(tmp, "att").toPath()))
-            .start(clone, "u", "t", "work", "Fix the build", ClaudeMode.DEFAULT, skipPermissions = true, onStep = {}) { createdIds += it }
+            .start(clone, "u", "t", "work", "Fix the build", "Fails on CI since today", ClaudeMode.DEFAULT, skipPermissions = true, onStep = {}) { createdIds += it }
 
         val taskId = "work/${LocalDate.now()}-fix-the-build"
         assertThat(outcome).isEqualTo(LiveTaskStarter.Outcome.Started(taskId, "@77"))
         assertThat(createdIds).containsExactly(taskId)
         assertThat(remote.commands).anyMatch { it.contains("new-window -t 'main:' -c '/ws'") }
         assertThat(remote.commands).anyMatch { it.contains("claude --dangerously-skip-permissions") }
-        assertThat(remote.pasted.joinToString()).contains("Fix the build").contains("git worktree for this task from the primary clone at /ws/r")
+        assertThat(remote.pasted.joinToString()).contains("Fix the build\n\nFails on CI since today\n-----").contains("git worktree for this task from the primary clone at /ws/r")
 
         val check = File(tmp, "check")
         Git.cloneRepository().setURI(bare.absolutePath).setDirectory(check).call().close()
@@ -80,6 +81,7 @@ class LiveTaskStarterTest {
         assertThat(task.tmux()?.session()).isEqualTo("main")
         assertThat(task.tmux()?.window()).isEqualTo("@77")
         assertThat(task.claude()?.cwd()).isEqualTo("/ws")
+        assertThat(task.notes()).contains("Fails on CI since today")
     }
 
     @Test
@@ -100,7 +102,7 @@ class LiveTaskStarterTest {
         val remote = Remote()
         File(tmp, ".git").mkdirs()
         val starter = LiveTaskStarter(TaskRepoSync(), remote, MessageSender(remote, tmp.toPath()))
-        val outcome = starter.start(tmp, "u", "t", "work", "x", ClaudeMode.DEFAULT, false, {}) {}
+        val outcome = starter.start(tmp, "u", "t", "work", "x", "", ClaudeMode.DEFAULT, false, {}) {}
 
         assertThat(starter.remoteOf(tmp, "work")).isNull()
         assertThat(outcome).isInstanceOf(LiveTaskStarter.Outcome.Failed::class.java)
@@ -114,7 +116,7 @@ class LiveTaskStarterTest {
         File(tmp, "work").mkdirs()
         File(tmp, "work/CONTEXTSWITCHER.md").writeText("---\nremote: me@box\nworkspacesRoot: ~/ws\n---\n")
         val starter = LiveTaskStarter(TaskRepoSync(), remote, MessageSender(remote, tmp.toPath()))
-        val outcome = starter.start(tmp, "u", "t", "work", "x", ClaudeMode.DEFAULT, false, {}) {}
+        val outcome = starter.start(tmp, "u", "t", "work", "x", "", ClaudeMode.DEFAULT, false, {}) {}
 
         assertThat(outcome).isInstanceOf(LiveTaskStarter.Outcome.Failed::class.java)
         assertThat((outcome as LiveTaskStarter.Outcome.Failed).message)

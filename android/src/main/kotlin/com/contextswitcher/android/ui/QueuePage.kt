@@ -1,12 +1,8 @@
 package com.contextswitcher.android.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,8 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
@@ -30,24 +24,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import com.contextswitcher.android.queue.AttachmentStore
 import com.contextswitcher.android.queue.DraftStore
-import com.contextswitcher.queue.Attachments
 import com.contextswitcher.tasks.Task
-import java.io.File
 import java.io.IOException
-import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -93,7 +81,6 @@ fun QueuePage(
     var draft by remember(task.id()) { mutableStateOf(runCatching { draftStore.loadUnsent(task.id()) }.getOrDefault("")) }
     var drafts by remember(task.id()) { mutableStateOf(draftStore.load(task.id())) }
     var enqueued by remember(task.id()) { mutableStateOf(enqueuedStore?.load(task.id()) ?: emptyList()) }
-    var attachMenu by remember { mutableStateOf(false) }
     // The watch service sends and removes enqueued messages; follow its progress.
     LaunchedEffect(task.id(), enqueuedStore) {
         while (enqueuedStore != null) {
@@ -141,36 +128,6 @@ fun QueuePage(
         }
 
     val boxFocus = remember { FocusRequester() }
-    val context = LocalContext.current
-
-    fun attach(name: String, open: () -> InputStream, afterwards: () -> Unit = {}) {
-        val store = attachments ?: return
-        scope.launch {
-            val stored = withContext(Dispatchers.IO) { runCatching { store.store(name, open) }.also { afterwards() } }
-            stored.onSuccess { file ->
-                val marker = Attachments.marker(file.toPath())
-                changeDraft(if (draft.isBlank()) marker else draft.trimEnd() + "\n" + marker)
-            }.onFailure { snackbarHostState.showSnackbar("Cannot attach the image: ${it.message}") }
-        }
-    }
-
-    val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) {
-            val name = uri.lastPathSegment?.substringAfterLast('/') ?: "image"
-            attach(name, { context.contentResolver.openInputStream(uri) ?: throw IOException("cannot open the image") })
-        }
-    }
-    // Saveable: the camera app in front may get the app killed meanwhile.
-    var cameraFile by rememberSaveable { mutableStateOf<String?>(null) }
-    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
-        val raw = cameraFile?.let(::File) ?: return@rememberLauncherForActivityResult
-        cameraFile = null
-        if (taken) {
-            attach("camera", { raw.inputStream() }) { raw.delete() }
-        } else {
-            raw.delete()
-        }
-    }
 
     /// Puts `text` into the message box for editing — whatever the box held
     /// is kept as a draft first — and focuses the box, so the keyboard opens.
@@ -307,29 +264,8 @@ fun QueuePage(
         Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
             // Photo and Camera share one menu: the row has room for four controls.
             if (attachments != null) {
-                Box {
-                    TextButton(onClick = { attachMenu = true }) {
-                        Text("Attach")
-                    }
-                    DropdownMenu(expanded = attachMenu, onDismissRequest = { attachMenu = false }) {
-                        DropdownMenuItem(text = { Text("Photo") }, onClick = {
-                            attachMenu = false
-                            pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        })
-                        DropdownMenuItem(text = { Text("Camera") }, onClick = {
-                            attachMenu = false
-                            try {
-                                val raw = attachments.newCameraFile()
-                                cameraFile = raw.path
-                                takePicture.launch(FileProvider.getUriForFile(context, "${context.packageName}.files", raw))
-                            } catch (e: Exception) {
-                                cameraFile?.let { File(it).delete() }
-                                cameraFile = null
-                                scope.launch { snackbarHostState.showSnackbar("Cannot start the camera: ${e.message}") }
-                            }
-                        })
-                    }
-                }
+                AttachMenu(attachments, onMarker = { changeDraft(appendMarker(draft, it)) },
+                    onError = { scope.launch { snackbarHostState.showSnackbar(it) } })
             }
             TextButton(onClick = { keepDraft() }, enabled = draft.isNotBlank()) {
                 Text("Save draft")

@@ -21,6 +21,7 @@ import java.time.LocalDate
 /// pushed the moment the window exists ([onCreated]), before Claude is up, so
 /// the list shows it while the rest of the start runs (a quarter minute).
 // [impl->dsn~android-live-task~4]
+// [impl->dsn~android-task-images~1]
 class LiveTaskStarter(
     private val sync: TaskRepoSync,
     private val ssh: SshCommandRunner,
@@ -46,6 +47,7 @@ class LiveTaskStarter(
         token: String,
         category: String,
         description: String,
+        notes: String,
         mode: ClaudeMode,
         skipPermissions: Boolean,
         onStep: (String) -> Unit,
@@ -55,7 +57,10 @@ class LiveTaskStarter(
         val remote = remoteOf(dir, category) ?: return Outcome.Failed("No remote: none in the category's ${TaskRepository.GROUP_CONFIG_FILE_NAME}, none on any task")
         val workdir = config.resolveWorkdir()
         val session = usualSession(dir, remote)
-        val prompt = ClaudeWindowLauncher.liveTaskPrompt(description, config.repo(), config.bootstrapWorktree(), category, config.effectiveMainCheckout(), null)
+        // Title and notes both go inside the prompt's fence; image markers in
+        // the notes are uploaded by the sender (dsn~android-task-images~1).
+        val fenced = if (notes.isBlank()) description else "$description\n\n${notes.trim()}"
+        val prompt = ClaudeWindowLauncher.liveTaskPrompt(fenced, config.repo(), config.bootstrapWorktree(), category, config.effectiveMainCheckout(), null)
         if (workdir != null) {
             onStep("Preparing the workspace …")
             // So `tmux new-window -c` succeeds on a fresh workspaces root.
@@ -69,7 +74,7 @@ class LiveTaskStarter(
                 onStep("Pushing the task …")
                 val result = sync.createTaskFile(dir, username, token, category, "${LocalDate.now()}-$description") {
                     TaskFileParser.withTmuxSection(
-                        TaskFileParser.addUrlsFrom(ClaudeWindowLauncher.liveTaskContent(description, remote, workdir), description),
+                        TaskFileParser.addUrlsFrom(ClaudeWindowLauncher.liveTaskContent(description, remote, workdir, notes), fenced),
                         session, id, "created ${LocalDate.now()}",
                     )
                 }

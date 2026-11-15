@@ -254,6 +254,7 @@ private fun ContextSwitcherApp(
                         updates = updates,
                         liveTasks = remember { LiveTaskStarter(TaskRepoSync(), ssh, messageSender) },
                         listState = taskListState,
+                        attachmentStore = remember { AttachmentStore(File(repoDir.parentFile, "attachments")) },
                     )
                 }
             }
@@ -406,6 +407,7 @@ internal fun TaskListScreen(
     updates: AppUpdates? = null,
     liveTasks: LiveTaskStarter? = null,
     listState: LazyListState = rememberLazyListState(),
+    attachmentStore: AttachmentStore? = null,
 ) {
     var groups by remember { mutableStateOf<List<TaskGroupUi>>(emptyList()) }
     var update by remember { mutableStateOf<AppUpdates.Check?>(null) }
@@ -478,13 +480,13 @@ internal fun TaskListScreen(
     }
 
     // [impl->dsn~android-task-create~2]
-    fun addTask(category: String, title: String) {
+    fun addTask(category: String, title: String, notes: String) {
         val settings = settingsStore.load() ?: return
         taskBeingAdded = true
         addTaskError = null
         scope.launch {
             val outcome = withContext(Dispatchers.IO) {
-                TaskRepoSync().createTask(repoDir, settings.username, settings.token, category, title)
+                TaskRepoSync().createTask(repoDir, settings.username, settings.token, category, title, notes)
             }
             taskBeingAdded = false
             when (outcome) {
@@ -505,7 +507,7 @@ internal fun TaskListScreen(
     var addProgress by remember { mutableStateOf<String?>(null) }
 
     // [impl->dsn~android-live-task~4]
-    fun startClaudeTask(category: String, title: String, mode: ClaudeMode, skipPermissions: Boolean) {
+    fun startClaudeTask(category: String, title: String, notes: String, mode: ClaudeMode, skipPermissions: Boolean) {
         val settings = settingsStore.load() ?: return
         val starter = liveTasks ?: return
         settingsStore.saveSkipPermissions(skipPermissions)
@@ -514,7 +516,7 @@ internal fun TaskListScreen(
         addProgress = null
         scope.launch {
             val outcome = withContext(Dispatchers.IO) {
-                starter.start(repoDir, settings.username, settings.token, category, title, mode, skipPermissions,
+                starter.start(repoDir, settings.username, settings.token, category, title, notes, mode, skipPermissions,
                     onStep = { addProgress = it },
                     onCreated = { taskId ->
                         // The task is in the repo: open it, so its terminal shows Claude starting.
@@ -653,12 +655,13 @@ internal fun TaskListScreen(
                 .ifEmpty { categories.firstOrNull { it.isNotEmpty() } ?: "" },
             adding = taskBeingAdded,
             error = addTaskError,
-            onAdd = { category, title -> addTask(category, title) },
+            onAdd = ::addTask,
             onDismiss = { addingTask = false },
             remoteOf = { category -> liveTasks?.remoteOf(repoDir, category) },
             onStartClaude = if (liveTasks == null) null else ::startClaudeTask,
             initialSkipPermissions = remember { settingsStore.loadSkipPermissions() },
             progress = addProgress,
+            attachments = attachmentStore,
         )
     }
 }

@@ -379,6 +379,20 @@ Covers:
 
 Needs: impl, utest
 
+### Description and images when adding a task on the phone
+`dsn~android-task-images~1`
+
+`AddTaskDialog` has an optional multi-line *Description* under the title and, below it, the queue page's *Attach* menu (*Photo*, *Camera*; the shared `AttachMenu` composable of `dsn~android-message-images~1`), which appends the stored image's `Attachments.marker` to the description; a failed attach shows under the fields.
+A plain task (`TaskRepoSync.createTask`) gets the description under `# Notes`.
+A started Claude (`LiveTaskStarter.start`) gets title and description inside the prompt's fence, so `MessageSender` uploads the images and rewrites their markers like a queued message's; the task file keeps the description under `# Notes` after the title, and title, file name and tmux window stay the title alone.
+
+Tags: android
+
+Covers:
+- req~task-create~1
+
+Needs: impl, utest
+
 ### Start Claude for a new task from the phone
 `dsn~android-live-task~4`
 
