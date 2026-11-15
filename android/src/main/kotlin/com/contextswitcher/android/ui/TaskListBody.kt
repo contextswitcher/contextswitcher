@@ -112,8 +112,9 @@ private fun TaskRow(entry: TaskEntry, onTaskClick: (Task) -> Unit) {
                     .padding(horizontal = 8.dp, vertical = 6.dp),
             ) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(text = task.title(), color = textColor)
-                    Text(text = task.status().yaml(), color = textColor)
+                    // The title takes what the status leaves, so a long one wraps instead of squeezing it.
+                    Text(text = task.title(), color = textColor, modifier = Modifier.weight(1f))
+                    Text(text = task.status().yaml(), color = textColor, modifier = Modifier.padding(start = 8.dp))
                 }
                 if (task.tags().isNotEmpty()) {
                     Row(modifier = Modifier.padding(top = 4.dp)) {

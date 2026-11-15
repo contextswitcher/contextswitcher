@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [Unreleased]
+
+### Fixed
+
+- Android: the task list's top bar no longer grows to half the screen; *Tour* and *Settings* moved into a ⋮ menu, and a long task title wraps instead of squeezing its status into a vertical column of letters.
+
 ## [2026-11-13] - 2026-11-13
 
 ### Added
@@ -318,6 +324,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-13...main
 [2026-11-13]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-12...v2026-11-13
 [2026-11-12]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-09...v2026-11-12
 [2026-11-09]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-05...v2026-11-09
