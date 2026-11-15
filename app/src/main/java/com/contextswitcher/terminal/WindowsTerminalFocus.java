@@ -7,17 +7,20 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 import com.contextswitcher.local.LocalCommandRunner;
+import com.contextswitcher.local.WindowsWindowMove;
 
 /// Focuses a Windows Terminal tab by its (fixed) title using UI Automation,
 /// driven through `powershell`. The script finds the `CASCADIA_HOSTING_WINDOW_CLASS`
 /// window whose `TabItem` name equals the title, selects that tab
 /// (`SelectionItemPattern.Select`) and brings the window to the foreground
 /// (restoring it if minimised; an Alt tap works around the foreground lock).
+/// A window on another virtual desktop is moved here first and left alone
+/// when that fails (`CsMv.Focus`, [WindowsWindowMove]) — never a desktop jump.
 ///
 /// The whole script is passed as a base64 `-EncodedCommand`, so there is no
 /// shell quoting to get wrong, no temp file, and no execution-policy prompt;
 /// the only escaping is doubling `'` for the single-quoted title literal.
-// [impl->dsn~local-terminal-focus~6]
+// [impl->dsn~local-terminal-focus~7]
 public class WindowsTerminalFocus {
 
     /// Outcome of a focus attempt.
@@ -37,13 +40,10 @@ public class WindowsTerminalFocus {
               [DllImport("user32.dll")] public static extern bool EnumWindows(CB cb, IntPtr l);
               [DllImport("user32.dll")] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);
               [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
-              [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
-              [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
-              [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
-              [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
-              [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, uint f, IntPtr e);
-              [DllImport("user32.dll")] public static extern void SwitchToThisWindow(IntPtr h, bool alt);
             }
+            "@
+            Add-Type -TypeDefinition @"
+            __MOVE_TYPES__
             "@
             $title = '__TITLE__'
             $au = [System.Windows.Automation.AutomationElement]
@@ -54,12 +54,9 @@ public class WindowsTerminalFocus {
               $tab = $w.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $tabCond)
               if ($tab -eq $null) { return $false }
               $tab.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
-              if ([CsFg]::IsIconic($hwnd)) { [CsFg]::ShowWindow($hwnd, 9) | Out-Null }
-              [CsFg]::keybd_event(0x12, 0, 0, [IntPtr]::Zero)
-              [CsFg]::keybd_event(0x12, 0, 2, [IntPtr]::Zero)
-              [CsFg]::SetForegroundWindow($hwnd) | Out-Null
-              [CsFg]::BringWindowToTop($hwnd) | Out-Null
-              [CsFg]::SwitchToThisWindow($hwnd, $true)
+              # UIA lists only windows of this desktop, but the raise goes
+              # through the same guard as the fallback below.
+              [CsMv]::Focus($hwnd) | Out-Null
               return $true
             }
             $winCond = New-Object System.Windows.Automation.PropertyCondition($au::ClassNameProperty, 'CASCADIA_HOSTING_WINDOW_CLASS')
@@ -74,8 +71,9 @@ public class WindowsTerminalFocus {
             # desktop are cloaked - absent from the UIA root, and UIA cannot
             # descend into them either. EnumWindows does list them, and a
             # window whose TITLE equals the tab title has that tab active,
-            # so no tab selection is needed - just the jump
-            # (SwitchToThisWindow switches to the window's desktop).
+            # so no tab selection is needed - only bringing it here. A window
+            # that cannot be moved here is left alone: raising it would switch
+            # the user to its desktop.
             $hwnds = New-Object System.Collections.ArrayList
             [CsFg]::EnumWindows({ param($h, $l)
               $cls = New-Object System.Text.StringBuilder 256
@@ -87,12 +85,9 @@ public class WindowsTerminalFocus {
               }
               $true }, [IntPtr]::Zero) | Out-Null
             foreach ($h in $hwnds) {
-              if ([CsFg]::IsIconic($h)) { [CsFg]::ShowWindow($h, 9) | Out-Null }
-              [CsFg]::keybd_event(0x12, 0, 0, [IntPtr]::Zero)
-              [CsFg]::keybd_event(0x12, 0, 2, [IntPtr]::Zero)
-              [CsFg]::SetForegroundWindow($h) | Out-Null
-              [CsFg]::SwitchToThisWindow($h, $true)
-              Write-Output ("focused: " + $title)
+              $outcome = [CsMv]::Focus($h)
+              Write-Output ($outcome + ": " + $title)
+              if ($outcome -like 'elsewhere*') { exit 3 }
               exit 0
             }
             Write-Output ("not found: " + $title)
@@ -112,7 +107,8 @@ public class WindowsTerminalFocus {
 
     /// The PowerShell script that focuses the tab with the given title.
     static String script(String tabTitle) {
-        return SCRIPT_TEMPLATE.replace("__TITLE__", escape(tabTitle));
+        return SCRIPT_TEMPLATE.replace("__MOVE_TYPES__", WindowsWindowMove.TYPES.strip())
+                .replace("__TITLE__", escape(tabTitle));
     }
 
     /// The local argv: the script as a base64 `-EncodedCommand` (UTF-16LE).
@@ -130,7 +126,7 @@ public class WindowsTerminalFocus {
     /// Windows Terminal window (a new window when none is open). The title is
     /// pinned (`--suppressApplicationTitle`), so the next switch finds the tab
     /// again; `;` is wt's command separator and is escaped.
-    // [impl->dsn~local-terminal-focus~6]
+    // [impl->dsn~local-terminal-focus~7]
     static List<String> openCommand(String tabTitle, String folder) {
         return List.of("wt", "-w", "0", "new-tab", "--title", tabTitle.replace(";", "\\;"),
                 "--suppressApplicationTitle", "-d", folder.replace(";", "\\;"));
@@ -138,7 +134,7 @@ public class WindowsTerminalFocus {
 
     /// As [#focus(String)], but a tab that does not exist — after a reboot —
     /// is opened in `folder` when one is given.
-    // [impl->dsn~local-terminal-focus~6]
+    // [impl->dsn~local-terminal-focus~7]
     public FocusResult focus(String tabTitle, @Nullable String folder) {
         LocalCommandRunner.LocalResult result = runner.run(command(tabTitle));
         if (result.exitCode() == 0) {
@@ -153,6 +149,12 @@ public class WindowsTerminalFocus {
         }
         if (result.exitCode() == 2) {
             return new FocusResult(false, "no Windows Terminal tab titled \"%s\"".formatted(tabTitle));
+        }
+        // The tab's window sits on another desktop and could not be moved
+        // here; it was left alone rather than switching desktops.
+        if (result.exitCode() == 3) {
+            org.tinylog.Logger.info("Windows Terminal focus: {}", result.stdout().strip());
+            return new FocusResult(false, "tab \"%s\" is on another desktop".formatted(tabTitle));
         }
         String detail = result.stderr().isBlank()
                 ? "powershell exit " + result.exitCode()

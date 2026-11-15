@@ -27,20 +27,20 @@ import org.tinylog.Logger;
 /// via the `Shell.Application` COM object (`.Windows()`); a window whose
 /// `Document.Folder.Self.Path` matches the target (case-insensitive, trailing
 /// separators ignored) is brought to the foreground by its `HWND` (restoring it
-/// if minimised; an Alt tap works around the foreground lock, `SwitchToThisWindow`
-/// jumps across virtual desktops). With none open, a fresh Explorer window is
-/// launched at the folder.
+/// if minimised; an Alt tap works around the foreground lock). With none
+/// open, a fresh Explorer window is launched at the folder.
 ///
 /// A matching window on **another** virtual desktop is first moved to the one
-/// in view (`CsMv.Here`, [WindowsWindowMove]) so focusing it does not drag the
-/// user to that desktop; if the move is unavailable on this Windows build, the
-/// old cross-desktop jump remains.
+/// in view (`CsMv.Focus`, [WindowsWindowMove]) so focusing it does not drag the
+/// user to that desktop. When the move fails — or reports success while the
+/// window is still elsewhere — the window is left alone and a new Explorer
+/// window opens here instead: never a desktop jump.
 ///
 /// The script is passed as a base64 `-EncodedCommand`, so there is no shell
 /// quoting to get wrong; the only escaping is doubling `'` for the folder
 /// single-quoted literal.
-// [impl->dsn~explorer-folder-focus~3]
-// [impl->dsn~window-move-here~1]
+// [impl->dsn~explorer-folder-focus~4]
+// [impl->dsn~window-move-here~2]
 public class LocalFolderFocus {
 
     /// Outcome of a focus/open attempt.
@@ -49,17 +49,6 @@ public class LocalFolderFocus {
 
     private static final String SCRIPT_TEMPLATE = """
             $ErrorActionPreference = 'Stop'
-            Add-Type @"
-            using System;
-            using System.Runtime.InteropServices;
-            public class CsFg {
-              [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
-              [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
-              [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
-              [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, uint f, IntPtr e);
-              [DllImport("user32.dll")] public static extern void SwitchToThisWindow(IntPtr h, bool alt);
-            }
-            "@
             Add-Type -TypeDefinition @"
             __MOVE_TYPES__
             "@
@@ -70,14 +59,13 @@ public class LocalFolderFocus {
               $path = $null
               try { $path = $w.Document.Folder.Self.Path } catch { continue }
               if ($path -and ($path.TrimEnd('\\', '/') -ieq $norm)) {
-                $h = [IntPtr]$w.HWND
-                $moved = [CsMv]::Here($h)
-                if ([CsFg]::IsIconic($h)) { [CsFg]::ShowWindow($h, 9) | Out-Null }
-                [CsFg]::keybd_event(0x12, 0, 0, [IntPtr]::Zero)
-                [CsFg]::keybd_event(0x12, 0, 2, [IntPtr]::Zero)
-                [CsFg]::SetForegroundWindow($h) | Out-Null
-                [CsFg]::SwitchToThisWindow($h, $true)
-                if ($moved -eq 'moved') { Write-Output ("moved here: " + $target) } else { Write-Output ("focused: " + $target) }
+                $outcome = [CsMv]::Focus([IntPtr]$w.HWND)
+                if ($outcome -like 'elsewhere*') {
+                  Start-Process explorer.exe -ArgumentList $target
+                  Write-Output ("opened here, the open window is on another desktop (" + $outcome + "): " + $target)
+                  exit 0
+                }
+                if ($outcome -eq 'moved') { Write-Output ("moved here: " + $target) } else { Write-Output ("focused: " + $target) }
                 exit 0
               }
             }
@@ -135,6 +123,11 @@ public class LocalFolderFocus {
         LocalCommandRunner.LocalResult result = runner.run(command(folder));
         if (result.exitCode() == 0) {
             String out = result.stdout().strip();
+            // The move outcome on this Windows build, for a recurrence to be
+            // read off the log (`dsn~window-move-here~2`).
+            if (!out.startsWith("focused: ")) {
+                Logger.info("Explorer focus: {}", out);
+            }
             return new FocusResult(true, out.isBlank() ? "opened \"%s\"".formatted(folder) : out);
         }
         if (result.exitCode() == 2) {

@@ -19,11 +19,11 @@ import com.contextswitcher.tasks.Task;
 /// unit-testable.
 ///
 /// Before an `onenote:` link is opened, the injected window mover brings
-/// OneNote's window to the desktop in view (`dsn~window-move-here~1`):
+/// OneNote's window to the desktop in view (`dsn~window-move-here~2`):
 /// OneNote is single-instance, so the link would otherwise activate its window
 /// wherever it sits and Windows would jump to that desktop.
 // [impl->dsn~note-focus-action~1]
-// [impl->dsn~window-move-here~1]
+// [impl->dsn~window-move-here~2]
 public class NoteFocusAction implements SwitchAction {
 
     private final Consumer<String> opener;

@@ -243,6 +243,11 @@ tasks.register<Test>("uiTest") {
     // it, and Gradle then waits for the pipe to close after the last test —
     // the six-hour CI hangs.
     systemProperty("java.awt.headless", "true")
+    // Likewise for the desktop integrations driven through `powershell`,
+    // `explorer` and `wt` (LocalCommandRunner.NO_DESKTOP_SIDE_EFFECTS): a test
+    // click on a folder button or a category switch must not focus Explorer,
+    // switch the developer's virtual desktop or move their windows.
+    systemProperty("contextswitcher.noDesktopSideEffects", "true")
     // Every test class boots the whole app in this one JVM; at Gradle's 512 MB
     // default the suite ran out of memory (it peaks above 1 GB) and failed at
     // random.

@@ -6,7 +6,7 @@ import com.contextswitcher.terminal.WindowsTerminalFocus;
 /// Focuses the task's local Windows Terminal tab (the local alternative to the
 /// remote `tmux` action) by its fixed tab title, via UI Automation; a tab
 /// that is gone (after a reboot) is reopened in the task's first `folders` entry.
-// [impl->dsn~local-terminal-focus~6]
+// [impl->dsn~local-terminal-focus~7]
 public class LocalTerminalAction implements SwitchAction {
 
     private final WindowsTerminalFocus focus;

@@ -17,6 +17,8 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- A switch no longer pulls you to another virtual desktop when an Explorer, Windows Terminal, JetBrains Client or browser window it focuses sits there: the window is moved to the desktop in view first, and when that does not work it is left alone (Explorer opens a new window here instead).
+- The UI tests no longer open Explorer, switch virtual desktops or move windows on the machine running them.
 - Clicking another category's header opens its config in *Configuration* and *Switch actions* again; before, they kept showing the previously opened file.
 - Android: the task list's top bar no longer grows to half the screen; *Tour* and *Settings* moved into a ⋮ menu, and a long task title wraps (at most three lines) instead of squeezing its status into a vertical column of letters.
 

@@ -20,7 +20,7 @@ import org.tinylog.Logger;
 /// concurrently so output larger than the OS pipe buffer cannot deadlock
 /// `waitFor`. The local analog of the ssh runner, for desktop-integration
 /// actions that drive local tools such as `powershell`.
-// [impl->dsn~local-terminal-focus~6]
+// [impl->dsn~local-terminal-focus~7]
 public class LocalCommandRunner {
 
     /// Outcome of one local command; `stderr` is the debugging story on failure.
@@ -40,6 +40,19 @@ public class LocalCommandRunner {
     /// `Cannot run program "powershell"` and told the user nothing.
     private static final Set<String> WINDOWS_ONLY =
             Set.of("powershell", "rundll32", "explorer", "wt", "wsl.exe");
+
+    /// Programs that act on the user's desktop — focus or move windows, switch
+    /// virtual desktops, open Explorer or terminal tabs. With the system
+    /// property [#NO_DESKTOP_SIDE_EFFECTS] set (the `uiTest` task does), they
+    /// are not started and fail like a missing program, which every desktop
+    /// integration already handles as "unavailable": a UI test that clicks a
+    /// folder button or runs a switch must not move the developer's real
+    /// desktop (field report 2026-11-15, desktop jumps during `uiTest`).
+    private static final Set<String> DESKTOP_PROGRAMS =
+            Set.of("powershell", "pwsh", "explorer", "explorer.exe", "wt", "rundll32", "code");
+
+    /// The system property that keeps [#DESKTOP_PROGRAMS] from running.
+    public static final String NO_DESKTOP_SIDE_EFFECTS = "contextswitcher.noDesktopSideEffects";
 
     /// Whether this is Windows — the switch every desktop integration that
     /// has one behaviour here and another elsewhere reads.
@@ -79,6 +92,11 @@ public class LocalCommandRunner {
     public LocalResult run(List<String> command, @Nullable Path directory,
             byte @Nullable [] input) {
         String program = command.isEmpty() ? "" : command.getFirst();
+        if (DESKTOP_PROGRAMS.contains(program.toLowerCase(Locale.ROOT))
+                && Boolean.getBoolean(NO_DESKTOP_SIDE_EFFECTS)) {
+            Logger.debug("Not running {}: desktop side effects are off", program);
+            return new LocalResult(-1, "", program + " not run: desktop side effects are off");
+        }
         if (!ON_WINDOWS && WINDOWS_ONLY.contains(program)) {
             Logger.debug("Not running the Windows-only {} on this OS", program);
             return new LocalResult(-1, "", program + " is Windows-only");

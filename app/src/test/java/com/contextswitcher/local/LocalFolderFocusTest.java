@@ -10,7 +10,7 @@ import org.junit.jupiter.api.condition.OS;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~explorer-folder-focus~3]
+// [utest->dsn~explorer-folder-focus~4]
 class LocalFolderFocusTest {
 
     @Test
@@ -29,14 +29,29 @@ class LocalFolderFocusTest {
                 .contains("Start-Process explorer.exe");
     }
 
-    // [utest->dsn~window-move-here~1]
+    // [utest->dsn~window-move-here~2]
     @Test
     void scriptMovesAWindowFromAnotherDesktopHereBeforeFocusingIt() {
         String script = LocalFolderFocus.script("C:\\p");
         assertThat(script).contains(WindowsWindowMove.TYPES.strip())
-                .contains("$moved = [CsMv]::Here($h)")
+                .contains("$outcome = [CsMv]::Focus([IntPtr]$w.HWND)")
                 .contains("moved here: ");
-        assertThat(script.indexOf("[CsMv]::Here($h)")).isLessThan(script.indexOf("SetForegroundWindow($h)"));
+    }
+
+    /// A window that stays on another desktop is not raised: a new Explorer
+    /// window opens here instead, and nothing switches desktops (field report
+    /// 2026-11-15, Insider build 26300). The raise itself lives in
+    /// `CsMv.Focus` only — the script body calls no foreground API.
+    // [utest->dsn~window-move-here~2]
+    @Test
+    void aWindowLeftOnAnotherDesktopGetsANewWindowHereInsteadOfAJump() {
+        String script = LocalFolderFocus.script("C:\\p");
+        String body = script.substring(script.indexOf("$target = "));
+        String elsewhere = body.substring(body.indexOf("if ($outcome -like 'elsewhere*')"));
+        assertThat(elsewhere.substring(0, elsewhere.indexOf("exit 0")))
+                .contains("Start-Process explorer.exe -ArgumentList $target");
+        assertThat(body).doesNotContain("SetForegroundWindow").doesNotContain("SwitchToThisWindow");
+        assertThat(script).doesNotContain("SwitchToThisWindow");
     }
 
     @Test

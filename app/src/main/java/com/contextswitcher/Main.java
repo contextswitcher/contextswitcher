@@ -669,7 +669,7 @@ public class Main extends Application {
                                 (desktop, url) -> openOnDesktop(extensionServer, desktop, url),
                                 task -> rewriteTaskFile(files, task,
                                         TaskFileParser::withoutStoredTabs)),
-                        // [impl->dsn~window-move-here~1]
+                        // [impl->dsn~window-move-here~2]
                         new NoteFocusAction(this::openUrl,
                                 group -> groupLink(files, group, TaskFileParser::groupNote),
                                 () -> new WindowsWindowMove(new LocalCommandRunner())
@@ -2191,7 +2191,7 @@ public class Main extends Application {
     /// "always allow" option). Falls back to `showDocument` where AWT cannot
     /// browse. Shell dispatch is quick — safe on the FX thread; the intellij
     /// action calls it on the background executor anyway.
-    // [impl->dsn~gateway-url-action~11]
+    // [impl->dsn~gateway-url-action~12]
     // [impl->dsn~group-note-open~5]
     private void openUrl(String url) {
         if (Desktop.isDesktopSupported()

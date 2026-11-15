@@ -9,7 +9,7 @@ import com.contextswitcher.tasks.Task;
 /// Focuses (or opens) the task's local `folders` in File Explorer — a window
 /// already showing a folder is brought forward rather than opening another.
 /// Every folder is handled, in file order; the last one ends up in front.
-// [impl->dsn~explorer-folder-focus~3]
+// [impl->dsn~explorer-folder-focus~4]
 public class ExplorerFolderAction implements SwitchAction {
 
     private final LocalFolderFocus focus;

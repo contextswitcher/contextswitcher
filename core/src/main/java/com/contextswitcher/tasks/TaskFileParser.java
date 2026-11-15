@@ -753,7 +753,7 @@ public class TaskFileParser {
     /// single-directory `folder` scalar the task files predating it use — the
     /// same key pair in a task file and in a category's `CONTEXTSWITCHER.md`.
     /// Blank entries are dropped so a half-typed list item opens nothing.
-    // [impl->dsn~explorer-folder-focus~3]
+    // [impl->dsn~explorer-folder-focus~4]
     private static List<String> parseFolders(Map<String, Object> data) {
         Object folders = data.get("folders");
         if (folders instanceof List<?> list) {
@@ -1836,7 +1836,7 @@ public class TaskFileParser {
         return new Task.TmuxConfig(session, window);
     }
 
-    // [impl->dsn~local-terminal-focus~6]
+    // [impl->dsn~local-terminal-focus~7]
     private Task.@Nullable TerminalConfig parseTerminal(@Nullable Map<String, Object> terminal) throws TaskParseException {
         if (terminal == null) {
             return null;

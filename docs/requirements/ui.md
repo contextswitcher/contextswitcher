@@ -2083,7 +2083,7 @@ Needs: impl, utest
 
 Creating a task in a group (the `Add task…` dialog, or a category's `Add task…` row) reads that folder's `CONTEXTSWITCHER.md` via `TaskFileParser.parseGroupConfig` (tolerant — a missing, empty, or half-edited config yields `GroupConfig.EMPTY`, never a parse error) and seeds the new file's frontmatter: a `remote` inherited uncommented, and the resolved working directory (`GroupConfig.resolveWorkdir` — the fixed `workdir` when set, otherwise `workspacesRoot` verbatim, no task suffix; Claude manages the per-task subdirectory under it) written uncommented under the key that matches the group's shape.
 A **remote** group (a `remote` is set) writes it as `claude.cwd` — the Claude session's directory.
-A **local** group (no `remote` — the lightweight, no-tmux category) writes it as `folder` — the local directory the switch action focuses/opens in Explorer (`dsn~explorer-folder-focus~3`), since without a remote there is no Claude session to root.
+A **local** group (no `remote` — the lightweight, no-tmux category) writes it as `folder` — the local directory the switch action focuses/opens in Explorer (`dsn~explorer-folder-focus~4`), since without a remote there is no Claude session to root.
 Absent keys keep the commented example lines, so an untouched group creates the same minimal task as before. Root-level tasks (no group) inherit nothing.
 
 Tags: windows, linux

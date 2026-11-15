@@ -121,14 +121,14 @@ public final class FrontmatterCatalog {
             // [impl->dsn~browser-url-title~1]
             new Field("browser.urls", "Browser URLs", "Switch actions", Type.LIST,
                     BROWSER_URLS_HELP),
-            // [impl->dsn~explorer-folder-focus~3]
+            // [impl->dsn~explorer-folder-focus~4]
             new Field("folders", "Local folders", "Switch actions", Type.LIST,
                     "Folders opened in the file manager on switch; one per line."),
             new Field("chat", "Chat room", "Switch actions", Type.STRING,
                     "Matrix room opened in the Element app — a matrix.to permalink."),
             new Field("note", "OneNote", "Switch actions", Type.STRING,
                     "Opened by \"Open note\" — the page's onenote:… link (any other link works too)."),
-            // [impl->dsn~local-terminal-focus~6]
+            // [impl->dsn~local-terminal-focus~7]
             new Field("terminal.tabTitle", "Windows Terminal tab", "Switch actions", Type.STRING,
                     "Local Windows Terminal tab focused on switch, e.g. a shell for gradlew "
                             + "(the title pinned via \"Rename Tab\")."));
