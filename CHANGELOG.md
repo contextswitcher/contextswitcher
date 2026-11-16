@@ -10,6 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Added
 
+- A category can set a *Windows Terminal tab* on its Switch actions; every task of it without its own tab focuses that one.
 - The setting `todoTxt` names a todo.txt file, such as koppter's; a task row shows each open line of it tagged `cs:<task id>`.
 - Android: swiping left past a task's Queue page opens the next task of the list, swiping right past its Terminal page the previous one.
 

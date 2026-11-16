@@ -361,22 +361,23 @@ public record Task(
 
     /// The task as it switches inside its category: every action section the
     /// task does not configure itself falls back to the category's default
-    /// from its `CONTEXTSWITCHER.md` (`intellij`, `browser`, `folders`).
+    /// from its `CONTEXTSWITCHER.md` (`intellij`, `browser`, `folders`, `terminal`).
     /// The fallback is per section, not per key — a task that carries a
     /// section at all wins with it as a whole, so overriding one URL never
     /// means restating the rest of the category's configuration.
     /// (`note:` is not merged here: [com.contextswitcher.switching.NoteFocusAction]
     /// resolves the same fallback itself, to report which of the two it opened.)
-    // [impl->dsn~category-action-defaults~1]
+    // [impl->dsn~category-action-defaults~2]
     public Task withCategoryDefaults(GroupConfig category) {
         IntellijConfig categoryIntellij = intellij == null ? category.intellij() : intellij;
         BrowserConfig categoryBrowser = browser == null ? category.browser() : browser;
         List<String> categoryFolders = folders.isEmpty() ? category.folders() : folders;
+        @Nullable TerminalConfig categoryTerminal = terminal == null ? category.terminal() : terminal;
         if (categoryIntellij == intellij && categoryBrowser == browser
-                && categoryFolders.equals(folders)) {
+                && categoryFolders.equals(folders) && categoryTerminal == terminal) {
             return this;
         }
-        return new Task(id, title, status, remote, tmux, terminal, categoryIntellij,
+        return new Task(id, title, status, remote, tmux, categoryTerminal, categoryIntellij,
                 categoryBrowser, claude, note, categoryFolders, tags, storedTabs, suspendedAt,
                 chat, notes, pinned, autoPrClosed);
     }

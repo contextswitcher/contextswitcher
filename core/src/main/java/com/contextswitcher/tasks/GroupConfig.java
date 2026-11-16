@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 /// the refactoring view/badge diff (https://github.com/contextswitcher/contextswitcher-private/issues/50); unset means `origin/main`.
 /// `tags` are inherited by every task in the group (as if each task carried
 /// them), so filtering by a group tag shows the whole group.
-/// `intellij`, `browser`, and `folders` are the category's switch-action
+/// `intellij`, `browser`, `folders`, and `terminal` are the category's switch-action
 /// defaults, used for every task in the group that configures no such section
 /// of its own ([Task#withCategoryDefaults]).
 /// `completeControl` is the nested `desktop:` form's flag
@@ -35,7 +35,7 @@ import org.jspecify.annotations.Nullable;
 // [impl->dsn~category-desktop-focus~4]
 // [impl->dsn~diff-after-worktree-removal~1]
 // [impl->dsn~refactoring-miner-commands~1]
-// [impl->dsn~category-action-defaults~1]
+// [impl->dsn~category-action-defaults~2]
 // [impl->dsn~complete-control-desktop~1]
 // [impl->dsn~pinned-categories~1]
 // [impl->dsn~auto-pr-category~3]
@@ -55,7 +55,8 @@ public record GroupConfig(
         boolean completeControl,
         boolean pinned,
         @Nullable AutoPr autoPr,
-        boolean autoDelete) {
+        boolean autoDelete,
+        Task.@Nullable TerminalConfig terminal) {
 
     /// The `auto:` section of an auto category: the GitHub `search` `query`
     /// whose open pull requests become tasks, the size filter `maxSloc` (the
@@ -74,7 +75,18 @@ public record GroupConfig(
     public static final String DEFAULT_BASE_BRANCH = "origin/main";
 
     public static final GroupConfig EMPTY = new GroupConfig(null, null, null, null, null, null,
-            null, null, null, List.of(), List.of(), false, false, null, false);
+            null, null, null, List.of(), List.of(), false, false, null, false, null);
+
+    /// Back-compat constructor without `terminal` (no category terminal tab).
+    public GroupConfig(@Nullable String remote, @Nullable String workspacesRoot,
+            @Nullable String workdir, @Nullable String repo, @Nullable String desktop,
+            @Nullable String mainCheckout, @Nullable String baseBranch,
+            Task.@Nullable IntellijConfig intellij, Task.@Nullable BrowserConfig browser,
+            List<String> folders, List<String> tags, boolean completeControl, boolean pinned,
+            @Nullable AutoPr autoPr, boolean autoDelete) {
+        this(remote, workspacesRoot, workdir, repo, desktop, mainCheckout, baseBranch,
+                intellij, browser, folders, tags, completeControl, pinned, autoPr, autoDelete, null);
+    }
 
     /// Back-compat constructor without `autoDelete` (defaults to off — nothing
     /// in the category is ever deleted unattended).
@@ -172,7 +184,7 @@ public record GroupConfig(
         return remote == null && workspacesRoot == null && workdir == null && repo == null
                 && desktop == null && mainCheckout == null && baseBranch == null
                 && intellij == null && browser == null && folders.isEmpty() && tags.isEmpty()
-                && !pinned && autoPr == null && !autoDelete;
+                && !pinned && autoPr == null && !autoDelete && terminal == null;
     }
 
     /// The working directory a new task in the group inherits: an explicit
