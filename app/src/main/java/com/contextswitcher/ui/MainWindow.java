@@ -5095,7 +5095,7 @@ public class MainWindow {
     /// then runs a regular switch of [Task#forCategory], which leaves exactly
     /// the category's own switch actions.
     // [impl->dsn~category-switch~1]
-    private void switchCategory(String group) {
+    public void switchCategory(String group) {
         saveEditorIfDirty();
         Task task = Task.forCategory(group, groupDefaults(group).remote());
         String desktop = groupDesktop(group);

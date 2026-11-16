@@ -7,7 +7,8 @@ import java.nio.charset.StandardCharsets;
 /// A parsed `contextswitcher://` deep link (https://github.com/contextswitcher/contextswitcher-private/issues/47): `contextswitcher://task/<id>`
 /// selects the task and focuses the app, `contextswitcher://switch/<id>` runs
 /// the full switch, `contextswitcher://category/<name>` selects the category's
-/// header row, `contextswitcher://show` only raises the window (what a second
+/// header row, `contextswitcher://switch-category/<name>` also runs the
+/// category's switch (its note, folders, browser, …), `contextswitcher://show` only raises the window (what a second
 /// plain launch hands to the running instance, `dsn~single-instance~1`).
 /// Task ids contain `/` (group folders) — they live in the URL's
 /// path; other characters arrive percent-encoded and are decoded by the `URI`
@@ -17,7 +18,7 @@ public record DeepLink(Kind kind, String target) {
 
     /// What the link points at — a task (by id), a category (by name), or
     /// just the app's window ([#SHOW_URL], no target).
-    public enum Kind { TASK, SWITCH, CATEGORY, SHOW }
+    public enum Kind { TASK, SWITCH, CATEGORY, SWITCH_CATEGORY, SHOW }
 
     /// The link a second plain launch forwards: raise the running window.
     // [impl->dsn~single-instance~1]
@@ -68,8 +69,9 @@ public record DeepLink(Kind kind, String target) {
             case "task" -> Kind.TASK;
             case "switch" -> Kind.SWITCH;
             case "category" -> Kind.CATEGORY;
+            case "switch-category" -> Kind.SWITCH_CATEGORY;
             default -> throw new IllegalArgumentException("Unknown deep-link kind '" + host
-                    + "' (expected task, switch or category): " + url);
+                    + "' (expected task, switch, category or switch-category): " + url);
         };
         String path = uri.getPath();
         String target = path == null ? "" : path.replaceAll("^/|/$", "");

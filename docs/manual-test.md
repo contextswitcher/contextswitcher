@@ -1064,6 +1064,7 @@ Precondition: protocol registered once via `scripts/register-url-handler.cmd` (W
 - [ ] `contextswitcher://switch/<id>` → same, plus the full switch runs (status-bar chips).
 - [ ] App **not running**: the same link starts the app, which then selects the task.
 - [ ] Category context menu → **Copy link** → the clipboard holds `contextswitcher://category/<name>`; opening it selects that category's header (expanding it when collapsed) and raises the app.
+- [ ] Open `contextswitcher://switch-category/<name>` of a category with `note: onenote:…` → its header is selected and its OneNote section opens, with the category's other switch actions.
 - [ ] A link to a nonexistent id → app raises and the status bar reports the unknown task; a malformed link (`contextswitcher://focus/x`) reports too.
 
 ## Delete-task kill dialog (dsn~claude-session-kill~7)

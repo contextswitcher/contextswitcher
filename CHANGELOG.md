@@ -14,6 +14,8 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - The setting `todoTxt` names a todo.txt file, such as koppter's; a task row shows each open line of it tagged `cs:<task id>`.
 - Android: swiping left past a task's Queue page opens the next task of the list, swiping right past its Terminal page the previous one.
 
+- The deep link `contextswitcher://switch-category/<name>` selects a category and runs its switch, opening its note.
+
 ### Changed
 
 - A category's *Virtual desktop* and *Clear that desktop on suspend* moved from Configuration to Switch actions.

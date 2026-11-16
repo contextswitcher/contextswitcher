@@ -1168,6 +1168,7 @@ Needs: impl, utest
 
 `DeepLink.categoryUrl` builds `contextswitcher://category/<name>` with the name percent-encoded (so a category with spaces survives), `DeepLink.parse` maps the `category` host back onto `Kind.CATEGORY` plus the decoded name.
 The category context menu's "Copy link" puts that URL on the system clipboard; `Main.handleDeepLink` routes a `CATEGORY` link to `MainWindow.selectCategory`, which expands the category if collapsed and selects and scrolls to its header row, reporting an unknown name in the status bar like an unknown task id does.
+`contextswitcher://switch-category/<name>` (`Kind.SWITCH_CATEGORY`) selects the category the same way and then runs its switch (`MainWindow.switchCategory`, `dsn~category-switch~1`), opening its `note:` and its other actions — the category's counterpart of `switch/<id>`, for a link from another application such as a todo.txt project.
 
 Tags: windows, linux
 

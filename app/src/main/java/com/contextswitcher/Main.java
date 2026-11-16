@@ -2520,7 +2520,7 @@ public class Main extends Application {
         if (link.kind() == DeepLink.Kind.SHOW) {
             // A second launch: just the window, nothing selected or switched.
             // [impl->dsn~single-instance~1]
-        } else if (link.kind() == DeepLink.Kind.CATEGORY) {
+        } else if (link.kind() == DeepLink.Kind.CATEGORY || link.kind() == DeepLink.Kind.SWITCH_CATEGORY) {
             if (!window.selectCategory(link.target())) {
                 window.statusBar().message("No category '" + link.target() + "' for link " + url);
                 return;
@@ -2542,6 +2542,8 @@ public class Main extends Application {
         stage.requestFocus();
         if (link.kind() == DeepLink.Kind.SWITCH && loaded != null) {
             switchTo(orchestrator, files, loaded.task());
+        } else if (link.kind() == DeepLink.Kind.SWITCH_CATEGORY) {
+            window.switchCategory(link.target());
         }
     }
 
