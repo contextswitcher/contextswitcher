@@ -61,10 +61,10 @@ Covers:
 Needs: dsn
 
 ### Category defaults for the switch actions
-`req~category-action-defaults~1`
+`req~category-action-defaults~2`
 
-A category (project group) can configure `intellij`, `browser`, and `folders` in its `CONTEXTSWITCHER.md`, as the default for every task in it: switching any task of the category opens the project's IDE, pages, and directories without each task file repeating them.
-A task that carries such a section of its own overrides the category's — per section, so overriding one of the three leaves the others inherited.
+A category (project group) can configure `intellij`, `browser`, `folders`, and `terminal` in its `CONTEXTSWITCHER.md`, as the default for every task in it: switching any task of the category opens the project's IDE, pages, and directories and focuses its local terminal tab (e.g. one shell for `gradlew`) without each task file repeating them (revision `~2` added `terminal`).
+A task that carries such a section of its own overrides the category's — per section, so overriding one of them leaves the others inherited.
 The category's browser URLs are project-wide, so suspending a single task does not close them (only its own tabs).
 This mirrors the note fallback (`req~open-task-note~1`), which already resolves a task's note from its category.
 
@@ -454,7 +454,7 @@ Needs: impl, utest
 
 `ExplorerFolderAction` (chip `folder`) focuses each of the task's `folders`, in file order — so the last one ends up in front — and is configured exactly when the list is non-empty.
 A folder that fails does not stop the rest: the chip fails naming the folders that did not open (`n of m failed: …`), and a single-folder task keeps the plain wording of the one result.
-`TaskFileParser.parseFolders` reads the list from `folders`, accepting a `folder` scalar as the one-entry form (what a local category's generated task file writes, `dsn~group-config-apply~2`) and dropping blank entries; the same pair of keys is read from a category's `CONTEXTSWITCHER.md` (`dsn~category-action-defaults~1`).
+`TaskFileParser.parseFolders` reads the list from `folders`, accepting a `folder` scalar as the one-entry form (what a local category's generated task file writes, `dsn~group-config-apply~2`) and dropping blank entries; the same pair of keys is read from a category's `CONTEXTSWITCHER.md` (`dsn~category-action-defaults~2`).
 `LocalFolderFocus` handles one folder per call: it builds a PowerShell script that enumerates open File Explorer windows via the `Shell.Application` COM object (`.Windows()`) and matches each window's `Document.Folder.Self.Path` against the target (case-insensitive, trailing separators trimmed); a match is brought forward by its `HWND` through `CsMv.Focus` (`dsn~window-move-here~2`): moved here when on another desktop, then raised; when it stays elsewhere it is left alone and `explorer.exe <folder>` opens a new window here instead, reported as `opened here, the open window is on another desktop (…)`. With no window showing the folder, `explorer.exe <folder>` opens a fresh one. The script runs as a base64 `-EncodedCommand` via `LocalCommandRunner`; the folder is a single-quoted PowerShell literal with `'` doubled. Exit code 0 = focused or opened, 2 = the folder does not exist.
 
 Off Windows there is no `powershell` and no window enumeration: the folder goes to `java.awt.Desktop.open`, i.e. to whatever file manager the desktop registered (`xdg-open` under GNOME/KDE), so the `folder` chip works there instead of reporting `explorer is Windows-only`.
@@ -469,12 +469,12 @@ Covers:
 Needs: impl, utest
 
 ### Category action defaults
-`dsn~category-action-defaults~1`
+`dsn~category-action-defaults~2`
 
-`GroupConfig` gains the category's switch-action defaults — `intellij`, `browser`, `folders` — parsed by `parseGroupConfig` from the same keys, with the same parsers, a task file uses.
+`GroupConfig` gains the category's switch-action defaults — `intellij`, `browser`, `folders`, `terminal` (revision `~2`) — parsed by `parseGroupConfig` from the same keys, with the same parsers, a task file uses.
 They are parsed leniently like the rest of the category config: a half-edited `intellij`/`browser` section yields no default instead of turning the file into an error row.
 
-`Task.withCategoryDefaults(GroupConfig)` folds them in, per section: `intellij`/`browser` fall back when the task's own is null, `folders` when the task's list is empty, and the task is returned unchanged when nothing applies.
+`Task.withCategoryDefaults(GroupConfig)` folds them in, per section: `intellij`/`browser` fall back when the task's own is null (so does `terminal`), `folders` when the task's list is empty, and the task is returned unchanged when nothing applies.
 The fallback is deliberately per section, not per key — a task overriding one URL would otherwise have to restate the category's IDE and folders as well.
 A bare `intellij:` on the task therefore keeps its own meaning (`dsn~task-file-parsing~4`: project path from `claude.workspace`/`cwd`), rather than inheriting the category's `projectPath`.
 
@@ -485,7 +485,7 @@ The suspend path (`Main.suspendTo`) does **not** merge: a category's browser URL
 Tags: windows, linux
 
 Covers:
-- req~category-action-defaults~1
+- req~category-action-defaults~2
 
 Needs: impl, utest
 
@@ -620,7 +620,7 @@ Needs: impl, utest
 ### Category folder button
 `dsn~category-folders-button~1`
 
-The group header renders an always-visible "Open folders" icon button (MDI `folder-open-outline`, id `group-folders-button`), right of the desktop button, exactly when the category's `folders:` (`dsn~category-action-defaults~1`) is non-empty — like its two neighbours it states a property of the category, so it reads next to the name rather than in the hover strip.
+The group header renders an always-visible "Open folders" icon button (MDI `folder-open-outline`, id `group-folders-button`), right of the desktop button, exactly when the category's `folders:` (`dsn~category-action-defaults~2`) is non-empty — like its two neighbours it states a property of the category, so it reads next to the name rather than in the hover strip.
 Its tooltip names the folder, or the count and the whole list when there are several; the list rides on `TaskListCell.GroupHeader.folders`, which `rebuildRows` fills from the `GroupConfig` it already parses per header.
 
 The click resolves the list **fresh** from disk (`MainWindow.openGroupFolders` flushes the editor first, like `focusDesktop` — the button takes no focus, so a just-edited `folders:` would otherwise open the stale one) and hands it to `Main.reportOpenFolders` on the action executor.
@@ -640,7 +640,7 @@ Needs: impl, utest
 
 Every named category's header renders an always-visible "Switch to category" icon button (MDI `play`, id `group-switch-button`) right of the desktop button.
 A click (`MainWindow.switchCategory`) flushes the editor, then runs the ordinary task switch (`Main.switchTo`, status-bar chips and all) on `Task.forCategory(group, remote)`: a stand-in task with id `<group>/`, the category's default host and no section of its own.
-`Main.withCategoryDefaults` fills in the category's `intellij`, `browser` and `folders` (`dsn~category-action-defaults~1`), and the note, chat and environment-profile actions resolve their category fallback from the id's group part, so exactly the category's own actions run.
+`Main.withCategoryDefaults` fills in the category's `intellij`, `browser` and `folders` (`dsn~category-action-defaults~2`), and the note, chat and environment-profile actions resolve their category fallback from the id's group part, so exactly the category's own actions run.
 When the category resolves to a desktop (its own or the fallback, `dsn~fallback-desktop~2`) the switch waits for the desktop focus (`Main.reportFocusDesktop`, on the action executor) to finish first, because Explorer and new browser tabs open on the desktop in view.
 
 Tags: windows, linux

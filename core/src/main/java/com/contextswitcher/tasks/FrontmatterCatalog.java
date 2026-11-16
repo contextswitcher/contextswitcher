@@ -211,7 +211,7 @@ public final class FrontmatterCatalog {
             new Field("remote", "Host", "Defaults for its tasks", Type.HOST,
                     "ssh destination (user@host or an alias) a new task in the category "
                             + "inherits — one of the settings' hosts or any other."),
-            // [impl->dsn~category-action-defaults~1]
+            // [impl->dsn~category-action-defaults~2]
             new Field("intellij", "Open in IntelliJ", "Defaults for its tasks", Type.BOOLEAN,
                     "Used by every task of the category that configures no intellij section."),
             new Field("intellij.projectPath", "IntelliJ project path", "Defaults for its tasks",
@@ -220,7 +220,10 @@ public final class FrontmatterCatalog {
             new Field("browser.urls", "Browser URLs", "Defaults for its tasks", Type.LIST,
                     BROWSER_URLS_HELP),
             new Field("folders", "Local folders", "Defaults for its tasks", Type.LIST,
-                    "Folders opened in the file manager on switch; one per line."));
+                    "Folders opened in the file manager on switch; one per line."),
+            new Field("terminal.tabTitle", "Windows Terminal tab", "Defaults for its tasks", Type.STRING,
+                    "Local Windows Terminal tab focused on switch, e.g. a shell for gradlew; "
+                            + "a task's own tab wins."));
 
     private FrontmatterCatalog() {
     }

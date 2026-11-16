@@ -5347,7 +5347,7 @@ public class Main extends Application {
     /// Only the switch path merges: the suspend teardown keeps closing the
     /// task's *own* browser tabs, since a category's URLs are shared by every
     /// task in it and ending one task must not close the project's pages.
-    // [impl->dsn~category-action-defaults~1]
+    // [impl->dsn~category-action-defaults~2]
     private static Task withCategoryDefaults(MainWindow.TaskFileAccess files, Task task) {
         String group = taskGroup(task);
         if (group.isEmpty()) {

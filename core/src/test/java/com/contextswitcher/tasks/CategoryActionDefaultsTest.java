@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// A category's `intellij`/`browser`/`folders` defaults, and how a task's own
 /// section overrides them.
-// [utest->dsn~category-action-defaults~1]
+// [utest->dsn~category-action-defaults~2]
 class CategoryActionDefaultsTest {
 
     private final TaskFileParser parser = new TaskFileParser();
@@ -24,6 +24,8 @@ class CategoryActionDefaultsTest {
             folders:
               - /data/koppor/jabref-workspaces
               - /data/koppor/notes
+            terminal:
+              tabTitle: jabref-gradle
             ---
 
             # jabref — group defaults
@@ -52,6 +54,15 @@ class CategoryActionDefaultsTest {
         assertThat(effective.browser().urls()).containsExactly("https://github.com/JabRef/jabref");
         assertThat(effective.folders())
                 .containsExactly("/data/koppor/jabref-workspaces", "/data/koppor/notes");
+        assertThat(effective.terminal()).isEqualTo(new Task.TerminalConfig("jabref-gradle"));
+    }
+
+    @Test
+    void aTaskTerminalTabWinsOverTheCategoryOne() throws Exception {
+        Task effective = task("terminal:\n  tabTitle: own-tab\n")
+                .withCategoryDefaults(parser.parseGroupConfig(CATEGORY));
+
+        assertThat(effective.terminal()).isEqualTo(new Task.TerminalConfig("own-tab"));
     }
 
     /// The task's own section wins as a whole — the category's URLs do not get
