@@ -18,6 +18,7 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import com.contextswitcher.android.queue.DraftStore
 import com.contextswitcher.tasks.Task
@@ -161,7 +162,7 @@ class QueuePageTest {
         composeRule.onNodeWithText("Message").assertIsFocused()
     }
 
-    // [utest->dsn~android-queue-delete~1]
+    // [utest->dsn~android-queue-delete~3]
     @Test
     fun `Delete on a desktop message asks first, then deletes that message`() {
         val deleted = mutableListOf<String>()
@@ -194,6 +195,63 @@ class QueuePageTest {
         assertThat(drafts.loadUnsent(task.id())).isEqualTo("queued on the desktop")
         composeRule.onAllNodesWithText("queued on the desktop").assertCountEquals(2)
         composeRule.onNodeWithText("Message").assertIsFocused()
+    }
+
+    // [utest->dsn~android-queue-delete~3]
+    @Test
+    fun `sending an edited desktop message deletes the original`() {
+        val sent = mutableListOf<String>()
+        val deleted = mutableListOf<String>()
+        composeRule.setContent {
+            QueuePage(task, listOf("queued on the desktop"), drafts, send = { sent += it; null },
+                snackbarHostState = SnackbarHostState(), deleteQueued = { deleted += it; null })
+        }
+
+        composeRule.onNodeWithText("Edit").performClick()
+        composeRule.onNodeWithText("Message").performTextReplacement("queued, then edited")
+        composeRule.onAllNodesWithText("Send").onLast().performClick()
+        composeRule.waitUntil(5_000) { deleted.isNotEmpty() }
+
+        assertThat(sent).containsExactly("queued, then edited")
+        assertThat(deleted).containsExactly("queued on the desktop")
+    }
+
+    // [utest->dsn~android-queue-delete~3]
+    @Test
+    fun `an edited desktop message with an attachment stays on the desktop`() {
+        val sent = mutableListOf<String>()
+        val deleted = mutableListOf<String>()
+        composeRule.setContent {
+            QueuePage(task, listOf("look [image: C:\\Users\\me\\shot.png]"), drafts, send = { sent += it; null },
+                snackbarHostState = SnackbarHostState(), deleteQueued = { deleted += it; null })
+        }
+
+        composeRule.onNodeWithText("Edit").performClick()
+        composeRule.onAllNodesWithText("Send").onLast().performClick()
+        composeRule.waitUntil(5_000) { sent.isNotEmpty() }
+        composeRule.waitForIdle()
+
+        assertThat(deleted).isEmpty()
+    }
+
+    // [utest->dsn~android-queue-delete~3]
+    @Test
+    fun `an edited desktop message kept as a draft still deletes the original when sent`() {
+        val deleted = mutableListOf<String>()
+        composeRule.setContent {
+            QueuePage(task, listOf("queued on the desktop"), drafts, send = { null },
+                snackbarHostState = SnackbarHostState(), deleteQueued = { deleted += it; null })
+        }
+
+        composeRule.onNodeWithText("Edit").performClick()
+        composeRule.onNodeWithText("Save draft").performClick()
+        composeRule.waitForIdle()
+        assertThat(deleted).isEmpty()
+        // The draft's Send comes first.
+        composeRule.onAllNodesWithText("Send")[0].performClick()
+        composeRule.waitUntil(5_000) { deleted.isNotEmpty() }
+
+        assertThat(deleted).containsExactly("queued on the desktop")
     }
 
     @Test

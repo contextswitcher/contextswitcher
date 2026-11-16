@@ -571,6 +571,15 @@ public class WindowsVirtualDesktopFocus {
         if (!System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) {
             return null;
         }
+        // Under the UI tests the desktop in view is the developer's, not the
+        // test's: a watcher would keep reporting it over the desktop a test
+        // pushes (`MainWindow.updateActiveDesktop`) and break every desktop
+        // filter test on Windows. The one-shot fallback goes through
+        // LocalCommandRunner, which refuses `powershell` there; a failed read
+        // keeps the last known desktop, i.e. the pushed one.
+        if (Boolean.getBoolean(LocalCommandRunner.NO_DESKTOP_SIDE_EFFECTS)) {
+            return null;
+        }
         Process process;
         try {
             process = new ProcessBuilder(watchCommand()).redirectErrorStream(true).start();

@@ -269,7 +269,7 @@ Sending a queued message to a suspended task resumes it first — and so does me
 **Virtual desktops** (Windows). A category's header play button switches to its `desktop:` and does nothing else.
 Opening one of a task's links opens the page on its category's desktop (a tab that already exists is focused where it is), and while the active-desktop filter is on, switching desktops re-selects the task you last had selected there.
 
-**Deep links.** `contextswitcher://task/<id>` selects a task and raises the app, `contextswitcher://switch/<id>` runs the full switch, and a category's **Copy link** hands out `contextswitcher://category/<name>` — paste them into OneNote pages or READMEs to link back.
+**Deep links.** `contextswitcher://task/<id>` selects a task and raises the app, `contextswitcher://switch/<id>` runs the full switch, and a category's **Copy link** hands out `contextswitcher://category/<name>` (`contextswitcher://switch-category/<name>` also runs the category's switch, its OneNote note included) — paste them into OneNote pages or READMEs to link back.
 A click reaches the running instance; with none running, the app starts and handles the link itself.
 
 ## The terminal lane
@@ -329,6 +329,7 @@ autoSuspendMinutes: 2880     # suspend an active Claude task idle this long (48 
 mergedCleanupDays: 7         # remove a paused task whose PRs are all merged after this many days (only in autoDelete categories); 0 = never
 autoCopyReplies: false       # true = each finished reply of the mirrored Claude chat lands on the clipboard as Markdown
 claudeUpdateRestart: false   # true = quit (/exit) and resume an idle Claude session that shows "Restart to update"
+todoTxt: C:\Users\you\todo.txt   # todo.txt (e.g. koppter's) whose open lines tagged cs:<task id> show on that task's row; empty = off
 browser: firefox             # browser to start when no extension is connected (a connected one wins): firefox or chrome
 wsPort: 17872                # loopback WebSocket port the browser extension connects to
 wsToken: <generated>         # shared secret; keep the generated value

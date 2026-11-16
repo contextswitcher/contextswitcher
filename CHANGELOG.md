@@ -6,6 +6,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-16] - 2026-11-16
+
+### Added
+
+- A category can set a *Windows Terminal tab* on its Switch actions; every task of it without its own tab focuses that one.
+- The setting `todoTxt` names a todo.txt file, such as koppter's; a task row shows each open line of it tagged `cs:<task id>`.
+- Android: swiping left past a task's Queue page opens the next task of the list, swiping right past its Terminal page the previous one.
+
+- The deep link `contextswitcher://switch-category/<name>` selects a category and runs its switch, opening its note.
+
+### Changed
+
+- A category's *Virtual desktop* and *Clear that desktop on suspend* moved from Configuration to Switch actions.
+- A task's empty *Local folders* field shows the category's folders as its hint, as the switch opens those.
+- Starting ContextSwitcher while it already runs brings the running window to the front instead of opening a second copy; `--new-instance` starts one anyway.
+
+### Fixed
+
+- Android: sending (or enqueueing) a message edited from the desktop queue now removes the original from that queue, so it is not delivered twice; a message with attachments stays, since its files are on the desktop.
+- Running the tests no longer writes into (and rotates away) the app's own logs in `~/.contextswitcher/logs`; test logs go to `app/build/test-logs/`.
+- The desktop-filter UI tests pass on Windows: the app under test no longer watches the real virtual desktop.
+- The empty terminal pane no longer says "tmux window" — a local Windows task runs in the app's own terminal, not in tmux.
+
 ## [2026-11-15] - 2026-11-15
 
 ### Added
@@ -335,6 +358,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-16]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-15...v2026-11-16
 [2026-11-15]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-13...v2026-11-15
 [2026-11-13]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-12...v2026-11-13
 [2026-11-12]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-09...v2026-11-12

@@ -100,7 +100,7 @@ import kotlinx.coroutines.withContext
 internal sealed interface Screen {
     data object Settings : Screen
     data object TaskList : Screen
-    data class TaskDetail(val task: Task) : Screen
+    data class TaskDetail(val task: Task, val atQueue: Boolean = false) : Screen
     data class VoiceTour(val category: String) : Screen
 }
 
@@ -209,6 +209,8 @@ private fun ContextSwitcherApp(
     // Up here, not in the list: on a phone an open task replaces the list,
     // and back must return to where the user left it, not to the top.
     val taskListState = rememberLazyListState()
+    // The list's shown order, kept while a phone shows a task instead of the list.
+    var shownTasks by remember { mutableStateOf(emptyList<Task>()) }
     var screen by rememberSaveable(stateSaver = screenSaver(repoDir)) {
         mutableStateOf<Screen>(if (settingsStore.load() == null) Screen.Settings else Screen.TaskList)
     }
@@ -253,6 +255,7 @@ private fun ContextSwitcherApp(
                         repoDir = repoDir,
                         onOpenSettings = { screen = Screen.Settings },
                         onOpenTask = { task -> screen = Screen.TaskDetail(task) },
+                        onShownTasks = { shownTasks = it },
                         onStartTour = { category -> screen = Screen.VoiceTour(category) },
                         updates = updates,
                         liveTasks = remember { LiveTaskStarter(TaskRepoSync(), ssh, messageSender) },
@@ -262,6 +265,7 @@ private fun ContextSwitcherApp(
                 }
             }
             val detail: @Composable (Task) -> Unit = { task ->
+                val index = shownTasks.indexOfFirst { it.id() == task.id() }
                 // Keyed, so switching tasks in the two-pane layout starts the
                 // detail afresh, as reopening it from the phone's list does.
                 key(task.id()) {
@@ -273,6 +277,10 @@ private fun ContextSwitcherApp(
                         ssh = ssh,
                         messageSender = messageSender,
                         onBack = { screen = Screen.TaskList },
+                        previousTask = if (index > 0) shownTasks[index - 1] else null,
+                        nextTask = if (index >= 0) shownTasks.getOrNull(index + 1) else null,
+                        startAtQueue = (current as? Screen.TaskDetail)?.atQueue == true,
+                        onOpenTask = { neighbour, atQueue -> screen = Screen.TaskDetail(neighbour, atQueue) },
                         deleteQueuedMessage = { message ->
                             settingsStore.load()?.let { settings ->
                                 TaskRepoSync().deleteQueuedMessage(repoDir, settings.username, settings.token, task.id(), message)
@@ -406,6 +414,7 @@ internal fun TaskListScreen(
     repoDir: File,
     onOpenSettings: () -> Unit,
     onOpenTask: (Task) -> Unit,
+    onShownTasks: (List<Task>) -> Unit = {},
     onStartTour: ((String) -> Unit)? = null,
     updates: AppUpdates? = null,
     liveTasks: LiveTaskStarter? = null,
@@ -432,6 +441,9 @@ internal fun TaskListScreen(
         }
     }
     val shownGroups = filterTaskList(filterByStatus(groups, statusFilter, recentIds), searchQuery ?: "")
+    LaunchedEffect(shownGroups) {
+        onShownTasks(shownGroups.flatMap { group -> group.entries.filterIsInstance<TaskEntry.Loaded>().map { it.task() } })
+    }
     BackHandler(enabled = searchQuery != null) { searchQuery = null }
     var taskBeingAdded by remember { mutableStateOf(false) }
     var addTaskError by remember { mutableStateOf<String?>(null) }

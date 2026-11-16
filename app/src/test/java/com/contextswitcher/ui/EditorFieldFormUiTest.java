@@ -42,7 +42,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// pre-filled from the open file, **Raw YAML** shows the same frontmatter as
 /// YAML, and leaving a pane writes back only what changed — comments included.
 /// A list is a field per entry plus an empty one to add the next. The rebuilt
-/// form shows what was written, and clearing a field removes its key.
+/// form shows what was written, and clearing a field removes its key; an
+/// empty *Local folders* field hints at the category's folders.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
 // [utest->dsn~task-field-form~6]
@@ -51,6 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EditorFieldFormUiTest {
 
     private static final String TITLE = "Field form task";
+    private static final String CATEGORY_FOLDER = "/data/category/folder";
     private static volatile Path taskFile;
 
     /// [Main] on a fresh config dir holding one task that already names a
@@ -62,8 +64,15 @@ class EditorFieldFormUiTest {
         public void start(Stage stage) throws Exception {
             Path configDir = Files.createTempDirectory("cs-uitest");
             Path tasksDir = configDir.resolve("tasks");
-            Files.createDirectories(tasksDir);
-            taskFile = tasksDir.resolve("form.md");
+            Path category = tasksDir.resolve("cat");
+            Files.createDirectories(category);
+            Files.writeString(category.resolve("CONTEXTSWITCHER.md"), """
+                    ---
+                    folders:
+                      - %s
+                    ---
+                    """.formatted(CATEGORY_FOLDER));
+            taskFile = category.resolve("form.md");
             Files.writeString(taskFile, """
                     ---
                     title: %s
@@ -152,6 +161,11 @@ class EditorFieldFormUiTest {
         });
         leavePanes();
         assertThat(awaitAbsent("folders:")).doesNotContain("/data/koppor/p");
+
+        // Empty again, the field hints at the category's folder the switch opens instead.
+        showTab("Switch actions");
+        assertThat(onFx(() -> awaitControl(TextField.class, "field-folders-0").getPromptText()))
+                .contains(CATEGORY_FOLDER);
     }
 
     private static void openForm() {

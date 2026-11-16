@@ -331,6 +331,8 @@ public class Main extends Application {
     // [impl->dsn~environment-profile-override~1]
     private volatile @Nullable String profileOverride;
     private @Nullable TerminalPane terminalPane;
+    /// The `todoTxt` file the task rows read their todo lines from.
+    private final com.contextswitcher.tasks.TodoTxt.File todoTxt = new com.contextswitcher.tasks.TodoTxt.File();
     private @Nullable PaneSnapshots paneSnapshots;
 
     /// Hosts to poll for `@cs_status`; recomputed on the FX thread whenever the
@@ -448,21 +450,35 @@ public class Main extends Application {
         SNAKEYAML_LOGGER.setLevel(java.util.logging.Level.OFF);
     }
 
+    /// Program argument starting a second instance next to a running one.
+    // [impl->dsn~single-instance~1]
+    static final String NEW_INSTANCE_ARG = "--new-instance";
+
     public static void main(String[] args) {
         // A deep-link launch (`contextswitcher://…` from the OS protocol
         // handler, https://github.com/contextswitcher/contextswitcher-private/issues/47) first tries to hand the URL to an already-running
         // instance; only when none answers does this process start normally
         // and handle the URL itself after startup.
         // [impl->dsn~deep-link-forward~1]
+        //
+        // A plain launch does the same with `contextswitcher://show`: with an
+        // instance running, its window comes to the front and this process
+        // ends, so there is only ever one ContextSwitcher per config directory
+        // (two copies polled, switched and wrote task files side by side —
+        // field report 2026-11-15). `--new-instance` starts one regardless.
+        // [impl->dsn~single-instance~1]
         String deepLinkUrl = Arrays.stream(args).filter(DeepLink::isDeepLink).findFirst().orElse(null);
-        if (deepLinkUrl != null) {
+        boolean newInstance = Arrays.asList(args).contains(NEW_INSTANCE_ARG);
+        if (deepLinkUrl != null || !newInstance) {
+            String forwarded = deepLinkUrl != null ? deepLinkUrl : DeepLink.SHOW_URL;
             try {
                 AppSettings settings = AppSettings.loadOrCreate(configDir());
-                if (DeepLinkForwarder.forward(settings.wsPort(), settings.wsToken(), deepLinkUrl)) {
+                if (DeepLinkForwarder.forward(settings.wsPort(), settings.wsToken(), forwarded)) {
+                    Logger.info("Handed {} to the running instance; exiting", forwarded);
                     return;
                 }
             } catch (IOException e) {
-                Logger.warn("Cannot read settings for deep-link forwarding: {}", e.getMessage());
+                Logger.warn("Cannot read settings for forwarding to a running instance: {}", e.getMessage());
             }
         }
         launch(args);
@@ -712,6 +728,8 @@ public class Main extends Application {
                 selectWindowTask(repository, remote, window));
         // [impl->dsn~terminal-markdown-copy~1]
         terminalPane.setAutoCopyReplies(settings.autoCopyReplies());
+        // [impl->dsn~todo-txt-line~1]
+        todoTxt.setPath(settings.todoTxt());
         terminalPane.setClaudeResolver((remote, tmux) -> {
             Task task = tmux.window() == null ? null : windowTask(repository, remote, tmux.window());
             return task == null ? null : task.claude();
@@ -861,7 +879,7 @@ public class Main extends Application {
                 () -> {
                     mirroredTaskId = null;
                     terminalPane.blankThen(() ->
-                            terminalPane.showMessage("Select a task to mirror its tmux window."));
+                            terminalPane.showMessage("Select a task to show its terminal."));
                     queuePane.showTask(null);
                 },
                 terminalPane::focusTerminal,
@@ -915,6 +933,8 @@ public class Main extends Application {
                             if (this.terminalPane != null) {
                                 this.terminalPane.setAutoCopyReplies(saved.autoCopyReplies());
                             }
+                            // [impl->dsn~todo-txt-line~1]
+                            todoTxt.setPath(saved.todoTxt());
                             // [impl->dsn~host-on-off~2]
                             applyInactiveHosts(saved.inactiveRemotes());
                         } catch (IOException e) {
@@ -984,6 +1004,8 @@ public class Main extends Application {
         // [impl->dsn~start-claude-button~2]
         // [impl->dsn~setup-wizard~13]
         window.setOnSetupWizard(this::rerunSetupWizard);
+        // [impl->dsn~todo-txt-line~1]
+        window.setTodoLines(todoTxt::linesFor);
         // [impl->dsn~task-field-form~6]
         window.setDesktopNamesReader(() -> {
             ExecutorService executor = this.actionExecutor;
@@ -2495,7 +2517,10 @@ public class Main extends Application {
             return;
         }
         TaskEntry.@Nullable Loaded loaded = null;
-        if (link.kind() == DeepLink.Kind.CATEGORY) {
+        if (link.kind() == DeepLink.Kind.SHOW) {
+            // A second launch: just the window, nothing selected or switched.
+            // [impl->dsn~single-instance~1]
+        } else if (link.kind() == DeepLink.Kind.CATEGORY || link.kind() == DeepLink.Kind.SWITCH_CATEGORY) {
             if (!window.selectCategory(link.target())) {
                 window.statusBar().message("No category '" + link.target() + "' for link " + url);
                 return;
@@ -2517,6 +2542,8 @@ public class Main extends Application {
         stage.requestFocus();
         if (link.kind() == DeepLink.Kind.SWITCH && loaded != null) {
             switchTo(orchestrator, files, loaded.task());
+        } else if (link.kind() == DeepLink.Kind.SWITCH_CATEGORY) {
+            window.switchCategory(link.target());
         }
     }
 
@@ -5322,7 +5349,7 @@ public class Main extends Application {
     /// Only the switch path merges: the suspend teardown keeps closing the
     /// task's *own* browser tabs, since a category's URLs are shared by every
     /// task in it and ending one task must not close the project's pages.
-    // [impl->dsn~category-action-defaults~1]
+    // [impl->dsn~category-action-defaults~2]
     private static Task withCategoryDefaults(MainWindow.TaskFileAccess files, Task task) {
         String group = taskGroup(task);
         if (group.isEmpty()) {

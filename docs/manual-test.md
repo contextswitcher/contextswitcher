@@ -1064,6 +1064,7 @@ Precondition: protocol registered once via `scripts/register-url-handler.cmd` (W
 - [ ] `contextswitcher://switch/<id>` → same, plus the full switch runs (status-bar chips).
 - [ ] App **not running**: the same link starts the app, which then selects the task.
 - [ ] Category context menu → **Copy link** → the clipboard holds `contextswitcher://category/<name>`; opening it selects that category's header (expanding it when collapsed) and raises the app.
+- [ ] Open `contextswitcher://switch-category/<name>` of a category with `note: onenote:…` → its header is selected and its OneNote section opens, with the category's other switch actions.
 - [ ] A link to a nonexistent id → app raises and the status bar reports the unknown task; a malformed link (`contextswitcher://focus/x`) reports too.
 
 ## Delete-task kill dialog (dsn~claude-session-kill~7)
@@ -1226,7 +1227,7 @@ Only the parts a robot cannot reach — the chords in a plain text box are cover
 - [ ] In a **text input**, `Ctrl+F` moves the caret one character on instead of opening the find bar; with the focus on the task list or the terminal, `Ctrl+F` still opens it.
 - [ ] In the **embedded terminal**, `Ctrl+A`, `Ctrl+E`, `Ctrl+W` reach the remote shell/tmux unchanged (tmux prefix `Ctrl+A` still works if that is your binding).
 
-## Category action defaults, folder list, machine suffixes (`dsn~category-action-defaults~1`, `dsn~explorer-folder-focus~4`, `dsn~machine-key-variants~1`)
+## Category action defaults, folder list, machine suffixes (`dsn~category-action-defaults~2`, `dsn~explorer-folder-focus~4`, `dsn~machine-key-variants~1`)
 
 The parsing and merging are unit-tested; what needs a real box is Explorer, Firefox, and a second machine.
 

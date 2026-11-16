@@ -311,6 +311,19 @@ Covers:
 
 Needs: dsn
 
+### Todo lines from a todo.txt file
+`req~todo-txt-line~1`
+
+A task that a line of the user's todo.txt file names — koppter writes the tag `cs:<task id>` for that — shows that line on its row, rendered rather than raw, so what is still to do for the task is visible next to it.
+Completed lines are not shown.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Link icons for a task's other URLs
 `req~task-link-icons~2`
 
@@ -638,6 +651,19 @@ Needs: dsn
 Other tools (OneNote project pages, READMEs, browsers) can link **to** a task: `contextswitcher://task/<id>` selects the task and brings the app to the front, `contextswitcher://switch/<id>` additionally runs the full switch.
 The counterpart of the per-group note link (`req~group-note-link~1`), completing bidirectional navigation between notes and tasks.
 The link works whether or not the app is already running; a second instance is never opened.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
+### One running instance
+`req~single-instance~1`
+
+Launching ContextSwitcher while it already runs (with the same configuration) brings the running window to the front instead of starting a second copy: two copies would poll, switch and write the same task files side by side.
+A developer can still start a separate copy on purpose.
 
 Tags: windows, linux
 
@@ -1142,6 +1168,7 @@ Needs: impl, utest
 
 `DeepLink.categoryUrl` builds `contextswitcher://category/<name>` with the name percent-encoded (so a category with spaces survives), `DeepLink.parse` maps the `category` host back onto `Kind.CATEGORY` plus the decoded name.
 The category context menu's "Copy link" puts that URL on the system clipboard; `Main.handleDeepLink` routes a `CATEGORY` link to `MainWindow.selectCategory`, which expands the category if collapsed and selects and scrolls to its header row, reporting an unknown name in the status bar like an unknown task id does.
+`contextswitcher://switch-category/<name>` (`Kind.SWITCH_CATEGORY`) selects the category the same way and then runs its switch (`MainWindow.switchCategory`, `dsn~category-switch~1`), opening its `note:` and its other actions — the category's counterpart of `switch/<id>`, for a link from another application such as a todo.txt project.
 
 Tags: windows, linux
 
@@ -1173,6 +1200,24 @@ Tags: windows, linux
 
 Covers:
 - req~deep-link-url~1
+
+Needs: impl, utest
+
+### Single instance via extension server
+`dsn~single-instance~1`
+
+A plain launch (no `contextswitcher://` argument) goes the deep-link route (`dsn~deep-link-forward~1`) with `DeepLink.SHOW_URL` (`contextswitcher://show`): `DeepLinkForwarder.forward` sends it to the extension server on the configured `wsPort` with the `wsToken`, and on a normal close (1000) `Main.main` returns without launching JavaFX.
+The running instance handles `show` like a task link minus the selection: deiconify, `toFront`, `requestFocus` — nothing is selected or switched.
+While that instance is still starting (no deep-link handler yet), the server accepts `show` all the same (close 1000, "starting"), since its window is about to appear; other deep links still get 4004 there and start a process of their own, as before.
+No instance answering (connect failure, token mismatch, timeouts) starts the app normally, so a stale or foreign port never blocks startup.
+The program argument `--new-instance` (`Main.NEW_INSTANCE_ARG`) skips the hand-off — a second copy for comparing builds; it then runs without the extension server, whose port the first one holds.
+The update loop (`scripts/run-loop`) starts the new build only after the old process has exited, so a restart never hands its launch to the instance that is going away.
+Field report 2026-11-15: two packaged instances running at the same time.
+
+Tags: windows, linux
+
+Covers:
+- req~single-instance~1
 
 Needs: impl, utest
 
@@ -2146,8 +2191,9 @@ Needs: impl
 A **configure icon button** in the Notes pane header (left of *Revert*, `MDIInterface.TUNE`) puts the **Configuration** pane in front — reopening it when closed, raising its window when popped out — which shows the frontmatter of the open file as a generated key/value form (`ConfigFormPane`, generated and written back by `ConfigForm`), so a task or a category is set up by filling fields instead of hand-writing YAML — the raw YAML stays reachable, as the form's fallback rather than the only way in.
 The form is generated from `FrontmatterCatalog` — one control per key a user hand-edits, grouped into sections — the way the settings dialog is generated from `SettingsCatalog` (`dsn~settings-editor~4`); both render through the shared `FieldForm` (bold section header, label above a full-width control, hover highlight, the field's help as the row tooltip).
 A task file gets the `TASK` catalog, a category's `CONTEXTSWITCHER.md` the `CATEGORY` one.
-The catalog is split over two panes built the same way (`ConfigFormPane`): **Switch actions**, between *Notes* and *Configuration*, holds what a switch opens — `FrontmatterCatalog.SWITCH_ACTION_KEYS`: `intellij`, `intellij.projectPath`, `vscode`, `browser.urls`, `folders`, `chat`, `note` (labelled *OneNote*), `terminal.tabTitle` (a local Windows Terminal tab, e.g. a shell for `gradlew`), and for a category `profile` (its environment profile, `dsn~environment-profiles~1`) — and **Configuration** every other field; a form of a single section goes without its section header, the tab names it.
+The catalog is split over two panes built the same way (`ConfigFormPane`): **Switch actions**, between *Notes* and *Configuration*, holds what a switch opens — `FrontmatterCatalog.SWITCH_ACTION_KEYS`: `intellij`, `intellij.projectPath`, `vscode`, `browser.urls`, `folders`, `chat`, `note` (labelled *OneNote*), `terminal.tabTitle` (a local Windows Terminal tab, e.g. a shell for `gradlew`), and for a category `desktop`, `completeControl` (local to this machine, like the rest) and `profile` (its environment profile, `dsn~environment-profiles~1`) — and **Configuration** every other field; a form of a single section goes without its section header, the tab names it.
 Each *Local folders* row has a browse button (`DirectoryChooser`, saved at once), and on Windows a pasted `/c/…`, `/cygdrive/c/…` or `/mnt/c/…` path is converted to `C:\…` (`ListFieldEditor.windowsPath`); only an insertion of more than one character counts as a paste, so typing a path by hand is left alone.
+A task's empty *Local folders* field shows the category's folders as its hint, since a switch opens those instead (`Task.withCategoryDefaults`).
 Text fields are strings, a checkbox is a flag, a drop-down the fixed sets (`status`), and a list (`tags`, `folders`, `browser.urls`) is a `ListFieldEditor`: a single-line field per entry plus an empty one at the end — typing into it adds the next empty one, Enter moves to the next field — and a trash can, shown while a row is hovered, removing that entry (the queue's delete-on-hover, `dsn~message-queue-ui~26`); `browser.urls` entries read as links (`dsn~browser-url-links~1`).
 The `remote` field is labelled *Host* and is an **editable** drop-down offering the settings' host destinations (`dsn~host-table~1`) — any other destination typed in is kept, blank removes the key; the frontmatter key stays `remote:`, which every task file, the tmux sync and the Android app read.
 A category's *Virtual desktop* field suggests while typing (`Suggestions`): a popup under it lists the desktop names the app knows — this machine's named desktops as the desktop watcher last read them, those the categories name, the active desktop and the fallback desktop (`dsn~fallback-desktop~2`) — matching what is typed, names starting with it first; **Down** opens it on an empty field, picking an entry fills the field, and any other name typed in is kept.
@@ -3435,5 +3481,21 @@ Tags: windows, linux
 Covers:
 - req~restart-to-update~2
 - req~running-commit~1
+
+Needs: impl, utest
+
+### Todo line under the task row
+`dsn~todo-txt-line~1`
+
+The setting `todoTxt` names the file; empty, the default, turns the lines off.
+`TodoTxt.byTask` reads every line that is not completed (`x `) and carries `cs:<id>`, the id decoded from the percent-encoded form a ContextSwitcher link has, as koppter stores it.
+It renders the line as its priority `(A)` and description, followed by chips for `+project`, `@context`, `#tag` and `due <date>`; the creation date, `cs:` and the other `key:value` tags (planning data such as `t:` or `rec:`) are left out.
+`TaskListCell` adds one line per such todo below the row's second line.
+`TodoTxt.File` reads the file again only when its modification time changes, so a row repaint costs one `stat`; an edit of the file shows on the next repaint of the list.
+
+Tags: windows, linux
+
+Covers:
+- req~todo-txt-line~1
 
 Needs: impl, utest

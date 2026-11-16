@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -79,6 +82,10 @@ fun TaskDetailScreen(
     onBack: () -> Unit,
     deleteQueuedMessage: ((String) -> String?)? = null,
     attachments: com.contextswitcher.android.queue.AttachmentStore? = null,
+    previousTask: Task? = null,
+    nextTask: Task? = null,
+    startAtQueue: Boolean = false,
+    onOpenTask: (task: Task, atQueue: Boolean) -> Unit = { _, _ -> },
 ) {
     BackHandler(onBack = onBack)
 
@@ -89,7 +96,20 @@ fun TaskDetailScreen(
     val tmux = liveTask.tmux()
     val remote = liveTask.remote()
     val titles = listOf("Terminal", "Queue")
-    val pagerState = rememberPagerState(pageCount = { titles.size })
+    // Swiping past Terminal or Queue lands on a page naming the neighbouring
+    // task in the list, which then opens: paging quickly through the tasks.
+    // [impl->dsn~android-task-swipe~1]
+    val firstPage = if (previousTask != null) 1 else 0
+    val pageCount = firstPage + titles.size + (if (nextTask != null) 1 else 0)
+    val pagerState = rememberPagerState(initialPage = firstPage + if (startAtQueue) 1 else 0, pageCount = { pageCount })
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            when (page - firstPage) {
+                -1 -> previousTask?.let { onOpenTask(it, true) }
+                titles.size -> nextTask?.let { onOpenTask(it, false) }
+            }
+        }
+    }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var queuedMessages by remember(task.id()) { mutableStateOf<List<String>>(emptyList()) }
@@ -197,20 +217,38 @@ fun TaskDetailScreen(
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
+                    val tab = (pagerState.currentPage - firstPage).coerceIn(0, titles.size - 1)
+                    PrimaryTabRow(selectedTabIndex = tab) {
                         titles.forEachIndexed { index, title ->
                             Tab(
-                                selected = pagerState.currentPage == index,
-                                onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                                selected = tab == index,
+                                onClick = { scope.launch { pagerState.animateScrollToPage(firstPage + index) } },
                                 text = { Text(title) },
                             )
                         }
                     }
                     HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-                        if (page == 0) terminal(Modifier.fillMaxSize()) else queue(Modifier.fillMaxSize())
+                        when (page - firstPage) {
+                            -1 -> NeighbourPage("Previous task", previousTask)
+                            0 -> terminal(Modifier.fillMaxSize())
+                            1 -> queue(Modifier.fillMaxSize())
+                            else -> NeighbourPage("Next task", nextTask)
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun NeighbourPage(label: String, task: Task?) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(label, style = MaterialTheme.typography.labelLarge)
+        Text(task?.title() ?: "", style = MaterialTheme.typography.titleLarge)
     }
 }

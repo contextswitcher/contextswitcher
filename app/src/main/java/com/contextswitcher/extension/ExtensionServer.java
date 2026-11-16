@@ -318,6 +318,15 @@ public class ExtensionServer extends WebSocketServer implements TabCommands {
                     return;
                 }
                 Consumer<String> handler = deepLinkHandler;
+                // A second launch while this instance is still starting: its
+                // window is about to appear anyway, so the launch is taken
+                // over all the same rather than becoming a second instance.
+                // [impl->dsn~single-instance~1]
+                if (handler == null && DeepLink.SHOW_URL.equals(deeplink.url())) {
+                    Logger.info("Second launch while starting up; the window comes up anyway");
+                    conn.close(1000, "starting");
+                    return;
+                }
                 if (handler == null) {
                     Logger.warn("Dropping deep link, app not ready yet: {}", deeplink.url());
                     conn.close(4004, "not ready");

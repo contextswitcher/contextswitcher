@@ -668,9 +668,15 @@ public class TaskFileParser {
         // The action defaults are parsed leniently like the rest of the file:
         // a half-edited `browser`/`intellij` section yields no default rather
         // than turning the whole category config into an error.
-        // [impl->dsn~category-action-defaults~1]
+        // [impl->dsn~category-action-defaults~2]
         Task.@Nullable IntellijConfig intellij;
         Task.@Nullable BrowserConfig browser;
+        Task.@Nullable TerminalConfig terminal;
+        try {
+            terminal = parseTerminal(section(data, "terminal"));
+        } catch (TaskParseException e) {
+            terminal = null;
+        }
         try {
             intellij = parseIntellij(data);
             browser = parseBrowser(section(data, "browser"));
@@ -708,7 +714,8 @@ public class TaskFileParser {
                 // [impl->dsn~auto-pr-category~3]
                 parseAutoPr(data.get("auto")),
                 // [impl->dsn~auto-delete-opt-in~1]
-                Boolean.parseBoolean(String.valueOf(data.get("autoDelete"))));
+                Boolean.parseBoolean(String.valueOf(data.get("autoDelete"))),
+                terminal);
     }
 
     /// The `auto:` section of an auto category, or null when the category

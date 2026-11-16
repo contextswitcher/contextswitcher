@@ -23,6 +23,12 @@ class DeepLinkTest {
     }
 
     @Test
+    void switchCategoryLinkParses() {
+        assertThat(DeepLink.parse("contextswitcher://switch-category/My%20Project"))
+                .isEqualTo(new DeepLink(DeepLink.Kind.SWITCH_CATEGORY, "My Project"));
+    }
+
+    @Test
     void percentEncodingIsDecoded() {
         assertThat(DeepLink.parse("contextswitcher://task/jabref/fix%20npe"))
                 .isEqualTo(new DeepLink(DeepLink.Kind.TASK, "jabref/fix npe"));
@@ -62,6 +68,13 @@ class DeepLinkTest {
         assertThat(url).isEqualTo("contextswitcher://task/jabref/fix%20npe");
         assertThat(DeepLink.parse(url))
                 .isEqualTo(new DeepLink(DeepLink.Kind.TASK, "jabref/fix npe"));
+    }
+
+    // [utest->dsn~single-instance~1]
+    @Test
+    void showLinkNeedsNoTarget() {
+        assertThat(DeepLink.isDeepLink(DeepLink.SHOW_URL)).isTrue();
+        assertThat(DeepLink.parse(DeepLink.SHOW_URL)).isEqualTo(new DeepLink(DeepLink.Kind.SHOW, ""));
     }
 
     @Test

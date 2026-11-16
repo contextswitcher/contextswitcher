@@ -93,6 +93,10 @@ public final class SettingsCatalog {
                     "An idle session whose footer says \"Restart to update\" is sent /exit and "
                             + "resumed on the new version. Off: the session is left alone. "
                             + "Applies after a restart of ContextSwitcher."),
+            // [impl->dsn~todo-txt-line~1]
+            new Option("todoTxt", "todo.txt file", "General", Type.STRING,
+                    "A todo.txt file, such as koppter's: each open line tagged cs:<task id> "
+                            + "shows on that task's row. Empty turns this off."),
             // [impl->dsn~browser-choice~2]
             new Option("browser", "Browser", "Browser bridge", Type.ENUM,
                     "The browser whose windows are raised, launched, and — on a complete-control "

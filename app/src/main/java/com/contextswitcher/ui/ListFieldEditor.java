@@ -69,6 +69,8 @@ final class ListFieldEditor extends VBox {
     /// The row being dragged, so a drag from anywhere else is not accepted.
     private @Nullable HBox dragged;
     private Runnable onReordered = () -> { };
+    /// The first row's hint, shown while the list is empty.
+    private @Nullable String prompt;
 
     ListFieldEditor(List<String> entries) {
         this(entries, null);
@@ -98,6 +100,13 @@ final class ListFieldEditor extends VBox {
     /// lose: the form cannot wait for that to save.
     void setOnReordered(Runnable onReordered) {
         this.onReordered = onReordered;
+    }
+
+    /// The hint the first field shows while the list is empty — for a task's
+    /// folders, the category's ones the switch falls back to.
+    void setPrompt(@Nullable String prompt) {
+        this.prompt = prompt;
+        renumber();
     }
 
     /// Replaces the entries.
@@ -348,7 +357,9 @@ final class ListFieldEditor extends VBox {
     private void renumber() {
         String id = getId();
         for (int i = 0; i < getChildren().size(); i++) {
-            field(getChildren().get(i)).setId(id == null ? null : id + "-" + i);
+            TextField field = field(getChildren().get(i));
+            field.setId(id == null ? null : id + "-" + i);
+            field.setPromptText(i == 0 ? prompt : null);
         }
     }
 
