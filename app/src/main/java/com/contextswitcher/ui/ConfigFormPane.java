@@ -91,6 +91,8 @@ final class ConfigFormPane {
     private final Supplier<CompletableFuture<List<String>>> refreshDesktops;
     /// What the browser URLs do.
     private final BrowserUrlActions urlActions;
+    /// The open task's category folders, the empty *Local folders* hint.
+    private Supplier<List<String>> categoryFolders = List::of;
     /// The browser's tab in view, for the forms built later on.
     private @Nullable String browserTab;
 
@@ -205,6 +207,10 @@ final class ConfigFormPane {
         watchWindow(scene == null ? null : scene.getWindow());
     }
 
+    void setCategoryFolders(Supplier<List<String>> categoryFolders) {
+        this.categoryFolders = categoryFolders;
+    }
+
     private void watchWindow(@Nullable Window now) {
         Window previous = window;
         if (previous != null) {
@@ -272,7 +278,7 @@ final class ConfigFormPane {
         List<Field> fields = (category.getAsBoolean() ? FrontmatterCatalog.CATEGORY : FrontmatterCatalog.TASK)
                 .stream().filter(shows).toList();
         ConfigForm built = new ConfigForm(fields, content, hosts.get(), desktops.get(), refreshDesktops, urlActions,
-                this::applyForm);
+                this::applyForm, categoryFolders.get());
         built.showBrowserTab(browserTab);
         form = built;
         scroll.setContent(built.render());

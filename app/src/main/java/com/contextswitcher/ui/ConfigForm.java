@@ -68,12 +68,23 @@ final class ConfigForm {
     ConfigForm(List<Field> fields, String content, List<String> hosts, List<String> desktops,
             Supplier<CompletableFuture<List<String>>> refreshDesktops,
             @Nullable BrowserUrlActions urlActions, Runnable save) {
+        this(fields, content, hosts, desktops, refreshDesktops, urlActions, save, List.of());
+    }
+
+    /// As above; `categoryFolders` are the folders a task without its own
+    /// opens, shown as the empty *Local folders* field's hint.
+    ConfigForm(List<Field> fields, String content, List<String> hosts, List<String> desktops,
+            Supplier<CompletableFuture<List<String>>> refreshDesktops,
+            @Nullable BrowserUrlActions urlActions, Runnable save, List<String> categoryFolders) {
         this.fields = List.copyOf(fields);
         this.desktops = List.copyOf(desktops);
         this.refreshDesktops = refreshDesktops;
         this.urlActions = urlActions;
         this.save = save;
         this.controls = buildControls(content, hosts);
+        if (!categoryFolders.isEmpty() && controls.get("folders") instanceof ListFieldEditor folders) {
+            folders.setPrompt(String.join(", ", categoryFolders) + "  (from the category)");
+        }
     }
 
     /// One control per catalog field, seeded from the file's frontmatter and

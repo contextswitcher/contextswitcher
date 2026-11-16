@@ -6514,6 +6514,10 @@ public class MainWindow {
                 // [impl->dsn~host-table~1]
                 configuredRemotes, this::knownDesktops, this::refreshKnownDesktops,
                 browserUrlActions());
+        pane.setCategoryFolders(() -> {
+            String name = editedFileName;
+            return name == null || isGroupConfig(name) ? List.of() : groupDefaults(groupOf(name)).folders();
+        });
         return pane;
     }
 
