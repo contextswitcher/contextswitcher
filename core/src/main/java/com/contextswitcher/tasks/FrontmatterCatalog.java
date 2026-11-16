@@ -140,7 +140,7 @@ public final class FrontmatterCatalog {
     public static final Set<String> SWITCH_ACTION_KEYS =
             Set.of("intellij", "intellij.projectPath", "vscode", "browser.urls", "folders", "chat", "note",
                     "terminal.tabTitle",
-                    "profile");
+                    "desktop", "completeControl", "profile");
 
     /// Whether `field` belongs on the Switch actions pane ([#SWITCH_ACTION_KEYS]).
     public static boolean isSwitchAction(Field field) {

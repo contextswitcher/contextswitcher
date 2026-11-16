@@ -15,6 +15,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Changed
 
+- A category's *Virtual desktop* and *Clear that desktop on suspend* moved from Configuration to Switch actions.
 - Starting ContextSwitcher while it already runs brings the running window to the front instead of opening a second copy; `--new-instance` starts one anyway.
 
 ### Fixed
