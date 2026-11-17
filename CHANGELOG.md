@@ -14,6 +14,11 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - An environment profile can set `gatherWindows: internal` (or another screen): while it is in effect, windows that open on another screen, such as the projector, move to that screen; full-screen windows such as the slide show stay, and a window dragged there by hand stays too.
 - The setup wizard's *Virtual desktop* field suggests the known desktops while typing, as the configuration form does.
 
+### Fixed
+
+- Switching to a task or category with `folders:` no longer leaves File Explorer in front: the Explorer window opens or comes forward behind ContextSwitcher, which keeps the foreground.
+  The category header's folder button still brings Explorer to the front.
+
 ## [2026-11-16] - 2026-11-16
 
 ### Added

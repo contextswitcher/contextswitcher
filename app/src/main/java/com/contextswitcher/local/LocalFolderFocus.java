@@ -36,10 +36,17 @@ import org.tinylog.Logger;
 /// window is still elsewhere — the window is left alone and a new Explorer
 /// window opens here instead: never a desktop jump.
 ///
+/// During a **switch** ContextSwitcher stays in front: the script is told the
+/// app's own process id, waits for a newly launched window to show up, and
+/// raises the app's topmost window on this desktop again — the Explorer
+/// window ends up just behind it, and the user keeps typing where they were
+/// (field report 2026-11-17). Pid `0` (the category header's folder button,
+/// an explicit "show me the folder") leaves Explorer in front.
+///
 /// The script is passed as a base64 `-EncodedCommand`, so there is no shell
 /// quoting to get wrong; the only escaping is doubling `'` for the folder
 /// single-quoted literal.
-// [impl->dsn~explorer-folder-focus~4]
+// [impl->dsn~explorer-folder-focus~5]
 // [impl->dsn~window-move-here~2]
 public class LocalFolderFocus {
 
@@ -53,7 +60,28 @@ public class LocalFolderFocus {
             __MOVE_TYPES__
             "@
             $target = '__PATH__'
+            $back = __BACK__
             $norm = $target.TrimEnd('\\', '/')
+            function Get-FolderWindowCount {
+              $n = 0
+              foreach ($o in (New-Object -ComObject Shell.Application).Windows()) {
+                try { if ($o.Document.Folder.Self.Path.TrimEnd('\\', '/') -ieq $norm) { $n++ } } catch { }
+              }
+              return $n
+            }
+            function Restore-Back([int] $before) {
+              if ($back -le 0) { return }
+              if ($before -ge 0) {
+                $deadline = (Get-Date).AddSeconds(10)
+                while (((Get-FolderWindowCount) -le $before) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Milliseconds 100 }
+              }
+              for ($i = 0; $i -lt 3; $i++) {
+                Start-Sleep -Milliseconds 150
+                if (-not [CsMv]::ProcessInFront([uint32]$back)) {
+                  if ([CsMv]::FrontProcess([uint32]$back) -eq 'none') { return }
+                }
+              }
+            }
             $shell = New-Object -ComObject Shell.Application
             foreach ($w in $shell.Windows()) {
               $path = $null
@@ -61,16 +89,20 @@ public class LocalFolderFocus {
               if ($path -and ($path.TrimEnd('\\', '/') -ieq $norm)) {
                 $outcome = [CsMv]::Focus([IntPtr]$w.HWND)
                 if ($outcome -like 'elsewhere*') {
+                  $before = Get-FolderWindowCount
                   Start-Process explorer.exe -ArgumentList $target
+                  Restore-Back $before
                   Write-Output ("opened here, the open window is on another desktop (" + $outcome + "): " + $target)
                   exit 0
                 }
+                Restore-Back (-1)
                 if ($outcome -eq 'moved') { Write-Output ("moved here: " + $target) } else { Write-Output ("focused: " + $target) }
                 exit 0
               }
             }
             if (Test-Path -LiteralPath $target) {
               Start-Process explorer.exe -ArgumentList $target
+              Restore-Back 0
               Write-Output ("opened: " + $target)
               exit 0
             }
@@ -101,26 +133,38 @@ public class LocalFolderFocus {
         return folder.replace("'", "''");
     }
 
-    /// The PowerShell script that focuses (or opens) the given folder.
-    static String script(String folder) {
+    /// The PowerShell script that focuses (or opens) the given folder and
+    /// then raises process `backPid`'s window again (`0`: leaves Explorer in
+    /// front).
+    static String script(String folder, long backPid) {
         return SCRIPT_TEMPLATE.replace("__MOVE_TYPES__", WindowsWindowMove.TYPES.strip())
-                .replace("__PATH__", escape(folder));
+                .replace("__PATH__", escape(folder))
+                .replace("__BACK__", Long.toString(Math.max(0, backPid)));
     }
 
     /// The local argv: the script as a base64 `-EncodedCommand` (UTF-16LE).
-    static List<String> command(String folder) {
+    static List<String> command(String folder, long backPid) {
         String encoded = Base64.getEncoder().encodeToString(
-                script(folder).getBytes(StandardCharsets.UTF_16LE));
+                script(folder, backPid).getBytes(StandardCharsets.UTF_16LE));
         return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
     }
 
     /// Focuses the folder's Explorer window, opening one when none is showing
-    /// it; off Windows, opens it in the desktop's file manager.
+    /// it; off Windows, opens it in the desktop's file manager. Explorer is
+    /// left in front.
     public FocusResult focus(String folder) {
+        return focus(folder, false);
+    }
+
+    /// As [#focus(String)]; with `keepAppInFront` ContextSwitcher's own window
+    /// is raised again afterwards (Windows only — elsewhere the file manager
+    /// decides).
+    public FocusResult focus(String folder, boolean keepAppInFront) {
         if (!windows) {
             return open(folder);
         }
-        LocalCommandRunner.LocalResult result = runner.run(command(folder));
+        long backPid = keepAppInFront ? ProcessHandle.current().pid() : 0;
+        LocalCommandRunner.LocalResult result = runner.run(command(folder, backPid));
         if (result.exitCode() == 0) {
             String out = result.stdout().strip();
             // The move outcome on this Windows build, for a recurrence to be

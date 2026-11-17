@@ -152,6 +152,34 @@ public class WindowsWindowMove {
                 return outcome;
               }
 
+              [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+
+              // Whether the foreground window belongs to the given process.
+              public static bool ProcessInFront(uint pid) {
+                uint owner;
+                GetWindowThreadProcessId(GetForegroundWindow(), out owner);
+                return owner == pid;
+              }
+
+              // Raises the process's topmost visible, titled, unowned window on
+              // this desktop: "front", or "none" when it has none here — a
+              // window elsewhere is never raised (that would switch desktops).
+              public static string FrontProcess(uint pid) {
+                IntPtr chosen = IntPtr.Zero;
+                EnumWindows((h, l) => {
+                  if (!IsWindowVisible(h) || GetWindowTextLength(h) == 0) { return true; }
+                  if (GetWindow(h, 4) != IntPtr.Zero) { return true; }
+                  uint owner;
+                  GetWindowThreadProcessId(h, out owner);
+                  if (owner != pid || !IsHere(h)) { return true; }
+                  chosen = h;
+                  return false;
+                }, IntPtr.Zero);
+                if (chosen == IntPtr.Zero) { return "none"; }
+                Front(chosen);
+                return "front";
+              }
+
               static string ProcessName(IntPtr h) {
                 uint pid;
                 GetWindowThreadProcessId(h, out pid);

@@ -8,8 +8,11 @@ import com.contextswitcher.tasks.Task;
 
 /// Focuses (or opens) the task's local `folders` in File Explorer — a window
 /// already showing a folder is brought forward rather than opening another.
-/// Every folder is handled, in file order; the last one ends up in front.
-// [impl->dsn~explorer-folder-focus~4]
+/// Every folder is handled, in file order; the last one ends up in front of
+/// the other Explorer windows. A switch keeps ContextSwitcher itself in front
+/// (the user goes on working there); the category header's folder button,
+/// which is asked for the folders, leaves Explorer in front.
+// [impl->dsn~explorer-folder-focus~5]
 public class ExplorerFolderAction implements SwitchAction {
 
     private final LocalFolderFocus focus;
@@ -30,7 +33,7 @@ public class ExplorerFolderAction implements SwitchAction {
 
     @Override
     public ActionResult run(Task task) {
-        return open(task.folders());
+        return open(task.folders(), true);
     }
 
     /// Focuses (or opens) each of the given folders, the switch action's own
@@ -38,6 +41,10 @@ public class ExplorerFolderAction implements SwitchAction {
     /// `folders:` without switching to any of its tasks.
     // [impl->dsn~category-folders-button~1]
     public ActionResult open(List<String> folders) {
+        return open(folders, false);
+    }
+
+    private ActionResult open(List<String> folders, boolean keepAppInFront) {
         if (folders.isEmpty()) {
             return ActionResult.failure("folder not configured");
         }
@@ -46,7 +53,7 @@ public class ExplorerFolderAction implements SwitchAction {
         List<String> failed = new ArrayList<>();
         String lastDetail = "";
         for (String folder : folders) {
-            LocalFolderFocus.FocusResult result = focus.focus(folder);
+            LocalFolderFocus.FocusResult result = focus.focus(folder, keepAppInFront);
             lastDetail = result.detail();
             if (!result.ok()) {
                 failed.add(folder);

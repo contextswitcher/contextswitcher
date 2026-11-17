@@ -10,18 +10,18 @@ import org.junit.jupiter.api.condition.OS;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~explorer-folder-focus~4]
+// [utest->dsn~explorer-folder-focus~5]
 class LocalFolderFocusTest {
 
     @Test
     void scriptEmbedsTheFolderAsADoubledSingleQuoteLiteral() {
-        String script = LocalFolderFocus.script("C:\\it's\\a folder");
+        String script = LocalFolderFocus.script("C:\\it's\\a folder", 0);
         assertThat(script).contains("$target = 'C:\\it''s\\a folder'");
     }
 
     @Test
     void scriptFocusesViaShellApplicationAndOpensAsFallback() {
-        String script = LocalFolderFocus.script("C:\\p");
+        String script = LocalFolderFocus.script("C:\\p", 0);
         assertThat(script)
                 .contains("New-Object -ComObject Shell.Application")
                 .contains("$w.Document.Folder.Self.Path")
@@ -32,7 +32,7 @@ class LocalFolderFocusTest {
     // [utest->dsn~window-move-here~2]
     @Test
     void scriptMovesAWindowFromAnotherDesktopHereBeforeFocusingIt() {
-        String script = LocalFolderFocus.script("C:\\p");
+        String script = LocalFolderFocus.script("C:\\p", 0);
         assertThat(script).contains(WindowsWindowMove.TYPES.strip())
                 .contains("$outcome = [CsMv]::Focus([IntPtr]$w.HWND)")
                 .contains("moved here: ");
@@ -45,7 +45,7 @@ class LocalFolderFocusTest {
     // [utest->dsn~window-move-here~2]
     @Test
     void aWindowLeftOnAnotherDesktopGetsANewWindowHereInsteadOfAJump() {
-        String script = LocalFolderFocus.script("C:\\p");
+        String script = LocalFolderFocus.script("C:\\p", 0);
         String body = script.substring(script.indexOf("$target = "));
         String elsewhere = body.substring(body.indexOf("if ($outcome -like 'elsewhere*')"));
         assertThat(elsewhere.substring(0, elsewhere.indexOf("exit 0")))
@@ -56,10 +56,30 @@ class LocalFolderFocusTest {
 
     @Test
     void commandIsAnEncodedPowershellInvocation() {
-        var command = LocalFolderFocus.command("C:\\p");
+        var command = LocalFolderFocus.command("C:\\p", 4711);
         assertThat(command).startsWith("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand");
         String decoded = new String(Base64.getDecoder().decode(command.get(4)), StandardCharsets.UTF_16LE);
-        assertThat(decoded).isEqualTo(LocalFolderFocus.script("C:\\p"));
+        assertThat(decoded).isEqualTo(LocalFolderFocus.script("C:\\p", 4711));
+    }
+
+    /// A switch keeps ContextSwitcher in front: the script gets the app's pid
+    /// and raises its window again after every path that focuses or opens
+    /// Explorer — for a new window only once it has shown up, since Explorer
+    /// activates it late (field report 2026-11-17). Pid 0 leaves Explorer in
+    /// front, and the app's window is raised only when it is on this desktop.
+    @Test
+    void aSwitchRaisesTheAppAgainAfterExplorer() {
+        String script = LocalFolderFocus.script("C:\\p", 4711);
+        assertThat(script).contains("$back = 4711")
+                .contains("[CsMv]::FrontProcess([uint32]$back)")
+                .contains("if ($back -le 0) { return }");
+        String body = script.substring(script.indexOf("$shell = New-Object"));
+        assertThat(body.split("Restore-Back", -1)).hasSize(4);
+        assertThat(body.indexOf("Restore-Back 0"))
+                .isGreaterThan(body.lastIndexOf("Start-Process explorer.exe"));
+        assertThat(WindowsWindowMove.TYPES).contains("owner != pid || !IsHere(h)");
+        assertThat(LocalFolderFocus.script("C:\\p", 0)).contains("$back = 0");
+        assertThat(LocalFolderFocus.script("C:\\p", -3)).contains("$back = 0");
     }
 
     /// Off Windows the folder goes to the desktop's own file manager, so a
