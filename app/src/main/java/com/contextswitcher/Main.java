@@ -3248,7 +3248,8 @@ public class Main extends Application {
             SetupWizard.Prefill prefill = new SetupWizard.Prefill(first,
                     window::configuredWorkspacesParent,
                     before.refactoringMinerHome(first),
-                    window.hasCategories(), before.remotes(), window.activeDesktop());
+                    window.hasCategories(), before.remotes(), window.activeDesktop(),
+                    window.knownDesktops());
             SetupWizard.Result result = showSetupWizard(false, prefill, before).orElse(null);
             if (result == null) {
                 return;

@@ -5039,7 +5039,7 @@ public class MainWindow {
     /// the fallback — for the configuration form to suggest, sorted ignoring
     /// case.
     // [impl->dsn~task-field-form~6]
-    private List<String> knownDesktops() {
+    public List<String> knownDesktops() {
         Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         SortedSet<String> existing = existingDesktops;
         if (existing != null) {

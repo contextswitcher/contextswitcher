@@ -97,16 +97,19 @@ public final class SetupWizard {
     /// the last page adds one rather than creating the first — and the
     /// `knownHosts`, the host table's ssh destinations the remote page offers
     /// as choices next to typing a new one, and the `desktop` the new category
-    /// is proposed for (the current one). `EMPTY` on the first start.
+    /// is proposed for (the current one), with the `desktops` its field
+    /// suggests. `EMPTY` on the first start.
     public record Prefill(@Nullable String host,
             java.util.function.Function<String, @Nullable String> workspacesParent,
             @Nullable String refactoringMinerHome, boolean categoriesExist, List<String> knownHosts,
-            @Nullable String desktop) {
+            @Nullable String desktop, List<String> desktops) {
 
-        public static final Prefill EMPTY = new Prefill(null, sessionHost -> null, null, false, List.of(), null);
+        public static final Prefill EMPTY =
+                new Prefill(null, sessionHost -> null, null, false, List.of(), null, List.of());
 
         public Prefill {
             knownHosts = List.copyOf(knownHosts);
+            desktops = List.copyOf(desktops);
         }
     }
 
@@ -842,6 +845,7 @@ public final class SetupWizard {
         TextField desktop = new TextField(prefill.desktop() == null ? "" : prefill.desktop());
         desktop.setId("setup-desktop");
         desktop.setPrefColumnCount(20);
+        Suggestions.install(desktop, prefill::desktops);
         VBox page6 = page(prefill.categoriesExist() ? "Add a category" : "First category",
                 new HBox(16, fromRepo, fromFolder), repoRows, folderRows,
                 caption("Virtual desktop (empty: the fallback desktop)"), desktop);
