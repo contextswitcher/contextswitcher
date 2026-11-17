@@ -71,6 +71,7 @@ import com.contextswitcher.local.BrowserWindowFocus;
 import com.contextswitcher.local.JetBrainsClientFocus;
 import com.contextswitcher.local.WindowsDesktopPin;
 import com.contextswitcher.local.LocalFolderFocus;
+import com.contextswitcher.local.WindowGather;
 import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
 import com.contextswitcher.local.WindowsWindowMove;
@@ -326,6 +327,9 @@ public class Main extends Application {
     private @Nullable RefactoringMinerPoller refactoringPoller;
     private @Nullable RefactoringMinerView refactoringView;
     private @Nullable ExtensionServer extensionServer;
+    /// The `gatherWindows` watcher of the environment profile in effect;
+    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~1]
+    private final WindowGather windowGather = new WindowGather();
     /// The status bar's environment-profile override (null: none), laid over
     /// the category's profile on every switch. Session-only on purpose: a
     /// restart starts in the plain category look.
@@ -627,7 +631,7 @@ public class Main extends Application {
         // [impl->dsn~category-folders-button~1]
         // Read fresh per switch, like the category config: an edited profile
         // needs no restart. [impl->dsn~environment-profiles~1]
-        WindowsEnvironment windowsEnvironment = new WindowsEnvironment(new LocalCommandRunner());
+        WindowsEnvironment windowsEnvironment = new WindowsEnvironment(new LocalCommandRunner(), windowGather);
         EnvironmentProfileAction environmentProfile = new EnvironmentProfileAction(
                 () -> EnvironmentProfiles.parse(readSettingsFile(configDir())),
                 group -> groupLink(files, group, TaskFileParser::groupProfile),
@@ -2184,6 +2188,7 @@ public class Main extends Application {
         if (scheduler != null) {
             scheduler.shutdownNow();
         }
+        windowGather.close();
     }
 
     /// Opens the tasks directory in the OS file manager (Explorer on Windows,

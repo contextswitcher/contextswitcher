@@ -11,6 +11,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Added
 
 - The delayed-send clock in the queue works for a chat running in the app's own terminal on Windows; the session reports when it is idle (takes effect once the session is restarted or resumed).
+- An environment profile can set `gatherWindows: internal` (or another screen): while it is in effect, windows that open on another screen, such as the projector, move to that screen; full-screen windows such as the slide show stay, and a window dragged there by hand stays too.
 
 ## [2026-11-16] - 2026-11-16
 

@@ -524,6 +524,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                     displays: clone
                     taskbar: autohide
                     bookmarksBar: hidden
+                    gatherWindows: internal  # with the screen extended: windows opening on another screen move here; full-screen ones (the slide show) stay; off = don't
                 """;
     }
 

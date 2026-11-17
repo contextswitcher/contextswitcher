@@ -12,7 +12,10 @@ import org.jspecify.annotations.Nullable;
 /// One named entry of `settings.yaml`'s `profiles:` — how the machine itself
 /// should look in a situation (lecture hall, screen share, desk work): the
 /// `screens`' resolution and scale, the `displays` topology, whether the
-/// `taskbar` auto-hides, and whether the browser's `bookmarksBar` shows.
+/// `taskbar` auto-hides, whether the browser's `bookmarksBar` shows, and
+/// onto which screen `gatherWindows` pulls the windows that open elsewhere
+/// (a selector like `screens`', or [#GATHER_OFF] to switch a lower layer's
+/// gathering off).
 /// Every key is optional; an absent one (null, an empty `screens` map) is
 /// "not this profile's business" and is filled from the layer below ([#over]).
 ///
@@ -26,9 +29,25 @@ public record EnvironmentProfile(
         Map<String, Screen> screens,
         @Nullable Displays displays,
         @Nullable Taskbar taskbar,
-        @Nullable BookmarksBar bookmarksBar) {
+        @Nullable BookmarksBar bookmarksBar,
+        @Nullable String gatherWindows) {
 
     public static final EnvironmentProfile EMPTY = new EnvironmentProfile(Map.of(), null, null, null);
+
+    /// The `gatherWindows` value that switches gathering off — also what YAML
+    /// 1.1's `off`/`false`/`no` read as.
+    public static final String GATHER_OFF = "off";
+
+    public EnvironmentProfile(Map<String, Screen> screens, @Nullable Displays displays,
+            @Nullable Taskbar taskbar, @Nullable BookmarksBar bookmarksBar) {
+        this(screens, displays, taskbar, bookmarksBar, null);
+    }
+
+    /// The screen selector windows are gathered onto; null when this
+    /// profile does not gather (unset or [#GATHER_OFF]).
+    public @Nullable String gatherTarget() {
+        return gatherWindows == null || gatherWindows.equalsIgnoreCase(GATHER_OFF) ? null : gatherWindows;
+    }
 
     public EnvironmentProfile {
         screens = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(screens));
@@ -147,7 +166,20 @@ public record EnvironmentProfile(
                 Screen.parseAll(map.get("screens")),
                 enumOf(Displays.class, map.get("displays")),
                 enumOf(Taskbar.class, map.get("taskbar")),
-                enumOf(BookmarksBar.class, map.get("bookmarksBar")));
+                enumOf(BookmarksBar.class, map.get("bookmarksBar")),
+                gatherOf(map.get("gatherWindows")));
+    }
+
+    private static @Nullable String gatherOf(@Nullable Object value) {
+        if (value instanceof Boolean on) {
+            // `off` / `no` / `false`; a bare `true` names no screen
+            return on ? null : GATHER_OFF;
+        }
+        if (value == null || value instanceof Map || value instanceof List || value.toString().isBlank()) {
+            return null;
+        }
+        String selector = value.toString().strip();
+        return selector.equalsIgnoreCase("none") ? GATHER_OFF : selector;
     }
 
     private static <E extends Enum<E>> @Nullable E enumOf(Class<E> type, @Nullable Object value) {
@@ -176,10 +208,12 @@ public record EnvironmentProfile(
                 merged,
                 displays != null ? displays : base.displays,
                 taskbar != null ? taskbar : base.taskbar,
-                bookmarksBar != null ? bookmarksBar : base.bookmarksBar);
+                bookmarksBar != null ? bookmarksBar : base.bookmarksBar,
+                gatherWindows != null ? gatherWindows : base.gatherWindows);
     }
 
     public boolean isEmpty() {
-        return screens.isEmpty() && displays == null && taskbar == null && bookmarksBar == null;
+        return screens.isEmpty() && displays == null && taskbar == null && bookmarksBar == null
+                && gatherWindows == null;
     }
 }

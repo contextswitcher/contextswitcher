@@ -82,6 +82,7 @@ The machine itself looks different per situation: in a lecture hall the screen i
 `settings.yaml` names such looks as profiles — screen resolution, projection mode, taskbar auto-hide, browser bookmarks bar — one of them the `default`, the system's normal look.
 A category picks a profile; switching to one of its tasks puts the machine into it, and switching to a task of a category without one puts the default back.
 A profile only states the keys it cares about; the rest comes from the default.
+In the lecture hall, with the screen extended to the projector, windows that open there (an editor, the notebook) belong on the lecturer's screen instead: a profile can name the screen windows are gathered onto while it is in effect, and full-screen windows — the slide show — stay where they are.
 A manual override in the status bar (e.g. `screenshare`) is laid over whatever the category picked until it is switched back.
 
 Tags: windows, linux_later
@@ -521,6 +522,23 @@ A screen whose rule has a `resolution` that differs from its current mode is sta
 `taskbar` compares `SHAppBarMessage(ABM_GETSTATE)` and sets `ABM_SETSTATE` (`ABS_AUTOHIDE` or `ABS_ALWAYSONTOP`) on `Shell_TrayWnd` — the taskbar's auto-hide setting, which ExplorerPatcher's Windows 10 taskbar honours too.
 A mode the displays do not offer (`clone` with no projector plugged in, a resolution a screen lacks) does not stop the other steps; the script exits 3 with the failures listed first.
 A profile with only `bookmarksBar` spawns no `powershell`.
+
+Tags: windows
+
+Covers:
+- req~environment-profiles~1
+
+Needs: impl, utest
+
+### Gather windows onto one screen
+`dsn~environment-profile-gather-windows~1`
+
+A profile's `gatherWindows: <screen>` takes a selector like `screens:` (EDID name or product code, `primary`, `internal`, `external`; `off` switches a lower layer's gathering off) and layers per key like the other keys.
+`WindowsEnvironment.apply` hands the effective value to `WindowGather`, which keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside to resolve the selector) for it: same selector — nothing happens; another — restart; none — stop; `Main.stop` stops it, and the watcher exits on its own once the app's process is gone.
+Every 500 ms the watcher enumerates the top-level windows (visible, not minimized, not cloaked — other virtual desktops —, titled, not tool or owned windows, not the shell's taskbars, desktop or Start) and pulls one that sits on another screen over to the target's work area, keeping its offset and clamping its size; a maximized window is restored without activation, moved and maximized again.
+It does so only within 4 s of first seeing the window — the watcher's start, a new window, one restored or arriving from another desktop — and again after the set of screens changes, so a window the lecturer drags onto the projector stays there.
+A window covering its whole screen (the slide show, a PDF in presentation mode) is never moved; with one screen, or none matching the selector, nothing moves.
+Moves are logged (`Window gather: moved notepad++ from \\.\DISPLAY2 to \\.\DISPLAY1`); the chip reports starting and stopping.
 
 Tags: windows
 

@@ -68,6 +68,28 @@ class EnvironmentProfilesTest {
     }
 
     @Test
+    void gatherWindowsLayersAndOffSwitchesALowerLayerOff() {
+        EnvironmentProfiles profiles = EnvironmentProfiles.parse("""
+                profiles:
+                  default: {taskbar: visible}
+                  lecture: {gatherWindows: internal}
+                  desk: {gatherWindows: off}
+                  share: {bookmarksBar: hidden}
+                  weird: {gatherWindows: [a, b]}
+                """);
+
+        assertThat(profiles.effective(null, null).gatherTarget()).isNull();
+        assertThat(profiles.effective("lecture", null).gatherTarget()).isEqualTo("internal");
+        // An override without the key keeps the category's gathering.
+        assertThat(profiles.effective("lecture", "share").gatherTarget()).isEqualTo("internal");
+        // YAML's `off` reads as false: an explicit "no gathering" over a lower layer.
+        assertThat(profiles.effective("lecture", "desk").gatherTarget()).isNull();
+        assertThat(profiles.byName().get("desk").gatherWindows()).isEqualTo(EnvironmentProfile.GATHER_OFF);
+        assertThat(profiles.byName().get("lecture").isEmpty()).isFalse();
+        assertThat(profiles.byName().get("weird").isEmpty()).isTrue();
+    }
+
+    @Test
     void screensMergePerSelector() {
         EnvironmentProfiles profiles = EnvironmentProfiles.parse("""
                 profiles:
