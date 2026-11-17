@@ -293,7 +293,7 @@ final class ConfigForm {
 
     /// The local folders as the parser reads them: the `folders` list, or the
     /// single-directory `folder:` scalar a local category seeds.
-    // [impl->dsn~explorer-folder-focus~4]
+    // [impl->dsn~explorer-folder-focus~5]
     private static List<String> folders(Map<String, Object> data) {
         Object folders = data.get("folders");
         return folders != null ? stringList(folders) : stringList(data.get("folder"));

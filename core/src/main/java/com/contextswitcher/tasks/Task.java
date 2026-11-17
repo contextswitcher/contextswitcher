@@ -62,7 +62,7 @@ public record Task(
 
     /// Defensive copies so a task's tag and folder lists stay immutable.
     // [impl->dsn~task-tag-model~2]
-    // [impl->dsn~explorer-folder-focus~4]
+    // [impl->dsn~explorer-folder-focus~5]
     public Task {
         tags = List.copyOf(tags);
         folders = List.copyOf(folders);

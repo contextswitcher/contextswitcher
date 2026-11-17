@@ -38,7 +38,7 @@ public class ClaudeSessionLookup {
 
     /// The session id to resume for a directory on **this** machine, read from
     /// `~/.claude/projects/<encoded>` directly — an app-owned local session
-    /// (`dsn~terminal-owned-session~4`) has no host to ask over ssh.
+    /// (`dsn~terminal-owned-session~5`) has no host to ask over ssh.
     /// The task's `recorded` id when its transcript is there (so one folder
     /// can hold several tasks, each resuming its own conversation), else the
     /// newest transcript no other task `claimed`; null when the directory

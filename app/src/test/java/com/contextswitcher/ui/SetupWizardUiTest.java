@@ -276,7 +276,7 @@ class SetupWizardUiTest {
         AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
         Platform.runLater(() -> result.set(SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS,
                 "/home/local", false, false, new SetupWizard.Prefill("devbox", sessionHost -> "/data/me", null, true,
-                java.util.List.of("other", "devbox"), "Work"), EXTENSION)));
+                java.util.List.of("other", "devbox"), "Work", java.util.List.of("Work", "Writing")), EXTENSION)));
         clickButton("Next");
         // The configured hosts are choices; the prefilled one is picked, and
         // its workspaces directory is there before any check.
@@ -294,6 +294,16 @@ class SetupWizardUiTest {
         assertThat(field("#setup-root").getText()).isEqualTo("/data/me/proj-workspaces");
         // The new category is proposed for the current desktop. [utest->dsn~setup-wizard~13]
         assertThat(field("#setup-desktop").getText()).isEqualTo("Work");
+        // It suggests the known desktops as the configuration form does.
+        // Cleared off the robot: an emptied field already lists every desktop,
+        // and the open popup then trips `type`'s focus lookup.
+        TextField desktop = field("#setup-desktop");
+        Platform.runLater(() -> desktop.setText(""));
+        FX_ROBOT.mouse().moveTo(desktop).click();
+        FX_ROBOT.keyboard().type(javafx.scene.input.KeyCode.W, javafx.scene.input.KeyCode.R,
+                javafx.scene.input.KeyCode.I, javafx.scene.input.KeyCode.DOWN, javafx.scene.input.KeyCode.ENTER);
+        awaitPresent(() -> Optional.of(field("#setup-desktop").getText()).filter("Writing"::equals),
+                "picked suggestion");
         clickButton("Cancel");
     }
 
@@ -306,7 +316,7 @@ class SetupWizardUiTest {
     void theHostPageShowsAllLabelsInFull() {
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS,
                 "/home/local", false, false, new SetupWizard.Prefill("koppor@nixos", sessionHost -> "/home/koppor/workspaces",
-                null, true, java.util.List.of("koppor@swkgpu1", "koppor@nixos"), null), EXTENSION));
+                null, true, java.util.List.of("koppor@swkgpu1", "koppor@nixos"), null, java.util.List.of()), EXTENSION));
         clickButton("Next");
         TextField host = field("#setup-host");
         Platform.runLater(() -> host.getScene().getWindow().setWidth(480));
@@ -324,7 +334,7 @@ class SetupWizardUiTest {
                 com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
                 () -> com.contextswitcher.config.Browser.FIREFOX, () -> null);
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
-                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of(), null), connected));
+                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of(), null, java.util.List.of()), connected));
         RadioButton local = awaitPresent(
                 () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
         FX_ROBOT.mouse().moveTo(local).click();
@@ -348,7 +358,7 @@ class SetupWizardUiTest {
                 com.contextswitcher.config.Browser.FIREFOX, OPENED::add,
                 () -> null, () -> com.contextswitcher.config.Browser.FIREFOX);
         Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
-                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of(), null), installed));
+                new SetupWizard.Prefill(null, sessionHost -> "/data/me", null, true, java.util.List.of(), null, java.util.List.of()), installed));
         RadioButton local = awaitPresent(
                 () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
         FX_ROBOT.mouse().moveTo(local).click();

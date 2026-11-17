@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~explorer-folder-focus~4]
+// [utest->dsn~explorer-folder-focus~5]
 class ExplorerFolderActionTest {
 
     /// A focus that returns a canned local result, so no PowerShell runs —
@@ -73,6 +73,27 @@ class ExplorerFolderActionTest {
                 .run(tasks(java.util.List.of("C:\\one", "C:\\two", "C:\\three")));
         assertThat(result.ok()).isTrue();
         assertThat(result.detail()).isEqualTo("3 folders: C:\\one, C:\\two, C:\\three");
+    }
+
+    /// A switch passes the app's own pid so its window comes back in front;
+    /// the category header's folder button passes none and leaves Explorer
+    /// in front (field report 2026-11-17).
+    @Test
+    void aSwitchKeepsTheAppInFrontTheFolderButtonDoesNot() {
+        java.util.List<String> scripts = new java.util.ArrayList<>();
+        LocalFolderFocus recording = LocalFolderFocus.forWindows(new LocalCommandRunner() {
+            @Override
+            public LocalResult run(java.util.List<String> command) {
+                scripts.add(new String(java.util.Base64.getDecoder().decode(command.getLast()),
+                        java.nio.charset.StandardCharsets.UTF_16LE));
+                return new LocalResult(0, "focused", "");
+            }
+        });
+        ExplorerFolderAction action = new ExplorerFolderAction(recording);
+        action.run(task("C:\\p"));
+        action.open(java.util.List.of("C:\\p"));
+        assertThat(scripts.get(0)).contains("$back = " + ProcessHandle.current().pid());
+        assertThat(scripts.get(1)).contains("$back = 0");
     }
 
     /// A missing folder does not stop the others, and the detail names it.

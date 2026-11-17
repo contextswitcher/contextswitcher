@@ -71,6 +71,7 @@ import com.contextswitcher.local.BrowserWindowFocus;
 import com.contextswitcher.local.JetBrainsClientFocus;
 import com.contextswitcher.local.WindowsDesktopPin;
 import com.contextswitcher.local.LocalFolderFocus;
+import com.contextswitcher.local.WindowGather;
 import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
 import com.contextswitcher.local.WindowsWindowMove;
@@ -126,6 +127,7 @@ import com.contextswitcher.terminal.WindowsTerminalFocus;
 import com.contextswitcher.queue.SendResult;
 import com.contextswitcher.terminal.ChatRoute;
 import com.contextswitcher.terminal.LocalClaudeLauncher;
+import com.contextswitcher.terminal.OwnedStatus;
 import com.contextswitcher.terminal.HostCommandRunner;
 import com.contextswitcher.terminal.LocalTmuxRunner;
 import com.contextswitcher.terminal.WslTmuxRunner;
@@ -325,6 +327,9 @@ public class Main extends Application {
     private @Nullable RefactoringMinerPoller refactoringPoller;
     private @Nullable RefactoringMinerView refactoringView;
     private @Nullable ExtensionServer extensionServer;
+    /// The `gatherWindows` watcher of the environment profile in effect;
+    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~1]
+    private final WindowGather windowGather = new WindowGather();
     /// The status bar's environment-profile override (null: none), laid over
     /// the category's profile on every switch. Session-only on purpose: a
     /// restart starts in the plain category look.
@@ -626,7 +631,7 @@ public class Main extends Application {
         // [impl->dsn~category-folders-button~1]
         // Read fresh per switch, like the category config: an edited profile
         // needs no restart. [impl->dsn~environment-profiles~1]
-        WindowsEnvironment windowsEnvironment = new WindowsEnvironment(new LocalCommandRunner());
+        WindowsEnvironment windowsEnvironment = new WindowsEnvironment(new LocalCommandRunner(), windowGather);
         EnvironmentProfileAction environmentProfile = new EnvironmentProfileAction(
                 () -> EnvironmentProfiles.parse(readSettingsFile(configDir())),
                 group -> groupLink(files, group, TaskFileParser::groupProfile),
@@ -721,7 +726,7 @@ public class Main extends Application {
         // [impl->dsn~terminal-diff-window~2]
         terminalPane.setDiffOpener((remote, tmux) ->
                 showDiffWindow(repository, files, ssh, terminalPane, remote, tmux));
-        // [impl->dsn~terminal-owned-session~4]
+        // [impl->dsn~terminal-owned-session~5]
         terminalPane.setOwnedDiffOpener(taskId -> showOwnedDiff(repository, taskId));
         // [impl->dsn~terminal-mirrored-task~1]
         terminalPane.setMirroredTaskSelector((remote, window) ->
@@ -775,7 +780,7 @@ public class Main extends Application {
                     case ChatRoute.Tmux(String host, Task.TmuxConfig tmux) -> SendResult.of(
                             messageSender.send(host, tmux.target(), text, ClaudeMode.DEFAULT, progress));
                     // Windows: no tmux, the chat runs in the pane's own ConPTY
-                    // and is typed into. [impl->dsn~terminal-owned-session~4]
+                    // and is typed into. [impl->dsn~terminal-owned-session~5]
                     case ChatRoute.Owned(String taskId) ->
                             terminalPane.sendToOwned(taskId, messageSender.localText(text));
                     case ChatRoute.None() -> new SendResult.Failed("No tmux window configured for this task.");
@@ -1155,13 +1160,17 @@ public class Main extends Application {
                     // [impl->dsn~refactoring-analysis-poller~1]
                     Map<String, String> previous = liveStatuses;
                     liveStatuses = statuses;
+                    // App-hosted sessions report through files of their own.
+                    // [impl->dsn~terminal-owned-session~5]
+                    Map<String, String> withOwned = new HashMap<>(statuses);
+                    withOwned.putAll(OwnedStatus.read(configDir().resolve("owned-status")));
                     refreshPrStatesOfStoppedSessions(previous, statuses);
                     Platform.runLater(() -> {
                         window.updateRunningStatuses(statuses);
                         // A message armed for "delayed next" goes out on the
                         // tick its chat reports idle.
                         // [impl->dsn~message-queue-delayed-send~4]
-                        queuePane.sendDelayed(statuses);
+                        queuePane.sendDelayed(withOwned);
                         // [impl->dsn~terminal-markdown-copy~1]
                         terminalPane.showStatuses(statuses);
                     });
@@ -2179,6 +2188,7 @@ public class Main extends Application {
         if (scheduler != null) {
             scheduler.shutdownNow();
         }
+        windowGather.close();
     }
 
     /// Opens the tasks directory in the OS file manager (Explorer on Windows,
@@ -2654,6 +2664,19 @@ public class Main extends Application {
         try {
             return Files.isRegularFile(config) ? new TaskFileParser().parseGroupConfig(TextFiles.read(config)).repo() : null;
         } catch (IOException e) {
+            return null;
+        }
+    }
+
+    /// The hook settings an app-hosted session reports its status through, or
+    /// null when they cannot be written — the session then runs without, as
+    /// before.
+    // [impl->dsn~terminal-owned-session~5]
+    private static @Nullable Path ownedStatusSettings(String taskId) {
+        try {
+            return OwnedStatus.prepare(configDir().resolve("owned-status"), taskId);
+        } catch (IOException e) {
+            Logger.warn("Cannot write the status hooks for {}: {}", taskId, e.getMessage());
             return null;
         }
     }
@@ -3225,7 +3248,8 @@ public class Main extends Application {
             SetupWizard.Prefill prefill = new SetupWizard.Prefill(first,
                     window::configuredWorkspacesParent,
                     before.refactoringMinerHome(first),
-                    window.hasCategories(), before.remotes(), window.activeDesktop());
+                    window.hasCategories(), before.remotes(), window.activeDesktop(),
+                    window.knownDesktops());
             SetupWizard.Result result = showSetupWizard(false, prefill, before).orElse(null);
             if (result == null) {
                 return;
@@ -4207,13 +4231,14 @@ public class Main extends Application {
         if (LocalClaudeLauncher.onWindows() && terminal != null) {
             // Windows has no tmux to run the session in, so the **app** hosts
             // it in the terminal pane's own ConPTY — a Windows Terminal tab
-            // could not be typed into from here (`dsn~terminal-owned-session~4`).
+            // could not be typed into from here (`dsn~terminal-owned-session~5`).
             // The session id is chosen here and pinned with `--session-id`, so
             // the task file names its own transcript: the cwd alone is shared
             // by every task started in the same folder.
             String sessionId = UUID.randomUUID().toString();
             terminal.startOwned(taskId,
-                    LocalClaudeLauncher.ownedCommand(description, mode.model(), sessionId, false),
+                    LocalClaudeLauncher.ownedCommand(description, mode.model(), sessionId, false,
+                            ownedStatusSettings(taskId)),
                     workdir);
             if (currentWindow != null) {
                 currentWindow.statusBar().message("Claude started in " + workdir + ".");
@@ -4244,7 +4269,7 @@ public class Main extends Application {
     /// sections the remote flow writes, minus a `remote:`: that absence is
     /// what marks the session as local, and the mirror addresses it as
     /// `TmuxHost.LOCAL` instead of over ssh. An app-owned session records its
-    /// `sessionId` too (`dsn~terminal-owned-session~4`). FX thread.
+    /// `sessionId` too (`dsn~terminal-owned-session~5`). FX thread.
     // [impl->dsn~terminal-local-mirror~2]
     private void writeLocalWindowBack(MainWindow.TaskFileAccess files, String taskId,
             @Nullable String windowId, String workdir, @Nullable String sessionId) {
@@ -4453,11 +4478,11 @@ public class Main extends Application {
         });
     }
 
-    /// "Show diff" for an app-owned session (`dsn~terminal-owned-session~4`):
+    /// "Show diff" for an app-owned session (`dsn~terminal-owned-session~5`):
     /// git runs on this machine in the task's workspace — the recorded
     /// `claude.workspace`, else the directory the session runs in — and the
     /// colored output opens in a read-only terminal window.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private void showOwnedDiff(TaskRepository repository, String taskId) {
         ExecutorService executor = this.actionExecutor;
         if (executor == null) {
@@ -4966,7 +4991,7 @@ public class Main extends Application {
         // On Windows a task with no host runs in the app's own ConPTY, so the
         // owned branch answers *before* the remote offers below — those two
         // buttons open a window on a remote, which such a task does not have.
-        // [impl->dsn~terminal-owned-session~4]
+        // [impl->dsn~terminal-owned-session~5]
         if (LocalClaudeLauncher.ownsSession(task) && showOwnedSession(files, terminal, task)) {
             return;
         }
@@ -5035,7 +5060,7 @@ public class Main extends Application {
     /// be started from the placeholder even when its creation died before the
     /// write-back. Null for a task with neither, the one case that still has
     /// nowhere to run and says so.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private static @Nullable String ownedCwd(Task task) {
         if (task.claude() != null) {
             return task.claude().cwd();
@@ -5048,12 +5073,12 @@ public class Main extends Application {
     /// offer is a **resume**: the task's `claude.sessionId` (else the newest
     /// transcript for its `cwd` that no other task claims) continues the same
     /// conversation, which is what replaces the detach a
-    /// tmux mirror would have given (`dsn~terminal-owned-session~4`).
+    /// tmux mirror would have given (`dsn~terminal-owned-session~5`).
     /// Whichever id is started or resumed is written to the task file, so the
     /// transcript is claimed and no other task in the folder falls back to it.
     /// False when the task names no directory to run in, the one case that
     /// falls through to the ordinary "No tmux configured" placeholder.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private boolean showOwnedSession(MainWindow.TaskFileAccess files, TerminalPane terminal,
             Task task) {
         if (terminal.showOwnedIfRunning(task.id())) {
@@ -5075,7 +5100,8 @@ public class Main extends Application {
                 resume ? "resume" : "start",
                 () -> {
                     terminal.startOwned(task.id(),
-                            LocalClaudeLauncher.ownedCommand("", null, session, resume), cwd);
+                            LocalClaudeLauncher.ownedCommand("", null, session, resume,
+                                    ownedStatusSettings(task.id())), cwd);
                     if (!session.equals(recorded)) {
                         recordOwnedSession(files, task.id(), cwd, session);
                     }
@@ -5085,7 +5111,7 @@ public class Main extends Application {
 
     /// The `claude.sessionId`s every task but `taskId` records — the
     /// transcripts an owned session must not fall back to.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private Set<String> sessionIdsClaimedByOthers(String taskId) {
         TaskRepository repository = this.repository;
         if (repository == null) {
@@ -5103,7 +5129,7 @@ public class Main extends Application {
 
     /// Writes the id an owned session was started or resumed with into the
     /// task file — the claim [#sessionIdsClaimedByOthers] reads. FX thread.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private void recordOwnedSession(MainWindow.TaskFileAccess files, String taskId, String cwd,
             String sessionId) {
         String fileName = taskId + ".md";

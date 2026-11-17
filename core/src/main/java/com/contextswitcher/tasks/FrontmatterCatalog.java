@@ -121,7 +121,7 @@ public final class FrontmatterCatalog {
             // [impl->dsn~browser-url-title~1]
             new Field("browser.urls", "Browser URLs", "Switch actions", Type.LIST,
                     BROWSER_URLS_HELP),
-            // [impl->dsn~explorer-folder-focus~4]
+            // [impl->dsn~explorer-folder-focus~5]
             new Field("folders", "Local folders", "Switch actions", Type.LIST,
                     "Folders opened in the file manager on switch; one per line."),
             new Field("chat", "Chat room", "Switch actions", Type.STRING,

@@ -4,8 +4,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.contextswitcher.config.EnvironmentProfile;
+import org.jspecify.annotations.Nullable;
 
 /// Puts the machine-level keys of an [EnvironmentProfile] into effect —
 /// projection mode (`displays`), per-screen resolution and scale (`screens`), and taskbar
@@ -39,6 +42,9 @@ import com.contextswitcher.config.EnvironmentProfile;
 /// - `taskbar`: `SHAppBarMessage(ABM_GETSTATE/ABM_SETSTATE)` on
 ///   `Shell_TrayWnd` — the auto-hide checkbox of the taskbar settings, which
 ///   ExplorerPatcher's Windows 10 taskbar honours as well.
+///
+/// `gatherWindows` is not a one-shot step but a watcher process
+/// ([WindowGather]) that [#apply] starts, retargets or stops.
 ///
 /// The script prints the changes as one line; exit 3 means a requested mode
 /// the displays do not offer (no projector plugged in for `clone`, a mode a
@@ -199,7 +205,7 @@ public class WindowsEnvironment {
               }
 
               // The rule for a screen: its EDID name or product code, then primary, then internal/external.
-              static int Pick(Screen s, string[] keys) {
+              public static int Pick(Screen s, string[] keys) {
                 foreach (string want in new[] { s.Name, s.Code }) {
                   if (want == "") { continue; }
                   for (int i = 0; i < keys.Length; i++) { if (string.Equals(keys[i], want, StringComparison.OrdinalIgnoreCase)) { return i; } }
@@ -279,9 +285,26 @@ public class WindowsEnvironment {
             """;
 
     private final LocalCommandRunner runner;
+    private final @Nullable WindowGather gather;
 
     public WindowsEnvironment(LocalCommandRunner runner) {
+        this(runner, null);
+    }
+
+    /// With `gather`, [#apply] also starts, retargets or stops the window
+    /// watcher for the profile's `gatherWindows`.
+    public WindowsEnvironment(LocalCommandRunner runner, @Nullable WindowGather gather) {
         this.runner = runner;
+        this.gather = gather;
+    }
+
+    /// The C# source of the `CsScreens` class — the active screens and the
+    /// selector match — for [WindowGather]'s watcher to compile alongside
+    /// its own.
+    static String screenTypes() {
+        int start = TYPES.indexOf("public class CsScreens {");
+        int end = TYPES.indexOf("\"@", start);
+        return TYPES.substring(start, end).stripTrailing();
     }
 
     /// Whether `profile` has anything for this class to do — the
@@ -352,9 +375,22 @@ public class WindowsEnvironment {
         return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
     }
 
-    /// Applies `profile`'s machine-level keys; a profile without any is a
-    /// no-op success without spawning `powershell`.
+    /// Applies `profile`'s machine-level keys, then (when wired) puts its
+    /// `gatherWindows` into effect; a profile without screen, display or
+    /// taskbar keys spawns no one-shot `powershell`.
     public ApplyResult apply(EnvironmentProfile profile) {
+        ApplyResult machine = applyScript(profile);
+        if (gather == null) {
+            return machine;
+        }
+        ApplyResult gathered = gather.gather(profile.gatherTarget());
+        String detail = Stream.of(machine.detail(), gathered.detail())
+                .filter(part -> !part.isBlank())
+                .collect(Collectors.joining(", "));
+        return new ApplyResult(machine.ok() && gathered.ok(), detail);
+    }
+
+    private ApplyResult applyScript(EnvironmentProfile profile) {
         if (!handles(profile)) {
             return new ApplyResult(true, "");
         }

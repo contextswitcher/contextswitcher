@@ -760,7 +760,7 @@ public class TaskFileParser {
     /// single-directory `folder` scalar the task files predating it use — the
     /// same key pair in a task file and in a category's `CONTEXTSWITCHER.md`.
     /// Blank entries are dropped so a half-typed list item opens nothing.
-    // [impl->dsn~explorer-folder-focus~4]
+    // [impl->dsn~explorer-folder-focus~5]
     private static List<String> parseFolders(Map<String, Object> data) {
         Object folders = data.get("folders");
         if (folders instanceof List<?> list) {

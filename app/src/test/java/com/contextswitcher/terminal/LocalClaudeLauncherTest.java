@@ -9,43 +9,43 @@ import static org.assertj.core.api.Assertions.assertThat;
 // [utest->dsn~task-create-local~4]
 class LocalClaudeLauncherTest {
 
-    // [utest->dsn~terminal-owned-session~4]
+    // [utest->dsn~terminal-owned-session~5]
     @Test
     void ownedSessionRunsClaudeWithThePromptAndNoWindowsTerminal() {
-        assertThat(LocalClaudeLauncher.ownedCommand("Fix the importer", "opus", "a1b2-c3", false))
+        assertThat(LocalClaudeLauncher.ownedCommand("Fix the importer", "opus", "a1b2-c3", false, null))
                 .containsExactly("cmd", "/k", "claude", "--session-id", "a1b2-c3",
                         "--model", "opus", "Fix the importer");
     }
 
-    // [utest->dsn~terminal-owned-session~4]
+    // [utest->dsn~terminal-owned-session~5]
     @Test
     void ownedSessionResumesATranscriptWithoutModelOrPrompt() {
-        assertThat(LocalClaudeLauncher.ownedCommand("Fix the importer", "opus", "a1b2-c3", true))
+        assertThat(LocalClaudeLauncher.ownedCommand("Fix the importer", "opus", "a1b2-c3", true, null))
                 .containsExactly("cmd", "/k", "claude", "--resume", "a1b2-c3");
     }
 
-    // [utest->dsn~terminal-owned-session~4]
+    // [utest->dsn~terminal-owned-session~5]
     @Test
     void ownedSessionFoldsNewlinesSoTheCommandLineStaysOneLine() {
-        assertThat(LocalClaudeLauncher.ownedCommand("First\nsecond", null, "id", false).getLast())
+        assertThat(LocalClaudeLauncher.ownedCommand("First\nsecond", null, "id", false, null).getLast())
                 .isEqualTo("First second");
     }
 
-    // [utest->dsn~terminal-owned-session~4]
+    // [utest->dsn~terminal-owned-session~5]
     @Test
     void ownedSessionTurnsDoubleQuotesSoCmdMetacharactersStayQuoted() {
-        assertThat(LocalClaudeLauncher.ownedCommand("chevron left \"<\" & more", null, "id", false).getLast())
+        assertThat(LocalClaudeLauncher.ownedCommand("chevron left \"<\" & more", null, "id", false, null).getLast())
                 .isEqualTo("chevron left '<' & more");
     }
 
-    // [utest->dsn~terminal-owned-session~4]
+    // [utest->dsn~terminal-owned-session~5]
     @Test
     void omitsAnEmptyPrompt() {
-        assertThat(LocalClaudeLauncher.ownedCommand("   ", null, "id", false))
+        assertThat(LocalClaudeLauncher.ownedCommand("   ", null, "id", false, null))
                 .containsExactly("cmd", "/k", "claude", "--session-id", "id");
     }
 
-    // [utest->dsn~terminal-owned-session~4]
+    // [utest->dsn~terminal-owned-session~5]
     @Test
     void ownedPasteBracketsTheMessageAndTypesLineBreaksAsEnter() {
         assertThat(LocalClaudeLauncher.ownedPaste("First\nsecond\r\nthird"))

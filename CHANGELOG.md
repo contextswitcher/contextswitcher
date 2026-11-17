@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-17] - 2026-11-17
+
+### Added
+
+- The delayed-send clock in the queue works for a chat running in the app's own terminal on Windows; the session reports when it is idle (takes effect once the session is restarted or resumed).
+- An environment profile can set `gatherWindows: internal` (or another screen): while it is in effect, windows that open on another screen, such as the projector, move to that screen; full-screen windows such as the slide show stay, and a window dragged there by hand stays too.
+- The setup wizard's *Virtual desktop* field suggests the known desktops while typing, as the configuration form does.
+
+### Fixed
+
+- Switching to a task or category with `folders:` no longer leaves File Explorer in front: the Explorer window opens or comes forward behind ContextSwitcher, which keeps the foreground.
+  The category header's folder button still brings Explorer to the front.
+
 ## [2026-11-16] - 2026-11-16
 
 ### Added
@@ -358,6 +371,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-17]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-16...v2026-11-17
 [2026-11-16]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-15...v2026-11-16
 [2026-11-15]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-13...v2026-11-15
 [2026-11-13]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-12...v2026-11-13

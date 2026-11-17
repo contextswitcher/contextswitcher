@@ -136,7 +136,7 @@ public class TerminalPane {
     /// Every button in the bar below the terminal: disabled while a placeholder
     /// shows, enabled for a mirror and for an app-owned session alike — the
     /// routes they take differ ([#session]), not whether they work.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private final List<Button> barButtons = new ArrayList<>();
     /// The bar holding [#barButtons], filled by [#jumpToBottomBar].
     private final HBox bar = new HBox(8);
@@ -146,21 +146,21 @@ public class TerminalPane {
     /// another task would end the conversation — only the session in view
     /// changes. Concurrent: the queue's delivery looks a session up from its
     /// background executor while the FX thread starts and ends them.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private final Map<String, OwnedSession> owned = new ConcurrentHashMap<>();
 
     /// Called (FX thread) whenever an owned session starts or its process
     /// exits, so the task rows can flip their pause/play toggle.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private Runnable onOwnedChanged = () -> { };
 
     /// The owned session play asked to start before its offer was on screen:
     /// the offer for it then runs instead of showing ([#showActionMessage]).
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private @Nullable String autoStartKey;
 
     /// The start/resume button on screen and the session it is for.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private @Nullable Button ownedOffer;
     private @Nullable String ownedOfferKey;
 
@@ -245,7 +245,7 @@ public class TerminalPane {
     /// The "Show diff" button's action while an app-owned session is shown,
     /// wired by `Main`: receives the session's task id, since there is no
     /// remote or tmux config to find the task by. Null until wired (no-op).
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private @Nullable Consumer<String> ownedDiffOpener;
 
     /// The "Fork…" button's action, wired by `MainWindow` — it owns the
@@ -495,7 +495,7 @@ public class TerminalPane {
     /// Claude sessions ([RemoteFiles#listLocal]), opened where they are —
     /// nothing to download. "Custom path…" asks for a local path. Disabled for
     /// the directory walk, like the remote listing.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private void showLocalFiles(Button source) {
         source.setDisable(true);
         executor.execute(() -> {
@@ -712,7 +712,7 @@ public class TerminalPane {
 
     /// The local menu's "Custom path…": [#askForCustomPath] for a file on
     /// this machine, opened in place.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private void askForLocalPath() {
         TextInputDialog dialog = Alerts.owned(Alerts.windowOf(root), new TextInputDialog(lastCustomPath));
         dialog.setTitle("Open a local file");
@@ -943,7 +943,7 @@ public class TerminalPane {
 
     /// Wires "Show diff" for an app-owned session (called by `Main`, which
     /// resolves the task id to its workspace).
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     public void setOwnedDiffOpener(Consumer<String> opener) {
         this.ownedDiffOpener = opener;
     }
@@ -1362,7 +1362,7 @@ public class TerminalPane {
     /// Claude come back untouched after a look at another task. False when
     /// there is no such session (or it has exited), which is the caller's cue
     /// to offer a start/resume instead.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     public boolean showOwnedIfRunning(String key) {
         OwnedSession running = owned.get(key);
         if (running == null) {
@@ -1380,7 +1380,7 @@ public class TerminalPane {
     /// Whether the app-owned session `key` has a live process — false is
     /// knowledge, not a guess: the app owns these processes, so none runs
     /// that the pane does not hold.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     public boolean isOwnedRunning(String key) {
         OwnedSession running = owned.get(key);
         return running != null && running.isAlive();
@@ -1395,14 +1395,14 @@ public class TerminalPane {
     }
 
     /// Installs the hook [#onOwnedChanged] calls.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     public void setOnOwnedChanged(Runnable handler) {
         this.onOwnedChanged = handler;
     }
 
     /// Starts a Claude session the **app** owns in a ConPTY rooted at `cwd`
     /// ([OwnedSession#start]) and shows it.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     public void startOwned(String key, List<String> command, String cwd) {
         disconnect();
         Logger.info("Starting an app-owned Claude session in {}: {}", cwd,
@@ -1423,7 +1423,7 @@ public class TerminalPane {
     /// Puts an owned session on screen in place of whatever was shown: the
     /// bar buttons take its local routes, no mode label (an owned session
     /// publishes no tmux options), no title until the session sets one.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private void showOwned(OwnedSession shown) {
         if (session != shown) {
             disconnect();
@@ -1438,7 +1438,7 @@ public class TerminalPane {
     /// Types `text` into the app-owned session `key` and submits it
     /// ([OwnedSession#send]) — the message queue's delivery for a chat no tmux
     /// holds. Blocking, for the background executor.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     public SendResult sendToOwned(String key, String text) {
         OwnedSession target = owned.get(key);
         if (target == null || !target.isAlive()) {
@@ -1451,7 +1451,7 @@ public class TerminalPane {
     /// Ends every owned session — application shutdown only. The app owns
     /// these processes; leaving them behind would orphan a Claude with no
     /// terminal attached to it.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     public void closeOwned() {
         TerminalSession shown = session;
         if (shown != null && owned.containsValue(shown)) {
@@ -1466,7 +1466,7 @@ public class TerminalPane {
     /// remote window choice.
     /// Play on a row whose owned session `key` is known stopped
     /// ([#requestOwnedStart]) skips the offer and runs it straight away.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     public void showActionMessage(String key, String text, String label, Runnable action) {
         if (key.equals(autoStartKey)) {
             autoStartKey = null;
@@ -1492,7 +1492,7 @@ public class TerminalPane {
     /// Starts (or resumes) the owned session `key` — play on its row. The
     /// offer is pressed when it is already on screen; otherwise the switch's
     /// preview, which is still on its way, runs it instead of showing it.
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     public void requestOwnedStart(String key) {
         Button offer = ownedOffer;
         if (offer != null && key.equals(ownedOfferKey) && !offer.isDisabled()

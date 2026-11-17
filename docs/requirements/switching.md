@@ -47,10 +47,11 @@ Covers:
 Needs: dsn
 
 ### Focus local folders in Explorer
-`req~focus-local-folder~2`
+`req~focus-local-folder~3`
 
 A task can name local `folders` — a project checkout, its notes directory, a downloads folder.
-Activating the task brings, for each of them, a File Explorer window already showing that folder to the foreground rather than opening another; with none open, a fresh Explorer window is opened at the folder.
+Activating the task brings, for each of them, a File Explorer window already showing that folder forward rather than opening another; with none open, a fresh Explorer window is opened at the folder.
+ContextSwitcher itself stays in front, just above those windows: the user switched there to keep working in it (field report 2026-11-17, Explorer took the foreground on a category switch).
 The single-directory `folder` scalar stays valid as the one-entry form.
 
 Tags: windows, linux
@@ -82,6 +83,7 @@ The machine itself looks different per situation: in a lecture hall the screen i
 `settings.yaml` names such looks as profiles — screen resolution, projection mode, taskbar auto-hide, browser bookmarks bar — one of them the `default`, the system's normal look.
 A category picks a profile; switching to one of its tasks puts the machine into it, and switching to a task of a category without one puts the default back.
 A profile only states the keys it cares about; the rest comes from the default.
+In the lecture hall, with the screen extended to the projector, windows that open there (an editor, the notebook) belong on the lecturer's screen instead: a profile can name the screen windows are gathered onto while it is in effect, and full-screen windows — the slide show — stay where they are.
 A manual override in the status bar (e.g. `screenshare`) is laid over whatever the category picked until it is switched back.
 
 Tags: windows, linux_later
@@ -450,12 +452,15 @@ Covers:
 Needs: impl, utest
 
 ### Explorer folder focus action
-`dsn~explorer-folder-focus~4`
+`dsn~explorer-folder-focus~5`
 
 `ExplorerFolderAction` (chip `folder`) focuses each of the task's `folders`, in file order — so the last one ends up in front — and is configured exactly when the list is non-empty.
 A folder that fails does not stop the rest: the chip fails naming the folders that did not open (`n of m failed: …`), and a single-folder task keeps the plain wording of the one result.
 `TaskFileParser.parseFolders` reads the list from `folders`, accepting a `folder` scalar as the one-entry form (what a local category's generated task file writes, `dsn~group-config-apply~2`) and dropping blank entries; the same pair of keys is read from a category's `CONTEXTSWITCHER.md` (`dsn~category-action-defaults~2`).
-`LocalFolderFocus` handles one folder per call: it builds a PowerShell script that enumerates open File Explorer windows via the `Shell.Application` COM object (`.Windows()`) and matches each window's `Document.Folder.Self.Path` against the target (case-insensitive, trailing separators trimmed); a match is brought forward by its `HWND` through `CsMv.Focus` (`dsn~window-move-here~2`): moved here when on another desktop, then raised; when it stays elsewhere it is left alone and `explorer.exe <folder>` opens a new window here instead, reported as `opened here, the open window is on another desktop (…)`. With no window showing the folder, `explorer.exe <folder>` opens a fresh one. The script runs as a base64 `-EncodedCommand` via `LocalCommandRunner`; the folder is a single-quoted PowerShell literal with `'` doubled. Exit code 0 = focused or opened, 2 = the folder does not exist.
+`LocalFolderFocus` handles one folder per call: it builds a PowerShell script that enumerates open File Explorer windows via the `Shell.Application` COM object (`.Windows()`) and matches each window's `Document.Folder.Self.Path` against the target (case-insensitive, trailing separators trimmed); a match is brought forward by its `HWND` through `CsMv.Focus` (`dsn~window-move-here~2`): moved here when on another desktop, then raised; when it stays elsewhere it is left alone and `explorer.exe <folder>` opens a new window here instead, reported as `opened here, the open window is on another desktop (…)`. With no window showing the folder, `explorer.exe <folder>` opens a fresh one.
+The action (a switch) then hands the foreground back to ContextSwitcher: `LocalFolderFocus.focus(folder, true)` passes the app's own pid as `$back`, and after a focus — or, for a newly launched window, once `Shell.Application` lists one more window at the folder (up to 10 s; Explorer shows a new window after about 2 s, later on a cold start, and activates it then) — `CsMv.FrontProcess` raises the app's topmost visible window *on this desktop*, re-checked three times 150 ms apart; with none here nothing is raised, since raising a window elsewhere would switch desktops.
+The category header's folder button (`dsn~category-folders-button~1`) is a request to see the folders and passes pid `0`: Explorer stays in front.
+The script runs as a base64 `-EncodedCommand` via `LocalCommandRunner`; the folder is a single-quoted PowerShell literal with `'` doubled. Exit code 0 = focused or opened, 2 = the folder does not exist.
 
 Off Windows there is no `powershell` and no window enumeration: the folder goes to `java.awt.Desktop.open`, i.e. to whatever file manager the desktop registered (`xdg-open` under GNOME/KDE), so the `folder` chip works there instead of reporting `explorer is Windows-only`.
 The file manager decides whether it reuses a window it already has for the folder — the focus half of the Windows behavior has no portable equivalent and is not attempted.
@@ -464,7 +469,7 @@ The existence check is our own, so a typo in a `folders:` entry reads `folder no
 Tags: windows, linux
 
 Covers:
-- req~focus-local-folder~2
+- req~focus-local-folder~3
 
 Needs: impl, utest
 
@@ -521,6 +526,23 @@ A screen whose rule has a `resolution` that differs from its current mode is sta
 `taskbar` compares `SHAppBarMessage(ABM_GETSTATE)` and sets `ABM_SETSTATE` (`ABS_AUTOHIDE` or `ABS_ALWAYSONTOP`) on `Shell_TrayWnd` — the taskbar's auto-hide setting, which ExplorerPatcher's Windows 10 taskbar honours too.
 A mode the displays do not offer (`clone` with no projector plugged in, a resolution a screen lacks) does not stop the other steps; the script exits 3 with the failures listed first.
 A profile with only `bookmarksBar` spawns no `powershell`.
+
+Tags: windows
+
+Covers:
+- req~environment-profiles~1
+
+Needs: impl, utest
+
+### Gather windows onto one screen
+`dsn~environment-profile-gather-windows~1`
+
+A profile's `gatherWindows: <screen>` takes a selector like `screens:` (EDID name or product code, `primary`, `internal`, `external`; `off` switches a lower layer's gathering off) and layers per key like the other keys.
+`WindowsEnvironment.apply` hands the effective value to `WindowGather`, which keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside to resolve the selector) for it: same selector — nothing happens; another — restart; none — stop; `Main.stop` stops it, and the watcher exits on its own once the app's process is gone.
+Every 500 ms the watcher enumerates the top-level windows (visible, not minimized, not cloaked — other virtual desktops —, titled, not tool or owned windows, not the shell's taskbars, desktop or Start) and pulls one that sits on another screen over to the target's work area, keeping its offset and clamping its size; a maximized window is restored without activation, moved and maximized again.
+It does so only within 4 s of first seeing the window — the watcher's start, a new window, one restored or arriving from another desktop — and again after the set of screens changes, so a window the lecturer drags onto the projector stays there.
+A window covering its whole screen (the slide show, a PDF in presentation mode) is never moved; with one screen, or none matching the selector, nothing moves.
+Moves are logged (`Window gather: moved notepad++ from \\.\DISPLAY2 to \\.\DISPLAY1`); the chip reports starting and stopping.
 
 Tags: windows
 
@@ -588,7 +610,7 @@ A window already on the current desktop, or pinned to all desktops (`IsWindowOnC
 
 `bringHere(label, process, class)` picks the app's visible, titled, unowned top-level windows of that process and class, prefers one already on the current desktop, else moves the topmost one here, and brings the chosen window to the front; outcomes `none` (not running), `here`, `moved`, `failed`.
 `NoteFocusAction` calls it for OneNote (`ONENOTE`, `Framework::CFrame`) before opening an `onenote:` link — so the link activates a window on this desktop — and adds `moved OneNote here` to the chip detail when it moved one; with OneNote not running, the link starts it here anyway.
-`LocalFolderFocus` (`dsn~explorer-folder-focus~4`) moves a matching Explorer window here before focusing it and reports `moved here: <folder>`; any outcome other than a plain focus is logged at INFO, so the behaviour on a new Windows build can be read off the user's log.
+`LocalFolderFocus` (`dsn~explorer-folder-focus~5`) moves a matching Explorer window here before focusing it and reports `moved here: <folder>`; any outcome other than a plain focus is logged at INFO, so the behaviour on a new Windows build can be read off the user's log.
 The C# types live once in `WindowsWindowMove.TYPES` and are embedded by every script that moves windows; more apps (VS Code, SumatraPDF) take a process/class pair.
 
 Tags: windows

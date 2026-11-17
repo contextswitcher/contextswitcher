@@ -2078,7 +2078,7 @@ public class MainWindow {
         return task.remote() != null ? task.remote() : groupDefaults(groupOf(task.id())).remote();
     }
 
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private boolean ownedSessionStopped(Task task) {
         return task.status() == TaskStatus.ACTIVE
                 && com.contextswitcher.terminal.LocalClaudeLauncher.ownsSession(task)
@@ -4453,7 +4453,7 @@ public class MainWindow {
         }
         // Play on a local task with no session running starts (or resumes)
         // it, rather than leaving the user at the placeholder's button.
-        // [impl->dsn~terminal-owned-session~4]
+        // [impl->dsn~terminal-owned-session~5]
         if (com.contextswitcher.terminal.LocalClaudeLauncher.ownsSession(task)
                 && !terminal.isOwnedRunning(task.id())) {
             terminal.requestOwnedStart(task.id());
@@ -5039,7 +5039,7 @@ public class MainWindow {
     /// the fallback — for the configuration form to suggest, sorted ignoring
     /// case.
     // [impl->dsn~task-field-form~6]
-    private List<String> knownDesktops() {
+    public List<String> knownDesktops() {
         Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         SortedSet<String> existing = existingDesktops;
         if (existing != null) {

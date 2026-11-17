@@ -78,6 +78,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import com.contextswitcher.queue.SendResult;
 import com.contextswitcher.terminal.ChatRoute;
+import com.contextswitcher.terminal.OwnedStatus;
 import com.contextswitcher.terminal.TmuxHost;
 import org.jspecify.annotations.Nullable;
 import org.tinylog.Logger;
@@ -1125,9 +1126,7 @@ public class QueuePane {
             return "Delayed next — send this message as soon as the chat is done working."
                     + " Tick several: they go out one per turn, in the order the numbers show";
         }
-        return route.canSend()
-                ? "Delayed send needs a tmux window — this chat runs in the app's own terminal"
-                : "This task has no tmux window to send to";
+        return "This task has no tmux window to send to";
     }
 
     private Button sendButton(int index) {
@@ -1301,6 +1300,18 @@ public class QueuePane {
     /// message at once). A message that goes out leaves its task's queue —
     /// also when that task is not the one shown.
     // [impl->dsn~message-queue-delayed-send~4]
+    /// Where the status poll reports `task`'s chat: its tmux window, or the
+    /// file of an app-hosted session; null for no chat (gone, suspended).
+    private static @Nullable String delayKey(@Nullable Task task) {
+        return switch (ChatRoute.of(task)) {
+            case ChatRoute.Tmux(String host, Task.TmuxConfig tmux) ->
+                    tmux.window() == null ? null : TmuxStatusPoller.key(host, tmux.window());
+            // [impl->dsn~terminal-owned-session~5]
+            case ChatRoute.Owned(String taskId) -> OwnedStatus.key(taskId);
+            case ChatRoute.None() -> null;
+        };
+    }
+
     public void sendDelayed(Map<String, String> byKey) {
         // Blocked tasks with nothing armed are visited too: their block must
         // lift when the chat goes busy, or a message armed later on the idle
@@ -1313,16 +1324,15 @@ public class QueuePane {
             // task (not loaded yet, or deleted): its messages stay armed.
             // [impl->dsn~message-queue-resume-send~2]
             Task sendTask = taskById.apply(taskId);
-            String host = sendTask == null ? null : TmuxHost.of(sendTask);
-            Task.TmuxConfig tmux = sendTask == null ? null : sendTask.tmux();
-            if (host == null || tmux == null || tmux.window() == null) {
+            String statusKey = delayKey(sendTask);
+            if (statusKey == null) {
                 if (pending.isEmpty()) {
                     // Gone or suspended: its window will not report busy.
                     justSent.remove(taskId);
                 }
                 continue;
             }
-            String reported = byKey.get(TmuxStatusPoller.key(host, tmux.window()));
+            String reported = byKey.get(statusKey);
             if (reported == null || !IDLE_STATUSES.contains(reported)) {
                 // The chat picked the last one up: the next may follow once it
                 // falls idle again.
