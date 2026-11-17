@@ -473,7 +473,7 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
 - [ ] A long description renamed right away, before the title arrives, keeps your rename.
 - [ ] **Linux** with `claude` off `PATH` and out of `~/.local/bin`: the title becomes the description's first words.
 
-### Windows: the app owns the local Claude session (`dsn~terminal-owned-session~4`)
+### Windows: the app owns the local Claude session (`dsn~terminal-owned-session~5`)
 
 Windows only — ConPTY exists nowhere else, so none of this can be checked on Linux.
 
@@ -497,6 +497,11 @@ Windows only — ConPTY exists nowhere else, so none of this can be checked on L
       that keeps growing, and no new one appears.
 - [ ] **A directory with no transcript yet** offers **start** instead, and the
       session it opens is a fresh conversation.
+- [ ] **Delayed send.** Resume or start the session, then send Claude a long
+      prompt; while it works, queue a message and click its clock → it is
+      clickable and the card gets ➊. `%USERPROFILE%\.contextswitcher\owned-status\<task>.status`
+      reads `working`, then `waiting` when Claude stops — and the armed message
+      goes out by itself within a poll tick.
 - [ ] **No remote offer.** A task of a local category never shows the **tmux** /
       **claude** buttons under the placeholder — those open a window on a
       remote, which it has none of. A plain task added to the same category

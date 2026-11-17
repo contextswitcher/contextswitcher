@@ -20,7 +20,7 @@ class ClaudeSessionLookupTest {
                 .isEqualTo("-home-olive-repos-jabref-dev");
     }
 
-    // [utest->dsn~terminal-owned-session~4]
+    // [utest->dsn~terminal-owned-session~5]
     @Test
     void projectDirEncodesTheDriveColonAndBackslashesOfAWindowsPath() {
         assertThat(ClaudeSessionLookup.encodeProjectDir(
@@ -28,7 +28,7 @@ class ClaudeSessionLookupTest {
                 .isEqualTo("C--git-repositories-github-com-contextswitcher-contextswitcher");
     }
 
-    // [utest->dsn~terminal-owned-session~4]
+    // [utest->dsn~terminal-owned-session~5]
     @Test
     void resumesTheRecordedSessionElseTheNewest(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("old.jsonl"), "");
@@ -42,7 +42,7 @@ class ClaudeSessionLookupTest {
         assertThat(ClaudeSessionLookup.sessionToResume(dir.resolve("missing"), "old", Set.of())).isNull();
     }
 
-    // [utest->dsn~terminal-owned-session~4]
+    // [utest->dsn~terminal-owned-session~5]
     @Test
     void skipsANewerTranscriptAnotherTaskClaims(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("old.jsonl"), "");

@@ -985,7 +985,7 @@ A local category — no `remote`, a directory from its `workspacesRoot` (else `w
 A transcript can exceed 100 MB, so it is read in two slices: the title is the last `custom-title` (a `/rename`) in the file's last 512 KiB, else its last `ai-title`, else the first line of the first typed prompt in the first 256 KiB (tool results and `<command-…>` wrappers skipped), cut to 80 characters.
 
 `MainWindow.importLocalSessions` reads them off the FX thread and writes, back on it, one task per session no task claims — a session is claimed by the `claude.sessionId` of any loaded task, in any category, or of a task this window wrote and the watcher has not loaded yet.
-The task is `<category>/<slugged title>.md` (`-2`, … when taken), `status: suspended` with the session's last activity (its transcript's modification time) as the `suspended:` stamp and as the file's modification time — the row's date and the *last update* sort then tell the sessions apart, instead of all reading the import's minute — — no process runs it; on Windows the terminal pane offers to resume it (`dsn~terminal-owned-session~4`) — and a `claude:` section with the directory as `cwd` and the session's id as `sessionId`, so the resume continues exactly that conversation.
+The task is `<category>/<slugged title>.md` (`-2`, … when taken), `status: suspended` with the session's last activity (its transcript's modification time) as the `suspended:` stamp and as the file's modification time — the row's date and the *last update* sort then tell the sessions apart, instead of all reading the import's minute — — no process runs it; on Windows the terminal pane offers to resume it (`dsn~terminal-owned-session~5`) — and a `claude:` section with the directory as `cwd` and the session's id as `sessionId`, so the resume continues exactly that conversation.
 
 It runs at three points:
 - `createConfiguredCategory`, for a category created without a remote (`dsn~category-from-folder~3`, `dsn~category-from-url~5`), reporting the count on the status bar when there was any;
@@ -1789,7 +1789,7 @@ It is enabled exactly for such a group and is then the dialog's default button; 
 
 The task file is the **plain** one (`MainWindow.createTitleTask`, `dsn~task-create-ui~15`): the description as title, `folder:` seeded from the group defaults, selected and opened in the editor lane.
 Off Windows the tmux window the session runs in is then written back into it (`Main.writeLocalWindowBack`: `tmux:` with session `0` and the window id, plus `claude.cwd`) — without a `remote:`, which is exactly what marks the session as local and lets the pane mirror it (`dsn~terminal-local-mirror~2`).
-On Windows the same call writes `claude.cwd` alone: there is no tmux window, and the cwd is what finds the transcript again for a later resume (`dsn~terminal-owned-session~4`).
+On Windows the same call writes `claude.cwd` alone: there is no tmux window, and the cwd is what finds the transcript again for a later resume (`dsn~terminal-owned-session~5`).
 Nothing else is: a local session is not polled, so there is no `@cs_title` to sync and none of the live flow's id bookkeeping.
 The description-as-title is shortened by the app itself instead (`dsn~task-create-local-title~2`).
 
@@ -1798,7 +1798,7 @@ A failure names its **reason** in the status bar (the launcher returns the attem
 The argv actually launched is logged at info for the same reason.
 The directory is `Files.createDirectories`d first — a category's workspaces root may not exist yet, and both launchers refuse a missing directory — and the typed description travels as Claude's initial prompt, the model picked in the dialog as `--model <alias>`; the effort has no CLI flag and is not passed (unlike the remote flow, which sends both as slash commands, `dsn~claude-mode-select~3`).
 
-On Windows the session is hosted by the **app itself**, in the terminal pane's ConPTY (`dsn~terminal-owned-session~4`): `cmd /k claude [--model <alias>] [description]` with `claude.cwd` as its working directory, so it can be typed into.
+On Windows the session is hosted by the **app itself**, in the terminal pane's ConPTY (`dsn~terminal-owned-session~5`): `cmd /k claude [--model <alias>] [description]` with `claude.cwd` as its working directory, so it can be typed into.
 
 Elsewhere `wt` does not exist, so the session is created in the **local tmux server** instead — the same place a remote task's Claude lives, and no terminal emulator is opened: `tmux new-window -P -F '#{window_id}' -t 0: -c <dir> -n <last path segment> claude [--model <alias>] [description]`, falling back to `tmux new-session -d -P -F '#{window_id}' -s 0 …` when there is no session `0` yet.
 The prompt is a plain argv element there (no shell re-parses it), so it keeps its quotes, semicolons and newlines.
@@ -2284,7 +2284,7 @@ Needs: impl, utest
 On the fresh-machine path — the same empty or missing task directory the setup wizard keys on (`dsn~setup-wizard~13`, `dsn~task-git-clone-setup~2`) — `RequiredTools.missing` scans `PATH` for `tmux`, `ssh` and `git`, and a warning alert names those that are not there.
 `tmux` runs local and remote Claude sessions, `ssh` reaches every remote, `git` syncs the task files; a missing one would otherwise only surface at the first click that needs it, as a failure with no obvious cause.
 Once, not on every start: the tools are installed once, and a per-launch check would be a permanent nag for a one-time problem.
-Windows is skipped — `ssh` ships with it and local sessions there are hosted by the app itself (`dsn~terminal-owned-session~4`), so `tmux` is not part of that install.
+Windows is skipped — `ssh` ships with it and local sessions there are hosted by the app itself (`dsn~terminal-owned-session~5`), so `tmux` is not part of that install.
 The scan tests each directory for an executable file of that name, so it costs no child processes; a blank entry — POSIX's "current directory" — is not searched.
 Searched are the `PATH` entries **and** a list of well-known directories (`/usr/bin`, `/bin`, `/usr/local/bin`, `/opt/homebrew/bin`, `/run/current-system/sw/bin`, `~/.nix-profile/bin`, `~/.local/bin`): a GUI-launched app inherits the desktop session's environment rather than the login shell's, so an installed tool can be off the app's own `PATH` — reporting it as missing right after the user installed it is worse than not checking at all.
 `RequiredTools.resolve` returns the absolute path it found (else the bare name), and the local Claude launcher uses it for `tmux` for the same reason: the session must start even when the app's `PATH` is thin.

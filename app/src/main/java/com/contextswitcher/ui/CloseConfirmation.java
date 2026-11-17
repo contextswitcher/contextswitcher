@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 
 /// Asks before the app is left while it still hosts Claude sessions
 /// (`dsn~owned-session-close-confirm~1`): on Windows the app owns a local
-/// session's process (`dsn~terminal-owned-session~4`), so leaving ends it —
+/// session's process (`dsn~terminal-owned-session~5`), so leaving ends it —
 /// a Claude in the middle of a turn is cut off. The dialog lists the tasks
 /// whose session is running, grouped by category; clicking one cancels the
 /// leaving and brings that task (and its terminal) into view.

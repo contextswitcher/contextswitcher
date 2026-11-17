@@ -2078,7 +2078,7 @@ public class MainWindow {
         return task.remote() != null ? task.remote() : groupDefaults(groupOf(task.id())).remote();
     }
 
-    // [impl->dsn~terminal-owned-session~4]
+    // [impl->dsn~terminal-owned-session~5]
     private boolean ownedSessionStopped(Task task) {
         return task.status() == TaskStatus.ACTIVE
                 && com.contextswitcher.terminal.LocalClaudeLauncher.ownsSession(task)
@@ -4453,7 +4453,7 @@ public class MainWindow {
         }
         // Play on a local task with no session running starts (or resumes)
         // it, rather than leaving the user at the placeholder's button.
-        // [impl->dsn~terminal-owned-session~4]
+        // [impl->dsn~terminal-owned-session~5]
         if (com.contextswitcher.terminal.LocalClaudeLauncher.ownsSession(task)
                 && !terminal.isOwnedRunning(task.id())) {
             terminal.requestOwnedStart(task.id());

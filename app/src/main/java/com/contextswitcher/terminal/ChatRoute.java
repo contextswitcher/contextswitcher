@@ -8,8 +8,8 @@ import org.jspecify.annotations.Nullable;
 /// A tmux window, on a remote or in this machine's own tmux server
 /// (`dsn~terminal-local-mirror~2`), is typed into over tmux; on Windows the
 /// session the app hosts in the terminal pane is typed into directly
-/// (`dsn~terminal-owned-session~4`); any other task has no chat to reach.
-// [impl->dsn~terminal-owned-session~4]
+/// (`dsn~terminal-owned-session~5`); any other task has no chat to reach.
+// [impl->dsn~terminal-owned-session~5]
 public sealed interface ChatRoute {
 
     /// A tmux window on `host`.
@@ -42,9 +42,10 @@ public sealed interface ChatRoute {
     }
 
     /// Whether a message can wait for the chat to fall idle. That signal is the
-    /// status poll's, read from tmux options — an app-hosted session publishes
-    /// none, so it can be sent to but not armed.
+    /// status poll's: tmux options, or for an app-hosted session the status
+    /// its own hooks write ([OwnedStatus]).
+    // [impl->dsn~terminal-owned-session~5]
     default boolean canDelay() {
-        return this instanceof Tmux;
+        return !(this instanceof None);
     }
 }
