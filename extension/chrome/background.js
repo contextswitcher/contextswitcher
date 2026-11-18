@@ -398,8 +398,12 @@ async function focusUrl(url, openIfMissing, windowTitleWanted, group, background
   // Prefer an exact tab; otherwise focus a tab under the same URL before
   // opening a duplicate — a GitHub PR is routinely open on a /files or
   // /commits sub-path, or carries a #discussion fragment.
-  const exact = tabs.find((tab) => tab.url === url);
-  const tab = exact || tabs.find((tab) => tab.url && isSameOrSubUrl(tab.url, url));
+  // The window the app names (see below) is resolved first, so a page open
+  // there wins over a twin of it in another window.
+  const target = await windowIdFor(windowTitleWanted);
+  const pick = (matches) => tabs.find((tab) => tab.windowId === target && matches(tab)) || tabs.find(matches);
+  const exact = pick((tab) => tab.url === url);
+  const tab = exact || pick((tab) => tab.url && isSameOrSubUrl(tab.url, url));
   if (tab) {
     // Grouping may move the tab into the group's window, so the window to
     // raise is read back afterwards.
@@ -410,7 +414,6 @@ async function focusUrl(url, openIfMissing, windowTitleWanted, group, background
     // A tab sitting in some *other* window is moved into that one rather than
     // raised where it is: raising it makes Windows follow it to its desktop,
     // which dropped the user off their category's desktop.
-    const target = await windowIdFor(windowTitleWanted);
     let moved = false;
     if (target !== undefined && target !== found.windowId) {
       try {
@@ -439,7 +442,7 @@ async function focusUrl(url, openIfMissing, windowTitleWanted, group, background
   if (openIfMissing) {
     // The app names the window it just raised on the target desktop (its OS
     // caption); without one the browser picks its most recently focused one.
-    const windowId = await windowIdFor(windowTitleWanted);
+    const windowId = target;
     const created = await browser.tabs.create({ url, active: !background, windowId });
     await groupTab(created.id, group);
     if (background) {
@@ -466,10 +469,14 @@ async function windowIdFor(caption) {
     return undefined;
   }
   const all = await browser.windows.getAll({ populate: true, windowTypes: ["normal"] });
-  const match = all.find((w) => {
+  const matches = all.filter((w) => {
     const title = windowTitle(w);
     return title && (caption.includes(title) || title.includes(caption));
   });
+  // Two windows on different desktops showing the same page share a caption;
+  // the focused one is the window the app has just raised on the target
+  // desktop (field report 2026-11-18).
+  const match = matches.find((w) => w.focused) || matches[0];
   return match ? match.id : undefined;
 }
 

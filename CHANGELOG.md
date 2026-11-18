@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [Unreleased]
+
+### Fixed
+
+- Clicking a task's link no longer jumps to another virtual desktop when a browser window there shows the same page as the window on the category's desktop (needs the updated browser extension).
+
 ## [2026-11-18] - 2026-11-18
 
 ### Fixed
@@ -378,6 +384,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-18...main
 [2026-11-18]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-17...v2026-11-18
 [2026-11-17]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-16...v2026-11-17
 [2026-11-16]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-15...v2026-11-16
