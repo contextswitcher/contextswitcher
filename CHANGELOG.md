@@ -10,6 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- A category can be collapsed again while the find bar holds a query or a tag filter is selected.
 - *Add category…* also recognises a folder copied in File Explorer with Ctrl+C: the wizard selects *On this machine* and opens on that folder, as it already did for a copied path.
 
 ## [2026-11-17] - 2026-11-17

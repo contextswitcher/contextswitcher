@@ -3254,6 +3254,22 @@ Covers:
 
 Needs: impl, utest
 
+### A find still lets a category collapse
+`dsn~collapse-during-a-find~1`
+
+A find force-expands every group and the Done section (`dsn~collapse-survives-a-filter~1`), but a header click during it must still close that group: with a broad query ("205 matches") the list is too long to read without folding categories away.
+Field report 2026-11-18, with a query in the find bar: "I cannot collapse any more".
+
+Collapsing during a find goes to its own set, `MainWindow.collapsedWhileFinding`, not `collapsedGroups`: each find starts with every group open, so an everyday collapse never hides a match, and the set is forgotten when the find ends, so a group folded away during the search is open again afterwards unless it was collapsed before.
+Revealing a task or a category (`selectTask`, `selectCategory`) opens it in both sets.
+
+Tags: windows, linux
+
+Covers:
+- req~task-folder-grouping~1
+
+Needs: impl, utest
+
 ### A filter never costs a task its selection
 `dsn~selection-survives-a-filter~2`
 
