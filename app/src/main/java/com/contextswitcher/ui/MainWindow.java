@@ -67,6 +67,7 @@ import com.contextswitcher.tasks.AutoPrReconcile;
 import com.contextswitcher.tasks.Frontmatter;
 import com.contextswitcher.tasks.FrontmatterCatalog;
 import com.contextswitcher.tasks.GroupConfig;
+import com.contextswitcher.tasks.IdleRemoval;
 import com.contextswitcher.tasks.MergedCleanup;
 import com.contextswitcher.tasks.Task;
 import com.contextswitcher.tasks.TaskEntry;
@@ -341,7 +342,7 @@ public class MainWindow {
     public interface LiveTaskCreator {
         void create(String title, String remote, @Nullable String workdir,
                 @Nullable String repo, boolean bootstrapWorktree, String group, ClaudeMode mode,
-                @Nullable String appendix);
+                @Nullable String appendix, boolean autoRemove);
     }
 
     private final LiveTaskCreator onCreateLiveTask;
@@ -650,6 +651,19 @@ public class MainWindow {
     /// Hands a task whose pull requests are all merged to the janitor; set by
     /// `Main`, a no-op until then. [impl->dsn~merged-task-cleanup~2]
     private Consumer<Task> onMergedCleanup = task -> { };
+
+    /// Removes one task the idle janitor nominated (`dsn~idle-task-removal~1`).
+    private Consumer<Task> onIdleRemoval = task -> { };
+
+    /// Ids already handed to [#onIdleRemoval], so the next poll tick — the
+    /// file is deleted only after the async archive — does not hand them again.
+    private final Set<String> idleRemovals = new HashSet<>();
+
+    /// Installs the idle janitor (see [#autoRemoveIdle]).
+    // [impl->dsn~idle-task-removal~1]
+    public void setOnIdleRemoval(Consumer<Task> handler) {
+        this.onIdleRemoval = handler;
+    }
 
     /// Installs the merged-task janitor (see [#onMergedCleanup]).
     // [impl->dsn~merged-task-cleanup~2]
@@ -3469,10 +3483,17 @@ public class MainWindow {
         QueuePane.selectMode(modelBox, remembered.model());
         QueuePane.selectMode(effortBox, remembered.effort());
         HBox modeRow = new HBox(6, modelBox, effortBox);
+        // For a quick task: the app removes session and worktree once it has
+        // been quiet a day. [impl->dsn~idle-task-removal~1]
+        CheckBox autoRemove = new CheckBox(
+                "Remove session and worktree after 1 day of inactivity");
+        autoRemove.setId("add-task-auto-remove");
+        autoRemove.setWrapText(true);
+        autoRemove.setMinHeight(Region.USE_PREF_SIZE);
         // The queue pane's quick messages, above the field like above the add box.
         // [impl->dsn~quick-message-buttons~7]
         VBox content = new VBox(6, categoryRow, quickRow.apply(field), field, modeLabel, modeRow,
-                keysHint, remoteHint, localHint);
+                autoRemove, keysHint, remoteHint, localHint);
         // Enlarging the dialog grows the description field, not the hints.
         VBox.setVgrow(field, Priority.ALWAYS);
         content.setPadding(new Insets(8));
@@ -3561,16 +3582,16 @@ public class MainWindow {
         if (PrTitleLookup.isPrOrMrUrl(input)) {
             createTaskFromPrUrl(input, group, mode);
         } else if (clicked == remoteType) {
-            createLiveTask(input, group, remote, defaults, mode);
+            createLiveTask(input, group, remote, defaults, mode, autoRemove.isSelected());
         } else if (clicked == localType && localWorkdir != null) {
             // The file-only task (its `folder:` is the group's directory,
             // dsn~group-config-apply~2) plus a local Claude in that directory.
-            String taskId = createTitleTask(input, group);
+            String taskId = createTitleTask(input, group, null, autoRemove.isSelected());
             if (taskId != null) {
                 onStartLocalClaude.start(taskId, localWorkdir, input, mode);
             }
         } else {
-            createTitleTask(input, group);
+            createTitleTask(input, group, null, autoRemove.isSelected());
         }
         // A typed query would hide the new task (and its task-less category);
         // clear it so the row shows. Cancel above keeps the query.
@@ -3626,12 +3647,12 @@ public class MainWindow {
     /// selects the row (showing it in the terminal).
     // [impl->dsn~task-create-live~8]
     private void createLiveTask(String title, String group, @Nullable String remote,
-            GroupConfig defaults, ClaudeMode mode) {
+            GroupConfig defaults, ClaudeMode mode, boolean autoRemove) {
         if (remote == null) {
             return;
         }
         onCreateLiveTask.create(title, remote, defaults.resolveWorkdir(),
-                defaults.repo(), defaults.bootstrapWorktree(), group, mode, null);
+                defaults.repo(), defaults.bootstrapWorktree(), group, mode, null, autoRemove);
     }
 
     /// Adds a browser URL to a task's `browser.urls` from a dialog
@@ -3797,6 +3818,12 @@ public class MainWindow {
     /// [#createTitleTask(String, String)] with `notes` appended to the file's
     /// `# Notes`, the last section of a new task file.
     private @Nullable String createTitleTask(String title, String group, @Nullable String notes) {
+        return createTitleTask(title, group, notes, false);
+    }
+
+    /// As above; `autoRemove` writes the idle janitor's flag (`dsn~idle-task-removal~1`).
+    private @Nullable String createTitleTask(String title, String group, @Nullable String notes,
+            boolean autoRemove) {
         String base = group.isEmpty() ? title : group + "/" + title;
         String fileName = uniqueFileName(TaskFileParser.newTaskFileName(base));
         GroupConfig defaults = groupDefaults(group);
@@ -3806,7 +3833,8 @@ public class MainWindow {
         if (notes != null) {
             created = created.stripTrailing() + "\n\n" + notes.strip() + "\n";
         }
-        String content = TaskFileParser.addUrlsFrom(created, title);
+        String content = TaskFileParser.withFlag(TaskFileParser.addUrlsFrom(created, title),
+                IdleRemoval.KEY, autoRemove);
         String error = files.save(fileName, content);
         if (error != null) {
             noteTaskCreationFailed();
@@ -4704,7 +4732,7 @@ public class MainWindow {
             String workspacesRoot, @Nullable String web, String template, ClaudeMode mode) {
         if (remote != null) {
             onCreateLiveTask.create(description, remote, workspacesRoot, web, false, name,
-                    mode, template);
+                    mode, template, false);
             return;
         }
         // The file keeps the whole prompt, template included, so a failed
@@ -5453,6 +5481,42 @@ public class MainWindow {
                 TaskFileParser.withoutTmuxWindow(TaskFileParser.withStatus(content, TaskStatus.SUSPENDED)));
         onSuspend.accept(task);
         statusBar.retitle("Auto-suspend, %d to go: %s (suspend)".formatted(due.size() - 1, task.title()));
+    }
+
+    /// Nominates **one** task created with *Remove … after 1 day of
+    /// inactivity* whose session has been quiet a day ([IdleRemoval#due]) —
+    /// fed the status poll's `host windowId -> idle seconds` each tick, so it
+    /// also runs right after the app started. Never the selected row; the
+    /// flag is read from the file only for a task that is otherwise due.
+    // ponytail: one task per tick, like the auto-suspend.
+    // [impl->dsn~idle-task-removal~1]
+    public void autoRemoveIdle(Map<String, Long> idleByKey) {
+        ListView<Object> list = taskList;
+        String selectedId = list != null
+                && list.getSelectionModel().getSelectedItem() instanceof TaskEntry.Loaded loaded
+                ? loaded.id() : null;
+        LocalDateTime now = LocalDateTime.now();
+        for (TaskEntry entry : List.copyOf(entries)) {
+            if (!(entry instanceof TaskEntry.Loaded loaded) || loaded.id().equals(selectedId)
+                    || idleRemovals.contains(loaded.id())) {
+                continue;
+            }
+            Task task = loaded.task();
+            Long idle = task.remote() == null || task.tmux() == null || task.tmux().window() == null
+                    ? null : idleByKey.get(task.remote() + " " + task.tmux().window());
+            if (!IdleRemoval.due(task, runningStatusFor(task), idle, now)) {
+                continue;
+            }
+            String content = files.read(task.id() + ".md");
+            if (content == null || !TaskFileParser.frontmatterFlag(content, IdleRemoval.KEY)) {
+                continue;
+            }
+            idleRemovals.add(task.id());
+            Logger.info("Removing {}: inactive for a day", task.id());
+            statusBar.retitle(task.title() + " (inactive for a day — removing)");
+            onIdleRemoval.accept(task);
+            return;
+        }
     }
 
     /// Nominates **one** Claude task per PR-state round whose pull requests

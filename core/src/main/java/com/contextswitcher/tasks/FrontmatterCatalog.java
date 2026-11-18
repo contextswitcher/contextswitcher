@@ -92,6 +92,9 @@ public final class FrontmatterCatalog {
             // [impl->dsn~pinned-tasks~2]
             new Field("pinned", "Pinned", "Task", Type.BOOLEAN,
                     "Lifts the task above the unpinned ones of its status block."),
+            // [impl->dsn~idle-task-removal~1]
+            new Field("autoRemoveIdle", "Remove when inactive", "Task", Type.BOOLEAN,
+                    "Removes session, worktree and task once it has been inactive for a day."),
             // [impl->dsn~task-tag-model~2]
             new Field("tags", "Tags", "Task", Type.LIST,
                     "One tag per line; the palette and its colors are configured in settings."),

@@ -132,6 +132,7 @@ import com.contextswitcher.terminal.HostCommandRunner;
 import com.contextswitcher.terminal.LocalTmuxRunner;
 import com.contextswitcher.terminal.WslTmuxRunner;
 import com.contextswitcher.terminal.TmuxHost;
+import com.contextswitcher.tasks.IdleRemoval;
 import com.contextswitcher.tasks.MergedCleanup;
 import com.contextswitcher.tasks.TaskEntry;
 import com.contextswitcher.tasks.TaskFileParser;
@@ -895,9 +896,9 @@ public class Main extends Application {
                 (url, remote, group, mode) ->
                         createTaskFromPr(repository, files, ssh, messageSender, url, remote, group,
                                 settings, mode),
-                (title, remote, workdir, repo, bootstrap, group, mode, appendix) ->
+                (title, remote, workdir, repo, bootstrap, group, mode, appendix, autoRemove) ->
                         createLiveTask(repository, files, ssh, messageSender, title, remote,
-                                workdir, repo, bootstrap, group, settings, mode, appendix),
+                                workdir, repo, bootstrap, group, settings, mode, appendix, autoRemove),
                 (source, instruction, mode) ->
                         forkTask(repository, files, ssh, messageSender, settings, source, instruction, mode),
                 (taskId, workdir, description, mode) ->
@@ -1187,8 +1188,11 @@ public class Main extends Application {
                 commands -> Platform.runLater(() -> window.updateWindowCommands(commands)),
                 // Last consumer of the tick, so the statuses it judges by are
                 // already in the window. [impl->dsn~auto-suspend-idle~2]
-                idle -> Platform.runLater(() -> window.autoSuspendIdle(idle,
-                        autoSuspendMinutes * 60L)),
+                idle -> Platform.runLater(() -> {
+                    window.autoSuspendIdle(idle, autoSuspendMinutes * 60L);
+                    // [impl->dsn~idle-task-removal~1]
+                    window.autoRemoveIdle(idle);
+                }),
                 // The flag a restarted session has to be given back.
                 // [impl->dsn~claude-update-restart~7]
                 settings.claudeAuto(),
@@ -1210,6 +1214,9 @@ public class Main extends Application {
         // [impl->dsn~merged-task-cleanup~2]
         window.setOnMergedCleanup(task -> cleanupMerged(files, snapshots, taskBackup,
                 suspendOrchestrator, sessionCleanup, task, mergedCleanupDays));
+        // [impl->dsn~idle-task-removal~1]
+        window.setOnIdleRemoval(task -> cleanupIdle(files, snapshots, taskBackup,
+                suspendOrchestrator, sessionCleanup, task));
         PrStatePoller prPoller = new PrStatePoller(new PrStateLookup(new LocalCommandRunner()),
                 () -> prUrls,
                 states -> Platform.runLater(() -> {
@@ -3796,7 +3803,8 @@ public class Main extends Application {
     private void createLiveTask(TaskRepository repository, MainWindow.TaskFileAccess files,
             SshCommandRunner ssh, MessageSender sender, String title, String remote,
             @Nullable String workdir, @Nullable String repo, boolean bootstrapWorktree,
-            String group, AppSettings settings, ClaudeMode mode, @Nullable String appendix) {
+            String group, AppSettings settings, ClaudeMode mode, @Nullable String appendix,
+            boolean autoRemove) {
         boolean hints = settings.hints();
         boolean claudeAuto = settings.claudeAuto();
         ExecutorService executor = this.actionExecutor;
@@ -3822,7 +3830,9 @@ public class Main extends Application {
                 + (hints ? "\nCreated on %s.\n".formatted(LocalDate.now()) : "");
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~2]
-        String withPrs = TaskFileParser.addUrlsFrom(content, title);
+        // [impl->dsn~idle-task-removal~1]
+        String withPrs = TaskFileParser.withFlag(TaskFileParser.addUrlsFrom(content, title),
+                IdleRemoval.KEY, autoRemove);
         // Dated like the per-task worktrees; the description slug is
         // only a placeholder until the adopted title renames the file.
         String dated = LocalDate.now() + "-" + title;
@@ -5503,24 +5513,55 @@ public class Main extends Application {
                 return;
             }
             Logger.info("Merged task {}: archiving its last screen and removing it.", task.id());
-            String error = rewriteTaskFile(files, task,
-                    content -> MergedCleanup.withLastScreen(content, screen));
-            if (error != null) {
-                Logger.warn("Cannot archive the last screen of {}: {}", task.id(), error);
+            archiveAndRemove(files, backup, orchestrator, cleanup, task, screen,
+                    "pull request merged", false);
+        });
+    }
+
+    /// The idle janitor's acting half (`MainWindow.autoRemoveIdle` nominates,
+    /// [IdleRemoval] decides): the merged janitor's archive-and-remove without
+    /// its screen judgment — the user asked for it when creating the task —
+    /// and with the workdir removed only as a linked git worktree.
+    // [impl->dsn~idle-task-removal~1]
+    private void cleanupIdle(MainWindow.TaskFileAccess files, PaneSnapshots snapshots,
+            TaskGitBackup backup, SwitchOrchestrator orchestrator,
+            ClaudeSessionCleanup cleanup, Task task) {
+        ExecutorService executor = this.actionExecutor;
+        if (executor == null) {
+            return;
+        }
+        executor.execute(() -> {
+            String live = snapshots.captureNow(task);
+            String screen = live != null ? live : snapshots.read(task.id());
+            Logger.info("Task {} idle for a day: archiving its last screen and removing it.", task.id());
+            archiveAndRemove(files, backup, orchestrator, cleanup, task, screen,
+                    "inactive for a day", true);
+        });
+    }
+
+    /// Appends `screen` to the task file, commits the task directory, then —
+    /// on the FX thread — ends the window, removes transcript and workdir, and
+    /// deletes the file. Off the FX thread.
+    private void archiveAndRemove(MainWindow.TaskFileAccess files, TaskGitBackup backup,
+            SwitchOrchestrator orchestrator, ClaudeSessionCleanup cleanup, Task task,
+            @Nullable String screen, String reason, boolean worktreeOnly) {
+        String error = rewriteTaskFile(files, task,
+                content -> MergedCleanup.withLastScreen(content, screen));
+        if (error != null) {
+            Logger.warn("Cannot archive the last screen of {}: {}", task.id(), error);
+        }
+        backup.commitNow("ContextSwitcher: archive " + task.id() + " (" + reason + ")");
+        Task.ClaudeConfig claude = task.claude();
+        ClaudeSessionCleanup.Choices choices = new ClaudeSessionCleanup.Choices(
+                task.tmux() != null, false,
+                claude != null && claude.sessionId() != null,
+                claude != null && claude.workspace() != null, worktreeOnly);
+        Platform.runLater(() -> {
+            killSession(files, orchestrator, cleanup, task, choices);
+            String deleteError = files.delete(task.id() + ".md");
+            if (deleteError != null) {
+                Logger.warn("Cannot delete task {} ({}): {}", task.id(), reason, deleteError);
             }
-            backup.commitNow("ContextSwitcher: archive " + task.id() + " (pull request merged)");
-            Task.ClaudeConfig claude = task.claude();
-            ClaudeSessionCleanup.Choices choices = new ClaudeSessionCleanup.Choices(
-                    task.tmux() != null, false,
-                    claude != null && claude.sessionId() != null,
-                    claude != null && claude.workspace() != null);
-            Platform.runLater(() -> {
-                killSession(files, orchestrator, cleanup, task, choices);
-                String deleteError = files.delete(task.id() + ".md");
-                if (deleteError != null) {
-                    Logger.warn("Cannot delete the merged task {}: {}", task.id(), deleteError);
-                }
-            });
         });
     }
 
@@ -5563,8 +5604,11 @@ public class Main extends Application {
                         error == null ? "transcript removed" : error));
             }
             if (choices.removeWorkdir() && claude.workspace() != null) {
-                String error = cleanup.removeWorkdir(remote, claude.workspace(),
-                        groupProtectedDirs(files, taskGroup(task)));
+                String error = choices.worktreeOnly()
+                        ? cleanup.removeWorktree(remote, claude.workspace(),
+                                groupProtectedDirs(files, taskGroup(task)))
+                        : cleanup.removeWorkdir(remote, claude.workspace(),
+                                groupProtectedDirs(files, taskGroup(task)));
                 Platform.runLater(() -> window.statusBar().update("workdir",
                         error == null ? ActionStatus.OK : ActionStatus.FAILED,
                         error == null ? "working directory removed" : error));

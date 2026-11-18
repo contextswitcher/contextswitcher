@@ -1473,35 +1473,43 @@ public class TaskFileParser {
     // [impl->dsn~pinned-categories~1]
     // [impl->dsn~pinned-tasks~2]
     public static String withPinned(String content, boolean pinned) {
+        return withFlag(content, "pinned", pinned);
+    }
+
+    /// Sets (or removes) a top-level boolean `key: true` line textually, as
+    /// [#withPinned] describes — off removes the line.
+    // [impl->dsn~idle-task-removal~1]
+    public static String withFlag(String content, String key, boolean on) {
         String normalized = content.replace("\r\n", "\n");
         String[] lines = normalized.split("\n", -1);
         if (lines.length == 0 || !isFence(lines[0])) {
             return content;
         }
-        int pinnedLine = -1;
+        int flagLine = -1;
         int titleLine = -1;
         for (int i = 1; i < lines.length && !isFence(lines[i]); i++) {
-            if (lines[i].startsWith("pinned:")) {
-                pinnedLine = i;
+            if (lines[i].startsWith(key + ":")) {
+                flagLine = i;
             } else if (lines[i].startsWith("title:")) {
                 titleLine = i;
             }
         }
-        if (!pinned) {
-            if (pinnedLine < 0) {
+        String line = key + ": true";
+        if (!on) {
+            if (flagLine < 0) {
                 return content;
             }
             List<String> out = new java.util.ArrayList<>(java.util.Arrays.asList(lines));
-            out.remove(pinnedLine);
+            out.remove(flagLine);
             return String.join("\n", out);
         }
-        if (pinnedLine >= 0) {
-            lines[pinnedLine] = "pinned: true";
+        if (flagLine >= 0) {
+            lines[flagLine] = line;
         } else if (titleLine >= 0) {
             int end = scalarEnd(lines, titleLine);
-            lines[end] = lines[end] + "\npinned: true";
+            lines[end] = lines[end] + "\n" + line;
         } else {
-            lines[0] = FENCE + "\npinned: true";
+            lines[0] = FENCE + "\n" + line;
         }
         return String.join("\n", lines);
     }

@@ -8,6 +8,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Added
+
+- *Add task* offers *Remove session and worktree after 1 day of inactivity*: once the task has been quiet for a day, ContextSwitcher ends its window, removes the transcript and the git worktree (never a full checkout) and deletes the task.
+
 ### Changed
 
 - The *Last sent* area in the Queue pane can be dragged taller at its bottom edge, to see more of the earlier messages at once.
