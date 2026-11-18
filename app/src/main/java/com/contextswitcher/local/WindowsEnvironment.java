@@ -1,8 +1,6 @@
 package com.contextswitcher.local;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -370,9 +368,7 @@ public class WindowsEnvironment {
     }
 
     static List<String> command(EnvironmentProfile profile) {
-        String encoded = Base64.getEncoder().encodeToString(
-                script(profile).getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(script(profile));
     }
 
     /// Applies `profile`'s machine-level keys, then (when wired) puts its

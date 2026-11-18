@@ -1,12 +1,11 @@
 package com.contextswitcher.terminal;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 
 import com.contextswitcher.local.LocalCommandRunner;
+import com.contextswitcher.local.PowerShellCommand;
 import com.contextswitcher.local.WindowsWindowMove;
 
 /// Focuses a Windows Terminal tab by its (fixed) title using UI Automation,
@@ -113,9 +112,7 @@ public class WindowsTerminalFocus {
 
     /// The local argv: the script as a base64 `-EncodedCommand` (UTF-16LE).
     static List<String> command(String tabTitle) {
-        String encoded = Base64.getEncoder().encodeToString(
-                script(tabTitle).getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(script(tabTitle));
     }
 
     public FocusResult focus(String tabTitle) {

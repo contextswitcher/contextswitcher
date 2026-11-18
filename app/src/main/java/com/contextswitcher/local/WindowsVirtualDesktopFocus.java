@@ -1,7 +1,6 @@
 package com.contextswitcher.local;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -227,9 +226,7 @@ public class WindowsVirtualDesktopFocus {
 
     /// The local argv: the script as a base64 `-EncodedCommand` (UTF-16LE).
     static List<String> command(String name) {
-        String encoded = Base64.getEncoder().encodeToString(
-                script(name).getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(script(name));
     }
 
     /// Switches to the virtual desktop named `name`. `ok` is false when the name
@@ -367,9 +364,7 @@ public class WindowsVirtualDesktopFocus {
 
     /// The local argv reading the active desktop name (base64 `-EncodedCommand`).
     static List<String> currentCommand() {
-        String encoded = Base64.getEncoder().encodeToString(
-                currentScript().getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(currentScript());
     }
 
     /// One read of the active virtual desktop for the "show active desktop only"
@@ -488,10 +483,7 @@ public class WindowsVirtualDesktopFocus {
     /// Windows, no `powershell`).
     // [impl->dsn~task-field-form~6]
     public @Nullable SortedSet<String> names() {
-        String encoded = Base64.getEncoder().encodeToString(
-                namesScript().getBytes(StandardCharsets.UTF_16LE));
-        LocalCommandRunner.LocalResult result = runner.run(
-                List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded));
+        LocalCommandRunner.LocalResult result = runner.run(PowerShellCommand.of(namesScript()));
         if (result.exitCode() != 0) {
             return null;
         }
@@ -520,9 +512,7 @@ public class WindowsVirtualDesktopFocus {
 
     /// The local argv for the watcher (base64 `-EncodedCommand`).
     static List<String> watchCommand() {
-        String encoded = Base64.getEncoder().encodeToString(
-                watchScript().getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(watchScript());
     }
 
     /// One watcher stdout line → a successful read, or null for non-protocol

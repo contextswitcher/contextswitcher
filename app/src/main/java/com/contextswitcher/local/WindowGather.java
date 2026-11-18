@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -215,9 +214,7 @@ public class WindowGather implements AutoCloseable {
     }
 
     static List<String> command(String selector, long parentPid) {
-        String encoded = Base64.getEncoder().encodeToString(
-                script(selector, parentPid).getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(script(selector, parentPid));
     }
 
     /// Gathers windows onto `target` from now on (a screen selector), or

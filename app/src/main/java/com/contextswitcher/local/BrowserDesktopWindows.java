@@ -1,7 +1,5 @@
 package com.contextswitcher.local;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
@@ -154,9 +152,7 @@ public class BrowserDesktopWindows {
 
     /// The local argv: the script as a base64 `-EncodedCommand` (UTF-16LE).
     List<String> command(String desktopName) {
-        String encoded = Base64.getEncoder().encodeToString(
-                script(desktopName).getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(script(desktopName));
     }
 
     /// The captions of the browser's unpinned windows on the desktop named

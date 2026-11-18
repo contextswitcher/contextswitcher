@@ -1,7 +1,5 @@
 package com.contextswitcher.local;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 
 import org.tinylog.Logger;
@@ -75,9 +73,7 @@ public class JetBrainsClientFocus {
 
     /// The local argv: the script as a base64 `-EncodedCommand` (UTF-16LE).
     static List<String> command(String projectName) {
-        String encoded = Base64.getEncoder().encodeToString(
-                script(projectName).getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(script(projectName));
     }
 
     /// True when an open client window for the project was focused; false

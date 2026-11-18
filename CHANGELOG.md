@@ -11,6 +11,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Fixed
 
 - Clicking a task's link no longer jumps to another virtual desktop when a browser window there shows the same page as the window on the category's desktop (needs the updated browser extension).
+- An environment profile with `screens:` or `gatherWindows` (such as `lecture`) applies again instead of failing with `CreateProcess error=206, The filename or extension is too long`.
 
 ## [2026-11-18] - 2026-11-18
 

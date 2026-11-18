@@ -1,7 +1,5 @@
 package com.contextswitcher.local;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
@@ -249,9 +247,7 @@ public class WindowsWindowMove {
 
     /// The local argv: the script as a base64 `-EncodedCommand` (UTF-16LE).
     static List<String> appCommand(String process, String windowClass) {
-        String encoded = Base64.getEncoder().encodeToString(
-                appScript(process, windowClass).getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(appScript(process, windowClass));
     }
 
     /// Moves the app's window to the desktop in view (when it sits on
