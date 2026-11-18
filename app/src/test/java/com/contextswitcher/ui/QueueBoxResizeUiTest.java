@@ -10,7 +10,9 @@ import com.contextswitcher.tasks.TaskEntry;
 
 import javafx.application.Platform;
 import javafx.event.Event;
+import javafx.scene.Node;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -44,9 +46,11 @@ class QueueBoxResizeUiTest {
         runFx(() -> list.getSelectionModel().select(indexOf(list, "alpha")));
 
         // The add box is the queue pane's first — and, with an empty queue,
-        // only — text box, so its grip is the first one in the scene.
+        // only — text box, so its grip is the first one beside a text area.
         Region grip = UiTestSupport.awaitPresent(
-                () -> FX_ROBOT.selectNodes(Region.class, ".resize-grip").fromAll().findFirst(),
+                () -> FX_ROBOT.selectNodes(Region.class, ".resize-grip").fromAll()
+                        .filter(g -> g.getParent().getChildrenUnmodifiable().getFirst() instanceof TextArea)
+                        .findFirst(),
                 "a queue resize grip");
         TextArea box = (TextArea) grip.getParent().getChildrenUnmodifiable().getFirst();
         double before = callDouble(box::getHeight);
@@ -58,6 +62,38 @@ class QueueBoxResizeUiTest {
 
         awaitFx(() -> box.getHeight() > before + 50, "the box to grow with the drag");
         assertThat(callDouble(box::getPrefHeight)).isGreaterThan(before + 50);
+    }
+
+    /// The grip under the sent area makes the last-sent box taller, and the
+    /// history viewport follows it (`dsn~last-sent-message~5`).
+    // [utest->dsn~last-sent-message~5]
+    @Test
+    void draggingTheSentGripDownMakesTheHistoryViewportTaller() throws Exception {
+        Path dir = UiTestSupport.tasksDir;
+        Files.createDirectories(dir.resolve(".queues"));
+        Files.writeString(dir.resolve(".queues/sentgrip.sent.txt"), "hello");
+        Files.writeString(dir.resolve("sentgrip.md"), "---\ntitle: sentgrip\nstatus: active\n---\nnotes\n");
+
+        ListView<Object> list = awaitListView();
+        awaitFx(() -> indexOf(list, "sentgrip") >= 0, "the sentgrip row to load");
+        runFx(() -> list.getSelectionModel().select(indexOf(list, "sentgrip")));
+
+        Region grip = UiTestSupport.awaitPresent(
+                () -> FX_ROBOT.selectNodes(Region.class, ".resize-grip").fromAll()
+                        .filter(g -> g.getParent().getChildrenUnmodifiable().get(1) instanceof ScrollPane)
+                        .filter(Node::isVisible).filter(g -> g.getParent().isVisible())
+                        .findFirst(),
+                "the sent-area resize grip");
+        ScrollPane sent = (ScrollPane) grip.getParent().getChildrenUnmodifiable().get(1);
+        awaitFx(() -> sent.getHeight() > 0, "the sent area to lay out");
+        double before = callDouble(sent::getHeight);
+
+        runFx(() -> {
+            Event.fireEvent(grip, mouse(MouseEvent.MOUSE_PRESSED, 0));
+            Event.fireEvent(grip, mouse(MouseEvent.MOUSE_DRAGGED, 60));
+        });
+
+        awaitFx(() -> sent.getHeight() > before + 50, "the sent viewport to grow with the drag");
     }
 
     /// A press/drag at screen y `screenY` — the handler reads screen
