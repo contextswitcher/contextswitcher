@@ -473,6 +473,48 @@ class SetupWizardUiTest {
         }
     }
 
+    /// *Add category…* with a remote configured: a folder of this machine
+    /// copied in Explorer (a file, no text) still preselects local and lands
+    /// in the folder field.
+    // [utest->dsn~category-from-folder~3]
+    @Test
+    void aClipboardFolderWinsOverTheConfiguredRemoteOnARerun(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
+            throws java.io.IOException {
+        java.nio.file.Path folder = java.nio.file.Files.createDirectories(dir.resolve("quotefixmacro"));
+        String path = folder.toAbsolutePath().toString();
+        // As Explorer's Ctrl+C on the folder leaves it: a file, no text.
+        java.util.concurrent.CountDownLatch copied = new java.util.concurrent.CountDownLatch(1);
+        Platform.runLater(() -> {
+            javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+            content.putFiles(java.util.List.of(folder.toFile()));
+            javafx.scene.input.Clipboard.getSystemClipboard().setContent(content);
+            copied.countDown();
+        });
+        try {
+            copied.await();
+        } catch (InterruptedException e) {
+            throw new IllegalStateException(e);
+        }
+        try {
+            Platform.runLater(() -> SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local", false, false,
+                    new SetupWizard.Prefill("devbox", sessionHost -> "/data/me", null, true,
+                            java.util.List.of("devbox"), null, java.util.List.of()), EXTENSION));
+            RadioButton local = awaitPresent(
+                    () -> FX_ROBOT.selectNodes(RadioButton.class, "#setup-local").fetchOptional(), "local choice");
+            assertThat(local.isSelected()).as("local preselected over the configured remote").isTrue();
+            clickButton("Next");
+            awaitPresent(() -> FX_ROBOT.selectNodes(Label.class, "#setup-tool-ast-grep").fetchOptional(),
+                    "tools page");
+            clickButton("Next");
+            field("#setup-ws-token");
+            clickButton("Next");
+            assertThat(field("#setup-folder").getText()).isEqualTo(path);
+            clickButton("Cancel");
+        } finally {
+            setClipboard("");
+        }
+    }
+
     /// Claude missing here stops Next once; Next again goes on without it,
     /// and the last page then starts without a session.
     // [utest->dsn~category-from-folder~3]

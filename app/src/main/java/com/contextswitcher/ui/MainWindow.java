@@ -690,6 +690,17 @@ public class MainWindow {
     // [impl->dsn~done-section~1]
     private boolean doneSectionCollapsed = true;
 
+    /// Groups (and [#DONE_KEY]) collapsed while a find runs. A find opens
+    /// everything to show its matches, but a header click must still close
+    /// one; kept apart from [#collapsedGroups] so the find never inherits the
+    /// everyday collapse, and forgotten when the find ends.
+    // [impl->dsn~collapse-during-a-find~1]
+    private final Set<String> collapsedWhileFinding = new HashSet<>();
+
+    /// [#collapsedWhileFinding]'s key for the Done section; a control
+    /// character, so no folder or tag name can collide with it.
+    private static final String DONE_KEY = "\u001edone";
+
     /// The flattened rows the list shows: ungrouped tasks, then a
     /// [GroupHeader] plus (when expanded) its tasks per subfolder.
     private final ObservableList<Object> visibleRows = FXCollections.observableArrayList();
@@ -2539,10 +2550,11 @@ public class MainWindow {
     /// Collapses or expands a group, remembering the choice, then re-flattens.
     // [impl->dsn~task-folder-grouping-ui~8]
     private void toggleGroup(String name) {
-        if (!collapsedGroups.remove(name)) {
-            collapsedGroups.add(name);
+        Set<String> collapsed = finding() ? collapsedWhileFinding : collapsedGroups;
+        if (!collapsed.remove(name)) {
+            collapsed.add(name);
         }
-        Logger.debug("toggleGroup {} -> collapsed={}", name, collapsedGroups.contains(name));
+        Logger.debug("toggleGroup {} -> collapsed={}", name, collapsed.contains(name));
         rebuildRows();
     }
 
@@ -2592,7 +2604,7 @@ public class MainWindow {
         int depth = groupings.size() - levels.size();
         for (Map.Entry<String, List<TaskEntry>> bucket : buckets.entrySet()) {
             String key = parentKey + NESTED_KEY_SEPARATOR + bucket.getKey();
-            boolean expanded = finding || !collapsedGroups.contains(key);
+            boolean expanded = !(finding ? collapsedWhileFinding : collapsedGroups).contains(key);
             rows.add(new LabelHeader(bucket.getKey(), key, expanded, bucket.getValue().size(), depth));
             if (expanded) {
                 addNestedRows(rows, key, bucket.getValue(), levels.subList(1, levels.size()),
@@ -2607,8 +2619,20 @@ public class MainWindow {
 
     // [impl->dsn~done-section~1]
     private void toggleDoneSection() {
-        doneSectionCollapsed = !doneSectionCollapsed;
+        if (finding()) {
+            if (!collapsedWhileFinding.remove(DONE_KEY)) {
+                collapsedWhileFinding.add(DONE_KEY);
+            }
+        } else {
+            doneSectionCollapsed = !doneSectionCollapsed;
+        }
         rebuildRows();
+    }
+
+    /// Whether a find — a query or a tag selection — runs, which opens every
+    /// group (see [#rebuildRows]).
+    private boolean finding() {
+        return !searchQuery.strip().isEmpty() || !activeTags.isEmpty();
     }
 
     /// Re-flattens the entry list into the visible rows: root-level tasks
@@ -2670,6 +2694,12 @@ public class MainWindow {
         // doesn' work".
         // [impl->dsn~collapse-survives-a-filter~1]
         boolean finding = searching || filtering;
+        // A find starts with everything open; what the user closed during the
+        // previous one does not carry over. [impl->dsn~collapse-during-a-find~1]
+        if (!finding) {
+            collapsedWhileFinding.clear();
+        }
+        Set<String> collapsed = finding ? collapsedWhileFinding : collapsedGroups;
         updateAwaitsInputButton();
         // A task added, removed or re-grouped changes the title's counts.
         // [impl->dsn~window-title-category~3]
@@ -2852,7 +2882,7 @@ public class MainWindow {
             }
             // A scoped category shows its tasks even when it was collapsed.
             // [impl->dsn~category-search~3]
-            boolean expanded = finding || name.equals(scope) || !collapsedGroups.contains(name);
+            boolean expanded = name.equals(scope) || !collapsed.contains(name);
             // A label bucket renders as a plain chip header — no config file,
             // folder actions, or drop target behind it.
             // [impl->dsn~task-label-grouping~3]
@@ -2886,7 +2916,7 @@ public class MainWindow {
         // The completed-work section is pinned below every group, collapsed by
         // default; only rendered when something is actually done.
         if (!done.isEmpty()) {
-            boolean doneExpanded = finding || !doneSectionCollapsed;
+            boolean doneExpanded = finding ? !collapsed.contains(DONE_KEY) : !doneSectionCollapsed;
             rows.add(new TaskListCell.DoneHeader(done.size(), doneExpanded));
             if (doneExpanded) {
                 done.sort(order);
@@ -4099,7 +4129,7 @@ public class MainWindow {
     /// link. Returns whether the category exists in the list.
     // [impl->dsn~category-link-copy~1]
     public boolean selectCategory(String group) {
-        if (collapsedGroups.remove(group)) {
+        if (collapsedGroups.remove(group) | collapsedWhileFinding.remove(group)) {
             rebuildRows();
         }
         return selectGroupHeaderRow(group);
@@ -7996,7 +8026,7 @@ public class MainWindow {
         // to say "this task". `rebuildRows` applies the pending selection
         // itself, so each step only has to reveal.
         // [impl->dsn~browser-tab-selects-task~7]
-        if (collapsedGroups.remove(groupOf(taskId))) {
+        if (collapsedGroups.remove(groupOf(taskId)) | collapsedWhileFinding.remove(groupOf(taskId))) {
             rebuildRows();
         }
         if (pendingSelectionId != null && !searchQuery.strip().isEmpty()) {

@@ -348,6 +348,33 @@ class SelectTaskRevealsRowUiTest {
         collapse("lambda");
     }
 
+    /// Field report 2026-11-18: "I cannot collapse any more" — with a query in
+    /// the find bar, the forced expansion ignored every header click.
+    // [utest->dsn~collapse-during-a-find~1]
+    @Test
+    void aFindStillLetsACategoryCollapse() throws Exception {
+        Path dir = UiTestSupport.tasksDir;
+        Files.createDirectories(dir.resolve("omicron"));
+        Files.writeString(dir.resolve("omicron/found.md"), taskFile("found"));
+
+        ListView<Object> list = awaitListView();
+        resetFilters();
+        awaitFx(() -> indexOfId(list, "omicron/found") >= 0, "the row to load");
+
+        TextField search = searchField();
+        runFx(() -> search.setText("found"));
+        awaitFx(() -> indexOfId(list, "omicron/found") >= 0, "the query to match the row");
+
+        collapse("omicron");
+        awaitFx(() -> indexOfId(list, "omicron/found") < 0,
+                "the category to collapse while a query is in the find bar");
+
+        // The collapse belongs to that find: once it ends the category is open.
+        runFx(() -> search.setText(""));
+        awaitFx(() -> indexOfId(list, "omicron/found") >= 0,
+                "the category to be open again after the find");
+    }
+
     /// Field report 2026-09-12: "task on the left not focussed. IDK why is it
     /// so hard to always have a task focussed". Both ids the rebuild can fall
     /// back on were unresolvable at once — the on-screen one had just been
