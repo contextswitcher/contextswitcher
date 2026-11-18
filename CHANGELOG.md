@@ -8,6 +8,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Changed
+
+- The selected task is filled with a muted accent tint instead of grey, and the active category's name takes the accent colour, so both stand out at a glance.
+
 ### Fixed
 
 - Clicking a task's link no longer jumps to another virtual desktop when a browser window there shows the same page as the window on the category's desktop (needs the updated browser extension).

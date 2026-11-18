@@ -744,7 +744,7 @@ public class MainWindow {
     /// The category of the selected row — the selected task's group, or the
     /// selected header's own name. Its header carries the selection colours
     /// too, so the highlighted row always names the category it sits in.
-    // [impl->dsn~current-category-highlight~2]
+    // [impl->dsn~current-category-highlight~3]
     private @Nullable String currentGroup;
 
     /// The entries the running query matched but the active-desktop filter
@@ -1216,7 +1216,9 @@ public class MainWindow {
         this.stage = stage;
         ListView<Object> list = new ListView<>(visibleRows);
         // Scopes the accent-edge row styling in main.css to this list — a
-        // ComboBox's value is a .list-cell too, and picked up the edge.
+        // ComboBox's value is a .list-cell too, and picked up the edge. It also
+        // carries the accent selection fill main.css redefines on this list.
+        // [impl->dsn~selected-row-accent-fill~1]
         list.getStyleClass().add("task-list");
         this.taskList = list;
         // Double-clicking the divider beside the task list widens it until no
@@ -1641,7 +1643,7 @@ public class MainWindow {
 
     /// Whether `group`'s header is to carry the selection colours: it holds the
     /// selected task, or is the selected row itself.
-    // [impl->dsn~current-category-highlight~2]
+    // [impl->dsn~current-category-highlight~3]
     private boolean isCurrentGroup(String group) {
         return group.equals(currentGroup);
     }
@@ -1650,7 +1652,7 @@ public class MainWindow {
     /// ungrouped task or a label bucket, which has no category header). Only a
     /// change repaints — the cells are asked to re-render, not the rows
     /// rebuilt, since nothing about the list's content changed.
-    // [impl->dsn~current-category-highlight~2]
+    // [impl->dsn~current-category-highlight~3]
     private void markCurrentGroup(String group) {
         if (group.equals(currentGroup)) {
             return;
@@ -3124,7 +3126,7 @@ public class MainWindow {
     private void applySelection(@Nullable Object selected) {
         switch (selected) {
             case TaskEntry.Loaded loaded -> {
-                // [impl->dsn~current-category-highlight~2]
+                // [impl->dsn~current-category-highlight~3]
                 markCurrentGroup(loaded.group());
                 previewedTask = loaded.task();
                 // [impl->dsn~task-history-navigation~2]
@@ -3156,7 +3158,7 @@ public class MainWindow {
             // (null stays a no-op — rebuilds clear the selection
             // transiently and the panes must survive that.)
             case GroupHeader header -> {
-                // [impl->dsn~current-category-highlight~2]
+                // [impl->dsn~current-category-highlight~3]
                 markCurrentGroup(header.name());
                 previewedTask = null;
                 showCategoryInTitle(header.name());

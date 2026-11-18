@@ -2670,10 +2670,25 @@ Covers:
 
 Needs: impl, utest
 
-### Current category highlight
-`dsn~current-category-highlight~2`
+### Selected row accent fill
+`dsn~selected-row-accent-fill~1`
 
-The header of the category the selected row belongs to gains the selection's accent left edge through a `group-header-current` style class `TaskListCell` adds to the header cell (`MainWindow.isCurrentGroup`), keeping its own section background.
+The task list redefines AtlantaFX's `-color-cell-bg-selected` (and its `-focused` twin) as `-color-accent-muted` on the list itself, so the selected row — task or category header — is filled with a muted accent tint instead of the theme's grey, which hardly differed from the unselected rows in dark mode (field report 2026-11-18).
+Muted rather than the emphasis colour of a default button, and stronger than the hover row's `-color-accent-subtle`, so selection and hover stay apart.
+The pinned-header overlay carries the same classes and follows.
+
+Tags: windows, linux
+
+Covers:
+- req~task-list-window~1
+
+Needs: impl
+
+### Current category highlight
+`dsn~current-category-highlight~3`
+
+The header of the category the selected row belongs to gains the selection's accent left edge and an accent-coloured name (`-color-accent-fg`) through a `group-header-current` style class `TaskListCell` adds to the header cell (`MainWindow.isCurrentGroup`), keeping its own section background.
+`~2` had only the left edge, which did not show the active category at a glance (field report 2026-11-18).
 So the highlighted task always names the context it sits in, without scrolling up to look; a header that is itself selected takes the `-color-cell-bg-selected` fill from the `:selected` rule as before.
 `~1` painted the current header with that selection fill too, and then it looked exactly like a second selected task right above the real one — field report 2026-10-31, a category with one task: "why no category here?".
 For the same reason every category header reads as a section heading rather than a task row: a full-strength `-color-border-default` divider on its top edge, and its name bold at full contrast and 1.05× the row font (`group-name`), where it used to be muted.
