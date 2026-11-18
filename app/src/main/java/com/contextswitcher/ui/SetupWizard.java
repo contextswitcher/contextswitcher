@@ -344,8 +344,12 @@ public final class SetupWizard {
         // A folder of this machine on the clipboard is what the wizard was
         // opened for: a category for it, so sessions run here.
         // [impl->dsn~category-from-folder~3]
-        String clipText = javafx.scene.input.Clipboard.getSystemClipboard().getString();
-        @Nullable String clipFolder = clipboardFolder(clipText);
+        // The folder itself copied in Explorer (Ctrl+C) is a file, not text.
+        javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
+        String clipText = clipboard.getString();
+        List<java.io.File> clipFiles = clipboard.hasFiles() ? clipboard.getFiles() : List.of();
+        @Nullable String clipFolder = clipFiles.size() == 1
+                ? clipboardFolder(clipFiles.getFirst().getAbsolutePath()) : clipboardFolder(clipText);
         (clipFolder != null ? localChoice
                 : offerClone && prefill.host() == null ? remoteChoice : configured).setSelected(true);
         // A dialog sizes itself to its content once, at show; a taller page —
