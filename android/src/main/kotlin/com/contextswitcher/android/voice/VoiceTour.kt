@@ -74,7 +74,8 @@ class VoiceTour(val category: String, tasks: List<CarTask>, private val ssh: Ssh
     }
 
     companion object {
-        private val WAITING = setOf("waiting", "attention", "done", com.contextswitcher.discovery.TmuxStatusPoller.LIMIT)
+        private val WAITING = setOf("waiting", "attention", "done", com.contextswitcher.discovery.TmuxStatusPoller.LIMIT,
+            com.contextswitcher.discovery.TmuxStatusPoller.INTERRUPTED)
 
         /// Asks Claude for an answer that reads well aloud; prepended to every dictated reply.
         const val SPOKEN_REPLY_HINT = "(Voice mode: I am listening, not reading. Answer in a few short sentences of prose, no tables, code or diffs.) "

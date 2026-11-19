@@ -11,6 +11,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Added
 
 - *Add task* offers *Remove session and worktree after 1 day of inactivity*: once the task has been quiet for a day, ContextSwitcher ends its window, removes the transcript and the git worktree (never a full checkout) and deletes the task.
+- A task whose Claude turn was interrupted (Esc, Ctrl+C) shows a magenta dot instead of the ordinary red, sorts near the top under *Action needed* and is listed by *Awaits input only*; the Android app's watched task notifies *Claude was interrupted*.
 
 ### Changed
 

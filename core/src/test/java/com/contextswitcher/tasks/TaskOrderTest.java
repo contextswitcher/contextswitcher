@@ -117,7 +117,8 @@ class TaskOrderTest {
 
     @Test
     void actionRankOrdersTheKnownStatuses() {
-        assertThat(TaskOrder.actionRank("limit")).isLessThan(TaskOrder.actionRank("attention"));
+        assertThat(TaskOrder.actionRank("limit")).isLessThan(TaskOrder.actionRank("interrupted"));
+        assertThat(TaskOrder.actionRank("interrupted")).isLessThan(TaskOrder.actionRank("attention"));
         assertThat(TaskOrder.actionRank("attention")).isLessThan(TaskOrder.actionRank("waiting"));
         assertThat(TaskOrder.actionRank("waiting")).isLessThan(TaskOrder.actionRank("working"));
         assertThat(TaskOrder.actionRank("working")).isLessThan(TaskOrder.actionRank(null));

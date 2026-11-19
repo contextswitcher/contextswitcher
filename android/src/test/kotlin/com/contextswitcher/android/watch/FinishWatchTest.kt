@@ -40,6 +40,11 @@ class FinishWatchTest {
     }
 
     @Test
+    fun `an interrupt ends the turn with its own alert`() {
+        assertThat(alerts("working", "interrupted", "waiting")).containsExactly(null, Alert.INTERRUPTED, null)
+    }
+
+    @Test
     fun `a poll without a status changes nothing`() {
         assertThat(alerts("working", null, "waiting")).containsExactly(null, null, Alert.FINISHED)
     }

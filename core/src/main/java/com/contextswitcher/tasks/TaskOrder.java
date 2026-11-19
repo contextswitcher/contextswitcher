@@ -65,16 +65,18 @@ public enum TaskOrder {
     }
 
     /// Urgency rank of a live `@cs_status`: `limit` (the session is blocked on
-    /// its usage limit, `dsn~claude-limit-detection~2`) before `attention`
+    /// its usage limit, `dsn~claude-limit-detection~2`) before `interrupted`
+    /// (`dsn~claude-interrupt-detection~1`) before `attention`
     /// (Claude asked a question or waits for a permission) before `waiting`
     /// (turn ended) before `working` before no status at all.
     static int actionRank(@Nullable String status) {
         return switch (status) {
             case "limit" -> 0;
-            case "attention" -> 1;
-            case "waiting" -> 2;
-            case "working" -> 3;
-            case null, default -> 4;
+            case "interrupted" -> 1;
+            case "attention" -> 2;
+            case "waiting" -> 3;
+            case "working" -> 4;
+            case null, default -> 5;
         };
     }
 }

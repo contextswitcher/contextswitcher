@@ -27,7 +27,7 @@ fun carTasks(groups: List<TaskGroupUi>, statuses: Map<String, String>): List<Car
         .toList()
 
 private fun rank(status: String?) = when (status?.lowercase()) {
-    "attention", TmuxStatusPoller.LIMIT -> 0
+    "attention", TmuxStatusPoller.LIMIT, TmuxStatusPoller.INTERRUPTED -> 0
     "waiting", "done" -> 1
     "working" -> 2
     else -> 3
