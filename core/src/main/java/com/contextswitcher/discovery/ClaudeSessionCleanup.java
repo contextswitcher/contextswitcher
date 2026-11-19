@@ -137,22 +137,50 @@ public class ClaudeSessionCleanup {
     /// `git worktree remove --force` of the workdir: git itself refuses a main
     /// working tree (a full checkout) and anything that is no linked worktree,
     /// so an unattended removal never takes a clone with it.
-    // [impl->dsn~idle-task-removal~1]
+    // [impl->dsn~idle-task-removal~2]
     static List<String> worktreeCommand(String workdir) {
         String quoted = SshCommandRunner.quotePath(workdir);
         return List.of("git", "-C", quoted, "worktree", "remove", "--force", quoted);
     }
 
+    /// The worktree's repository (`--git-common-dir`, absolute) and branch,
+    /// asked before the removal — afterwards there is nothing to ask.
+    static List<String> worktreeInfoCommand(String workdir) {
+        return List.of("git", "-C", SshCommandRunner.quotePath(workdir), "rev-parse",
+                "--path-format=absolute", "--git-common-dir", "--abbrev-ref", "HEAD");
+    }
+
+    /// `git branch -D` of the removed worktree's branch, or null when there is
+    /// none to delete: a detached HEAD, an unparsable answer, or a name the
+    /// single quoting cannot carry.
+    // [impl->dsn~idle-task-removal~2]
+    static @Nullable List<String> branchDeleteCommand(String revParseOutput) {
+        List<String> lines = revParseOutput.strip().lines().map(String::strip).toList();
+        if (lines.size() != 2 || lines.get(1).equals("HEAD") || lines.get(1).isEmpty()
+                || String.join("", lines).contains("'")) {
+            return null;
+        }
+        return List.of("git", "--git-dir=" + SshCommandRunner.quotePath(lines.get(0)),
+                "branch", "-D", SshCommandRunner.quotePath(lines.get(1)));
+    }
+
     /// Removes the workdir on `remote` only if it is a linked git worktree,
-    /// after [#rejectWorkdir]; null on success, else why it stayed.
-    // [impl->dsn~idle-task-removal~1]
+    /// after [#rejectWorkdir], then deletes the worktree's branch (git refuses
+    /// one still checked out elsewhere); null on success, else why it stayed.
+    // [impl->dsn~idle-task-removal~2]
     public @Nullable String removeWorktree(String remote, String workdir,
             Collection<String> protectedDirs) {
         String rejected = rejectWorkdir(workdir, protectedDirs);
         if (rejected != null) {
             return rejected;
         }
-        return run(remote, worktreeCommand(workdir));
+        SshCommandRunner.SshResult info = ssh.run(remote, worktreeInfoCommand(workdir));
+        String removed = run(remote, worktreeCommand(workdir));
+        if (removed != null) {
+            return removed;
+        }
+        List<String> deleteBranch = info.ok() ? branchDeleteCommand(info.stdout()) : null;
+        return deleteBranch == null ? null : run(remote, deleteBranch);
     }
 
     private @Nullable String run(String remote, List<String> command) {

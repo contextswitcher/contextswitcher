@@ -4,12 +4,12 @@ import java.time.LocalDateTime;
 
 import org.jspecify.annotations.Nullable;
 
-/// The decision half of the idle janitor (`dsn~idle-task-removal~1`): a task
+/// The decision half of the idle janitor (`dsn~idle-task-removal~2`): a task
 /// created with *Remove after 1 day of inactivity* ticked carries
 /// `autoRemoveIdle: true`, and once its session has been quiet a day — window
 /// idle that long, or the task suspended that long — window, transcript,
 /// worktree and file go.
-// [impl->dsn~idle-task-removal~1]
+// [impl->dsn~idle-task-removal~2]
 public final class IdleRemoval {
 
     /// The frontmatter flag the Add-task checkbox writes.

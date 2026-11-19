@@ -12,6 +12,12 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - The height the *Last sent* area in the Queue pane is dragged to is kept for all tasks and after a restart.
 
+## [Unreleased]
+
+### Changed
+
+- A task removed after a day of inactivity also takes its worktree's git branch with it.
+
 ## [2026-11-19] - 2026-11-19
 
 ### Added
@@ -405,6 +411,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-19...main
 [2026-11-19]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-18...v2026-11-19
 [2026-11-18]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-17...v2026-11-18
 [2026-11-17]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-16...v2026-11-17

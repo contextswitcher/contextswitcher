@@ -133,7 +133,7 @@ class AddTaskDialogUiTest {
     }
 
     /// The inactivity checkbox writes the idle janitor's flag into the new file.
-    // [utest->dsn~idle-task-removal~1]
+    // [utest->dsn~idle-task-removal~2]
     @Test
     void autoRemoveCheckboxFlagsTheNewTask() throws Exception {
         openAddTask();
