@@ -652,7 +652,7 @@ public class MainWindow {
     /// `Main`, a no-op until then. [impl->dsn~merged-task-cleanup~2]
     private Consumer<Task> onMergedCleanup = task -> { };
 
-    /// Removes one task the idle janitor nominated (`dsn~idle-task-removal~1`).
+    /// Removes one task the idle janitor nominated (`dsn~idle-task-removal~2`).
     private Consumer<Task> onIdleRemoval = task -> { };
 
     /// Ids already handed to [#onIdleRemoval], so the next poll tick — the
@@ -660,7 +660,7 @@ public class MainWindow {
     private final Set<String> idleRemovals = new HashSet<>();
 
     /// Installs the idle janitor (see [#autoRemoveIdle]).
-    // [impl->dsn~idle-task-removal~1]
+    // [impl->dsn~idle-task-removal~2]
     public void setOnIdleRemoval(Consumer<Task> handler) {
         this.onIdleRemoval = handler;
     }
@@ -3485,7 +3485,7 @@ public class MainWindow {
         QueuePane.selectMode(effortBox, remembered.effort());
         HBox modeRow = new HBox(6, modelBox, effortBox);
         // For a quick task: the app removes session and worktree once it has
-        // been quiet a day. [impl->dsn~idle-task-removal~1]
+        // been quiet a day. [impl->dsn~idle-task-removal~2]
         CheckBox autoRemove = new CheckBox(
                 "Remove session and worktree after 1 day of inactivity");
         autoRemove.setId("add-task-auto-remove");
@@ -3822,7 +3822,7 @@ public class MainWindow {
         return createTitleTask(title, group, notes, false);
     }
 
-    /// As above; `autoRemove` writes the idle janitor's flag (`dsn~idle-task-removal~1`).
+    /// As above; `autoRemove` writes the idle janitor's flag (`dsn~idle-task-removal~2`).
     private @Nullable String createTitleTask(String title, String group, @Nullable String notes,
             boolean autoRemove) {
         String base = group.isEmpty() ? title : group + "/" + title;
@@ -5490,7 +5490,7 @@ public class MainWindow {
     /// also runs right after the app started. Never the selected row; the
     /// flag is read from the file only for a task that is otherwise due.
     // ponytail: one task per tick, like the auto-suspend.
-    // [impl->dsn~idle-task-removal~1]
+    // [impl->dsn~idle-task-removal~2]
     public void autoRemoveIdle(Map<String, Long> idleByKey) {
         ListView<Object> list = taskList;
         String selectedId = list != null
