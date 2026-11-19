@@ -11,11 +11,6 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Changed
 
 - The height the *Last sent* area in the Queue pane is dragged to is kept for all tasks and after a restart.
-
-## [Unreleased]
-
-### Changed
-
 - A task removed after a day of inactivity also takes its worktree's git branch with it.
 
 ## [2026-11-19] - 2026-11-19
