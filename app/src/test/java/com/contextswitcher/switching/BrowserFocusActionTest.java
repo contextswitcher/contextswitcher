@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import com.contextswitcher.config.Browser;
 import com.contextswitcher.extension.ExtensionProtocol;
 import com.contextswitcher.extension.TabCommands;
 import com.contextswitcher.tasks.Task;
@@ -23,6 +24,7 @@ class BrowserFocusActionTest {
         final List<String> probed = new ArrayList<>();
         final List<@Nullable String> groups = new ArrayList<>();
         final List<Boolean> backgrounded = new ArrayList<>();
+        final List<@Nullable Browser> browsers = new ArrayList<>();
         Set<String> existing = Set.of();
         boolean ok = true;
         String detail = "focused existing tab";
@@ -40,6 +42,13 @@ class BrowserFocusActionTest {
             groups.add(group);
             backgrounded.add(background);
             return new ExtensionProtocol.Result("id", ok, detail);
+        }
+
+        @Override
+        public ExtensionProtocol.Result focusUrl(String url, boolean openIfMissing, @Nullable String windowTitle,
+                @Nullable String group, boolean background, @Nullable Browser browser) {
+            browsers.add(browser);
+            return focusUrl(url, openIfMissing, windowTitle, group, background);
         }
 
         @Override
@@ -65,6 +74,18 @@ class BrowserFocusActionTest {
     private static Task taskWithStoredTabs(List<String> storedTabs) {
         return new Task("t", "T", TaskStatus.ACTIVE, null, null, null, null, null, null, null,
                 List.of(), List.of(), storedTabs, "");
+    }
+
+    // [utest->dsn~browser-url-pinned-browser~1]
+    @Test
+    void aPinnedEntryGoesToItsBrowser() {
+        FakeTabs tabs = new FakeTabs();
+        new BrowserFocusAction(tabs).run(task(new Task.BrowserConfig(List.of(
+                new Task.UrlEntry("https://a", null),
+                new Task.UrlEntry("https://b", null, Browser.CHROME)))));
+
+        assertThat(tabs.focused).containsExactly("https://a", "https://b");
+        assertThat(tabs.browsers).containsExactly(null, Browser.CHROME);
     }
 
     @Test

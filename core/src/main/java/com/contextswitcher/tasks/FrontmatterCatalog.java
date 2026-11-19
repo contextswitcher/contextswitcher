@@ -80,7 +80,8 @@ public final class FrontmatterCatalog {
     // [impl->dsn~browser-url-links~1]
     private static final String BROWSER_URLS_HELP = "A link shows its page's browser tab; drag it to re-arrange, "
             + "hover for Edit and Delete (F2 edits a focused link). An entry is a URL, optionally followed by \""
-            + URL_TITLE_SEPARATOR + "\" and a short title.";
+            + URL_TITLE_SEPARATOR + "\" and a short title; a leading \"[chrome] \" or \"[firefox] \" "
+            + "opens that one entry in that browser.";
 
     /// The keys of a task file, in form order.
     public static final List<Field> TASK = List.of(

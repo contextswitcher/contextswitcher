@@ -260,7 +260,7 @@ public class MainWindow {
     /// when it has none): a tab that must be *opened* is opened there.
     // [impl->dsn~pr-state-indicator~3]
     // [impl->dsn~pr-open-on-category-desktop~3]
-    private final BiConsumer<String, @Nullable String> onFocusUrlInBrowser;
+    private final BiConsumer<Task.UrlEntry, @Nullable String> onFocusUrlInBrowser;
     /// Counts how many of the given URLs have a browser tab open **right now**
     /// (`Main.countOpenTabs`), off the FX thread, and hands the number back on
     /// it — `-1` when the question cannot be asked at all (no extension
@@ -1026,7 +1026,7 @@ public class MainWindow {
             Consumer<Task> onSwitch, Consumer<Task> onSuspend,
             BiConsumer<Task, Runnable> onRefreshClaude,
             BiConsumer<Task, String> onRenamed, Consumer<String> onOpenUrl,
-            BiConsumer<String, @Nullable String> onFocusUrlInBrowser,
+            BiConsumer<Task.UrlEntry, @Nullable String> onFocusUrlInBrowser,
             BiConsumer<List<String>, IntConsumer> onCountOpenTabs, BiConsumer<String, Runnable> onFocusDesktop,
             BiConsumer<List<String>, Runnable> onOpenFolders,
             Consumer<Boolean> onActiveDesktopFilter,
@@ -2438,7 +2438,7 @@ public class MainWindow {
     /// Shows `entry`'s page in the browser, on the virtual desktop of `group`.
     private void openInBrowser(Task.UrlEntry entry, String group) {
         statusBar.message("Opening " + entry.display() + " …");
-        onFocusUrlInBrowser.accept(entry.url(), group.isEmpty() ? null : groupDesktop(group));
+        onFocusUrlInBrowser.accept(entry, group.isEmpty() ? null : groupDesktop(group));
     }
 
     /// Highlights the browser URL of the tab in view (null: none known) in the

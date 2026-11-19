@@ -1920,10 +1920,13 @@ public class TaskFileParser {
                     throw new TaskParseException("'browser.urls' map entry needs a 'url'");
                 }
                 Object title = map.get("title");
+                Object pinned = map.get("browser");
                 String normalized = Task.normalizeUrl(url.toString());
                 if (seen.add(normalized)) {
+                    // [impl->dsn~browser-url-pinned-browser~1]
                     result.add(new Task.UrlEntry(normalized,
-                            title == null ? null : title.toString()));
+                            title == null ? null : title.toString(),
+                            pinned == null ? null : com.contextswitcher.config.Browser.named(pinned.toString())));
                 }
             } else {
                 String normalized = Task.normalizeUrl(stringify(item));

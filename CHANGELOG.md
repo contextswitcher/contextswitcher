@@ -8,6 +8,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Added
+
+- A single browser URL of a task can open in Chrome (or Firefox) while the other browser handles the rest: start its line with `[chrome] `.
+
 ### Changed
 
 - The height the *Last sent* area in the Queue pane is dragged to is kept for all tasks and after a restart.

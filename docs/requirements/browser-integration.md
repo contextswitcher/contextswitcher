@@ -351,6 +351,21 @@ Covers:
 
 Needs: impl, utest
 
+### A URL pinned to one browser
+`dsn~browser-url-pinned-browser~1`
+
+A single `browser.urls` entry may name its browser — `{url: …, browser: chrome}`, in the form a leading `[chrome] ` — so one page of a task opens in Chrome (e.g. for Claude in Chrome) while Firefox drives the rest.
+`TaskFileParser` reads it into `Task.UrlEntry.browser` through the strict `Browser.named`, so an unknown name pins nothing.
+`ExtensionServer` sends a pinned entry's focus and close to the open socket of that browser's extension instead of the client; without one, the entry fails with "Chrome extension not connected" rather than silently opening in the other browser.
+The switch action, the suspend's close, and a click on the link all route this way; a pinned click skips the category-desktop dance, which raises and launches windows of the driven browser only.
+
+Tags: windows, linux
+
+Covers:
+- req~browser-choice~2
+
+Needs: impl, utest
+
 ### Extension connection indicator
 `dsn~extension-connection-indicator~2`
 

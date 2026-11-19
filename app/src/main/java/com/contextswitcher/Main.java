@@ -847,8 +847,8 @@ public class Main extends Application {
                 (task, done) -> refreshClaudeFromWindow(ssh, files, task, done),
                 (task, newTitle) -> renameTmuxWindow(ssh, task, newTitle),
                 this::openUrl,
-                (url, desktop) -> actionExecutor.execute(
-                        () -> reportFocusUrl(extensionServer, url, desktop)),
+                (entry, desktop) -> actionExecutor.execute(
+                        () -> reportFocusUrl(extensionServer, entry.url(), desktop, entry.browser())),
                 (urls, answer) -> actionExecutor.execute(() -> {
                     int open = countOpenTabs(extensionServer, urls);
                     Platform.runLater(() -> answer.accept(open));
@@ -4609,9 +4609,21 @@ public class Main extends Application {
     /// 2026-09-10); the tab moves to them instead.
     // [impl->dsn~pr-open-on-category-desktop~3]
     private void reportFocusUrl(ExtensionServer extensionServer, String url, @Nullable String desktop) {
-        ExtensionProtocol.Result result = desktop == null
+        reportFocusUrl(extensionServer, url, desktop, null);
+    }
+
+    /// `pinned`: the browser a `browser.urls` entry names — its extension shows
+    /// the tab, without the desktop dance, which raises and launches windows
+    /// of the driven browser only.
+    // [impl->dsn~browser-url-pinned-browser~1]
+    private void reportFocusUrl(ExtensionServer extensionServer, String url, @Nullable String desktop,
+            @Nullable Browser pinned) {
+        ExtensionProtocol.Result result = pinned != null
+                ? extensionServer.focusUrl(url, true, null, null, false, pinned)
+                : desktop == null
                 ? extensionServer.focusUrl(url)
                 : openOnDesktop(extensionServer, desktop, url);
+        Browser shown = pinned != null ? pinned : drivenBrowser();
         // The extension activated the tab but cannot raise Firefox past the
         // foreground-stealing lock while this app is in front; bring the exact
         // window forward ourselves, matched by the focused tab's title so the
@@ -4619,13 +4631,13 @@ public class Main extends Application {
         // title means a freshly opened tab whose window we cannot title-match.
         String windowTitle = result.title();
         if (result.ok() && windowTitle != null && !windowTitle.isBlank()) {
-            new BrowserWindowFocus(new LocalCommandRunner(), drivenBrowser()).focus(windowTitle);
+            new BrowserWindowFocus(new LocalCommandRunner(), shown).focus(windowTitle);
         }
         MainWindow currentWindow = this.window;
         if (currentWindow == null) {
             return;
         }
-        String name = drivenBrowser().displayName();
+        String name = shown.displayName();
         String text = result.ok()
                 ? name + ": " + result.detail() + " — " + url
                 : "Cannot show in " + name + ": " + result.detail();

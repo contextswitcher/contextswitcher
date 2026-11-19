@@ -177,7 +177,17 @@ public record Task(
     /// (`"— Probeklausur in moodle"`). The YAML stays terse — a plain
     /// scalar for the common untitled case, a `{url, title}` map only when
     /// a title is set.
-    public record UrlEntry(String url, @Nullable String title) {
+    ///
+    /// `browser` pins the entry to one browser (`{url, browser: chrome}`):
+    /// its tab is opened and closed in that browser's extension, whichever
+    /// one drives the rest — e.g. a page Claude in Chrome has to reach while
+    /// Firefox stays the main browser. Null: the driven browser.
+    // [impl->dsn~browser-url-pinned-browser~1]
+    public record UrlEntry(String url, @Nullable String title, com.contextswitcher.config.@Nullable Browser browser) {
+
+        public UrlEntry(String url, @Nullable String title) {
+            this(url, title, null);
+        }
 
         /// How the entry reads where there is room for it (the status bar's
         /// hover and "Opening …" lines): the title ahead of the URL, or the

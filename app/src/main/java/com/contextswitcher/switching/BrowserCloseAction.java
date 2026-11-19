@@ -85,8 +85,9 @@ public class BrowserCloseAction implements SwitchAction {
         }
         Task.BrowserConfig browser = task.browser();
         if (browser != null) {
-            for (String url : browser.urls()) {
-                ExtensionProtocol.Result result = tabs.closeUrl(url);
+            // [impl->dsn~browser-url-pinned-browser~1]
+            for (Task.UrlEntry entry : browser.entries()) {
+                ExtensionProtocol.Result result = tabs.closeUrl(entry.url(), entry.browser());
                 (result.ok() ? details : failures).add(result.detail());
             }
         }

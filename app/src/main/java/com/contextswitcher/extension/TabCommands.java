@@ -1,5 +1,7 @@
 package com.contextswitcher.extension;
 
+import com.contextswitcher.config.Browser;
+
 import org.jspecify.annotations.Nullable;
 
 /// Tab commands the browser extension executes for the app. Implemented by
@@ -48,6 +50,22 @@ public interface TabCommands {
 
     /// Closes all tabs showing exactly `url`.
     ExtensionProtocol.Result closeUrl(String url);
+
+    /// [#focusUrl(String, boolean, String, String, boolean)] in the extension
+    /// of `browser` — a `browser.urls` entry pinned to it — instead of the
+    /// driving one; null is the driving one. Commands without a notion of
+    /// several browsers (test fakes) ignore it.
+    // [impl->dsn~browser-url-pinned-browser~1]
+    default ExtensionProtocol.Result focusUrl(String url, boolean openIfMissing, @Nullable String windowTitle,
+            @Nullable String group, boolean background, @Nullable Browser browser) {
+        return focusUrl(url, openIfMissing, windowTitle, group, background);
+    }
+
+    /// [#closeUrl(String)] in the extension of `browser`; null is the driving one.
+    // [impl->dsn~browser-url-pinned-browser~1]
+    default ExtensionProtocol.Result closeUrl(String url, @Nullable Browser browser) {
+        return closeUrl(url);
+    }
 
     /// Lists every open Firefox window with its title and tab URLs
     /// (`result.windows()`), for the complete-control suspend capture.
