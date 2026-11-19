@@ -108,6 +108,26 @@ Covers:
 
 Needs: dsn
 
+### Share project and context with koppter
+`req~koppter-sync~1`
+
+The user keeps tasks in a todo.txt file with koppter: `+project` says what a task belongs to, `@context` where it can be done.
+A category names the todo.txt project it works on — several categories may name the same one, such as the same project worked on this machine and on a remote — and, optionally, the contexts it belongs to.
+The current context is where the user is, which the screen-chosen profile or the status bar's override already says (lecture hall, desk, home): a profile names its context, by default its own name.
+With the sharing turned on in `settings.yaml`, the two applications follow each other:
+switching to a task of a category with a project, or a change of the context, sets koppter's project and context filter;
+a project or context picked in ContextSwitcher's filter menu does the same;
+and a change of koppter's project or context filter narrows ContextSwitcher's task list to the categories of that project and context.
+A change that came from the other application is not sent back, so the two never answer each other without end.
+A filter sent while ContextSwitcher is not running starts no instance, and koppter's window is not raised by a change ContextSwitcher sent.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Open the task's note
 `req~open-task-note~1`
 
@@ -616,6 +636,31 @@ Tags: windows
 
 Covers:
 - req~screen-chosen-profile~1
+
+Needs: impl, utest
+
+### Project and context shared with koppter
+`dsn~koppter-sync~1`
+
+`settings.yaml`'s `koppterSync: true` turns the sharing on (`KoppterSync.enabled`, read fresh on every use like the profiles); off, nothing is sent, a received filter only gets a status-bar message, and the context does not narrow the list.
+A category names its project with `project:` (`TaskFileParser.groupProject`, nested as `papers>survey`, a leading `+` dropped) and its contexts with `contexts:` (`groupContexts`, a list or one name, `@` dropped); both are fields of the category form (`FrontmatterCatalog`).
+`KoppterSync.Selection` is a set of projects and a set of contexts; `matches(project, contexts)` keeps a category whose project is a selected one or lies below it, and whose contexts include a selected one or are empty — a category without `contexts:` belongs to every context, one without `project:` falls out while a project is selected.
+`KoppterSync.profileContext` gives the context of a profile: its `context:` key, else its name; none for `default` without `context:` and for `context: off`.
+
+Outgoing, `Main.sendToKoppter` opens `koppter://sync?project=…&context=…` (`KoppterSync.koppterUrl`, every character but letters, digits and `-._~` percent-encoded, as koppter's own links are) through `Main.openUrl`; a key the link does not name clears it in koppter.
+It is called after a switch to a task or category whose category names a `project:` (one without leaves koppter's project alone), by `Main.contextChanged` when the context of `override ?? screen-chosen profile` changes — which also puts that context into the task list's filter —, and by a change in the filter menu.
+Incoming, `DeepLink` parses `contextswitcher://filter?…` as `Kind.FILTER` with the raw query, which `KoppterSync.parseQuery` decodes (a literal `+` stays, so a project's sign is not read as a space); `Main.handleDeepLink` puts it into the task list's filter without raising the window.
+A second start that received such a link and finds no running instance ends without launching one (`DeepLink.isFilterLink`), as koppter sends one at every change of its filter.
+`KoppterSync.Guard` remembers the last selection sent or received and lets only a different one go out, so a filter from koppter is not sent back and a repeated switch within one project sends nothing.
+
+`MainWindow` keeps the filter in memory (`projectContextFilter`, not persisted — it comes from koppter and the profile).
+`rebuildRows` drops the tasks of categories not in it and the task-less folders likewise, reading each `CONTEXTSWITCHER.md` at most once per rebuild; a config that does not load is kept, so its warning stays visible; a typed query suspends it, like the other content filters.
+The filter menu's "Projects and contexts" submenu offers a check item per `project:` and per `contexts:` entry the categories name, plus the ones selected, and "Clear"; a non-empty filter counts towards the filter button's badge.
+
+Tags: windows, linux
+
+Covers:
+- req~koppter-sync~1
 
 Needs: impl, utest
 

@@ -1008,6 +1008,27 @@ public class TaskFileParser {
         return groupString(content, "profile");
     }
 
+    /// The todo.txt `project:` a group's `CONTEXTSWITCHER.md` names (nested as
+    /// `papers>survey`, with or without its `+`), or null — what the filter
+    /// shared with koppter selects the category by.
+    // [impl->dsn~koppter-sync~1]
+    public static @Nullable String groupProject(String content) {
+        String project = groupString(content, "project");
+        return project == null ? null : project.replaceFirst("^\\+", "");
+    }
+
+    /// The todo.txt `contexts:` of a group's `CONTEXTSWITCHER.md` — a list or a
+    /// single name, each with or without its `@`; empty when absent, which
+    /// means the category belongs to every context.
+    // [impl->dsn~koppter-sync~1]
+    public static List<String> groupContexts(String content) {
+        Object value = groupValue(content, "contexts");
+        List<?> items = value instanceof List<?> list ? list : value == null ? List.of() : List.of(value);
+        return items.stream().filter(java.util.Objects::nonNull).map(Object::toString)
+                .map(String::strip).map(name -> name.replaceFirst("^@", ""))
+                .filter(name -> !name.isEmpty()).toList();
+    }
+
     /// A top-level string key of a group's `CONTEXTSWITCHER.md` frontmatter,
     /// or null when the file has no frontmatter, no such key, a blank one, or
     /// does not parse — a half-edited config must not break the group menu.

@@ -55,6 +55,7 @@ import com.contextswitcher.analysis.RefactoringSummary;
 import com.contextswitcher.config.AppSettings;
 import com.contextswitcher.config.Browser;
 import com.contextswitcher.config.EnergySaver;
+import com.contextswitcher.config.KoppterSync;
 import com.contextswitcher.discovery.ClaudeSessionCleanup;
 import com.contextswitcher.discovery.LocalClaudeSessions;
 import com.contextswitcher.local.AppUpdate;
@@ -500,6 +501,15 @@ public class MainWindow {
     /// filters and the tag submenu; its badge shows how many are active.
     // [impl->dsn~task-list-toolbar~3]
     private @Nullable MenuButton filterButton;
+    /// The project and context filter shared with koppter: only categories
+    /// whose `project:` and `contexts:` match stay. Set from the filter menu,
+    /// from koppter's `contextswitcher://filter` link and from the context of
+    /// the environment profile ([#setProjectContextFilter]); session-only.
+    // [impl->dsn~koppter-sync~1]
+    private KoppterSync.Selection projectContextFilter = KoppterSync.Selection.EMPTY;
+    /// Told about a change the user made in the filter menu, so `Main` hands
+    /// it on to koppter.
+    private Consumer<KoppterSync.Selection> onProjectContextFilter = selection -> { };
     /// When on, the list shows only active tasks whose live `@cs_status` is
     /// `waiting` or `attention` — the rows needing the user's input next. Kept
     /// across restarts like the other filters.
@@ -2701,6 +2711,9 @@ public class MainWindow {
         boolean awaiting = !searching && awaitsInputOnly;
         // [impl->dsn~running-tasks-filter~2]
         boolean running = !searching && runningTasksOnly;
+        // [impl->dsn~koppter-sync~1]
+        KoppterSync.Selection projectContext = searching ? KoppterSync.Selection.EMPTY : projectContextFilter;
+        Map<String, Boolean> inProjectContext = new HashMap<>();
         long recentSuspendedCutoff = System.currentTimeMillis()
                 - java.time.Duration.ofDays(RECENT_SUSPENDED_DAYS).toMillis();
         // The active-desktop filter narrows only when we actually know the
@@ -2718,7 +2731,7 @@ public class MainWindow {
         // The find field's category chip narrows the list to that category.
         // [impl->dsn~category-search~3]
         String scope = scopeCategory;
-        boolean narrowed = searching || filtering || awaiting || running
+        boolean narrowed = searching || filtering || awaiting || running || !projectContext.isEmpty()
                 || activeDesktopFilter != null || scope != null || !inactiveHosts.isEmpty();
         // Force-expanding every group belongs to a *find* — a query or a tag
         // selection, where the point is to see every match without extra
@@ -2786,6 +2799,10 @@ public class MainWindow {
             }
             // [impl->dsn~awaits-input-filter~1]
             if (awaiting && !awaitsInput(entry)) {
+                continue;
+            }
+            // [impl->dsn~koppter-sync~1]
+            if (!projectContext.isEmpty() && !inProjectContext(entry.group(), projectContext, inProjectContext)) {
                 continue;
             }
             // Show only the categories on the active virtual desktop.
@@ -2873,6 +2890,11 @@ public class MainWindow {
                 }
                 // [impl->dsn~category-search~3]
                 if (scope != null && !folder.equals(scope)) {
+                    continue;
+                }
+                // A category's project and contexts are its own, like its desktop.
+                // [impl->dsn~koppter-sync~1]
+                if (!projectContext.isEmpty() && !inProjectContext(folder, projectContext, inProjectContext)) {
                     continue;
                 }
                 // [impl->dsn~host-on-off~2]
@@ -3240,6 +3262,143 @@ public class MainWindow {
     /// `computeIfAbsent` (which does not cache a null).
     // [impl->dsn~active-desktop-filter~6]
     // [impl->dsn~fallback-desktop~2]
+    /// Whether the category `group` belongs to the project and context
+    /// `selection` ([KoppterSync.Selection#matches]), memoized per rebuild. A
+    /// task outside any category has no project; a config that does not load
+    /// is kept, so its header warning stays visible.
+    // [impl->dsn~koppter-sync~1]
+    private boolean inProjectContext(String group, KoppterSync.Selection selection, Map<String, Boolean> memo) {
+        return memo.computeIfAbsent(group, name -> {
+            if (name.isEmpty()) {
+                return selection.matches(null, List.of());
+            }
+            String configFile = groupConfigFileName(name);
+            if (!files.exists(configFile)) {
+                return selection.matches(null, List.of());
+            }
+            String content = files.load(configFile);
+            if (parser.groupConfigError(content) != null) {
+                return true;
+            }
+            return selection.matches(TaskFileParser.groupProject(content), TaskFileParser.groupContexts(content));
+        });
+    }
+
+    /// The `project:`s and `contexts:` the categories name — what the filter
+    /// menu offers.
+    // [impl->dsn~koppter-sync~1]
+    private KoppterSync.Selection categoryProjectsAndContexts() {
+        Set<String> projects = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        Set<String> contexts = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        Set<String> groups = new TreeSet<>(folders);
+        entries.forEach(entry -> groups.add(entry.group()));
+        for (String group : groups) {
+            if (group.isEmpty() || !files.exists(groupConfigFileName(group))) {
+                continue;
+            }
+            String content = files.load(groupConfigFileName(group));
+            String project = TaskFileParser.groupProject(content);
+            if (project != null) {
+                projects.add(project);
+            }
+            contexts.addAll(TaskFileParser.groupContexts(content));
+        }
+        return new KoppterSync.Selection(projects, contexts);
+    }
+
+    /// Sets the project and context filter without telling `Main` — the
+    /// change came from koppter or from the environment profile. FX thread.
+    // [impl->dsn~koppter-sync~1]
+    public void setProjectContextFilter(KoppterSync.Selection selection) {
+        if (selection.equals(projectContextFilter)) {
+            return;
+        }
+        projectContextFilter = selection;
+        updateFilterButton();
+        rebuildRows();
+    }
+
+    /// The project and context filter in effect.
+    public KoppterSync.Selection projectContextFilter() {
+        return projectContextFilter;
+    }
+
+    /// Where a change the user makes in the filter menu's project and context
+    /// items goes.
+    // [impl->dsn~koppter-sync~1]
+    public void installProjectContextFilter(Consumer<KoppterSync.Selection> onChange) {
+        this.onProjectContextFilter = onChange;
+    }
+
+    /// The filter menu's "Projects and contexts" submenu: a check item per
+    /// `project:` and per `contexts:` entry the categories name (and per one
+    /// koppter selected), plus "Clear". Filled each time it opens.
+    // [impl->dsn~koppter-sync~1]
+    private Menu projectContextMenu() {
+        Menu menu = new Menu("Projects and contexts", new SvgNode(MDIInterface.TAG_MULTIPLE.path(), 14));
+        menu.setId("project-context-menu");
+        // A placeholder child: a Menu without items never fires onShowing.
+        menu.getItems().add(new MenuItem("(none)"));
+        menu.setOnShowing(event -> {
+            menu.getItems().clear();
+            KoppterSync.Selection offered = categoryProjectsAndContexts();
+            KoppterSync.Selection current = projectContextFilter;
+            Set<String> projects = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+            projects.addAll(offered.projects());
+            projects.addAll(current.projects());
+            Set<String> contexts = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+            contexts.addAll(offered.contexts());
+            contexts.addAll(current.contexts());
+            if (projects.isEmpty() && contexts.isEmpty()) {
+                MenuItem none = new MenuItem("(no category names a project: or contexts:)");
+                none.setDisable(true);
+                menu.getItems().add(none);
+                return;
+            }
+            for (String project : projects) {
+                CheckMenuItem item = new CheckMenuItem("+" + project);
+                item.setSelected(current.projects().contains(project));
+                item.setOnAction(click -> changeProjectContextFilter(
+                        toggled(projectContextFilter.projects(), project, item.isSelected()), null));
+                menu.getItems().add(item);
+            }
+            if (!projects.isEmpty() && !contexts.isEmpty()) {
+                menu.getItems().add(new SeparatorMenuItem());
+            }
+            for (String context : contexts) {
+                CheckMenuItem item = new CheckMenuItem("@" + context);
+                item.setSelected(current.contexts().contains(context));
+                item.setOnAction(click -> changeProjectContextFilter(
+                        null, toggled(projectContextFilter.contexts(), context, item.isSelected())));
+                menu.getItems().add(item);
+            }
+            MenuItem clear = new MenuItem("Clear");
+            clear.setDisable(current.isEmpty());
+            clear.setOnAction(click -> changeProjectContextFilter(Set.of(), Set.of()));
+            menu.getItems().addAll(new SeparatorMenuItem(), clear);
+        });
+        return menu;
+    }
+
+    private static Set<String> toggled(Set<String> names, String name, boolean on) {
+        Set<String> result = new TreeSet<>(names);
+        if (on) {
+            result.add(name);
+        } else {
+            result.remove(name);
+        }
+        return result;
+    }
+
+    /// A change from the filter menu: applied, then handed to `Main`.
+    private void changeProjectContextFilter(@Nullable Set<String> projects, @Nullable Set<String> contexts) {
+        KoppterSync.Selection next = new KoppterSync.Selection(
+                projects == null ? projectContextFilter.projects() : projects,
+                contexts == null ? projectContextFilter.contexts() : contexts);
+        setProjectContextFilter(next);
+        onProjectContextFilter.accept(next);
+    }
+
     private boolean onActiveDesktop(String group, String activeDesktopFilter,
             Map<String, @Nullable String> desktopByGroup) {
         if (!desktopByGroup.containsKey(group)) {
@@ -7231,7 +7390,7 @@ public class MainWindow {
         CheckMenuItem runningItem = runningTasksItem();
         button.getItems().addAll(awaitsInputItem(), runningItem, recentSuspendedItem(runningItem), desktopItem,
                 noDesktopCategoriesItem(desktopItem), new SeparatorMenuItem(), tagFilterMenu(),
-                hostsMenu());
+                projectContextMenu(), hostsMenu());
         updateFilterButton();
         return button;
     }
@@ -7249,7 +7408,9 @@ public class MainWindow {
         // [impl->dsn~host-on-off~2]
         int active = (awaitsInputOnly ? 1 : 0) + (activeDesktopOnly ? 1 : 0)
                 + (runningTasksOnly ? 1 : 0) + (activeTags.isEmpty() ? 0 : 1)
-                + (inactiveHosts.isEmpty() ? 0 : 1);
+                + (inactiveHosts.isEmpty() ? 0 : 1)
+                // [impl->dsn~koppter-sync~1]
+                + (projectContextFilter.isEmpty() ? 0 : 1);
         // A digit-wide figure space rather than "" keeps the button's width: a
         // width change re-flows an overflowing toolbar, and the re-flow
         // detaches the button and closes its open menu mid-tick.

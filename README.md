@@ -313,7 +313,7 @@ While Claude works, draft the follow-ups instead of waiting: the pane below the 
 * **Find** (`Ctrl+F`, the always-visible field) narrows the list by free text over everything you would search by: title, id, remote, note, configuration, the Markdown body, the task's URLs (paste a PR link, or just `16245`), and the text of its queued and sent messages.
 * **Jump to category** (`Ctrl+J`) — a popup narrows the category names as you type, the current virtual desktop's categories first; Enter selects the category in the list.
   While a query is typed, the tag / awaits-input / running-tasks filters step aside so a hit is never hidden; the active-desktop filter stays on and the bar reports the hits it does not show as "· N on other desktops".
-* **Filter menu** (toolbar) — **Awaits input** (waiting, asking, or hit the usage limit; the item carries the count even when off), **Active desktop**, **Running tasks**, and the **tag** submenu (several tags combine with AND; a filtered row shows only the selected tags, so a shared screen reveals nothing else). The button carries a badge while anything narrows the list, and the whole selection is restored on the next launch.
+* **Filter menu** (toolbar) — **Awaits input** (waiting, asking, or hit the usage limit; the item carries the count even when off), **Active desktop**, **Running tasks**, **Projects and contexts** (the categories' todo.txt `project:` and `contexts:`, shared with koppter — see [below](#sharing-project-and-context-with-koppter)), and the **tag** submenu (several tags combine with AND; a filtered row shows only the selected tags, so a shared screen reveals nothing else). The button carries a badge while anything narrows the list, and the whole selection is restored on the next launch.
 * **Sort menu** — **Last update** (default; a new task shows up on top), **Alphabetical**, or **Action needed** (usage limit, then attention, then waiting, then working). Error rows stay first, active before suspended, pinned tasks head their block.
 * **Group by labels** — group the list by tags instead of folders; a task with several tags appears under each, and every row then shows its category.
 * **Energy saver** (the leaf) — stops all background polling for working on battery; only the selected task's mirror keeps running, selecting a task refreshes that task, and the refresh button runs every poll once. Remembered across restarts.
@@ -381,6 +381,30 @@ screenProfiles:                         # first rule whose screen is connected w
 The layers stack per key: `default`, then the screen-chosen profile, then the category's, then the status bar's override.
 The profile is re-applied once the set of screens has stayed the same for 3 s, and the override button shows it as `desk (screens)`.
 Windows only.
+
+### Sharing project and context with koppter
+
+[koppter](https://github.com/contextswitcher/koppter) keeps tasks in a todo.txt file: `+project` is what a task belongs to, `@context` where it can be done.
+With `koppterSync: true` in `settings.yaml` (and *Send the projects and contexts of the filter to ContextSwitcher* in koppter's settings), the two filters follow each other ([`req~koppter-sync~1`](docs/requirements/switching.md)):
+
+```yaml
+# settings.yaml
+koppterSync: true
+profiles:
+  desk: {gatherWindows: DELL U3223QE}   # context "desk" — a profile's context is its name
+  lecture: {context: hall}              # …unless context: says otherwise; off = none
+```
+
+```yaml
+# a category's CONTEXTSWITCHER.md
+project: contextswitcher   # the todo.txt project; several categories may share it
+contexts: [desk]           # optional; none = every context
+```
+
+* Switching to a task of a category with `project:` sets koppter's project filter; the context of the screen-chosen or overridden profile sets koppter's context filter and narrows this task list to the categories of that context.
+* **Filter menu → Projects and contexts** picks them by hand; koppter follows.
+* Changing the project or context filter in koppter narrows this list to the categories of that project and context, without raising the window.
+* A change that came from the other application is not sent back. A filter koppter sends while ContextSwitcher is not running is dropped rather than starting the app.
 
 ### RefactoringMiner (optional)
 

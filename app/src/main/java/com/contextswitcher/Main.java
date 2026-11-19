@@ -73,6 +73,7 @@ import com.contextswitcher.local.JetBrainsClientFocus;
 import com.contextswitcher.local.WindowsDesktopPin;
 import com.contextswitcher.local.LocalFolderFocus;
 import com.contextswitcher.local.ScreenWatch;
+import com.contextswitcher.config.KoppterSync;
 import com.contextswitcher.local.WindowGather;
 import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
@@ -345,6 +346,11 @@ public class Main extends Application {
     /// restart starts in the plain category look.
     // [impl->dsn~environment-profile-override~1]
     private volatile @Nullable String profileOverride;
+    /// What ContextSwitcher last told koppter, or took from it: the project of
+    /// the category switched to and the context of the profile in effect.
+    // [impl->dsn~koppter-sync~1]
+    private volatile KoppterSync.Selection koppterSelection = KoppterSync.Selection.EMPTY;
+    private final KoppterSync.Guard koppterGuard = new KoppterSync.Guard();
     private @Nullable TerminalPane terminalPane;
     /// The `todoTxt` file the task rows read their todo lines from.
     private final com.contextswitcher.tasks.TodoTxt.File todoTxt = new com.contextswitcher.tasks.TodoTxt.File();
@@ -495,6 +501,14 @@ public class Main extends Application {
             } catch (IOException e) {
                 Logger.warn("Cannot read settings for forwarding to a running instance: {}", e.getMessage());
             }
+        }
+        // koppter sends its filter at every change; with no instance running
+        // there is nothing to filter, and starting one each time would be a
+        // window popping up for a click in another program.
+        // [impl->dsn~koppter-sync~1]
+        if (deepLinkUrl != null && DeepLink.isFilterLink(deepLinkUrl)) {
+            Logger.info("No running instance takes {}; not starting one for it", deepLinkUrl);
+            return;
         }
         launch(args);
     }
@@ -1071,6 +1085,8 @@ public class Main extends Application {
                 () -> EnvironmentProfiles.parse(readSettingsFile(configDir())).names(),
                 choice -> {
                     profileOverride = choice;
+                    // [impl->dsn~koppter-sync~1]
+                    contextChanged(window);
                     window.statusBar().message("Applying "
                             + (choice == null ? "the category profile" : "profile " + choice) + " …");
                     actionExecutor.execute(() -> {
@@ -1083,6 +1099,9 @@ public class Main extends Application {
         // profile of their own, applied without a task switch.
         // [impl->dsn~screen-chosen-profile~1]
         screenWatch.start(screens -> screensChanged(screens, window, environmentProfile));
+        // A project or context picked in the filter menu goes to koppter.
+        // [impl->dsn~koppter-sync~1]
+        window.installProjectContextFilter(selection -> actionExecutor.execute(() -> sendToKoppter(selection)));
         this.window = window;
         this.stage = stage;
         this.windowPositions = new WindowPositions(configDir());
@@ -2231,6 +2250,8 @@ public class Main extends Application {
         String before = screenProfile;
         screenProfile = chosen;
         Platform.runLater(() -> window.showScreenProfile(chosen));
+        // [impl->dsn~koppter-sync~1]
+        contextChanged(window);
         if (first ? chosen == null : Objects.equals(before, chosen)) {
             return;
         }
@@ -2581,6 +2602,21 @@ public class Main extends Application {
         } catch (IllegalArgumentException e) {
             Logger.warn("Ignoring bad deep link: {}", e.getMessage());
             window.statusBar().message("Cannot open link: " + e.getMessage());
+            return;
+        }
+        // koppter's filter: the categories of its project and context, without
+        // raising the window — the user is working in koppter.
+        // [impl->dsn~koppter-sync~1]
+        if (link.kind() == DeepLink.Kind.FILTER) {
+            if (!KoppterSync.enabled(readSettingsFile(configDir()))) {
+                window.statusBar().message("koppter sent a filter, but koppterSync is off in settings.yaml");
+                return;
+            }
+            KoppterSync.Selection selection = KoppterSync.parseQuery(link.target());
+            koppterGuard.received(selection);
+            koppterSelection = selection;
+            window.setProjectContextFilter(selection);
+            window.statusBar().message("koppter: " + selection);
             return;
         }
         TaskEntry.@Nullable Loaded loaded = null;
@@ -5444,6 +5480,46 @@ public class Main extends Application {
         // [impl->dsn~terminal-pane~14]
         orchestrator.switchTo(effective, only, window.statusBar()::update,
                 () -> window.refreshPreview(effective.id()));
+        // The category's project goes to koppter; one without `project:`
+        // leaves koppter's project alone. [impl->dsn~koppter-sync~1]
+        String project = groupLink(files, taskGroup(task), TaskFileParser::groupProject);
+        if (project != null) {
+            sendToKoppter(koppterSelection.withProjects(Set.of(project)));
+        }
+    }
+
+    /// Hands `selection` to koppter (`koppter://sync?…`) when `koppterSync` is
+    /// on and it differs from what koppter last got from or sent to us.
+    // [impl->dsn~koppter-sync~1]
+    private void sendToKoppter(KoppterSync.Selection selection) {
+        koppterSelection = selection;
+        if (!KoppterSync.enabled(readSettingsFile(configDir())) || !koppterGuard.send(selection)) {
+            return;
+        }
+        Logger.info("Sending koppter {}", selection);
+        openUrl(KoppterSync.koppterUrl(selection));
+    }
+
+    /// The context of the profile the screens or the override chose: put
+    /// into the task list's filter and handed to koppter when it changed.
+    /// Not the category's profile — the context is where the user is, not
+    /// what they work on.
+    // [impl->dsn~koppter-sync~1]
+    private void contextChanged(MainWindow window) {
+        String settingsText = readSettingsFile(configDir());
+        if (!KoppterSync.enabled(settingsText)) {
+            return;
+        }
+        String override = profileOverride;
+        String context = KoppterSync.profileContext(settingsText, override != null ? override : screenProfile);
+        Set<String> contexts = context == null ? Set.of() : Set.of(context);
+        if (contexts.equals(koppterSelection.contexts())) {
+            return;
+        }
+        KoppterSync.Selection next = koppterSelection.withContexts(contexts);
+        Platform.runLater(() -> window.setProjectContextFilter(
+                window.projectContextFilter().withContexts(contexts)));
+        sendToKoppter(next);
     }
 
     /// The task with its category's action defaults folded in — what a switch

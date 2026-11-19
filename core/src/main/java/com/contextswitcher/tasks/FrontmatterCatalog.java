@@ -187,6 +187,13 @@ public final class FrontmatterCatalog {
                     "Name of a profile from settings.yaml's profiles: (screens, projector mode, "
                             + "taskbar, bookmarks bar), applied on every switch into the category; "
                             + "empty means default."),
+            // [impl->dsn~koppter-sync~1]
+            new Field("project", "todo.txt project", "Category", Type.STRING,
+                    "The project of the todo.txt file (koppter) this category works on, such as "
+                            + "papers>survey; several categories may name the same one."),
+            new Field("contexts", "todo.txt contexts", "Category", Type.LIST,
+                    "The contexts (environment profiles) the category belongs to, such as desk; "
+                            + "one per line, empty means every context."),
             new Field("repo", "GitHub repository", "Repository", Type.STRING,
                     "The category's GitHub repository, opened by the header's repository icon "
                             + "and named in a live task's bootstrap prompt."),

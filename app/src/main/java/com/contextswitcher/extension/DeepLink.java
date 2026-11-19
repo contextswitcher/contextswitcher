@@ -9,7 +9,9 @@ import java.nio.charset.StandardCharsets;
 /// the full switch, `contextswitcher://category/<name>` selects the category's
 /// header row, `contextswitcher://switch-category/<name>` also runs the
 /// category's switch (its note, folders, browser, …), `contextswitcher://show` only raises the window (what a second
-/// plain launch hands to the running instance, `dsn~single-instance~1`).
+/// plain launch hands to the running instance, `dsn~single-instance~1`), and
+/// `contextswitcher://filter?project=…&context=…` sets the project and context
+/// filter koppter shares (`dsn~koppter-sync~1`; the target is the raw query).
 /// Task ids contain `/` (group folders) — they live in the URL's
 /// path; other characters arrive percent-encoded and are decoded by the `URI`
 /// path accessor.
@@ -18,7 +20,14 @@ public record DeepLink(Kind kind, String target) {
 
     /// What the link points at — a task (by id), a category (by name), or
     /// just the app's window ([#SHOW_URL], no target).
-    public enum Kind { TASK, SWITCH, CATEGORY, SWITCH_CATEGORY, SHOW }
+    public enum Kind { TASK, SWITCH, CATEGORY, SWITCH_CATEGORY, SHOW, FILTER }
+
+    /// Whether `arg` is a `contextswitcher://filter` link — one a running
+    /// instance takes, and that starts no instance of its own: koppter sends
+    /// it at every change of its filter. [impl->dsn~koppter-sync~1]
+    public static boolean isFilterLink(String arg) {
+        return arg.startsWith("contextswitcher://filter");
+    }
 
     /// The link a second plain launch forwards: raise the running window.
     // [impl->dsn~single-instance~1]
@@ -64,6 +73,11 @@ public record DeepLink(Kind kind, String target) {
         String host = uri.getHost();
         if ("show".equals(host)) {
             return new DeepLink(Kind.SHOW, "");
+        }
+        // [impl->dsn~koppter-sync~1]
+        if ("filter".equals(host)) {
+            String query = uri.getRawQuery();
+            return new DeepLink(Kind.FILTER, query == null ? "" : query);
         }
         Kind kind = switch (host == null ? "" : host) {
             case "task" -> Kind.TASK;

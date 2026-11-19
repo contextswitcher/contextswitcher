@@ -77,6 +77,17 @@ class DeepLinkTest {
         assertThat(DeepLink.parse(DeepLink.SHOW_URL)).isEqualTo(new DeepLink(DeepLink.Kind.SHOW, ""));
     }
 
+    // [utest->dsn~koppter-sync~1]
+    @Test
+    void filterLinkKeepsTheRawQuery() {
+        String url = "contextswitcher://filter?project=papers%3Esurvey&context=desk";
+        assertThat(DeepLink.isFilterLink(url)).isTrue();
+        assertThat(DeepLink.parse(url)).isEqualTo(new DeepLink(DeepLink.Kind.FILTER, "project=papers%3Esurvey&context=desk"));
+        // No query clears the filter.
+        assertThat(DeepLink.parse("contextswitcher://filter")).isEqualTo(new DeepLink(DeepLink.Kind.FILTER, ""));
+        assertThat(DeepLink.isFilterLink("contextswitcher://task/x")).isFalse();
+    }
+
     @Test
     void isDeepLinkChecksScheme() {
         assertThat(DeepLink.isDeepLink("contextswitcher://task/x")).isTrue();

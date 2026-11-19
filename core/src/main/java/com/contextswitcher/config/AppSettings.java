@@ -494,6 +494,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                 autoCopyReplies: false       # true = each finished reply of the mirrored Claude chat is put on the clipboard as Markdown
                 claudeUpdateRestart: false   # true = quit and resume an idle Claude session that shows "Restart to update" (sends /exit)
                 todoTxt: C:\\Users\\you\\todo.txt   # todo.txt whose open lines tagged cs:<task id> show on that task's row; empty = off
+                koppterSync: false           # true = share the categories' project: and the profile's context with koppter's filter, both ways
                 refactoringMinerPort: 6789   # loopback port the refactoring web view is served and tunnelled on
                 hosts:                       # machines sessions run on; their destinations are what the tmux sync scans (none: it falls back to remotes of existing tasks)
                   - destination: koppor@devbox             # ssh destination, user part included (or an alias, or wsl:<distro>)
@@ -525,6 +526,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                     taskbar: autohide
                     bookmarksBar: hidden
                     gatherWindows: internal  # with the screen extended: windows opening on another screen move here; full-screen ones (the slide show) stay; off = don't
+                    context: lecture         # todo.txt context shared with koppter while the screens or the override chose this profile; default: the profile's name (none for default), off = none
                 """;
     }
 
