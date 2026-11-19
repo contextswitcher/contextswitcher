@@ -6,14 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
-## [Unreleased]
+## [2026-11-19] - 2026-11-19
 
 ### Added
 
 - A category can run Mistral Vibe, OpenAI Codex or Claude Code on an API key instead of Claude Code (`agent:` in `CONTEXTSWITCHER.md`, per task `claude.agent:`); the API key comes from `CS_ANTHROPIC_API_KEY` in the remote shell, e.g. via direnv.
 - Android: the task list shows the desktop's running dot per task — orange while Claude works, red when it waits for you.
 - *Add task* offers *Remove session and worktree after 1 day of inactivity*: once the task has been quiet for a day, ContextSwitcher ends its window, removes the transcript and the git worktree (never a full checkout) and deletes the task.
-- A task whose Claude turn was interrupted (Esc, Ctrl+C) shows a magenta dot instead of the ordinary red, sorts near the top under *Action needed* and is listed by *Awaits input only*; the Android app's watched task notifies *Claude was interrupted*.
+- A task whose Claude turn was interrupted (Esc, Ctrl+C) shows a magenta dot instead of the ordinary red, sorts near the top under *Action needed* and is listed by *Awaits input only*; the Android task list shows the same magenta dot, and its watched task notifies *Claude was interrupted*.
 
 ### Changed
 
@@ -399,7 +399,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
-[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-18...main
+[2026-11-19]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-18...v2026-11-19
 [2026-11-18]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-17...v2026-11-18
 [2026-11-17]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-16...v2026-11-17
 [2026-11-16]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-15...v2026-11-16
