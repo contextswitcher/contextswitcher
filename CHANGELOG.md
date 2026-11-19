@@ -14,6 +14,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Changed
 
+- Android: *Add task*'s category list starts with the five categories used last, followed by all categories.
 - The *Last sent* area in the Queue pane can be dragged taller at its bottom edge, to see more of the earlier messages at once.
 - The selected task is filled with a muted accent tint instead of grey, and the active category's name takes the accent colour, so both stand out at a glance.
 

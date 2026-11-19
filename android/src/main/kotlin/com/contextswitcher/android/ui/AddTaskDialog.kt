@@ -12,6 +12,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -38,11 +39,14 @@ import com.contextswitcher.queue.ClaudeMode
 /// The dialog stays open while [adding] and after a failure ([error]), so a
 /// title typed on a weak connection is never lost; the caller closes it on
 /// success. Input lives in `rememberSaveable` like the settings form.
+/// The picker lists [recentCategories] that still exist on top, then a
+/// divider, then all [categories] (the recent ones again, in their place).
 /// An optional *Description* goes into the task's notes and, for a started
 /// Claude, the prompt; with [attachments] its *Attach* adds image markers.
 // [impl->dsn~android-task-create~2]
 // [impl->dsn~android-task-images~1]
 // [impl->dsn~android-live-task~4]
+// [impl->dsn~android-recent-categories~1]
 @Composable
 fun AddTaskDialog(
     categories: List<String>,
@@ -56,6 +60,7 @@ fun AddTaskDialog(
     initialSkipPermissions: Boolean = false,
     progress: String? = null,
     attachments: AttachmentStore? = null,
+    recentCategories: List<String> = emptyList(),
 ) {
     var category by rememberSaveable { mutableStateOf(initialCategory) }
     var title by rememberSaveable { mutableStateOf("") }
@@ -79,7 +84,9 @@ fun AddTaskDialog(
                         Text(categoryLabel(category))
                     }
                     DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
-                        for (name in categories) {
+                        val recent = recentCategories.filter { it in categories }
+                        for ((i, name) in (recent + categories).withIndex()) {
+                            if (i == recent.size && i > 0) HorizontalDivider()
                             DropdownMenuItem(text = { Text(categoryLabel(name)) }, onClick = {
                                 category = name
                                 picking = false

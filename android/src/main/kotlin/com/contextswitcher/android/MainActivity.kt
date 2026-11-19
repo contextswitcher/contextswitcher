@@ -497,6 +497,7 @@ internal fun TaskListScreen(
     // [impl->dsn~android-task-create~2]
     fun addTask(category: String, title: String, notes: String) {
         val settings = settingsStore.load() ?: return
+        settingsStore.rememberCategory(category)
         taskBeingAdded = true
         addTaskError = null
         scope.launch {
@@ -526,6 +527,7 @@ internal fun TaskListScreen(
         val settings = settingsStore.load() ?: return
         val starter = liveTasks ?: return
         settingsStore.saveSkipPermissions(skipPermissions)
+        settingsStore.rememberCategory(category)
         taskBeingAdded = true
         addTaskError = null
         addProgress = null
@@ -671,6 +673,7 @@ internal fun TaskListScreen(
         val categories = groups.map { it.name }.ifEmpty { listOf("") }
         AddTaskDialog(
             categories = categories,
+            recentCategories = remember { settingsStore.loadRecentCategories() },
             initialCategory = groupAtTop(shownGroups, listState.firstVisibleItemIndex)
                 .ifEmpty { categories.firstOrNull { it.isNotEmpty() } ?: "" },
             adding = taskBeingAdded,

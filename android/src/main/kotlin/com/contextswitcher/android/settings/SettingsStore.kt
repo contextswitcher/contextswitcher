@@ -12,6 +12,7 @@ private const val KEY_SSH_PRIVATE_KEY = "ssh_private_key"
 private const val KEY_SKIP_PERMISSIONS = "skip_permissions"
 private const val KEY_JUMP_HOSTS = "jump_hosts"
 private const val KEY_STATUS_FILTER = "status_filter"
+private const val KEY_RECENT_CATEGORIES = "recent_categories"
 
 /// The task backup repo's clone URL plus HTTPS credentials
 /// (`UsernamePasswordCredentialsProvider`; any value works for username with
@@ -89,5 +90,16 @@ class SettingsStore(context: Context) {
 
     fun saveStatusFilter(filter: StatusFilter) {
         prefs.edit().putString(KEY_STATUS_FILTER, filter.name).apply()
+    }
+
+    /// The last five categories a task was added to on this phone, newest first,
+    /// for the top of *Add task*'s category picker.
+    // [impl->dsn~android-recent-categories~1]
+    fun loadRecentCategories(): List<String> =
+        prefs.getString(KEY_RECENT_CATEGORIES, null)?.split('\n') ?: emptyList()
+
+    fun rememberCategory(category: String) {
+        val recent = (listOf(category) + loadRecentCategories().minus(category)).take(5)
+        prefs.edit().putString(KEY_RECENT_CATEGORIES, recent.joinToString("\n")).apply()
     }
 }

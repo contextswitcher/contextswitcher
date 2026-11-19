@@ -599,6 +599,19 @@ Covers:
 
 Needs: impl, utest
 
+### Recently used categories on top of the Add-task picker
+`dsn~android-recent-categories~1`
+
+`AddTaskDialog`'s category picker lists the last five categories a task was added to (or Claude started in) on this phone, newest first, then a divider, then all categories as before — the recent ones included —, so a frequent category is found at the top and every category still at its usual place.
+`SettingsStore.rememberCategory` records the pick on *Add*/*Start*; a recent category no longer in the clone is left out.
+
+Tags: android
+
+Covers:
+- req~task-create~1
+
+Needs: impl, utest
+
 ### Task list on the head unit
 `dsn~android-auto-tasks~1`
 
