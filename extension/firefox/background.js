@@ -337,8 +337,12 @@ async function focusUrl(url, openIfMissing, windowTitle, group, background) {
   // Prefer an exact tab; otherwise focus a tab under the same URL before
   // opening a duplicate — a GitHub PR is routinely open on a /files or
   // /commits sub-path, or carries a #discussion fragment.
-  const exact = tabs.find((tab) => tab.url === url);
-  const tab = exact || tabs.find((tab) => tab.url && isSameOrSubUrl(tab.url, url));
+  // The window the app names (see below) is resolved first, so a page open
+  // there wins over a twin of it in another window.
+  const target = await windowIdFor(windowTitle);
+  const pick = (matches) => tabs.find((tab) => tab.windowId === target && matches(tab)) || tabs.find(matches);
+  const exact = pick((tab) => tab.url === url);
+  const tab = exact || pick((tab) => tab.url && isSameOrSubUrl(tab.url, url));
   if (tab) {
     // Grouping may move the tab into the group's window, so the window to
     // raise is read back afterwards.
@@ -349,7 +353,6 @@ async function focusUrl(url, openIfMissing, windowTitle, group, background) {
     // A tab sitting in some *other* window is moved into that one rather than
     // raised where it is: raising it makes Windows follow it to its desktop,
     // which dropped the user off their category's desktop.
-    const target = await windowIdFor(windowTitle);
     let moved = false;
     if (target !== undefined && target !== found.windowId) {
       try {
@@ -378,7 +381,7 @@ async function focusUrl(url, openIfMissing, windowTitle, group, background) {
   if (openIfMissing) {
     // The app names the window it just raised on the target desktop (its OS
     // caption); without one Firefox picks its most recently focused window.
-    const windowId = await windowIdFor(windowTitle);
+    const windowId = target;
     const created = await browser.tabs.create({ url, active: !background, windowId });
     await groupTab(created.id, group);
     if (background) {
@@ -400,12 +403,18 @@ async function focusUrl(url, openIfMissing, windowTitle, group, background) {
 // the active tab's title, matched by containment like the app's complete-
 // control capture), or undefined when nothing matches — letting tabs.create
 // fall back to Firefox's own choice.
+// Two windows on different desktops showing the same page share a caption, so
+// among several matches the focused one wins: the app has just raised the
+// window on the target desktop. Taking the first match instead put the tab
+// into the twin window elsewhere and Windows followed it there (field report
+// 2026-11-18).
 async function windowIdFor(caption) {
   if (!caption) {
     return undefined;
   }
   const all = await browser.windows.getAll({ windowTypes: ["normal"] });
-  const match = all.find((w) => w.title && (caption.includes(w.title) || w.title.includes(caption)));
+  const matches = all.filter((w) => w.title && (caption.includes(w.title) || w.title.includes(caption)));
+  const match = matches.find((w) => w.focused) || matches[0];
   return match ? match.id : undefined;
 }
 

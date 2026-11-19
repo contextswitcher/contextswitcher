@@ -90,7 +90,7 @@ Needs: dsn
 `req~android-finish-notification~1`
 
 The task opened last on the phone is watched: when its Claude session ends a turn, the phone shows a notification naming the task, also while the app is in the background.
-A question or permission prompt mid-turn notifies that Claude needs the user, and hitting the usage limit notifies that too; tapping a notification opens the task.
+A question or permission prompt mid-turn notifies that Claude needs the user, and hitting the usage limit or an interrupted turn notifies that too; tapping a notification opens the task.
 A task that is already idle when opened, and the task the user is looking at in the app, raise no alert.
 Watching shows as an ongoing notification with a *Stop* action; opening another task watches that one instead.
 
@@ -221,9 +221,23 @@ The settings screen holds its unsaved input in `rememberSaveable`, so text typed
 The screen scrolls, and the SSH key field is capped at eight lines (scrolling inside), so a pasted key never pushes the save button out of reach.
 The open screen is saved the same way (`screenSaver`): a task detail as its task id, re-read from the synced repo on restore, falling back to the task list when that task is gone.
 The task list shows the last synced clone as soon as it opens, before the sync round-trip, so a restored app is not empty while offline.
-Its `LazyListState` lives in `ContextSwitcherApp`, above the screen switch, so *Back* from a task (which replaces the list on a phone) returns to the scroll position the user left.
+Its `LazyListState`, the loaded groups and the status map live in `ContextSwitcherApp`, above the screen switch, so *Back* from a task (which replaces the list on a phone) returns to the list as the user left it — scroll position and rows at once, not an empty list until the clone is re-read; the sync then refreshes it in place.
 While the list is empty, the last sync failure stays on screen with a Retry button instead of disappearing with its Snackbar. The manifest requests `android.permission.INTERNET`, which the sync and SSH both need.
 The window has no action bar (`Theme.Material.Light.NoActionBar`) — each screen draws its own top bar — and the settings form pads itself by the system bars, so nothing lies over its first field under edge-to-edge.
+
+Tags: android
+
+Covers:
+- req~android-task-list~1
+
+Needs: impl, utest
+
+### Running dot on the task row
+`dsn~android-running-dot~1`
+
+Each task row leads with the desktop's running dot (`dsn~task-running-indicator~7`): orange while the session works, red when it waits for input, asks, or hit its usage limit, magenta when its turn was interrupted (`dsn~claude-interrupt-detection~1`), grey when done, transparent (keeping the slot) when unknown.
+While the list is on screen, `TaskListScreen` polls `TmuxStatusPoller.statusCommand()` once per remote every 10 s (`pollStatuses`, shared with the head unit, `dsn~android-auto-tasks~1`), and again whenever the list is reloaded.
+Ceiling: a window recorded by name instead of id shows no dot.
 
 Tags: android
 
@@ -473,7 +487,7 @@ Needs: impl, utest
 `com.contextswitcher.android.watch.TaskWatchService` is a foreground service (type `specialUse`) that `TaskDetailScreen` starts for a task with `remote` and `tmux`, requesting `POST_NOTIFICATIONS` first where Android needs it; a new start replaces the watched task.
 Every 10 s it runs `:core`'s read-only `TmuxStatusPoller.statusCommand()` over its own `SshjCommandRunner` and reads the watched window's status with `TmuxStatusPoller.parseInto(…, idleThresholdSeconds)` at 120 s — the desktop poller itself never runs on the phone, since it also types into windows.
 A window recorded by name is resolved to its id once (`tmux display-message -p '#{window_id}'`).
-`com.contextswitcher.android.watch.FinishWatch` alerts only on a status change after `working` was seen: `waiting`/`done` → *Claude finished*, `attention` → *Claude needs you* (the turn stays open), `limit` → *Claude hit its usage limit*.
+`com.contextswitcher.android.watch.FinishWatch` alerts only on a status change after `working` was seen: `waiting`/`done` → *Claude finished*, `attention` → *Claude needs you* (the turn stays open), `limit` → *Claude hit its usage limit*, `interrupted` → *Claude was interrupted*.
 The alert is skipped while the app is started and shows that task's detail screen; its tap intent opens `MainActivity` (`singleTop`) on the task.
 The ongoing notification shows the last status and poll time, or why the poll failed, and its *Stop* action ends the service.
 
@@ -591,6 +605,19 @@ The picker defaults to the group whose header is pinned at the top of the scroll
 `TaskRepoSync.createTask(dir, username, token, category, title)` fetches and hard-resets the clone, writes `<category>/<slug(title)>.md` (`-2`, `-3`… when taken; `slug`, not `newTaskFileName`, so a `/` in the title picks no folder) with `TaskFileParser.newTaskContent(title, remote, null, false)` + `addUrlsFrom` — the desktop's title task in compact form, `remote` from the category's `CONTEXTSWITCHER.md`, no `workdir`, whose paths are per machine — commits it as *ContextSwitcher Android* and pushes.
 A push rejected as non-fast-forward (the desktop pushed in between) is retried once from the fetch: a new file cannot conflict, so no `TaskMerge` is needed. Any failure hard-resets to `origin/<branch>` again, so the clone stays a mirror and the next sync's reset loses nothing.
 The desktop pulls the task within its periodic sync (`req~task-git-backup~4`, every five minutes).
+
+Tags: android
+
+Covers:
+- req~task-create~1
+
+Needs: impl, utest
+
+### Recently used categories on top of the Add-task picker
+`dsn~android-recent-categories~1`
+
+`AddTaskDialog`'s category picker lists the last five categories a task was added to (or Claude started in) on this phone, newest first, then a divider, then all categories as before — the recent ones included —, so a frequent category is found at the top and every category still at its usual place.
+`SettingsStore.rememberCategory` records the pick on *Add*/*Start*; a recent category no longer in the clone is left out.
 
 Tags: android
 

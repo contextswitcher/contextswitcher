@@ -132,6 +132,25 @@ class AddTaskDialogUiTest {
         FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
     }
 
+    /// The inactivity checkbox writes the idle janitor's flag into the new file.
+    // [utest->dsn~idle-task-removal~1]
+    @Test
+    void autoRemoveCheckboxFlagsTheNewTask() throws Exception {
+        openAddTask();
+        Button plain = awaitButton("Add plain task");
+        clearPrefill();
+        javafx.scene.control.CheckBox box = awaitPresent(() -> Optional.ofNullable(
+                (javafx.scene.control.CheckBox) plain.getScene().lookup("#add-task-auto-remove")),
+                "the auto-remove checkbox");
+        Platform.runLater(() -> box.setSelected(true));
+        FX_ROBOT.keyboard().print("Gamma quick task")
+                .pressAndThenRelease(KeyCode.CONTROL, KeyCode.ENTER)
+                .pressAndThenRelease(KeyCode.CONTROL, KeyCode.ENTER)
+                .pressAndThenRelease(KeyCode.CONTROL, KeyCode.ENTER);
+        Path task = awaitTaskFileContaining("Gamma quick task");
+        assertThat(Files.readString(task)).contains("autoRemoveIdle: true");
+    }
+
     /// Submitting leaves the keyboard on the left task list, not on the
     /// toolbar add menu the dialog was opened from, so the arrow keys and the
     /// switch chord act on the new task.

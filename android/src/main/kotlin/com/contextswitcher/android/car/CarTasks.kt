@@ -1,6 +1,7 @@
 package com.contextswitcher.android.car
 
 import com.contextswitcher.android.ui.TaskGroupUi
+import com.contextswitcher.android.ui.sessionStatus
 import com.contextswitcher.android.watch.TaskWatchService
 import com.contextswitcher.discovery.TmuxStatusPoller
 import com.contextswitcher.ssh.SshCommandRunner
@@ -22,12 +23,12 @@ fun carTasks(groups: List<TaskGroupUi>, statuses: Map<String, String>): List<Car
         .filter { it.status() != TaskStatus.DONE && it.remote() != null && it.tmux() != null }
         // ponytail: a window recorded by name has no status here (the poll answers by id);
         // resolve names like TaskWatchService.resolveWindowId if such tasks sink too low.
-        .map { task -> CarTask(task, task.tmux()!!.window()?.let { statuses[TmuxStatusPoller.key(task.remote()!!, it)] }) }
+        .map { task -> CarTask(task, sessionStatus(task, statuses)) }
         .sortedWith(compareBy<CarTask> { rank(it.status) }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.task.title() })
         .toList()
 
 private fun rank(status: String?) = when (status?.lowercase()) {
-    "attention", TmuxStatusPoller.LIMIT -> 0
+    "attention", TmuxStatusPoller.LIMIT, TmuxStatusPoller.INTERRUPTED -> 0
     "waiting", "done" -> 1
     "working" -> 2
     else -> 3

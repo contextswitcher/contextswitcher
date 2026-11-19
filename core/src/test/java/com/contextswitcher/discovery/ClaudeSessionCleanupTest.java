@@ -54,6 +54,14 @@ class ClaudeSessionCleanupTest {
                 ClaudeSessionCleanup.workdirCommand("/data/koppor/ws/2026-07-17-task"));
     }
 
+    // [utest->dsn~idle-task-removal~1]
+    @Test
+    void worktreeCommandLetsGitRefuseAFullCheckout() {
+        assertEquals(List.of("git", "-C", "'/data/koppor/ws/2026-07-17-task'", "worktree", "remove",
+                        "--force", "'/data/koppor/ws/2026-07-17-task'"),
+                ClaudeSessionCleanup.worktreeCommand("/data/koppor/ws/2026-07-17-task"));
+    }
+
     @Test
     void safeWorkdirPasses() {
         assertNull(ClaudeSessionCleanup.rejectWorkdir("/data/koppor/ws/2026-07-17-task", List.of()));

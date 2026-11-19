@@ -284,6 +284,7 @@ Needs: dsn
 Each task row shows a live indicator of what its Claude window is doing, so the user can see at a glance which tasks are working, waiting for input, or explicitly asking for something.
 A Claude session publishes its own state as the `@cs_status` tmux window user option (`working`, `waiting`, `attention`, `done`); ContextSwitcher polls it and colours the indicator accordingly.
 A session blocked on its usage limit publishes nothing — no hook fires for it — so ContextSwitcher detects it from the pane and shows a red dot (`dsn~claude-limit-detection~2`).
+A session whose turn was interrupted (Esc, Ctrl+C) fires no hook either; it is detected from the pane too and gets a dot of its own colour (`dsn~claude-interrupt-detection~1`), so it does not pass for an ordinary end of turn.
 A session whose turn was cut short by an API error is detected the same way and simply told to `continue` (`dsn~api-error-auto-continue~1`) — nothing there needs the user.
 A session that has unpacked a Claude Code update is restarted the same way (`dsn~claude-update-restart~7`) when the user opted in, since only a fresh process runs the new version.
 `attention` is set by Claude Code's `Notification` hook — Claude asked a question or waits for a permission — and is distinct from the mere end-of-turn `waiting`.
@@ -1303,6 +1304,22 @@ Claude Code publishes no hook when a session runs into its usage limit: the turn
 The trailing `true` keeps the command's exit code at 0 when the last window does not match.
 `parseInto` reports the status `limit` for every marked window unless its effective status is `working` — a working window has moved on and the message is stale scrollback.
 `TaskListCell` colours a `limit` dot red (`#FF1010`, the shared needs-you red of `dsn~task-running-indicator~7`) with the tooltip "usage limit reached — pay attention"; `TaskOrder.actionRank` ranks it ahead of `attention` in the "Action needed" sort, and `MainWindow.awaitsInput` counts it as awaiting the user (`dsn~awaits-input-filter~1`), since the session cannot continue without the user picking another model or buying credits.
+
+Tags: windows, linux
+
+Covers:
+- req~task-running-indicator~2
+
+Needs: impl, utest
+
+### Interrupt detection
+`dsn~claude-interrupt-detection~1`
+
+An interrupted turn fires no `Stop` hook: `@cs_status` stays `working` until the idle safety net reports `waiting`, so the interrupted session reads like a finished one.
+`TmuxStatusPoller` therefore greps, in the same per-window pane pass as the limit detection (`dsn~claude-limit-detection~2`), the last eight non-blank lines of `capture-pane -p -J` for `Interrupted by user` or `What should Claude do instead` — not a bare `Interrupted`, which a Java session's `InterruptedException` would match — and prints an `interrupted|windowId` marker line per hit.
+`parseInto` reports the status `interrupted` for a marked window unless its effective status is `working` (the user went on) or the limit matched as well (the limit wins).
+`TaskListCell` colours its dot magenta (`-cs-interrupted`, `#EE3377`) with the tooltip "interrupted — Claude stopped mid-turn"; `TaskOrder.actionRank` ranks it after `limit` and before `attention`, and `MainWindow.awaitsInput` counts it, so *Awaits input only* lists every interrupted task.
+The phone's watched task alerts *Claude was interrupted* (`dsn~android-finish-notification~1`).
 
 Tags: windows, linux
 
@@ -2670,10 +2687,25 @@ Covers:
 
 Needs: impl, utest
 
-### Current category highlight
-`dsn~current-category-highlight~2`
+### Selected row accent fill
+`dsn~selected-row-accent-fill~1`
 
-The header of the category the selected row belongs to gains the selection's accent left edge through a `group-header-current` style class `TaskListCell` adds to the header cell (`MainWindow.isCurrentGroup`), keeping its own section background.
+The task list redefines AtlantaFX's `-color-cell-bg-selected` (and its `-focused` twin) as `-color-accent-muted` on the list itself, so the selected row — task or category header — is filled with a muted accent tint instead of the theme's grey, which hardly differed from the unselected rows in dark mode (field report 2026-11-18).
+Muted rather than the emphasis colour of a default button, and stronger than the hover row's `-color-accent-subtle`, so selection and hover stay apart.
+The pinned-header overlay carries the same classes and follows.
+
+Tags: windows, linux
+
+Covers:
+- req~task-list-window~1
+
+Needs: impl
+
+### Current category highlight
+`dsn~current-category-highlight~3`
+
+The header of the category the selected row belongs to gains the selection's accent left edge and an accent-coloured name (`-color-accent-fg`) through a `group-header-current` style class `TaskListCell` adds to the header cell (`MainWindow.isCurrentGroup`), keeping its own section background.
+`~2` had only the left edge, which did not show the active category at a glance (field report 2026-11-18).
 So the highlighted task always names the context it sits in, without scrolling up to look; a header that is itself selected takes the `-color-cell-bg-selected` fill from the `:selected` rule as before.
 `~1` painted the current header with that selection fill too, and then it looked exactly like a second selected task right above the real one — field report 2026-10-31, a category with one task: "why no category here?".
 For the same reason every category header reads as a section heading rather than a task row: a full-strength `-color-border-default` divider on its top edge, and its name bold at full contrast and 1.05× the row font (`group-name`), where it used to be muted.
@@ -2995,6 +3027,7 @@ Needs: impl, utest
 
 A successful queued send records the delivered text as the task's **last sent message** (`QueueFile.saveSent` — keyed by the task the send was for, so a selection change while the send is in flight still records the right task) and shows it in a read-only wrapped `TextArea` at the queue pane's **top**, above the status line and the queue (changed in `~3` — see `dsn~message-queue-ui~26`): a muted "Last sent" caption, a subtly different background (`.queue-last-sent .content` in `main.css` — AtlantaFX paints a text area's background on its `.content` child, so an inline style would not take), collapsed while the task has no recorded send.
 The box scrolls internally when the message exceeds its three rows.
+A grip under the area (the queue boxes' `resizeGrip`, `dsn~message-queue-ui~26`) drags the last-sent box taller, and with it the viewport over the history; not persisted.
 The earlier sent messages get an identical read-only box each, stacked **above** the last one inside a `ScrollPane` whose `prefViewportHeight` is bound to the last-sent box's height: the pane shows exactly the last send as before, and scrolling up inside it walks back through the history (oldest at the top).
 The caption says "Last sent (scroll up for older)" while there is history, so the hidden messages are discoverable; the older boxes carry the attachment-marker preview and the same Resend/Copy menu (changed in `~5`; before, only the last box had it).
 `QueuePane.showSent` refills the whole stack from disk after every send (the files are tiny and local, like the queue) and parks the viewport at the bottom via `Platform.runLater`.

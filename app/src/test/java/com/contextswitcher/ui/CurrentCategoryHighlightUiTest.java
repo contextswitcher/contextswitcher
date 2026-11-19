@@ -21,7 +21,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 /// Selecting a task marks its category header with the selection colours, so
 /// the highlighted row names the context it sits in; selecting a task of
 /// another category moves the mark along.
-// [utest->dsn~current-category-highlight~2]
+// [utest->dsn~current-category-highlight~3]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class CurrentCategoryHighlightUiTest {

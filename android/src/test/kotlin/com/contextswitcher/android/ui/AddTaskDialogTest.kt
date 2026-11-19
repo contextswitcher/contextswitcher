@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -86,5 +87,25 @@ class AddTaskDialogTest {
         composeRule.onNodeWithText("Start Claude on me@box").assertDoesNotExist()
         composeRule.onNodeWithText("Add").performClick()
         assertEquals(listOf("Fix it"), added)
+    }
+
+    // [utest->dsn~android-recent-categories~1]
+    @Test
+    fun `recent categories come first and stay in the full list`() {
+        composeRule.setContent {
+            AddTaskDialog(
+                categories = listOf("a", "b", "c"),
+                recentCategories = listOf("c", "gone"),
+                initialCategory = "a",
+                adding = false,
+                error = null,
+                onAdd = { _, _, _ -> },
+                onDismiss = {},
+            )
+        }
+
+        composeRule.onNodeWithText("a").performClick()
+        assertEquals(2, composeRule.onAllNodesWithText("c").fetchSemanticsNodes().size)
+        composeRule.onNodeWithText("gone").assertDoesNotExist()
     }
 }

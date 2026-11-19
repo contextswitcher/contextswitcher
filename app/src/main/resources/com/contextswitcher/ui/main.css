@@ -26,7 +26,7 @@
    border is transparent, and the background shows under it. */
 /* A category header opens a section: a full-strength divider on top as well
    as the hairline below, so it never passes for one more task row
-   (`dsn~current-category-highlight~2`). */
+   (`dsn~current-category-highlight~3`). */
 .task-list .list-cell.group-header-cell {
     -fx-background-color: -color-bg-subtle;
 }
@@ -250,7 +250,7 @@
    and then looked exactly like a second selected task (field report
    2026-10-31). A header that is itself selected still gets the selection fill
    from the :selected rule, which carries one more pseudo-class.
-   [impl->dsn~current-category-highlight~2] */
+   [impl->dsn~current-category-highlight~3] */
 /* The pinned-header overlay carries `.list-view` only for the cell rules and
    colours it scopes (MainWindow#installStickyHeader); the list inside draws
    its own frame, so the overlay must not add a second one. */
@@ -260,6 +260,22 @@
 
 .task-list .list-cell.group-header-cell.group-header-current:filled {
     -fx-border-color: -color-border-default transparent -color-border-muted -color-accent-emphasis;
+}
+/* …and its name takes the accent colour, so the category reads as active at a
+   glance without a fill that would pass for a second selected row. */
+.task-list .list-cell.group-header-cell.group-header-current .group-name {
+    -fx-text-fill: -color-accent-fg;
+}
+
+/* The selected row is filled with a muted accent tint instead of AtlantaFX's
+   grey, which barely stood out from the rows around it (field report
+   2026-11-18). Muted, not the emphasis of a default button, and stronger than
+   the hover's subtle tint. Redefined on the list itself (AtlantaFX sets it on
+   `.list-view`), so every cell rule that names the variable follows.
+   [impl->dsn~selected-row-accent-fill~1] */
+.list-view.task-list {
+    -color-cell-bg-selected: -color-accent-muted;
+    -color-cell-bg-selected-focused: -color-accent-muted;
 }
 
 /* Colours live here, never in Java: a node gets a style class, and the class
@@ -273,6 +289,9 @@
        dot the same way in either. */
     -cs-working: #FF8A00;
     -cs-needs-you: #FF1010;
+    /* An interrupted turn: needs you too, but told apart from the red at a
+       glance (Paul Tol's vibrant magenta). */
+    -cs-interrupted: #EE3377;
     /* A tag chip's text on its palette background, which no theme owns. */
     -cs-chip-text-on-light: #1f2328;
     -cs-chip-text-on-dark: white;
@@ -333,6 +352,9 @@
 }
 .running-dot.running-dot-needs-you {
     -fx-text-fill: -cs-needs-you;
+}
+.running-dot.running-dot-interrupted {
+    -fx-text-fill: -cs-interrupted;
 }
 .running-dot.running-dot-done {
     -fx-text-fill: -color-fg-subtle;

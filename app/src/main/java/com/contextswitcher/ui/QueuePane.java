@@ -387,7 +387,9 @@ public class QueuePane {
         sentScroll.setFitToWidth(true);
         sentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         sentScroll.prefViewportHeightProperty().bind(lastSent.heightProperty());
-        VBox lastSentBox = new VBox(2, lastSentTitle, sentScroll);
+        // The viewport follows the last-sent box's height, so the same grip
+        // the queue boxes have makes the whole history area taller.
+        VBox lastSentBox = new VBox(2, lastSentTitle, sentScroll, resizeGrip(lastSent));
         lastSentBox.setPadding(new Insets(4, 6, 0, 6));
         lastSentBox.managedProperty().bind(lastSent.textProperty().isNotEmpty());
         lastSentBox.visibleProperty().bind(lastSentBox.managedProperty());

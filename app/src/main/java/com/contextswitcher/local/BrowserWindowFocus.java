@@ -1,7 +1,5 @@
 package com.contextswitcher.local;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
@@ -198,8 +196,7 @@ public class BrowserWindowFocus {
     }
 
     private static List<String> encoded(String script) {
-        String encoded = Base64.getEncoder().encodeToString(script.getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(script);
     }
 
     /// The argv raising a browser window on the virtual desktop in view.

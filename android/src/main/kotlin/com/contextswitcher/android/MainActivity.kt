@@ -46,6 +46,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.MutableState
+import kotlinx.coroutines.delay
+import com.contextswitcher.android.car.pollStatuses
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
@@ -209,6 +212,10 @@ private fun ContextSwitcherApp(
     // Up here, not in the list: on a phone an open task replaces the list,
     // and back must return to where the user left it, not to the top.
     val taskListState = rememberLazyListState()
+    // Likewise the loaded list and its sessions' statuses: back from a task
+    // shows them at once; the sync and the poll then refresh them in place.
+    val taskGroups = remember { mutableStateOf(emptyList<TaskGroupUi>()) }
+    val taskStatuses = remember { mutableStateOf(emptyMap<String, String>()) }
     // The list's shown order, kept while a phone shows a task instead of the list.
     var shownTasks by remember { mutableStateOf(emptyList<Task>()) }
     var screen by rememberSaveable(stateSaver = screenSaver(repoDir)) {
@@ -261,6 +268,9 @@ private fun ContextSwitcherApp(
                         liveTasks = remember { LiveTaskStarter(TaskRepoSync(), ssh, messageSender) },
                         listState = taskListState,
                         attachmentStore = remember { AttachmentStore(File(repoDir.parentFile, "attachments")) },
+                        groupsState = taskGroups,
+                        statusesState = taskStatuses,
+                        ssh = ssh,
                     )
                 }
             }
@@ -420,8 +430,21 @@ internal fun TaskListScreen(
     liveTasks: LiveTaskStarter? = null,
     listState: LazyListState = rememberLazyListState(),
     attachmentStore: AttachmentStore? = null,
+    groupsState: MutableState<List<TaskGroupUi>> = remember { mutableStateOf(emptyList()) },
+    statusesState: MutableState<Map<String, String>> = remember { mutableStateOf(emptyMap()) },
+    ssh: com.contextswitcher.ssh.SshCommandRunner? = null,
 ) {
-    var groups by remember { mutableStateOf<List<TaskGroupUi>>(emptyList()) }
+    var groups by groupsState
+    var statuses by statusesState
+    // [impl->dsn~android-running-dot~1]
+    if (ssh != null) {
+        LaunchedEffect(groups) {
+            while (true) {
+                statuses = withContext(Dispatchers.IO) { pollStatuses(ssh, groups) }
+                delay(STATUS_POLL_MILLIS)
+            }
+        }
+    }
     var update by remember { mutableStateOf<AppUpdates.Check?>(null) }
     var updating by remember { mutableStateOf(false) }
     var updateFailureShown by remember { mutableStateOf(false) }
@@ -497,6 +520,7 @@ internal fun TaskListScreen(
     // [impl->dsn~android-task-create~2]
     fun addTask(category: String, title: String, notes: String) {
         val settings = settingsStore.load() ?: return
+        settingsStore.rememberCategory(category)
         taskBeingAdded = true
         addTaskError = null
         scope.launch {
@@ -526,6 +550,7 @@ internal fun TaskListScreen(
         val settings = settingsStore.load() ?: return
         val starter = liveTasks ?: return
         settingsStore.saveSkipPermissions(skipPermissions)
+        settingsStore.rememberCategory(category)
         taskBeingAdded = true
         addTaskError = null
         addProgress = null
@@ -644,7 +669,7 @@ internal fun TaskListScreen(
         } else if (shownGroups.isEmpty()) {
             Text("No task matches", modifier = Modifier.padding(padding).padding(16.dp))
         } else {
-            TaskListBody(shownGroups, modifier = Modifier.padding(padding), onTaskClick = onOpenTask, listState = listState)
+            TaskListBody(shownGroups, modifier = Modifier.padding(padding), onTaskClick = onOpenTask, listState = listState, statuses = statuses)
         }
     }
 
@@ -671,6 +696,7 @@ internal fun TaskListScreen(
         val categories = groups.map { it.name }.ifEmpty { listOf("") }
         AddTaskDialog(
             categories = categories,
+            recentCategories = remember { settingsStore.loadRecentCategories() },
             initialCategory = groupAtTop(shownGroups, listState.firstVisibleItemIndex)
                 .ifEmpty { categories.firstOrNull { it.isNotEmpty() } ?: "" },
             adding = taskBeingAdded,
@@ -685,6 +711,9 @@ internal fun TaskListScreen(
         )
     }
 }
+
+/// The list's `@cs_status` poll, as often as the watch service's.
+private const val STATUS_POLL_MILLIS = 10_000L
 
 /// With nothing synced yet the list would be blank once the Snackbar is gone,
 /// so the failure stays on screen next to a Retry button.

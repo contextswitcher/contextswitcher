@@ -207,7 +207,7 @@ public class TaskListCell extends ListCell<Object> {
     private static final String DONE_CELL = "done-cell";
     /// Marks the header of the category the selected task belongs to, so the
     /// row that is highlighted names the context it sits in.
-    // [impl->dsn~current-category-highlight~2]
+    // [impl->dsn~current-category-highlight~3]
     private static final String CURRENT_HEADER_CELL = "group-header-current";
     /// Marks an active task's cell: its left edge carries the accent bar.
     // [impl->dsn~running-task-accent~1]
@@ -259,7 +259,7 @@ public class TaskListCell extends ListCell<Object> {
 
     /// Whether this category holds the selected task (or is selected itself) —
     /// the header then carries the selection's own colours.
-    // [impl->dsn~current-category-highlight~2]
+    // [impl->dsn~current-category-highlight~3]
     private final Predicate<String> groupCurrent;
     /// The row menu's "Sync groups" submenu, null while no group is configured.
     // [impl->dsn~task-sync-groups-ui~1]
@@ -641,7 +641,7 @@ public class TaskListCell extends ListCell<Object> {
         switch (item) {
             case GroupHeader header -> {
                 getStyleClass().add(HEADER_CELL);
-                // [impl->dsn~current-category-highlight~2]
+                // [impl->dsn~current-category-highlight~3]
                 if (groupCurrent.test(header.name())) {
                     getStyleClass().add(CURRENT_HEADER_CELL);
                 }
@@ -924,7 +924,7 @@ public class TaskListCell extends ListCell<Object> {
         // Full contrast and a little larger than a task title, not muted: the
         // header must read as a section heading, never as one more task row
         // (field report 2026-10-31, "why no category here?").
-        // [impl->dsn~current-category-highlight~2]
+        // [impl->dsn~current-category-highlight~3]
         label.getStyleClass().addAll(Styles.TEXT_BOLD, "group-name");
         label.setCursor(Cursor.HAND);
         Tooltip.install(label, new Tooltip("Search in " + header.name() + " (click again: all categories)"));
@@ -1671,6 +1671,7 @@ public class TaskListCell extends ListCell<Object> {
     /// aligned.
     // [impl->dsn~task-running-indicator~7]
     // [impl->dsn~claude-limit-detection~2]
+    // [impl->dsn~claude-interrupt-detection~1]
     private static Label runningDot(@Nullable String status) {
         Label dot = new Label("●");
         dot.setMinWidth(10);
@@ -1684,6 +1685,7 @@ public class TaskListCell extends ListCell<Object> {
         @Nullable String state = switch (normalized) {
             case "working" -> "running-dot-working";
             case "waiting", "attention", "limit" -> "running-dot-needs-you";
+            case "interrupted" -> "running-dot-interrupted";
             case "done" -> "running-dot-done";
             default -> null;
         };
@@ -1691,8 +1693,11 @@ public class TaskListCell extends ListCell<Object> {
             dot.getStyleClass().add(state);
         }
         if (status != null && !status.isBlank()) {
-            Tooltip.install(dot, new Tooltip("limit".equals(normalized)
-                    ? "usage limit reached — pay attention" : status));
+            Tooltip.install(dot, new Tooltip(switch (normalized) {
+                case "limit" -> "usage limit reached — pay attention";
+                case "interrupted" -> "interrupted — Claude stopped mid-turn";
+                default -> status;
+            }));
         }
         return dot;
     }

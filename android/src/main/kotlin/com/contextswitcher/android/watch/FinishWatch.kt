@@ -7,6 +7,7 @@ enum class Alert(val title: String) {
     FINISHED("Claude finished"),
     NEEDS_YOU("Claude needs you"),
     LIMIT("Claude hit its usage limit"),
+    INTERRUPTED("Claude was interrupted"),
 }
 
 /// Turns the watched window's successive `@cs_status` readings into alerts.
@@ -35,6 +36,7 @@ class FinishWatch {
             "attention" -> if (turnRunning) Alert.NEEDS_YOU else null
             "waiting", "done" -> endTurn(Alert.FINISHED)
             TmuxStatusPoller.LIMIT -> endTurn(Alert.LIMIT)
+            TmuxStatusPoller.INTERRUPTED -> endTurn(Alert.INTERRUPTED)
             else -> null
         }
     }

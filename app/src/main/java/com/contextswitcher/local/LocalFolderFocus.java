@@ -2,11 +2,9 @@ package com.contextswitcher.local;
 
 import java.awt.Desktop;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.util.Base64;
 import java.util.List;
 
 import org.tinylog.Logger;
@@ -144,9 +142,7 @@ public class LocalFolderFocus {
 
     /// The local argv: the script as a base64 `-EncodedCommand` (UTF-16LE).
     static List<String> command(String folder, long backPid) {
-        String encoded = Base64.getEncoder().encodeToString(
-                script(folder, backPid).getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(script(folder, backPid));
     }
 
     /// Focuses the folder's Explorer window, opening one when none is showing

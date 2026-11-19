@@ -1,7 +1,5 @@
 package com.contextswitcher.local;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 
 /// Pins the app's own main window to **all virtual desktops** — the same state
@@ -106,9 +104,7 @@ public class WindowsDesktopPin {
 
     /// The local argv: the script as a base64 `-EncodedCommand` (UTF-16LE).
     static List<String> command(long pid) {
-        String encoded = Base64.getEncoder().encodeToString(
-                script(pid).getBytes(StandardCharsets.UTF_16LE));
-        return List.of("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded);
+        return PowerShellCommand.of(script(pid));
     }
 
     /// Pins the main window of process `pid` (normally the JVM's own,

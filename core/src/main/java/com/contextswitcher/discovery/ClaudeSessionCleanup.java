@@ -22,7 +22,13 @@ public class ClaudeSessionCleanup {
     /// What the user ticked in the delete dialog. `endWindow` and
     /// `closeBrowserTabs` are independent — either can run without the other.
     public record Choices(boolean endWindow, boolean closeBrowserTabs,
-            boolean removeTranscript, boolean removeWorkdir) {
+            boolean removeTranscript, boolean removeWorkdir, boolean worktreeOnly) {
+
+        /// The delete dialog's ticks: the workdir goes by `rm -rf`.
+        public Choices(boolean endWindow, boolean closeBrowserTabs,
+                boolean removeTranscript, boolean removeWorkdir) {
+            this(endWindow, closeBrowserTabs, removeTranscript, removeWorkdir, false);
+        }
 
         /// Whether anything beyond the window teardown was ticked.
         public boolean remoteCleanup() {
@@ -126,6 +132,27 @@ public class ClaudeSessionCleanup {
             return rejected;
         }
         return run(remote, workdirCommand(workdir));
+    }
+
+    /// `git worktree remove --force` of the workdir: git itself refuses a main
+    /// working tree (a full checkout) and anything that is no linked worktree,
+    /// so an unattended removal never takes a clone with it.
+    // [impl->dsn~idle-task-removal~1]
+    static List<String> worktreeCommand(String workdir) {
+        String quoted = SshCommandRunner.quotePath(workdir);
+        return List.of("git", "-C", quoted, "worktree", "remove", "--force", quoted);
+    }
+
+    /// Removes the workdir on `remote` only if it is a linked git worktree,
+    /// after [#rejectWorkdir]; null on success, else why it stayed.
+    // [impl->dsn~idle-task-removal~1]
+    public @Nullable String removeWorktree(String remote, String workdir,
+            Collection<String> protectedDirs) {
+        String rejected = rejectWorkdir(workdir, protectedDirs);
+        if (rejected != null) {
+            return rejected;
+        }
+        return run(remote, worktreeCommand(workdir));
     }
 
     private @Nullable String run(String remote, List<String> command) {
