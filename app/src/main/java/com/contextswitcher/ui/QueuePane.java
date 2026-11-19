@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.prefs.Preferences;
 
 import javax.imageio.ImageIO;
 
@@ -203,6 +204,9 @@ public class QueuePane {
     /// asked to do. Collapsed until the task has a recorded send.
     // [impl->dsn~last-sent-message~5]
     private final TextArea lastSent = new TextArea();
+    private static final Preferences PREFERENCES = Preferences.userNodeForPackage(QueuePane.class);
+    /// The dragged height of [#lastSent] (and so of the sent area).
+    static final String SENT_HEIGHT = "queueLastSentHeight";
     /// The sent messages shown above [#lastSent], oldest at the top: the
     /// task's earlier sends, out of sight until the user scrolls up in
     /// [#sentScroll].
@@ -388,8 +392,16 @@ public class QueuePane {
         sentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         sentScroll.prefViewportHeightProperty().bind(lastSent.heightProperty());
         // The viewport follows the last-sent box's height, so the same grip
-        // the queue boxes have makes the whole history area taller.
-        VBox lastSentBox = new VBox(2, lastSentTitle, sentScroll, resizeGrip(lastSent));
+        // the queue boxes have makes the whole history area taller. Unlike a
+        // queue box's, this height is kept across tasks and restarts.
+        Region sentGrip = resizeGrip(lastSent);
+        double sentHeight = PREFERENCES.getDouble(SENT_HEIGHT, -1);
+        if (sentHeight > 0) {
+            lastSent.setPrefHeight(sentHeight);
+        }
+        sentGrip.addEventHandler(MouseEvent.MOUSE_RELEASED,
+                event -> PREFERENCES.putDouble(SENT_HEIGHT, lastSent.getPrefHeight()));
+        VBox lastSentBox = new VBox(2, lastSentTitle, sentScroll, sentGrip);
         lastSentBox.setPadding(new Insets(4, 6, 0, 6));
         lastSentBox.managedProperty().bind(lastSent.textProperty().isNotEmpty());
         lastSentBox.visibleProperty().bind(lastSentBox.managedProperty());

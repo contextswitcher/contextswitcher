@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [Unreleased]
+
+### Changed
+
+- The height the *Last sent* area in the Queue pane is dragged to is kept for all tasks and after a restart.
+
 ## [2026-11-19] - 2026-11-19
 
 ### Added
