@@ -143,17 +143,21 @@ fun sessionStatus(task: Task, statuses: Map<String, String>): String? {
 
 /// The desktop row's running dot (`dsn~task-running-indicator~7`) in
 /// claude-semaphore's colours: orange working, red whenever the session needs
-/// the user, muted when done. Unknown keeps the slot so titles stay aligned.
+/// the user, magenta when the turn was interrupted
+/// (`dsn~claude-interrupt-detection~1`), muted when done. Unknown keeps the slot so titles stay aligned.
 // [impl->dsn~android-running-dot~1]
 fun runningDotColor(status: String?): Color? = when (status?.lowercase()) {
     "working" -> SEMAPHORE_WORKING
     "waiting", "attention", TmuxStatusPoller.LIMIT -> SEMAPHORE_NEEDS_YOU
+    TmuxStatusPoller.INTERRUPTED -> INTERRUPTED
     "done" -> Color.Gray
     else -> null
 }
 
 private val SEMAPHORE_WORKING = Color(0xFFFF8A00)
 private val SEMAPHORE_NEEDS_YOU = Color(0xFFFF1010)
+/// The desktop's `-cs-interrupted` (Paul Tol's vibrant magenta).
+private val INTERRUPTED = Color(0xFFEE3377)
 
 @Composable
 private fun RunningDot(status: String?) {

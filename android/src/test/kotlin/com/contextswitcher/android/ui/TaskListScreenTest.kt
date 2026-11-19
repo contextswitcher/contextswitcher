@@ -132,6 +132,7 @@ class TaskListScreenTest {
         assertThat(sessionStatus(task, mapOf("other @3" to "working"))).isNull()
         assertThat(runningDotColor("working")).isEqualTo(Color(0xFFFF8A00))
         assertThat(runningDotColor("attention")).isEqualTo(runningDotColor("waiting")).isEqualTo(runningDotColor("limit"))
+        assertThat(runningDotColor("interrupted")).isEqualTo(Color(0xFFEE3377))
         assertThat(runningDotColor(null)).isNull()
     }
 
