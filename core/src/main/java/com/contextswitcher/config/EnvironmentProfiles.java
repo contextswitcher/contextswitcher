@@ -71,8 +71,16 @@ public record EnvironmentProfiles(Map<String, EnvironmentProfile> byName) {
     ///     not define, so the chip says which name is wrong rather than
     ///     silently applying the default
     public EnvironmentProfile effective(@Nullable String categoryProfile, @Nullable String override) {
+        return effective(null, categoryProfile, override);
+    }
+
+    /// As [#effective(String, String)], with the profile the connected
+    /// screens chose ([ScreenProfiles]) between `default` and the category's.
+    // [impl->dsn~screen-chosen-profile~1]
+    public EnvironmentProfile effective(@Nullable String screenProfile, @Nullable String categoryProfile,
+            @Nullable String override) {
         EnvironmentProfile result = byName.getOrDefault(DEFAULT, EnvironmentProfile.EMPTY);
-        for (String name : new String[] {categoryProfile, override}) {
+        for (String name : new String[] {screenProfile, categoryProfile, override}) {
             if (name == null || name.isBlank()) {
                 continue;
             }

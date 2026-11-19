@@ -45,6 +45,7 @@ import com.contextswitcher.analysis.RefactoringMinerPoller;
 import com.contextswitcher.analysis.RefactoringMinerView;
 import com.contextswitcher.config.AppSettings;
 import com.contextswitcher.config.EnvironmentProfiles;
+import com.contextswitcher.config.ScreenProfiles;
 import com.contextswitcher.config.HostSettings;
 import com.contextswitcher.config.InstalledExtension;
 import com.contextswitcher.config.EnergySaver;
@@ -71,6 +72,7 @@ import com.contextswitcher.local.BrowserWindowFocus;
 import com.contextswitcher.local.JetBrainsClientFocus;
 import com.contextswitcher.local.WindowsDesktopPin;
 import com.contextswitcher.local.LocalFolderFocus;
+import com.contextswitcher.local.ScreenWatch;
 import com.contextswitcher.local.WindowGather;
 import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
@@ -332,6 +334,12 @@ public class Main extends Application {
     /// The `gatherWindows` watcher of the environment profile in effect;
     /// stopped on exit. [impl->dsn~environment-profile-gather-windows~1]
     private final WindowGather windowGather = new WindowGather();
+    /// Reports the connected screens; stopped on exit. [impl->dsn~screen-chosen-profile~1]
+    private final ScreenWatch screenWatch = new ScreenWatch();
+    /// The profile the connected screens chose (`screenProfiles:`); null: none.
+    private volatile @Nullable String screenProfile;
+    /// Whether the screen watcher has reported a first screen set.
+    private boolean screensSeen;
     /// The status bar's environment-profile override (null: none), laid over
     /// the category's profile on every switch. Session-only on purpose: a
     /// restart starts in the plain category look.
@@ -637,6 +645,7 @@ public class Main extends Application {
         EnvironmentProfileAction environmentProfile = new EnvironmentProfileAction(
                 () -> EnvironmentProfiles.parse(readSettingsFile(configDir())),
                 group -> groupLink(files, group, TaskFileParser::groupProfile),
+                () -> screenProfile,
                 () -> profileOverride,
                 profile -> {
                     WindowsEnvironment.ApplyResult result = windowsEnvironment.apply(profile);
@@ -1070,6 +1079,10 @@ public class Main extends Application {
                                 (result.ok() ? "Profile " : "Profile failed — ") + result.detail()));
                     });
                 });
+        // Docking, undocking, a projector: the connected screens pick a
+        // profile of their own, applied without a task switch.
+        // [impl->dsn~screen-chosen-profile~1]
+        screenWatch.start(screens -> screensChanged(screens, window, environmentProfile));
         this.window = window;
         this.stage = stage;
         this.windowPositions = new WindowPositions(configDir());
@@ -2197,6 +2210,37 @@ public class Main extends Application {
             scheduler.shutdownNow();
         }
         windowGather.close();
+        screenWatch.close();
+    }
+
+    /// A stable new set of connected screens: picks the profile its
+    /// `screenProfiles:` rule names and, when that differs from the one in
+    /// effect, re-applies the environment profile. The first set after the
+    /// start applies only when a rule matches — starting at the desk should
+    /// not reset the machine to `default` behind the user's back.
+    // [impl->dsn~screen-chosen-profile~1]
+    private void screensChanged(List<ScreenProfiles.ConnectedScreen> screens, MainWindow window,
+            EnvironmentProfileAction environmentProfile) {
+        String settingsText = readSettingsFile(configDir());
+        String chosen = ScreenProfiles.parse(settingsText).pick(screens);
+        boolean first;
+        synchronized (this) {
+            first = !screensSeen;
+            screensSeen = true;
+        }
+        String before = screenProfile;
+        screenProfile = chosen;
+        Platform.runLater(() -> window.showScreenProfile(chosen));
+        if (first ? chosen == null : Objects.equals(before, chosen)) {
+            return;
+        }
+        if (EnvironmentProfiles.parse(settingsText).isEmpty()) {
+            return;
+        }
+        Logger.info("Screens chose profile {} (was {})", chosen, before);
+        ActionResult result = environmentProfile.reapply();
+        Platform.runLater(() -> window.statusBar().message("Screens changed — "
+                + (result.ok() ? "profile " : "profile failed — ") + result.detail()));
     }
 
     /// Opens the tasks directory in the OS file manager (Explorer on Windows,

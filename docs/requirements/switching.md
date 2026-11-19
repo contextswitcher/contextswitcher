@@ -93,6 +93,21 @@ Covers:
 
 Needs: dsn
 
+### Profile chosen by the connected screens
+`req~screen-chosen-profile~1`
+
+Where the laptop is shows in which screens are connected: docked at the desk the big monitor is there, in the lecture hall the projector.
+Docking should put windows onto the main screen without first switching to some task, and undocking should give the look back.
+`settings.yaml` therefore maps connected screens to a profile, first matching rule wins; that profile lies between the default and the category's profile, and it is applied again whenever the set of screens changes — once that set has settled, since waking up docked reconfigures the displays many times within seconds.
+The status bar names the screen-chosen profile, so the machine's look has a visible reason.
+
+Tags: windows, linux_later
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Open the task's note
 `req~open-task-note~1`
 
@@ -580,6 +595,27 @@ Tags: windows
 
 Covers:
 - req~environment-profiles~1
+
+Needs: impl, utest
+
+### Screen-chosen profile
+`dsn~screen-chosen-profile~1`
+
+`ScreenProfiles.parse` reads `settings.yaml`'s `screenProfiles:` list — entries `{screen: <selector>, profile: <name>}`, leniently (an entry without both keys is skipped, an unparseable file is no rules) — and `pick` returns the profile of the first rule one of the connected screens matches, null for none.
+A selector matches a `ConnectedScreen` as a profile's `screens:` key does: EDID name or product code, `primary`, `internal`, `external`, case-insensitive.
+`EnvironmentProfiles.effective(screen, category, override)` layers per key `default` < screen-chosen < category < override; `EnvironmentProfileAction` takes the screen-chosen name from a supplier and labels the chip with the layers, `desk (screens) + lecture`.
+
+`ScreenWatch` keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside like `WindowGather`'s) that polls the active screens every 500 ms and prints a set only after it stayed unchanged for 3 s, never an empty one (standby); it exits once the app's process is gone, and `Main.stop` stops it.
+`Main.screensChanged` picks the profile for each reported set; when it differs from the one in effect, `EnvironmentProfileAction.reapply` applies the effective profile for the category last switched to, with the outcome as a status-bar message.
+The first set after the start applies only when a rule matches, so starting the app does not reset the machine to `default` unasked.
+`MainWindow.showScreenProfile` puts `<name> (screens)` on the override button while no override is chosen.
+With `gatherWindows:` in the screen-chosen profile, docking gathers windows onto the main screen: the gather watcher (`dsn~environment-profile-gather-windows~1`) starts with the profile and pulls every window over.
+Off Windows `ScreenWatch` starts nothing.
+
+Tags: windows
+
+Covers:
+- req~screen-chosen-profile~1
 
 Needs: impl, utest
 

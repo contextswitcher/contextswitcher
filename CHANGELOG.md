@@ -11,6 +11,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Added
 
 - A single browser URL of a task can open in Chrome (or Firefox) while the other browser handles the rest: start its line with `[chrome] `.
+- The connected screens pick an environment profile of their own (`screenProfiles:` in `settings.yaml`), applied on docking and undocking without a task switch; a profile with `gatherWindows: DELL U3223QE` then pulls the windows onto that monitor. The status bar shows it as `desk (screens)`.
 
 ### Changed
 

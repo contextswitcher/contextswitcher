@@ -364,6 +364,24 @@ The change applies on Save, without a restart, and the embedded terminal follows
 The terminal's colours stop at ANSI 0–15, so a **remote** program that emits 24-bit colour keeps its own — a Claude Code session in a dark theme stays dark on a light mirror, and no local setting can change that.
 Fix it on the remote by giving Claude Code a matching theme: copy the two files from [koppor/everforest-configurations](https://github.com/koppor/everforest-configurations/tree/main/claude-code) into `~/.claude/themes/` there, restart it once (Claude Code only watches that folder if it existed at startup), and pick the theme with `/theme`.
 
+### Environment profiles and the connected screens
+
+`profiles:` in `settings.yaml` names looks of the machine — screen resolution and scale, projection mode, taskbar auto-hide, bookmarks bar, and `gatherWindows:`, the screen windows that open elsewhere are pulled onto; a category picks one with `profile:` in its `CONTEXTSWITCHER.md` ([`req~environment-profiles~1`](docs/requirements/switching.md)).
+`screenProfiles:` picks a profile from the connected screens instead, without a task switch — docking at the desk gathers the windows onto the big monitor ([`req~screen-chosen-profile~1`](docs/requirements/switching.md)):
+
+```yaml
+profiles:
+  default: {gatherWindows: off}
+  desk: {gatherWindows: DELL U3223QE}   # EDID name or product code, primary, internal, external
+screenProfiles:                         # first rule whose screen is connected wins; none = no screen layer
+  - screen: DELL U3223QE
+    profile: desk
+```
+
+The layers stack per key: `default`, then the screen-chosen profile, then the category's, then the status bar's override.
+The profile is re-applied once the set of screens has stayed the same for 3 s, and the override button shows it as `desk (screens)`.
+Windows only.
+
 ### RefactoringMiner (optional)
 
 For a semantic answer to "what did the session actually refactor", ContextSwitcher can drive [RefactoringMiner](https://github.com/tsantalis/RefactoringMiner) on the task's remote ([#50](https://github.com/contextswitcher/contextswitcher-private/issues/50), MADR 0022).

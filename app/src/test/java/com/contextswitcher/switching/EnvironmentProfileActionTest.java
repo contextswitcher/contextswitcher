@@ -118,4 +118,44 @@ class EnvironmentProfileActionTest {
         assertThat(action.run(task("work/a")).ok()).isTrue();
         assertThat(attempts).hasSize(2);
     }
+
+    // [utest->dsn~screen-chosen-profile~1]
+    @Test
+    void screenChosenProfileLiesUnderTheCategoryAndNamesItself() {
+        EnvironmentProfiles profiles = EnvironmentProfiles.parse("""
+                profiles:
+                  default: {taskbar: visible}
+                  desk: {gatherWindows: DELL U3223QE, taskbar: autohide}
+                  lecture: {taskbar: visible}
+                """);
+        AtomicReference<@Nullable String> screens = new AtomicReference<>("desk");
+        EnvironmentProfileAction action = new EnvironmentProfileAction(() -> profiles,
+                Map.of("teaching", "lecture")::get, screens::get, override::get,
+                profile -> {
+                    machine.add(profile);
+                    return ActionResult.success("");
+                },
+                hidden -> ActionResult.success(""));
+
+        assertThat(action.reapply().detail()).startsWith("desk (screens): ");
+        assertThat(machine.getLast().gatherTarget()).isEqualTo("DELL U3223QE");
+        assertThat(machine.getLast().taskbar()).isEqualTo(EnvironmentProfile.Taskbar.AUTOHIDE);
+
+        assertThat(action.run(task("teaching/slides")).detail()).startsWith("desk (screens) + lecture: ");
+        assertThat(machine.getLast().gatherTarget()).isEqualTo("DELL U3223QE");
+        assertThat(machine.getLast().taskbar()).isEqualTo(EnvironmentProfile.Taskbar.VISIBLE);
+
+        screens.set(null);
+        assertThat(action.reapply().detail()).startsWith("lecture: ");
+        assertThat(machine.getLast().gatherTarget()).isNull();
+    }
+
+    @Test
+    void labelNamesTheLayersBottomUp() {
+        assertThat(EnvironmentProfileAction.label(null, null, null)).isEqualTo("default");
+        assertThat(EnvironmentProfileAction.label(null, null, "screenshare")).isEqualTo("default + screenshare");
+        assertThat(EnvironmentProfileAction.label("desk", null, "screenshare"))
+                .isEqualTo("desk (screens) + screenshare");
+        assertThat(EnvironmentProfileAction.label("desk", "lecture", null)).isEqualTo("desk (screens) + lecture");
+    }
 }

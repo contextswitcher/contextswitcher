@@ -1112,6 +1112,10 @@ public class MainWindow {
     // [impl->dsn~environment-profile-override~1]
     private final MenuButton profileOverride = hiddenUntilInstalled(iconMenuButton(MDITechnology.MONITOR_SHARE,
             "Environment profile override — laid over the category's profile until switched back"));
+    /// The override chosen in [#profileOverride]'s menu; null: none.
+    private @Nullable String overrideChoice;
+    /// The profile the connected screens chose; null: none ([#showScreenProfile]).
+    private @Nullable String screenChoice;
     /// The commit the running app was built from, in the status bar's right
     /// corner — empty until [#showCommit] fills it (git is asked off the FX
     /// thread), and empty forever when the app runs out of a zip.
@@ -1177,13 +1181,14 @@ public class MainWindow {
     public void installProfileOverride(Supplier<List<String>> names, Consumer<@Nullable String> onChoose) {
         profileOverride.setVisible(true);
         profileOverride.setOnShowing(event -> {
-            String active = profileOverride.getText();
+            String active = overrideChoice;
             ToggleGroup group = new ToggleGroup();
             RadioMenuItem none = new RadioMenuItem("Category profile");
             none.setToggleGroup(group);
             none.setSelected(active == null || active.isEmpty());
             none.setOnAction(e -> {
-                profileOverride.setText(null);
+                overrideChoice = null;
+                updateProfileText();
                 onChoose.accept(null);
             });
             List<MenuItem> items = new ArrayList<>(List.of(none, new SeparatorMenuItem()));
@@ -1192,7 +1197,8 @@ public class MainWindow {
                 item.setToggleGroup(group);
                 item.setSelected(name.equals(active));
                 item.setOnAction(e -> {
-                    profileOverride.setText(name);
+                    overrideChoice = name;
+                    updateProfileText();
                     onChoose.accept(name);
                 });
                 items.add(item);
@@ -1207,6 +1213,20 @@ public class MainWindow {
         // A MenuButton with no items never opens, so the showing handler
         // would never run.
         profileOverride.getItems().setAll(new MenuItem());
+    }
+
+    /// Names the profile the connected screens chose (null: none) on the
+    /// override button while no override is active — `desk (screens)` — so
+    /// the look the machine is in has a visible reason. FX thread.
+    // [impl->dsn~screen-chosen-profile~1]
+    public void showScreenProfile(@Nullable String name) {
+        screenChoice = name;
+        updateProfileText();
+    }
+
+    private void updateProfileText() {
+        profileOverride.setText(overrideChoice != null ? overrideChoice
+                : screenChoice != null ? screenChoice + " (screens)" : null);
     }
 
     /// Whether to leave the app — closing it or restarting it for an update —
