@@ -111,6 +111,9 @@ public final class FrontmatterCatalog {
                     "Where the Claude session was started — enough to resume it after a reboot."),
             new Field("claude.sessionId", "Claude session id", "Session", Type.STRING,
                     "Enables claude --resume; normally captured by the app itself."),
+            // [impl->dsn~task-agent~1]
+            new Field("claude.agent", "Agent", "Session", Type.STRING,
+                    "claude, claude-api, vibe or codex; empty uses the category's agent."),
             // [impl->dsn~open-in-intellij~3]
             new Field("intellij", "Open in IntelliJ", "Switch actions", Type.BOOLEAN,
                     "Opens the project on every switch to this task."),
@@ -161,6 +164,9 @@ public final class FrontmatterCatalog {
                             + "instead of kept; pinned tasks never are."),
             new Field("tags", "Tags", "Category", Type.LIST,
                     "Inherited by every task in the category; one per line."),
+            // [impl->dsn~task-agent~1]
+            new Field("agent", "Agent", "Category", Type.STRING,
+                    "CLI the tasks' windows run: claude (empty), claude-api, vibe or codex."),
             // [impl->dsn~category-desktop-focus~4]
             new Field("desktop", "Virtual desktop", "Category", Type.DESKTOP,
                     "Name of the Windows virtual desktop this category lives on — "

@@ -715,7 +715,9 @@ public class TaskFileParser {
                 parseAutoPr(data.get("auto")),
                 // [impl->dsn~auto-delete-opt-in~1]
                 Boolean.parseBoolean(String.valueOf(data.get("autoDelete"))),
-                terminal);
+                terminal,
+                // [impl->dsn~task-agent~1]
+                Agent.parse(optionalString(data, "agent", null)));
     }
 
     /// The `auto:` section of an auto category, or null when the category
@@ -1886,7 +1888,9 @@ public class TaskFileParser {
                 requiredString(claude, "cwd", "claude"),
                 optionalString(claude, "sessionId", null),
                 optionalString(claude, "workspace", null),
-                optionalString(claude, "commit", null));
+                optionalString(claude, "commit", null),
+                // [impl->dsn~task-agent~1]
+                Agent.parse(optionalString(claude, "agent", null)));
     }
 
     private Task.@Nullable BrowserConfig parseBrowser(@Nullable Map<String, Object> browser) throws TaskParseException {

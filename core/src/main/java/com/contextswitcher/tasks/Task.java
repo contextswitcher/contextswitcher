@@ -216,8 +216,23 @@ public record Task(
     /// commit the session published via `@cs_commit`: the one thing that
     /// outlives a worktree Claude deletes after committing, so "Show diff" can
     /// still show the task's own change (`dsn~diff-after-worktree-removal~1`).
+    ///
+    /// `agent` is the CLI the window runs when the task picks its own
+    /// (`claude.agent`); null inherits the category's, see [#withCategoryDefaults].
     public record ClaudeConfig(String cwd, @Nullable String sessionId, @Nullable String workspace,
-            @Nullable String commit) {
+            @Nullable String commit, @Nullable Agent agent) {
+
+        /// Back-compat constructor without `agent` (inherits the category's).
+        public ClaudeConfig(String cwd, @Nullable String sessionId, @Nullable String workspace,
+                @Nullable String commit) {
+            this(cwd, sessionId, workspace, commit, null);
+        }
+
+        /// The agent the window runs: the task's own, else Claude Code.
+        // [impl->dsn~task-agent~1]
+        public Agent agentOrDefault() {
+            return agent == null ? Agent.CLAUDE : agent;
+        }
 
         /// Back-compat constructor without `commit` (defaults to unset).
         public ClaudeConfig(String cwd, @Nullable String sessionId, @Nullable String workspace) {
@@ -361,7 +376,8 @@ public record Task(
 
     /// The task as it switches inside its category: every action section the
     /// task does not configure itself falls back to the category's default
-    /// from its `CONTEXTSWITCHER.md` (`intellij`, `browser`, `folders`, `terminal`).
+    /// from its `CONTEXTSWITCHER.md` (`intellij`, `browser`, `folders`, `terminal`),
+    /// and a `claude:` section without its own `agent` takes the category's.
     /// The fallback is per section, not per key — a task that carries a
     /// section at all wins with it as a whole, so overriding one URL never
     /// means restating the rest of the category's configuration.
@@ -373,13 +389,29 @@ public record Task(
         BrowserConfig categoryBrowser = browser == null ? category.browser() : browser;
         List<String> categoryFolders = folders.isEmpty() ? category.folders() : folders;
         @Nullable TerminalConfig categoryTerminal = terminal == null ? category.terminal() : terminal;
+        // [impl->dsn~task-agent~1]
+        @Nullable ClaudeConfig categoryClaude = claude == null || claude.agent() != null || category.agent() == null
+                ? claude
+                : new ClaudeConfig(claude.cwd(), claude.sessionId(), claude.workspace(), claude.commit(),
+                        category.agent());
         if (categoryIntellij == intellij && categoryBrowser == browser
-                && categoryFolders.equals(folders) && categoryTerminal == terminal) {
+                && categoryFolders.equals(folders) && categoryTerminal == terminal
+                && categoryClaude == claude) {
             return this;
         }
         return new Task(id, title, status, remote, tmux, categoryTerminal, categoryIntellij,
-                categoryBrowser, claude, note, categoryFolders, tags, storedTabs, suspendedAt,
+                categoryBrowser, categoryClaude, note, categoryFolders, tags, storedTabs, suspendedAt,
                 chat, notes, pinned, autoPrClosed);
+    }
+
+    /// The agent CLI the task's window runs: its own `claude.agent`, else the
+    /// category's `agent`, else Claude Code.
+    // [impl->dsn~task-agent~1]
+    public Agent agent(GroupConfig category) {
+        if (claude != null && claude.agent() != null) {
+            return claude.agent();
+        }
+        return category.agentOrDefault();
     }
 
     /// The task with its tmux window replaced — how the phone points a task

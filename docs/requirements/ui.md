@@ -406,6 +406,19 @@ Covers:
 
 Needs: dsn
 
+### Coding agent per category and per task
+`req~task-agent~1`
+
+The user can choose per category, and per task, which coding-agent CLI a task's tmux window runs: Claude Code on the subscription, Claude Code on an API key (a separate limit), Mistral Vibe or OpenAI Codex.
+Claude Code stays the default, so a category that says nothing behaves as before.
+
+Tags: windows, linux
+
+Covers:
+- feat~remote-development-context~1
+
+Needs: dsn
+
 ### Create a task from a pull request
 `req~task-from-pr~1`
 
@@ -1919,6 +1932,25 @@ Tags: windows, linux
 
 Covers:
 - req~claude-auto-permissions~1
+
+Needs: impl, utest
+
+### Agent CLI from `agent:` and `claude.agent:`
+`dsn~task-agent~1`
+
+A category's `CONTEXTSWITCHER.md` names the agent with `agent:` (`claude`, `claude-api`, `vibe`, `codex`); a task's `claude.agent:` wins over it; neither means `claude`; an unknown value counts as unset.
+The agent is resolved when the app types into a window, not recorded at creation: the fresh start of live, PR and fork tasks, *Start Claude* in an existing window, the resurrect on switch and *Restart running tasks…*.
+Per agent (`Agent`): start line, resume line (with the `|| <start>` fallback), fork line, and the `claudeAuto` flag (`--dangerously-skip-permissions`, Vibe's `--auto-approve`, Codex's `--dangerously-bypass-approvals-and-sandbox`).
+Vibe starts with `--trust`, since its folder-trust question would swallow the prompt paste; it cannot fork, so a fork starts it fresh.
+Without a recorded session id, Vibe and Codex continue their last session (`vibe --continue`, `codex resume --last`), since nothing publishes their id yet.
+`claude-api` is Claude Code with `ANTHROPIC_API_KEY=${CS_ANTHROPIC_API_KEY:?}` in front: the key comes from the window's shell (direnv, `.bashrc`), a plain `claude` in the same folder keeps the subscription, and an unset variable stops the line instead of falling back silently.
+The model and effort picks (`dsn~claude-mode-select~3`) are sent to Claude Code only; the *Start Claude* button shows when the pane runs something other than the task's agent (Vibe as `python…`, Codex as `node`).
+Status dots, limit and API-error detection stay Claude-only for now.
+
+Tags: windows, linux
+
+Covers:
+- req~task-agent~1
 
 Needs: impl, utest
 

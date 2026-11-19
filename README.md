@@ -182,6 +182,7 @@ workdir: /data/koppor/jabref                      # fixed session directory inst
 mainCheckout: /data/koppor/jabref-workspaces/jabref   # permanent checkout, for "Show diff"
 repo: https://github.com/JabRef/jabref          # header's repository icon, bootstrap prompt
 baseBranch: upstream/develop                    # base of the refactoring diff
+agent: vibe                                     # claude (default), claude-api, vibe or codex
 desktop: jabref                                 # virtual desktop this category lives on
 pinned: true                                    # category listed above the unpinned ones
 autoDelete: true                                # let automatisms delete its tasks (off by default)
@@ -210,6 +211,11 @@ A task's own frontmatter always wins over these defaults.
   `workdir:` pins one fixed directory for every session instead and wins when both are set.
 * `mainCheckout:` is a permanent checkout of `repo` (not a per-task worktree): what **Show diff** falls back to once a task's own worktree is deleted, to show the commit the session published.
 * `baseBranch:` is what the category's task worktrees branch from — the base of the refactoring view and badge; unset means `origin/main`.
+* `agent:` is the coding-agent CLI the category's tasks run in their tmux window: `claude` (the default), `claude-api`, `vibe` (Mistral Vibe) or `codex` (OpenAI Codex); a task picks its own with `agent:` under its `claude:` section.
+  It is read whenever the app starts or resumes a window, so changing it applies to the next start, and a recorded session id of the old agent is useless to the new one (the window then starts fresh).
+  `claude-api` is Claude Code billed to an API key instead of the subscription — useful when the subscription's limit is reached: the line typed is `ANTHROPIC_API_KEY=${CS_ANTHROPIC_API_KEY:?} claude`, so the key comes from `CS_ANTHROPIC_API_KEY` in the remote shell — from direnv (an `.envrc` in the working directory with `export CS_ANTHROPIC_API_KEY=…`, after `direnv allow`) or `~/.bashrc` — and a plain `claude` in the same folder keeps using the subscription.
+  Claude Code asks once whether to use the key.
+  For Vibe and Codex only start, resume (their last session in the folder) and `claudeAuto` (`--auto-approve`, `--dangerously-bypass-approvals-and-sandbox`) work so far: no model picker, no status dots.
 * `desktop:` is the virtual desktop's name as shown in the Windows Task View; the header's play button switches to it, and the filter menu's **active desktop** entry narrows the list to it.
   A category naming none uses the `fallbackDesktop` setting (`misc` by default; empty turns the fallback off).
   The nested form `desktop: {name: jabref, completeControl: true}` puts the desktop under **complete control**: suspending a task of the category stores the tab URLs of every browser window on that desktop into the task file (`storedTabs:`) and closes those windows — a clean desktop whenever you switch to it manually — and resuming reopens them there (tabs still open are kept, not reopened; windows pinned to all desktops are never touched).

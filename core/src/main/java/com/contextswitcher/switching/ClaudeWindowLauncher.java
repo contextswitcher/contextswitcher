@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.contextswitcher.queue.MessageSender;
 import com.contextswitcher.ssh.SshCommandRunner;
+import com.contextswitcher.tasks.Agent;
 import com.contextswitcher.tasks.TaskFileParser;
 import org.jspecify.annotations.Nullable;
 import org.tinylog.Logger;
@@ -30,14 +31,24 @@ public class ClaudeWindowLauncher {
     private final SshCommandRunner ssh;
     private final MessageSender sender;
     private final boolean claudeAuto;
+    private final Agent agent;
     private @Nullable String failure;
 
     /// `claudeAuto` starts Claude with `--dangerously-skip-permissions`
     /// (settings `claudeAuto`), so the session bootstraps unattended.
     public ClaudeWindowLauncher(SshCommandRunner ssh, MessageSender sender, boolean claudeAuto) {
+        this(ssh, sender, claudeAuto, Agent.CLAUDE);
+    }
+
+    /// As [#ClaudeWindowLauncher(SshCommandRunner, MessageSender, boolean)],
+    /// but starting `agent`'s CLI instead of Claude Code (the category's or
+    /// task's `agent`); `claudeAuto` then picks that CLI's no-questions flag.
+    // [impl->dsn~task-agent~1]
+    public ClaudeWindowLauncher(SshCommandRunner ssh, MessageSender sender, boolean claudeAuto, Agent agent) {
         this.ssh = ssh;
         this.sender = sender;
         this.claudeAuto = claudeAuto;
+        this.agent = agent;
     }
 
     /// Starts `claude` and waits for its TUI (`run-shell sleep` runs
@@ -57,9 +68,14 @@ public class ClaudeWindowLauncher {
     /// shell metacharacters), so no extra quoting is needed around them.
     // [impl->dsn~task-fork~1]
     static List<String> startClaudeCommand(String windowId, boolean auto, @Nullable String forkFrom) {
+        return startClaudeCommand(windowId, auto, forkFrom, Agent.CLAUDE);
+    }
+
+    /// As [#startClaudeCommand(String, boolean, String)], for `agent`'s CLI.
+    // [impl->dsn~task-agent~1]
+    static List<String> startClaudeCommand(String windowId, boolean auto, @Nullable String forkFrom, Agent agent) {
         String target = "'" + windowId + "'";
-        String base = forkFrom == null ? "claude" : "claude --resume " + forkFrom.strip() + " --fork-session";
-        String claude = "'" + base + (auto ? " --dangerously-skip-permissions" : "") + "'";
+        String claude = "'" + (forkFrom == null ? agent.startLine(auto) : agent.forkLine(forkFrom, auto)) + "'";
         return List.of("tmux",
                 "send-keys", "-t", target, claude, "Enter", "\\;",
                 "run-shell", "'sleep 5'");
@@ -129,13 +145,18 @@ public class ClaudeWindowLauncher {
         onWindow.accept(windowId);
         onStep.accept("Starting Claude …");
         SshCommandRunner.SshResult started =
-                ssh.run(remote, startClaudeCommand(windowId, claudeAuto, forkFrom));
+                ssh.run(remote, startClaudeCommand(windowId, claudeAuto, forkFrom, agent));
         if (!started.ok()) {
             Logger.warn("Window {} created on {}, but starting Claude failed: {}",
                     windowId, remote, started.stderr().strip());
             return windowId;
         }
         acceptTrustDialog(remote, windowId);
+        // `/model`/`/effort` are Claude Code's; another CLI keeps its own default.
+        // ponytail: model picking for Vibe/Codex is step 2 (their own model lists and commands).
+        if (!agent.isClaude()) {
+            mode = ClaudeMode.DEFAULT;
+        }
         if (!mode.commands().isEmpty()) {
             SshCommandRunner.SshResult settings = ssh.run(remote, SETTINGS_COMMAND);
             SshCommandRunner.SshResult pane = ssh.run(remote, capturePaneCommand(windowId));

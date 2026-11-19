@@ -120,6 +120,7 @@ import com.contextswitcher.switching.TmuxResurrect;
 import com.contextswitcher.switching.TmuxWindowOwnership;
 import com.contextswitcher.tasks.Gitkeep;
 import com.contextswitcher.tasks.GitRemote;
+import com.contextswitcher.tasks.Agent;
 import com.contextswitcher.tasks.GroupConfig;
 import com.contextswitcher.tasks.Task;
 import com.contextswitcher.terminal.PaneSnapshots;
@@ -1031,7 +1032,7 @@ public class Main extends Application {
             }
         });
         window.setOnStartClaude((task, onSettled) ->
-                startClaude(ssh, settings.claudeAuto(), task, onSettled));
+                startClaude(ssh, settings.claudeAuto(), task, task.agent(groupConfig(files, task)), onSettled));
         // The Claude half of the window choice play makes, from the terminal
         // placeholder's `Start Claude` button: it opens play's dialog for the
         // model and effort instead of taking the remote CLI's defaults — but
@@ -2342,7 +2343,12 @@ public class Main extends Application {
     /// root-level task or a category without `CONTEXTSWITCHER.md`.
     // [impl->dsn~auto-delete-opt-in~1]
     private static GroupConfig groupConfig(MainWindow.TaskFileAccess files, Task task) {
-        String group = taskGroup(task);
+        return groupConfig(files, taskGroup(task));
+    }
+
+    /// The config of category `group`, read fresh; [GroupConfig#EMPTY] for the
+    /// root or a category without `CONTEXTSWITCHER.md`.
+    private static GroupConfig groupConfig(MainWindow.TaskFileAccess files, String group) {
         String fileName = group + "/" + TaskRepository.GROUP_CONFIG_FILE_NAME;
         return group.isEmpty() || !files.exists(fileName)
                 ? GroupConfig.EMPTY
@@ -2733,7 +2739,7 @@ public class Main extends Application {
                     continue;
                 }
                 TmuxResurrect.Resurrected result =
-                        resurrect.resurrect(remote, tmux, task.claude(), task.title());
+                        resurrect.resurrect(remote, tmux, withCategoryDefaults(files, task).claude(), task.title());
                 if (result == null) {
                     // Leave the old window: line in place — nothing replaced it.
                     errors.append("\n").append(task.title()).append(": resurrect failed (see log)");
@@ -3619,7 +3625,8 @@ public class Main extends Application {
                 window.selectCreatedTask(taskId);
                 creationStep(window, taskId, "Creating the tmux window …");
                 executor.execute(() -> {
-                    ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+                    ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto,
+                            groupConfig(files, group).agentOrDefault());
                     String windowId = launcher
                             .launch(remote, session, title, prompt, null, mode,
                                     step -> Platform.runLater(() -> creationStep(window, taskId, step)),
@@ -3870,7 +3877,8 @@ public class Main extends Application {
                 Platform.runLater(() -> finishCreation(window, taskId, null, remote, unmade));
                 return;
             }
-            ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+            ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto,
+                    groupConfig(files, group).agentOrDefault());
             String windowId = launcher
                     .launch(remote, session, title, prompt, workdir, mode,
                             step -> Platform.runLater(() -> creationStep(window, taskId, step)),
@@ -3981,7 +3989,8 @@ public class Main extends Application {
         window.statusBar().message("Forking " + statusName + " …");
         window.creationProgress(taskId, "Creating the tmux window …");
         executor.execute(() -> {
-            ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+            ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto,
+                    source.agent(groupConfig));
             String windowId = launcher
                     .launch(remote, session, instruction, prompt, cwd, mode,
                             step -> Platform.runLater(() -> window.creationProgress(taskId, step)),
@@ -4086,7 +4095,8 @@ public class Main extends Application {
                 String description = task.notes().isBlank() ? task.title() : task.notes().strip();
                 String prompt = ClaudeWindowLauncher.liveTaskPrompt(description, repo, bootstrapWorktree && cwd != null,
                         group, groupConfig.effectiveMainCheckout(), null);
-                ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+                ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto,
+                        task.agent(groupConfig));
                 windowId = launcher
                         .launch(remote, session, task.title(), prompt, cwd, mode,
                                 step -> Platform.runLater(() -> creationStep(window, task.id(), step)),
@@ -4122,7 +4132,8 @@ public class Main extends Application {
     /// next to `IDEA`. Runs off the FX thread; `onSettled` re-enables the
     /// button on the FX thread either way.
     // [impl->dsn~start-claude-button~2]
-    private void startClaude(SshCommandRunner ssh, boolean claudeAuto, Task task, Runnable onSettled) {
+    private void startClaude(SshCommandRunner ssh, boolean claudeAuto, Task task, Agent agent,
+            Runnable onSettled) {
         ExecutorService executor = this.actionExecutor;
         String remote = task.remote();
         Task.TmuxConfig tmux = task.tmux();
@@ -4135,7 +4146,7 @@ public class Main extends Application {
         MainWindow currentWindow = this.window;
         executor.execute(() -> {
             boolean sent = new TmuxResurrect(ssh, claudeAuto)
-                    .startClaude(remote, windowId, sessionId);
+                    .startClaude(remote, windowId, sessionId, agent);
             Platform.runLater(() -> {
                 if (currentWindow != null) {
                     currentWindow.statusBar().message(sent

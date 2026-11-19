@@ -2119,7 +2119,8 @@ public class MainWindow {
             return false;
         }
         String command = commandByKey.get(task.remote() + " " + tmux.window());
-        return command != null && !"claude".equals(command);
+        // [impl->dsn~task-agent~1]
+        return command != null && !task.agent(groupDefaults(groupOf(task.id()))).runsIn(command);
     }
 
     /// The Claude session the task's recorded window really hosts, when the
