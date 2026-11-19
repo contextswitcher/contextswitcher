@@ -10,10 +10,12 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Added
 
+- Android: the task list shows the desktop's running dot per task — orange while Claude works, red when it waits for you.
 - *Add task* offers *Remove session and worktree after 1 day of inactivity*: once the task has been quiet for a day, ContextSwitcher ends its window, removes the transcript and the git worktree (never a full checkout) and deletes the task.
 
 ### Changed
 
+- Android: *Back* from a task shows the task list right away instead of an empty screen first.
 - Android: *Add task*'s category list starts with the five categories used last, followed by all categories.
 - The *Last sent* area in the Queue pane can be dragged taller at its bottom edge, to see more of the earlier messages at once.
 - The selected task is filled with a muted accent tint instead of grey, and the active category's name takes the accent colour, so both stand out at a glance.

@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.contextswitcher.discovery.TmuxStatusPoller
 import com.contextswitcher.tasks.Task
 import com.contextswitcher.tasks.TaskEntry
 import com.contextswitcher.tasks.TaskStatus
@@ -51,13 +52,14 @@ fun TaskListBody(
     modifier: Modifier = Modifier,
     onTaskClick: (Task) -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
+    statuses: Map<String, String> = emptyMap(),
 ) {
     var pickingGroup by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     LazyColumn(modifier = modifier.fillMaxSize(), state = listState) {
         for (group in groups) {
             stickyHeader { GroupHeader(group.name) { pickingGroup = true } }
-            items(group.entries) { entry -> TaskRow(entry, onTaskClick) }
+            items(group.entries) { entry -> TaskRow(entry, statuses, onTaskClick) }
         }
     }
     if (pickingGroup) {
@@ -98,7 +100,7 @@ private fun GroupHeader(name: String, onClick: () -> Unit) {
 /// parse error, mirroring the desktop's corrupt-row behavior; a loaded task
 /// shows title, status (suspended dimmed), and its tag chips.
 @Composable
-private fun TaskRow(entry: TaskEntry, onTaskClick: (Task) -> Unit) {
+private fun TaskRow(entry: TaskEntry, statuses: Map<String, String>, onTaskClick: (Task) -> Unit) {
     when (entry) {
         is TaskEntry.Failed -> Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             Text(text = entry.fileName, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
@@ -113,6 +115,7 @@ private fun TaskRow(entry: TaskEntry, onTaskClick: (Task) -> Unit) {
                     .padding(horizontal = 8.dp, vertical = 6.dp),
             ) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    RunningDot(sessionStatus(task, statuses))
                     // The title takes what the status leaves, so a long one wraps instead of squeezing it; a whole prompt is cut at three lines.
                     Text(text = task.title(), color = textColor, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     Text(text = task.status().yaml(), color = textColor, modifier = Modifier.padding(start = 8.dp))
@@ -127,6 +130,34 @@ private fun TaskRow(entry: TaskEntry, onTaskClick: (Task) -> Unit) {
             }
         }
     }
+}
+
+/// The session's `@cs_status` from the poll's map (keyed like
+/// [TmuxStatusPoller.key]); `null` for a task without a remote window, or a
+/// window recorded by name (the poll answers by id).
+fun sessionStatus(task: Task, statuses: Map<String, String>): String? {
+    val remote = task.remote() ?: return null
+    val window = task.tmux()?.window() ?: return null
+    return statuses[TmuxStatusPoller.key(remote, window)]
+}
+
+/// The desktop row's running dot (`dsn~task-running-indicator~7`) in
+/// claude-semaphore's colours: orange working, red whenever the session needs
+/// the user, muted when done. Unknown keeps the slot so titles stay aligned.
+// [impl->dsn~android-running-dot~1]
+fun runningDotColor(status: String?): Color? = when (status?.lowercase()) {
+    "working" -> SEMAPHORE_WORKING
+    "waiting", "attention", TmuxStatusPoller.LIMIT -> SEMAPHORE_NEEDS_YOU
+    "done" -> Color.Gray
+    else -> null
+}
+
+private val SEMAPHORE_WORKING = Color(0xFFFF8A00)
+private val SEMAPHORE_NEEDS_YOU = Color(0xFFFF1010)
+
+@Composable
+private fun RunningDot(status: String?) {
+    Text(text = "●", color = runningDotColor(status) ?: Color.Transparent, modifier = Modifier.padding(end = 6.dp))
 }
 
 @Composable

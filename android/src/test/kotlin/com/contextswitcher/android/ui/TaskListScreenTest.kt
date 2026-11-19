@@ -15,6 +15,9 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.graphics.Color
+import com.contextswitcher.tasks.Task
+import com.contextswitcher.tasks.TaskStatus
 import java.io.File
 import org.junit.Rule
 import org.junit.Test
@@ -118,6 +121,18 @@ class TaskListScreenTest {
 
         assertThat(state.firstVisibleItemIndex).isEqualTo(headerIndex(groups, "omega"))
         composeRule.onNodeWithText("Go to category").assertDoesNotExist()
+    }
+
+    // [utest->dsn~android-running-dot~1]
+    @Test
+    fun `a row's dot follows its window's status like the desktop's`() {
+        val task = Task("g/t", "t", TaskStatus.ACTIVE, "host", Task.TmuxConfig("s", "@3"),
+            null, null, null, null, null, emptyList(), emptyList(), emptyList(), null, null, "")
+        assertThat(sessionStatus(task, mapOf("host @3" to "working"))).isEqualTo("working")
+        assertThat(sessionStatus(task, mapOf("other @3" to "working"))).isNull()
+        assertThat(runningDotColor("working")).isEqualTo(Color(0xFFFF8A00))
+        assertThat(runningDotColor("attention")).isEqualTo(runningDotColor("waiting")).isEqualTo(runningDotColor("limit"))
+        assertThat(runningDotColor(null)).isNull()
     }
 
     private fun task(title: String, status: String) = """

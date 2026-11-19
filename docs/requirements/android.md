@@ -221,9 +221,23 @@ The settings screen holds its unsaved input in `rememberSaveable`, so text typed
 The screen scrolls, and the SSH key field is capped at eight lines (scrolling inside), so a pasted key never pushes the save button out of reach.
 The open screen is saved the same way (`screenSaver`): a task detail as its task id, re-read from the synced repo on restore, falling back to the task list when that task is gone.
 The task list shows the last synced clone as soon as it opens, before the sync round-trip, so a restored app is not empty while offline.
-Its `LazyListState` lives in `ContextSwitcherApp`, above the screen switch, so *Back* from a task (which replaces the list on a phone) returns to the scroll position the user left.
+Its `LazyListState`, the loaded groups and the status map live in `ContextSwitcherApp`, above the screen switch, so *Back* from a task (which replaces the list on a phone) returns to the list as the user left it — scroll position and rows at once, not an empty list until the clone is re-read; the sync then refreshes it in place.
 While the list is empty, the last sync failure stays on screen with a Retry button instead of disappearing with its Snackbar. The manifest requests `android.permission.INTERNET`, which the sync and SSH both need.
 The window has no action bar (`Theme.Material.Light.NoActionBar`) — each screen draws its own top bar — and the settings form pads itself by the system bars, so nothing lies over its first field under edge-to-edge.
+
+Tags: android
+
+Covers:
+- req~android-task-list~1
+
+Needs: impl, utest
+
+### Running dot on the task row
+`dsn~android-running-dot~1`
+
+Each task row leads with the desktop's running dot (`dsn~task-running-indicator~7`): orange while the session works, red when it waits for input, asks, or hit its usage limit, grey when done, transparent (keeping the slot) when unknown.
+While the list is on screen, `TaskListScreen` polls `TmuxStatusPoller.statusCommand()` once per remote every 10 s (`pollStatuses`, shared with the head unit, `dsn~android-auto-tasks~1`), and again whenever the list is reloaded.
+Ceiling: a window recorded by name instead of id shows no dot.
 
 Tags: android
 
