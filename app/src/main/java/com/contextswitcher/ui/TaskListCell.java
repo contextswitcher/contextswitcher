@@ -1671,6 +1671,7 @@ public class TaskListCell extends ListCell<Object> {
     /// aligned.
     // [impl->dsn~task-running-indicator~7]
     // [impl->dsn~claude-limit-detection~2]
+    // [impl->dsn~claude-interrupt-detection~1]
     private static Label runningDot(@Nullable String status) {
         Label dot = new Label("●");
         dot.setMinWidth(10);
@@ -1684,6 +1685,7 @@ public class TaskListCell extends ListCell<Object> {
         @Nullable String state = switch (normalized) {
             case "working" -> "running-dot-working";
             case "waiting", "attention", "limit" -> "running-dot-needs-you";
+            case "interrupted" -> "running-dot-interrupted";
             case "done" -> "running-dot-done";
             default -> null;
         };
@@ -1691,8 +1693,11 @@ public class TaskListCell extends ListCell<Object> {
             dot.getStyleClass().add(state);
         }
         if (status != null && !status.isBlank()) {
-            Tooltip.install(dot, new Tooltip("limit".equals(normalized)
-                    ? "usage limit reached — pay attention" : status));
+            Tooltip.install(dot, new Tooltip(switch (normalized) {
+                case "limit" -> "usage limit reached — pay attention";
+                case "interrupted" -> "interrupted — Claude stopped mid-turn";
+                default -> status;
+            }));
         }
         return dot;
     }

@@ -284,6 +284,7 @@ Needs: dsn
 Each task row shows a live indicator of what its Claude window is doing, so the user can see at a glance which tasks are working, waiting for input, or explicitly asking for something.
 A Claude session publishes its own state as the `@cs_status` tmux window user option (`working`, `waiting`, `attention`, `done`); ContextSwitcher polls it and colours the indicator accordingly.
 A session blocked on its usage limit publishes nothing — no hook fires for it — so ContextSwitcher detects it from the pane and shows a red dot (`dsn~claude-limit-detection~2`).
+A session whose turn was interrupted (Esc, Ctrl+C) fires no hook either; it is detected from the pane too and gets a dot of its own colour (`dsn~claude-interrupt-detection~1`), so it does not pass for an ordinary end of turn.
 A session whose turn was cut short by an API error is detected the same way and simply told to `continue` (`dsn~api-error-auto-continue~1`) — nothing there needs the user.
 A session that has unpacked a Claude Code update is restarted the same way (`dsn~claude-update-restart~7`) when the user opted in, since only a fresh process runs the new version.
 `attention` is set by Claude Code's `Notification` hook — Claude asked a question or waits for a permission — and is distinct from the mere end-of-turn `waiting`.
@@ -1303,6 +1304,22 @@ Claude Code publishes no hook when a session runs into its usage limit: the turn
 The trailing `true` keeps the command's exit code at 0 when the last window does not match.
 `parseInto` reports the status `limit` for every marked window unless its effective status is `working` — a working window has moved on and the message is stale scrollback.
 `TaskListCell` colours a `limit` dot red (`#FF1010`, the shared needs-you red of `dsn~task-running-indicator~7`) with the tooltip "usage limit reached — pay attention"; `TaskOrder.actionRank` ranks it ahead of `attention` in the "Action needed" sort, and `MainWindow.awaitsInput` counts it as awaiting the user (`dsn~awaits-input-filter~1`), since the session cannot continue without the user picking another model or buying credits.
+
+Tags: windows, linux
+
+Covers:
+- req~task-running-indicator~2
+
+Needs: impl, utest
+
+### Interrupt detection
+`dsn~claude-interrupt-detection~1`
+
+An interrupted turn fires no `Stop` hook: `@cs_status` stays `working` until the idle safety net reports `waiting`, so the interrupted session reads like a finished one.
+`TmuxStatusPoller` therefore greps, in the same per-window pane pass as the limit detection (`dsn~claude-limit-detection~2`), the last eight non-blank lines of `capture-pane -p -J` for `Interrupted by user` or `What should Claude do instead` — not a bare `Interrupted`, which a Java session's `InterruptedException` would match — and prints an `interrupted|windowId` marker line per hit.
+`parseInto` reports the status `interrupted` for a marked window unless its effective status is `working` (the user went on) or the limit matched as well (the limit wins).
+`TaskListCell` colours its dot magenta (`-cs-interrupted`, `#EE3377`) with the tooltip "interrupted — Claude stopped mid-turn"; `TaskOrder.actionRank` ranks it after `limit` and before `attention`, and `MainWindow.awaitsInput` counts it, so *Awaits input only* lists every interrupted task.
+The phone's watched task alerts *Claude was interrupted* (`dsn~android-finish-notification~1`).
 
 Tags: windows, linux
 

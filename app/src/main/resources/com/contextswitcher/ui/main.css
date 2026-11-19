@@ -289,6 +289,9 @@
        dot the same way in either. */
     -cs-working: #FF8A00;
     -cs-needs-you: #FF1010;
+    /* An interrupted turn: needs you too, but told apart from the red at a
+       glance (Paul Tol's vibrant magenta). */
+    -cs-interrupted: #EE3377;
     /* A tag chip's text on its palette background, which no theme owns. */
     -cs-chip-text-on-light: #1f2328;
     -cs-chip-text-on-dark: white;
@@ -349,6 +352,9 @@
 }
 .running-dot.running-dot-needs-you {
     -fx-text-fill: -cs-needs-you;
+}
+.running-dot.running-dot-interrupted {
+    -fx-text-fill: -cs-interrupted;
 }
 .running-dot.running-dot-done {
     -fx-text-fill: -color-fg-subtle;

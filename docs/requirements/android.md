@@ -90,7 +90,7 @@ Needs: dsn
 `req~android-finish-notification~1`
 
 The task opened last on the phone is watched: when its Claude session ends a turn, the phone shows a notification naming the task, also while the app is in the background.
-A question or permission prompt mid-turn notifies that Claude needs the user, and hitting the usage limit notifies that too; tapping a notification opens the task.
+A question or permission prompt mid-turn notifies that Claude needs the user, and hitting the usage limit or an interrupted turn notifies that too; tapping a notification opens the task.
 A task that is already idle when opened, and the task the user is looking at in the app, raise no alert.
 Watching shows as an ongoing notification with a *Stop* action; opening another task watches that one instead.
 
@@ -487,7 +487,7 @@ Needs: impl, utest
 `com.contextswitcher.android.watch.TaskWatchService` is a foreground service (type `specialUse`) that `TaskDetailScreen` starts for a task with `remote` and `tmux`, requesting `POST_NOTIFICATIONS` first where Android needs it; a new start replaces the watched task.
 Every 10 s it runs `:core`'s read-only `TmuxStatusPoller.statusCommand()` over its own `SshjCommandRunner` and reads the watched window's status with `TmuxStatusPoller.parseInto(…, idleThresholdSeconds)` at 120 s — the desktop poller itself never runs on the phone, since it also types into windows.
 A window recorded by name is resolved to its id once (`tmux display-message -p '#{window_id}'`).
-`com.contextswitcher.android.watch.FinishWatch` alerts only on a status change after `working` was seen: `waiting`/`done` → *Claude finished*, `attention` → *Claude needs you* (the turn stays open), `limit` → *Claude hit its usage limit*.
+`com.contextswitcher.android.watch.FinishWatch` alerts only on a status change after `working` was seen: `waiting`/`done` → *Claude finished*, `attention` → *Claude needs you* (the turn stays open), `limit` → *Claude hit its usage limit*, `interrupted` → *Claude was interrupted*.
 The alert is skipped while the app is started and shows that task's detail screen; its tap intent opens `MainActivity` (`singleTop`) on the task.
 The ongoing notification shows the last status and poll time, or why the poll failed, and its *Stop* action ends the service.
 

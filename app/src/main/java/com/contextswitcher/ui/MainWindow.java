@@ -7614,13 +7614,15 @@ public class MainWindow {
     /// rows never qualify — they are not what the user must act on next.
     // [impl->dsn~awaits-input-filter~1]
     // [impl->dsn~claude-limit-detection~2]
+    // [impl->dsn~claude-interrupt-detection~1]
     private boolean awaitsInput(TaskEntry entry) {
         if (!(entry instanceof TaskEntry.Loaded loaded)
                 || loaded.task().status() != TaskStatus.ACTIVE) {
             return false;
         }
         String status = runningStatusFor(loaded.task());
-        return "waiting".equals(status) || "attention".equals(status) || "limit".equals(status);
+        return "waiting".equals(status) || "attention".equals(status) || "limit".equals(status)
+                || "interrupted".equals(status);
     }
 
     /// The tag-filter control: a "Tags" `Menu` (submenu of the filter menu) of

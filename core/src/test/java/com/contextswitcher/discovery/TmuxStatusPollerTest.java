@@ -185,6 +185,41 @@ class TmuxStatusPollerTest {
                 entry("h @7", "waiting"));
     }
 
+    /// An interrupt line in the pane's tail reports `interrupted` unless the
+    /// window works again; the limit wins over it.
+    // [utest->dsn~claude-interrupt-detection~1]
+    @Test
+    void interruptMarkersOverrideTheStatusUnlessTheWindowWorks() {
+        String output = """
+                @3|waiting|20|Opus|high
+                @5|working|2|Opus|high
+                @7|waiting|20|Opus|high
+                @9|working|30|Opus|high
+                interrupted|@3
+                interrupted|@5
+                interrupted|@7
+                limit|@7
+                interrupted|@9
+                """;
+
+        Map<String, String> out = new HashMap<>();
+        TmuxStatusPoller.parseInto("h", output, out);
+
+        assertThat(out).containsOnly(
+                entry("h @3", "interrupted"),
+                entry("h @5", "working"),
+                entry("h @7", "limit"),
+                entry("h @9", "interrupted"));
+    }
+
+    // [utest->dsn~claude-interrupt-detection~1]
+    @Test
+    void statusCommandGrepsThePaneTailForAnInterrupt() {
+        assertThat(TmuxStatusPoller.statusCommand()).singleElement().asString()
+                .contains("tail -8 | grep -qE 'Interrupted by user|What should Claude do instead' "
+                        + "&& echo 'interrupted|'$w");
+    }
+
     /// The pane's tail is grepped for Claude's API errors, on the same pass
     /// as the limit message.
     // [utest->dsn~api-error-auto-continue~1]

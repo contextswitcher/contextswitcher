@@ -56,6 +56,20 @@ public class TmuxStatusPoller implements AutoCloseable {
     // `@cs_limit` option if Claude Code ever fires a hook for the limit.
     private static final String LIMIT_PATTERN = "limit reached|reached your .{0,40}limit";
 
+    /// Status reported for a window whose pane shows that Claude's turn was
+    /// interrupted (Esc, or a Ctrl+C that reached it) — the `Stop` hook does
+    /// not fire then, so the window would otherwise just read `waiting`.
+    // [impl->dsn~claude-interrupt-detection~1]
+    public static final String INTERRUPTED = "interrupted";
+
+    /// `grep -E` pattern matching Claude Code's interrupt lines: "Interrupted ·
+    /// What should Claude do instead?" and a tool's "Interrupted by user".
+    /// Not a bare "Interrupted": a Java session's screen is full of
+    /// `InterruptedException`.
+    // ponytail: grep over the pane tail, like the limit; a short answer after
+    // the interrupt can keep the line in view and show a stale `interrupted`.
+    private static final String INTERRUPTED_PATTERN = "Interrupted by user|What should Claude do instead";
+
     /// Marker prefix of the pane grep for Claude's transient API errors — the
     /// ones that end a turn mid-response ("API Error: Connection lost
     /// mid-response.").
@@ -309,6 +323,7 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// its `/exit`).
     // [impl->dsn~claude-limit-detection~2]
     // [impl->dsn~claude-update-restart~7]
+    // [impl->dsn~claude-interrupt-detection~1]
     // [impl->dsn~android-finish-notification~1]
     public static List<String> statusCommand() {
         return List.of("now=$(date +%s); "
@@ -321,6 +336,8 @@ public class TmuxStatusPoller implements AutoCloseable {
                 + "| grep -qE '" + LIMIT_PATTERN + "' && echo '" + LIMIT + "|'$w; "
                 + "tmux capture-pane -p -J -t $w 2>/dev/null | grep -v '^ *$' | tail -8 "
                 + "| grep -qE '" + API_ERROR_PATTERN + "' && echo '" + API_ERROR + "|'$w; "
+                + "tmux capture-pane -p -J -t $w 2>/dev/null | grep -v '^ *$' | tail -8 "
+                + "| grep -qE '" + INTERRUPTED_PATTERN + "' && echo '" + INTERRUPTED + "|'$w; "
                 + "tmux capture-pane -p -J -t $w 2>/dev/null | grep -v '^ *$' | tail -4 "
                 + "| grep -qE '" + UPDATE_PATTERN + "' && echo '" + UPDATE_PENDING + "|'$w; "
                 + "done; "
@@ -473,7 +490,9 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// status` for every window whose status is non-empty. A `working` window
     /// idle for at least [#IDLE_SECONDS] is reported as `waiting`, and a window
     /// listed by a `limit|windowId` marker line reports [#LIMIT] unless it is
-    /// genuinely `working` again (the message is then stale scrollback).
+    /// genuinely `working` again (the message is then stale scrollback); an
+    /// `interrupted|windowId` marker likewise reports [#INTERRUPTED], the
+    /// limit winning when both match.
     static void parseInto(String host, String stdout, Map<String, String> out) {
         parseInto(host, stdout, out, IDLE_SECONDS);
     }
@@ -483,8 +502,10 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// notifies on that change, and a quiet build step must not read as
     /// "Claude finished" there (`dsn~android-finish-notification~1`).
     // [impl->dsn~android-finish-notification~1]
+    // [impl->dsn~claude-interrupt-detection~1]
     public static void parseInto(String host, String stdout, Map<String, String> out, long idleThresholdSeconds) {
         Set<String> limited = parseLimited(stdout);
+        Set<String> interrupted = parseMarked(stdout, INTERRUPTED);
         for (String line : stdout.split("\\R")) {
             if (line.isBlank()) {
                 continue;
@@ -496,8 +517,12 @@ public class TmuxStatusPoller implements AutoCloseable {
             String status = parts[1].strip();
             if (!status.isEmpty()) {
                 String effective = effectiveStatus(status, parseIdle(parts[2]), idleThresholdSeconds);
-                if (limited.contains(parts[0]) && !"working".equalsIgnoreCase(effective)) {
-                    effective = LIMIT;
+                if (!"working".equalsIgnoreCase(effective)) {
+                    if (limited.contains(parts[0])) {
+                        effective = LIMIT;
+                    } else if (interrupted.contains(parts[0])) {
+                        effective = INTERRUPTED;
+                    }
                 }
                 out.put(key(host, parts[0]), effective);
             }
