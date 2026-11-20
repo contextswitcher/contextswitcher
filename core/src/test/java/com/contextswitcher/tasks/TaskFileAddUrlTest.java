@@ -341,6 +341,37 @@ class TaskFileAddUrlTest {
                 .isEqualTo(updated);
     }
 
+    /// A list written with its items at the depth of `urls:` (valid YAML)
+    /// gets new items at that depth too — a 4-space item above 2-space ones
+    /// made the whole frontmatter unparsable.
+    @Test
+    void newItemsMatchTheIndentationOfACompactList() throws Exception {
+        String content = """
+                ---
+                title: "T"
+                browser:
+                  urls:
+                  - https://github.com/o/r/pull/2
+                ---
+                """;
+
+        String pr = TaskFileParser.addClaudePrUrl(content, "https://github.com/o/r/pull/3");
+        String appended = TaskFileParser.addBrowserUrl(pr, "https://github.com/o/r/pull/5");
+        String titled = TaskFileParser.addBrowserUrl(appended, "https://github.com/o/r/pull/9", "Nine");
+
+        assertThat(parser.parse("t", titled).browser().urls()).containsExactly(
+                "https://github.com/o/r/pull/3", "https://github.com/o/r/pull/2",
+                "https://github.com/o/r/pull/5", "https://github.com/o/r/pull/9");
+        assertThat(titled).contains("""
+                  urls:
+                  - https://github.com/o/r/pull/3
+                  - https://github.com/o/r/pull/2
+                  - https://github.com/o/r/pull/5
+                  - url: https://github.com/o/r/pull/9
+                    title: Nine
+                """);
+    }
+
     /// A GitLab MR published as `@cs_pr` takes the same path as a GitHub PR:
     /// first in the list, and a PR entry rather than a plain link.
     // [utest->dsn~claude-pr-refresh~5]
