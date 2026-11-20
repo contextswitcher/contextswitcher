@@ -129,6 +129,23 @@ class ConfigFormMergeTest {
                         "https://example.org/wiki"));
     }
 
+    /// `[chrome] ` pins the one entry to Chrome: a `{url, browser}` map in the
+    /// file, read back with the prefix; `[nonsense]` pins nothing.
+    // [utest->dsn~browser-url-pinned-browser~1]
+    @Test
+    void aBrowserPrefixPinsTheEntry() {
+        String out = merge(FrontmatterCatalog.TASK, TASK, Map.of("browser.urls",
+                List.of("[chrome] https://example.org/pr/2 — Second PR", "https://example.org/wiki")));
+
+        assertThat(Frontmatter.get(Frontmatter.parse(out), "browser.urls")).isEqualTo(List.of(
+                Map.of("url", "https://example.org/pr/2", "title", "Second PR", "browser", "chrome"),
+                "https://example.org/wiki"));
+        assertThat(ConfigForm.seeds(FrontmatterCatalog.TASK, out).get("browser.urls"))
+                .isEqualTo(List.of("[chrome] https://example.org/pr/2 — Second PR",
+                        "https://example.org/wiki"));
+        assertThat(ConfigForm.urlEntry("[nonsense] https://x").browser()).isNull();
+    }
+
     /// The category's `desktop:` is the plain name, or the nested
     /// `{name, completeControl}` form the complete-control suspend reads.
     @Test
@@ -163,15 +180,16 @@ class ConfigFormMergeTest {
         assertThat(data).doesNotContainKey("folder");
     }
 
-    /// A task without a title cannot be applied: the result names why, and
-    /// nothing is merged.
+    /// The title is optional: a blank one drops the key (the task then shows
+    /// its id) instead of refusing the form.
     @Test
-    void anEmptyTitleIsRefusedWithAReason() {
+    void anEmptyTitleDropsTheKey() {
         Map<String, Object> values = new LinkedHashMap<>(ConfigForm.seeds(FrontmatterCatalog.TASK, TASK));
         values.put("title", "  ");
 
-        assertThat(ConfigForm.mergeValues(TASK, FrontmatterCatalog.TASK, values))
-                .isEqualTo(new ConfigForm.MergeResult.Invalid("The title cannot be empty."));
+        String out = ConfigForm.merge(TASK, FrontmatterCatalog.TASK, values);
+        assertThat(Frontmatter.parse(out)).doesNotContainKey("title");
+        assertThat(out).contains("# keep me");
     }
 
     @Test
@@ -179,9 +197,8 @@ class ConfigFormMergeTest {
         Map<String, Object> values = new LinkedHashMap<>(ConfigForm.seeds(FrontmatterCatalog.TASK, TASK));
         values.put("title", "Renamed");
 
-        assertThat(ConfigForm.mergeValues(TASK, FrontmatterCatalog.TASK, values))
-                .isInstanceOfSatisfying(ConfigForm.MergeResult.Merged.class,
-                        merged -> assertThat(merged.content()).contains("title: Renamed").contains("# keep me"));
+        assertThat(ConfigForm.merge(TASK, FrontmatterCatalog.TASK, values))
+                .contains("title: Renamed").contains("# keep me");
     }
 
     /// Merges `changes` (field key → the control's value) over the file's own

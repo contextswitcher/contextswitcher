@@ -183,9 +183,8 @@ class BrowserUrlLinksUiTest {
         waitForFx();
         assertThat(saves).isEqualTo(1);
         assertThat(sync.isDisable()).isFalse();
-        ConfigForm.MergeResult merged = form.mergeInto(FILE);
-        assertThat(((ConfigForm.MergeResult.Merged) merged).content().indexOf("b.example"))
-                .isLessThan(((ConfigForm.MergeResult.Merged) merged).content().indexOf("a.example"));
+        String merged = form.mergeInto(FILE);
+        assertThat(merged.indexOf("b.example")).isLessThan(merged.indexOf("a.example"));
     }
 
     private static List<HBox> rows() {

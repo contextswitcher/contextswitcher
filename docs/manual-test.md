@@ -1527,6 +1527,7 @@ Needs Windows and Chrome; the Firefox extension may stay installed (only one bro
 - [ ] With both extensions connected, right-click the toolbar globe → Firefox and Chrome are offered, the setting's browser selected; choose the other → the tooltip names it, a task's tabs open there, and `settings.yaml` says so (`dsn~prefer-chosen-browser~1`).
 - [ ] Restart the non-chosen browser → the chosen one stays in use.
 - [ ] Connect the Firefox extension too (both browsers open), then close Firefox → Chrome keeps working and the app still reports an extension connected (the client role goes back rather than to nobody).
+- [ ] With both extensions connected and Firefox chosen, prefix one task URL with `[chrome] ` → a switch opens that page in Chrome and the others in Firefox; clicking its link shows it in Chrome; suspending closes it there; with Chrome closed its chip says `Chrome extension not connected` (`dsn~browser-url-pinned-browser~1`).
 - [ ] Close both browsers and click a PR link on a category desktop → a window of the **configured** `browser:` is launched; this is the one job the setting has left.
 
 ## A merged task removes itself (`dsn~merged-task-cleanup~2`)

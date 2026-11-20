@@ -3,6 +3,7 @@ package com.contextswitcher.queue;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.contextswitcher.tasks.Agent;
 import org.jspecify.annotations.Nullable;
 
 /// The model and reasoning effort a message should be answered with —
@@ -16,10 +17,19 @@ import org.jspecify.annotations.Nullable;
 /// override). Hence the picker resets after a send — the session now *is*
 /// what was picked.
 // [impl->dsn~claude-mode-select~3]
-public record ClaudeMode(@Nullable String model, @Nullable String effort) {
+///
+/// `agent` is the CLI a *new* session starts with when the Add-task dialog
+/// picked one other than the category's; null keeps the category's (and is
+/// all a running session ever gets).
+public record ClaudeMode(@Nullable String model, @Nullable String effort, @Nullable Agent agent) {
 
     /// Leave the session's model and effort untouched.
     public static final ClaudeMode DEFAULT = new ClaudeMode(null, null);
+
+    /// Model and effort only, the CLI as configured.
+    public ClaudeMode(@Nullable String model, @Nullable String effort) {
+        this(model, effort, null);
+    }
 
     /// `/model` arguments offered in the pickers — the aliases, not the
     /// full model ids: an alias keeps working across model releases.

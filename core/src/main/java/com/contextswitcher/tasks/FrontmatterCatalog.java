@@ -80,7 +80,8 @@ public final class FrontmatterCatalog {
     // [impl->dsn~browser-url-links~1]
     private static final String BROWSER_URLS_HELP = "A link shows its page's browser tab; drag it to re-arrange, "
             + "hover for Edit and Delete (F2 edits a focused link). An entry is a URL, optionally followed by \""
-            + URL_TITLE_SEPARATOR + "\" and a short title.";
+            + URL_TITLE_SEPARATOR + "\" and a short title; a leading \"[chrome] \" or \"[firefox] \" "
+            + "opens that one entry in that browser.";
 
     /// The keys of a task file, in form order.
     public static final List<Field> TASK = List.of(
@@ -92,7 +93,7 @@ public final class FrontmatterCatalog {
             // [impl->dsn~pinned-tasks~2]
             new Field("pinned", "Pinned", "Task", Type.BOOLEAN,
                     "Lifts the task above the unpinned ones of its status block."),
-            // [impl->dsn~idle-task-removal~1]
+            // [impl->dsn~idle-task-removal~2]
             new Field("autoRemoveIdle", "Remove when inactive", "Task", Type.BOOLEAN,
                     "Removes session, worktree and task once it has been inactive for a day."),
             // [impl->dsn~task-tag-model~2]
@@ -111,6 +112,9 @@ public final class FrontmatterCatalog {
                     "Where the Claude session was started — enough to resume it after a reboot."),
             new Field("claude.sessionId", "Claude session id", "Session", Type.STRING,
                     "Enables claude --resume; normally captured by the app itself."),
+            // [impl->dsn~task-agent~1]
+            new Field("claude.agent", "Agent", "Session", Type.STRING,
+                    "claude, claude-api, vibe or codex; empty uses the category's agent."),
             // [impl->dsn~open-in-intellij~3]
             new Field("intellij", "Open in IntelliJ", "Switch actions", Type.BOOLEAN,
                     "Opens the project on every switch to this task."),
@@ -161,6 +165,9 @@ public final class FrontmatterCatalog {
                             + "instead of kept; pinned tasks never are."),
             new Field("tags", "Tags", "Category", Type.LIST,
                     "Inherited by every task in the category; one per line."),
+            // [impl->dsn~task-agent~1]
+            new Field("agent", "Agent", "Category", Type.STRING,
+                    "CLI the tasks' windows run: claude (empty), claude-api, vibe or codex."),
             // [impl->dsn~category-desktop-focus~4]
             new Field("desktop", "Virtual desktop", "Category", Type.DESKTOP,
                     "Name of the Windows virtual desktop this category lives on — "
@@ -180,6 +187,13 @@ public final class FrontmatterCatalog {
                     "Name of a profile from settings.yaml's profiles: (screens, projector mode, "
                             + "taskbar, bookmarks bar), applied on every switch into the category; "
                             + "empty means default."),
+            // [impl->dsn~koppter-sync~1]
+            new Field("project", "todo.txt project", "Category", Type.STRING,
+                    "The project of the todo.txt file (koppter) this category works on, such as "
+                            + "papers>survey; several categories may name the same one."),
+            new Field("contexts", "todo.txt contexts", "Category", Type.LIST,
+                    "The contexts (environment profiles) the category belongs to, such as desk; "
+                            + "one per line, empty means every context."),
             new Field("repo", "GitHub repository", "Repository", Type.STRING,
                     "The category's GitHub repository, opened by the header's repository icon "
                             + "and named in a live task's bootstrap prompt."),

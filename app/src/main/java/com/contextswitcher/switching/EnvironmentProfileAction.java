@@ -34,6 +34,9 @@ public class EnvironmentProfileAction implements SwitchAction {
     /// group has no config file or names none.
     private final Function<String, @Nullable String> groupProfile;
     private final Supplier<@Nullable String> override;
+    /// The profile the connected screens chose (null: no `screenProfiles:`
+    /// rule matches) — the layer between `default` and the category's.
+    private final Supplier<@Nullable String> screenProfile;
     private final Function<EnvironmentProfile, ActionResult> machine;
     private final Function<Boolean, ActionResult> bookmarksBar;
 
@@ -47,8 +50,17 @@ public class EnvironmentProfileAction implements SwitchAction {
             Function<String, @Nullable String> groupProfile, Supplier<@Nullable String> override,
             Function<EnvironmentProfile, ActionResult> machine,
             Function<Boolean, ActionResult> bookmarksBar) {
+        this(profiles, groupProfile, () -> null, override, machine, bookmarksBar);
+    }
+
+    // [impl->dsn~screen-chosen-profile~1]
+    public EnvironmentProfileAction(Supplier<EnvironmentProfiles> profiles,
+            Function<String, @Nullable String> groupProfile, Supplier<@Nullable String> screenProfile,
+            Supplier<@Nullable String> override, Function<EnvironmentProfile, ActionResult> machine,
+            Function<Boolean, ActionResult> bookmarksBar) {
         this.profiles = profiles;
         this.groupProfile = groupProfile;
+        this.screenProfile = screenProfile;
         this.override = override;
         this.machine = machine;
         this.bookmarksBar = bookmarksBar;
@@ -85,16 +97,14 @@ public class EnvironmentProfileAction implements SwitchAction {
         EnvironmentProfiles all = profiles.get();
         String categoryProfile = group.isEmpty() ? null : groupProfile.apply(group);
         String manual = override.get();
+        String screens = screenProfile.get();
         EnvironmentProfile effective;
         try {
-            effective = all.effective(categoryProfile, manual);
+            effective = all.effective(screens, categoryProfile, manual);
         } catch (IllegalArgumentException e) {
             return ActionResult.failure(e.getMessage());
         }
-        String label = categoryProfile == null ? EnvironmentProfiles.DEFAULT : categoryProfile;
-        if (manual != null) {
-            label += " + " + manual;
-        }
+        String label = label(screens, categoryProfile, manual);
         List<String> changes = new ArrayList<>();
         List<String> failures = new ArrayList<>();
         ActionResult machineResult = machine.apply(effective);
@@ -116,5 +126,24 @@ public class EnvironmentProfileAction implements SwitchAction {
         }
         return ActionResult.success(label + ": "
                 + (changes.isEmpty() ? "already in place" : String.join(", ", changes)));
+    }
+
+    /// The layers in effect, bottom up: `desk (screens) + lecture + screenshare`;
+    /// `default` when none but the default applies.
+    static String label(@Nullable String screens, @Nullable String category, @Nullable String manual) {
+        List<String> layers = new ArrayList<>();
+        if (screens != null) {
+            layers.add(screens + " (screens)");
+        }
+        if (category != null) {
+            layers.add(category);
+        }
+        if (layers.isEmpty()) {
+            layers.add(EnvironmentProfiles.DEFAULT);
+        }
+        if (manual != null) {
+            layers.add(manual);
+        }
+        return String.join(" + ", layers);
     }
 }

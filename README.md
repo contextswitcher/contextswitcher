@@ -182,6 +182,7 @@ workdir: /data/koppor/jabref                      # fixed session directory inst
 mainCheckout: /data/koppor/jabref-workspaces/jabref   # permanent checkout, for "Show diff"
 repo: https://github.com/JabRef/jabref          # header's repository icon, bootstrap prompt
 baseBranch: upstream/develop                    # base of the refactoring diff
+agent: vibe                                     # claude (default), claude-api, vibe or codex
 desktop: jabref                                 # virtual desktop this category lives on
 pinned: true                                    # category listed above the unpinned ones
 autoDelete: true                                # let automatisms delete its tasks (off by default)
@@ -210,6 +211,14 @@ A task's own frontmatter always wins over these defaults.
   `workdir:` pins one fixed directory for every session instead and wins when both are set.
 * `mainCheckout:` is a permanent checkout of `repo` (not a per-task worktree): what **Show diff** falls back to once a task's own worktree is deleted, to show the commit the session published.
 * `baseBranch:` is what the category's task worktrees branch from — the base of the refactoring view and badge; unset means `origin/main`.
+* `agent:` is the coding-agent CLI the category's tasks run in their tmux window: `claude` (the default), `claude-api`, `vibe` (Mistral Vibe) or `codex` (OpenAI Codex); a task picks its own with `agent:` under its `claude:` section.
+  It is read whenever the app starts or resumes a window, so changing it applies to the next start, and a recorded session id of the old agent is useless to the new one (the window then starts fresh).
+  `claude-api` is Claude Code billed to an API key instead of the subscription — useful when the subscription's limit is reached: the line typed is `ANTHROPIC_API_KEY=${CS_ANTHROPIC_API_KEY:?} claude`, so the key comes from `CS_ANTHROPIC_API_KEY` in the remote shell — from direnv (an `.envrc` in the working directory with `export CS_ANTHROPIC_API_KEY=…`, after `direnv allow`) or `~/.bashrc` — and a plain `claude` in the same folder keeps using the subscription.
+  Claude Code asks once whether to use the key.
+  For Vibe and Codex, resume continues their last session in the folder, and `claudeAuto` means `--auto-approve` or `--dangerously-bypass-approvals-and-sandbox`.
+  Their model (and Codex's effort) is picked in *Add task* and applies at the start only — their `/model` opens a picker the app cannot drive; Vibe's thinking level is Vibe's own.
+  The running dot works without hooks: Vibe marks its pane title while it works; Codex's is read from its *esc to interrupt* line (untested).
+  *Add task* also picks the agent for this one task, preset with the category's.
 * `desktop:` is the virtual desktop's name as shown in the Windows Task View; the header's play button switches to it, and the filter menu's **active desktop** entry narrows the list to it.
   A category naming none uses the `fallbackDesktop` setting (`misc` by default; empty turns the fallback off).
   The nested form `desktop: {name: jabref, completeControl: true}` puts the desktop under **complete control**: suspending a task of the category stores the tab URLs of every browser window on that desktop into the task file (`storedTabs:`) and closes those windows — a clean desktop whenever you switch to it manually — and resuming reopens them there (tabs still open are kept, not reopened; windows pinned to all desktops are never touched).
@@ -307,7 +316,7 @@ While Claude works, draft the follow-ups instead of waiting: the pane below the 
 * **Find** (`Ctrl+F`, the always-visible field) narrows the list by free text over everything you would search by: title, id, remote, note, configuration, the Markdown body, the task's URLs (paste a PR link, or just `16245`), and the text of its queued and sent messages.
 * **Jump to category** (`Ctrl+J`) — a popup narrows the category names as you type, the current virtual desktop's categories first; Enter selects the category in the list.
   While a query is typed, the tag / awaits-input / running-tasks filters step aside so a hit is never hidden; the active-desktop filter stays on and the bar reports the hits it does not show as "· N on other desktops".
-* **Filter menu** (toolbar) — **Awaits input** (waiting, asking, or hit the usage limit; the item carries the count even when off), **Active desktop**, **Running tasks**, and the **tag** submenu (several tags combine with AND; a filtered row shows only the selected tags, so a shared screen reveals nothing else). The button carries a badge while anything narrows the list, and the whole selection is restored on the next launch.
+* **Filter menu** (toolbar) — **Awaits input** (waiting, asking, or hit the usage limit; the item carries the count even when off), **Active desktop**, **Running tasks**, **Projects and contexts** (the categories' todo.txt `project:` and `contexts:`, shared with koppter — see [below](#sharing-project-and-context-with-koppter)), and the **tag** submenu (several tags combine with AND; a filtered row shows only the selected tags, so a shared screen reveals nothing else). The button carries a badge while anything narrows the list, and the whole selection is restored on the next launch.
 * **Sort menu** — **Last update** (default; a new task shows up on top), **Alphabetical**, or **Action needed** (usage limit, then attention, then waiting, then working). Error rows stay first, active before suspended, pinned tasks head their block.
 * **Group by labels** — group the list by tags instead of folders; a task with several tags appears under each, and every row then shows its category.
 * **Energy saver** (the leaf) — stops all background polling for working on battery; only the selected task's mirror keeps running, selecting a task refreshes that task, and the refresh button runs every poll once. Remembered across restarts.
@@ -357,6 +366,48 @@ The change applies on Save, without a restart, and the embedded terminal follows
 
 The terminal's colours stop at ANSI 0–15, so a **remote** program that emits 24-bit colour keeps its own — a Claude Code session in a dark theme stays dark on a light mirror, and no local setting can change that.
 Fix it on the remote by giving Claude Code a matching theme: copy the two files from [koppor/everforest-configurations](https://github.com/koppor/everforest-configurations/tree/main/claude-code) into `~/.claude/themes/` there, restart it once (Claude Code only watches that folder if it existed at startup), and pick the theme with `/theme`.
+
+### Environment profiles and the connected screens
+
+`profiles:` in `settings.yaml` names looks of the machine — screen resolution and scale, projection mode, taskbar auto-hide, bookmarks bar, and `gatherWindows:`, the screen windows that open elsewhere are pulled onto; a category picks one with `profile:` in its `CONTEXTSWITCHER.md` ([`req~environment-profiles~1`](docs/requirements/switching.md)).
+`screenProfiles:` picks a profile from the connected screens instead, without a task switch — docking at the desk gathers the windows onto the big monitor ([`req~screen-chosen-profile~1`](docs/requirements/switching.md)):
+
+```yaml
+profiles:
+  default: {gatherWindows: off}
+  desk: {gatherWindows: DELL U3223QE}   # EDID name or product code, primary, internal, external
+screenProfiles:                         # first rule whose screen is connected wins; none = no screen layer
+  - screen: DELL U3223QE
+    profile: desk
+```
+
+The layers stack per key: `default`, then the screen-chosen profile, then the category's, then the status bar's override.
+The profile is re-applied once the set of screens has stayed the same for 3 s, and the override button shows it as `desk (screens)`.
+Windows only.
+
+### Sharing project and context with koppter
+
+[koppter](https://github.com/contextswitcher/koppter) keeps tasks in a todo.txt file: `+project` is what a task belongs to, `@context` where it can be done.
+With `koppterSync: true` in `settings.yaml` (and *Send the projects and contexts of the filter to ContextSwitcher* in koppter's settings), the two filters follow each other ([`req~koppter-sync~1`](docs/requirements/switching.md)):
+
+```yaml
+# settings.yaml
+koppterSync: true
+profiles:
+  desk: {gatherWindows: DELL U3223QE}   # context "desk" — a profile's context is its name
+  lecture: {context: hall}              # …unless context: says otherwise; off = none
+```
+
+```yaml
+# a category's CONTEXTSWITCHER.md
+project: contextswitcher   # the todo.txt project; several categories may share it
+contexts: [desk]           # optional; none = every context
+```
+
+* Switching to a task of a category with `project:` sets koppter's project filter; the context of the screen-chosen or overridden profile sets koppter's context filter and narrows this task list to the categories of that context.
+* **Filter menu → Projects and contexts** picks them by hand; koppter follows.
+* Changing the project or context filter in koppter narrows this list to the categories of that project and context, without raising the window.
+* A change that came from the other application is not sent back. A filter koppter sends while ContextSwitcher is not running is dropped rather than starting the app.
 
 ### RefactoringMiner (optional)
 

@@ -197,6 +197,37 @@ public class ExtensionServer extends WebSocketServer implements TabCommands {
         return request(id, ExtensionProtocol.encodeCloseUrl(id, url));
     }
 
+    // [impl->dsn~browser-url-pinned-browser~1]
+    @Override
+    public ExtensionProtocol.Result focusUrl(String url, boolean openIfMissing, @Nullable String windowTitle,
+            @Nullable String group, boolean background, @Nullable Browser browser) {
+        String id = UUID.randomUUID().toString();
+        return request(id, ExtensionProtocol.encodeFocusUrl(id, url, openIfMissing, windowTitle, group, background),
+                browser);
+    }
+
+    // [impl->dsn~browser-url-pinned-browser~1]
+    @Override
+    public ExtensionProtocol.Result closeUrl(String url, @Nullable Browser browser) {
+        String id = UUID.randomUUID().toString();
+        return request(id, ExtensionProtocol.encodeCloseUrl(id, url), browser);
+    }
+
+    /// The open connection of `browser`'s extension — the client when it is
+    /// that browser, so the pinned and the driving request share a socket —
+    /// or the client itself for null.
+    // [impl->dsn~browser-url-pinned-browser~1]
+    private @Nullable WebSocket socketOf(@Nullable Browser browser) {
+        WebSocket current = client;
+        if (browser == null || (current != null && Browser.named(clients.get(current)) == browser)) {
+            return current;
+        }
+        return clients.entrySet().stream()
+                .filter(entry -> entry.getKey().isOpen() && Browser.named(entry.getValue()) == browser)
+                .map(Map.Entry::getKey)
+                .findFirst().orElse(null);
+    }
+
     // [impl->dsn~complete-control-desktop~1]
     @Override
     public ExtensionProtocol.Result listTabs() {
@@ -252,9 +283,14 @@ public class ExtensionServer extends WebSocketServer implements TabCommands {
     }
 
     private ExtensionProtocol.Result request(String id, String message) {
-        WebSocket target = client;
+        return request(id, message, null);
+    }
+
+    private ExtensionProtocol.Result request(String id, String message, @Nullable Browser browser) {
+        WebSocket target = socketOf(browser);
         if (target == null || !target.isOpen()) {
-            return new ExtensionProtocol.Result(id, false, "Browser extension not connected");
+            return new ExtensionProtocol.Result(id, false,
+                    (browser == null ? "Browser" : browser.displayName()) + " extension not connected");
         }
         CompletableFuture<ExtensionProtocol.Result> future = new CompletableFuture<>();
         pending.put(id, future);

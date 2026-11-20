@@ -12,6 +12,7 @@ import java.util.function.Supplier;
 
 import atlantafx.base.theme.Styles;
 
+import com.contextswitcher.config.Browser;
 import com.contextswitcher.tasks.Frontmatter;
 import com.contextswitcher.tasks.FrontmatterCatalog;
 import com.contextswitcher.tasks.FrontmatterCatalog.Field;
@@ -311,9 +312,10 @@ final class ConfigForm {
             if (entry instanceof Map<?, ?> map) {
                 Object url = map.get("url");
                 Object title = map.get("title");
-                lines.add(title == null
-                        ? String.valueOf(url)
-                        : url + FrontmatterCatalog.URL_TITLE_SEPARATOR + title);
+                Object pinned = map.get("browser");
+                // [impl->dsn~browser-url-pinned-browser~1]
+                lines.add((pinned == null ? "" : "[" + pinned + "] ")
+                        + (title == null ? String.valueOf(url) : url + FrontmatterCatalog.URL_TITLE_SEPARATOR + title));
             } else if (entry != null) {
                 lines.add(String.valueOf(entry));
             }
@@ -333,34 +335,15 @@ final class ConfigForm {
 
     // --- writing back ------------------------------------------------------
 
-    /// What applying the form gives: the patched file text, or why the form
-    /// cannot be applied. Showing the reason is the caller's business.
-    sealed interface MergeResult {
-
-        record Merged(String content) implements MergeResult {
-        }
-
-        record Invalid(String reason) implements MergeResult {
-        }
-    }
-
     /// Reads the controls and patches the result back into `content` — see
-    /// [#mergeValues].
-    MergeResult mergeInto(String content) {
+    /// [#merge]. Every field is optional: a blank title drops the key, and
+    /// the task then shows its id.
+    String mergeInto(String content) {
         Map<String, @Nullable Object> values = new LinkedHashMap<>();
         for (Field field : fields) {
             values.put(field.key(), read(field, controls.get(field.key())));
         }
-        return mergeValues(content, fields, values);
-    }
-
-    /// [#merge], behind the form's one rule: a task keeps its title.
-    static MergeResult mergeValues(String content, List<Field> fields,
-            Map<String, @Nullable Object> values) {
-        if (values.containsKey("title") && String.valueOf(values.get("title")).isBlank()) {
-            return new MergeResult.Invalid("The title cannot be empty.");
-        }
-        return new MergeResult.Merged(merge(content, fields, values));
+        return merge(content, fields, values);
     }
 
     /// Patches every changed field back into `content`, leaving untouched keys,
@@ -503,13 +486,18 @@ final class ConfigForm {
         List<Object> entries = new ArrayList<>();
         for (String line : lines) {
             Task.UrlEntry parsed = urlEntry(line);
-            if (parsed.title() == null) {
+            if (parsed.title() == null && parsed.browser() == null) {
                 entries.add(parsed.url());
                 continue;
             }
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("url", parsed.url());
-            entry.put("title", parsed.title());
+            if (parsed.title() != null) {
+                entry.put("title", parsed.title());
+            }
+            if (parsed.browser() != null) {
+                entry.put("browser", parsed.browser().key());
+            }
             entries.add(entry);
         }
         return entries;
@@ -517,12 +505,24 @@ final class ConfigForm {
 
     /// One `url — title` line of the form.
     // [impl->dsn~browser-url-title~1]
+    /// A leading `[chrome] ` (or `[firefox] `) pins the entry to that browser;
+    /// a bracket naming no browser stays part of the line.
+    // [impl->dsn~browser-url-pinned-browser~1]
     static Task.UrlEntry urlEntry(String line) {
-        int separator = line.indexOf(FrontmatterCatalog.URL_TITLE_SEPARATOR);
+        String rest = line.strip();
+        Browser pinned = null;
+        int close = rest.indexOf(']');
+        if (rest.startsWith("[") && close > 0) {
+            pinned = Browser.named(rest.substring(1, close));
+            if (pinned != null) {
+                rest = rest.substring(close + 1).strip();
+            }
+        }
+        int separator = rest.indexOf(FrontmatterCatalog.URL_TITLE_SEPARATOR);
         return separator < 0
-                ? new Task.UrlEntry(line.strip(), null)
-                : new Task.UrlEntry(line.substring(0, separator).strip(), line.substring(
-                        separator + FrontmatterCatalog.URL_TITLE_SEPARATOR.length()).strip());
+                ? new Task.UrlEntry(rest, null, pinned)
+                : new Task.UrlEntry(rest.substring(0, separator).strip(), rest.substring(
+                        separator + FrontmatterCatalog.URL_TITLE_SEPARATOR.length()).strip(), pinned);
     }
 
     private static @Nullable String nullIfBlank(String value) {

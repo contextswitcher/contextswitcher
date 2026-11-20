@@ -6,10 +6,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-20] - 2026-11-20
+
+### Added
+
+- *Add task* picks the coding agent (Claude Code, Claude Code on an API key, Vibe, Codex) with that agent's models; Vibe and Codex tasks show the running dot too.
+- With `koppterSync: true`, a category's `project:` and `contexts:` and the context of the screen-chosen or overridden profile are shared with koppter's todo.txt filter, both ways; the filter menu gains *Projects and contexts*, and `contextswitcher://filter?project=…&context=…` sets it.
+- A single browser URL of a task can open in Chrome (or Firefox) while the other browser handles the rest: start its line with `[chrome] `.
+- The connected screens pick an environment profile of their own (`screenProfiles:` in `settings.yaml`), applied on docking and undocking without a task switch; a profile with `gatherWindows: DELL U3223QE` then pulls the windows onto that monitor. The status bar shows it as `desk (screens)`.
+
+### Changed
+
+- The height the *Last sent* area in the Queue pane is dragged to is kept for all tasks and after a restart.
+- A task removed after a day of inactivity also takes its worktree's git branch with it.
+- The config form no longer insists on a title: leaving the field blank removes `title:`, and the task shows its id. The *The title cannot be empty.* error no longer pops up when focus leaves the form.
+
+### Fixed
+
+- Switching virtual desktops after clicking a queued message selects the new desktop's task again; the switch now waits only while you are actually typing in the Queue pane (a keystroke within the last 3 seconds).
+- Switching to a virtual desktop without tasks empties the Terminal, Queue and Notes panes instead of leaving the previous desktop's task in them.
+- Adding a URL or a Claude PR to a task whose `browser.urls` items sit at the same indentation as `urls:` no longer breaks the task file with "Invalid YAML frontmatter"; the new item takes the indentation of the existing ones.
+- *Cancel* in the "Claude sessions are running" dialog on closing the window keeps ContextSwitcher open again; it exited anyway.
+
 ## [2026-11-19] - 2026-11-19
 
 ### Added
 
+- A category can run Mistral Vibe, OpenAI Codex or Claude Code on an API key instead of Claude Code (`agent:` in `CONTEXTSWITCHER.md`, per task `claude.agent:`); the API key comes from `CS_ANTHROPIC_API_KEY` in the remote shell, e.g. via direnv.
 - Android: the task list shows the desktop's running dot per task — orange while Claude works, red when it waits for you.
 - *Add task* offers *Remove session and worktree after 1 day of inactivity*: once the task has been quiet for a day, ContextSwitcher ends its window, removes the transcript and the git worktree (never a full checkout) and deletes the task.
 - A task whose Claude turn was interrupted (Esc, Ctrl+C) shows a magenta dot instead of the ordinary red, sorts near the top under *Action needed* and is listed by *Awaits input only*; the Android task list shows the same magenta dot, and its watched task notifies *Claude was interrupted*.
@@ -398,6 +421,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-20]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-19...v2026-11-20
 [2026-11-19]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-18...v2026-11-19
 [2026-11-18]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-17...v2026-11-18
 [2026-11-17]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-16...v2026-11-17

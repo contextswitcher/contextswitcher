@@ -21,11 +21,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.prefs.Preferences;
 
 import javax.imageio.ImageIO;
 
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
+import com.contextswitcher.tasks.Agent;
 import com.contextswitcher.queue.Attachments;
 import com.contextswitcher.queue.QodoImported;
 import com.contextswitcher.queue.QodoReconcile;
@@ -203,6 +205,9 @@ public class QueuePane {
     /// asked to do. Collapsed until the task has a recorded send.
     // [impl->dsn~last-sent-message~5]
     private final TextArea lastSent = new TextArea();
+    private static final Preferences PREFERENCES = Preferences.userNodeForPackage(QueuePane.class);
+    /// The dragged height of [#lastSent] (and so of the sent area).
+    static final String SENT_HEIGHT = "queueLastSentHeight";
     /// The sent messages shown above [#lastSent], oldest at the top: the
     /// task's earlier sends, out of sight until the user scrolls up in
     /// [#sentScroll].
@@ -388,8 +393,16 @@ public class QueuePane {
         sentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         sentScroll.prefViewportHeightProperty().bind(lastSent.heightProperty());
         // The viewport follows the last-sent box's height, so the same grip
-        // the queue boxes have makes the whole history area taller.
-        VBox lastSentBox = new VBox(2, lastSentTitle, sentScroll, resizeGrip(lastSent));
+        // the queue boxes have makes the whole history area taller. Unlike a
+        // queue box's, this height is kept across tasks and restarts.
+        Region sentGrip = resizeGrip(lastSent);
+        double sentHeight = PREFERENCES.getDouble(SENT_HEIGHT, -1);
+        if (sentHeight > 0) {
+            lastSent.setPrefHeight(sentHeight);
+        }
+        sentGrip.addEventHandler(MouseEvent.MOUSE_RELEASED,
+                event -> PREFERENCES.putDouble(SENT_HEIGHT, lastSent.getPrefHeight()));
+        VBox lastSentBox = new VBox(2, lastSentTitle, sentScroll, sentGrip);
         lastSentBox.setPadding(new Insets(4, 6, 0, 6));
         lastSentBox.managedProperty().bind(lastSent.textProperty().isNotEmpty());
         lastSentBox.visibleProperty().bind(lastSentBox.managedProperty());
@@ -1548,6 +1561,26 @@ public class QueuePane {
         if (value != null && box.getItems().indexOf(value) > 0) {
             box.getSelectionModel().select(value);
         }
+    }
+
+    /// Refills a dialog's model and effort [#modeBox]es with `agent`'s
+    /// choices, keeping a pick the new list still offers; the effort box is
+    /// hidden for a CLI without efforts (Vibe).
+    // [impl->dsn~agent-mode-select~1]
+    public static void fillModes(ComboBox<String> modelBox, ComboBox<String> effortBox, Agent agent) {
+        refill(modelBox, agent.models());
+        refill(effortBox, agent.efforts());
+        effortBox.setVisible(!agent.efforts().isEmpty());
+        effortBox.setManaged(!agent.efforts().isEmpty());
+    }
+
+    private static void refill(ComboBox<String> box, List<String> values) {
+        String picked = modeValue(box);
+        String asIs = box.getItems().getFirst();
+        box.getItems().setAll(asIs);
+        box.getItems().addAll(values);
+        box.getSelectionModel().selectFirst();
+        selectMode(box, picked);
     }
 
     /// The argument picked in a [#modeBox], or null for its "as is" entry.

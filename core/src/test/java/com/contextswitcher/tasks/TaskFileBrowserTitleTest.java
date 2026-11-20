@@ -33,6 +33,30 @@ class TaskFileBrowserTitleTest {
                 .containsExactly("https://plain.example", "https://moodle.example/quiz");
     }
 
+    /// A pinned entry keeps its browser — and removing it takes the
+    /// `browser:` line along with the rest of the map.
+    // [utest->dsn~browser-url-pinned-browser~1]
+    @Test
+    void parsesAndRemovesAnEntryPinnedToABrowser() throws Exception {
+        String content = """
+                ---
+                title: "T"
+                browser:
+                  urls:
+                    - https://plain.example/
+                    - url: https://claude.example/
+                      browser: chrome
+                ---
+                """;
+
+        assertThat(parser.parse("t", content).browser().entries()).containsExactly(
+                new Task.UrlEntry("https://plain.example", null),
+                new Task.UrlEntry("https://claude.example", null, com.contextswitcher.config.Browser.CHROME));
+        String removed = TaskFileParser.removeBrowserUrl(content, "https://claude.example/");
+        assertThat(removed).doesNotContain("chrome");
+        assertThat(parser.parse("t", removed).browser().urls()).containsExactly("https://plain.example");
+    }
+
     /// The forms are what matters here; the entries come out in sorted order
     /// (`moodle` before `plain`), not in the order they were added.
     @Test

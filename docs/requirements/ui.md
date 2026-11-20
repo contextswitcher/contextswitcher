@@ -406,6 +406,19 @@ Covers:
 
 Needs: dsn
 
+### Coding agent per category and per task
+`req~task-agent~1`
+
+The user can choose per category, and per task, which coding-agent CLI a task's tmux window runs: Claude Code on the subscription, Claude Code on an API key (a separate limit), Mistral Vibe or OpenAI Codex.
+Claude Code stays the default, so a category that says nothing behaves as before.
+
+Tags: windows, linux
+
+Covers:
+- feat~remote-development-context~1
+
+Needs: dsn
+
 ### Create a task from a pull request
 `req~task-from-pr~1`
 
@@ -1922,6 +1935,53 @@ Covers:
 
 Needs: impl, utest
 
+### Agent CLI from `agent:` and `claude.agent:`
+`dsn~task-agent~1`
+
+A category's `CONTEXTSWITCHER.md` names the agent with `agent:` (`claude`, `claude-api`, `vibe`, `codex`); a task's `claude.agent:` wins over it; neither means `claude`; an unknown value counts as unset.
+The agent is resolved when the app types into a window, not recorded at creation: the fresh start of live, PR and fork tasks, *Start Claude* in an existing window, the resurrect on switch and *Restart running tasks…*.
+Per agent (`Agent`): start line, resume line (with the `|| <start>` fallback), fork line, and the `claudeAuto` flag (`--dangerously-skip-permissions`, Vibe's `--auto-approve`, Codex's `--dangerously-bypass-approvals-and-sandbox`).
+Vibe starts with `--trust`, since its folder-trust question would swallow the prompt paste; it cannot fork, so a fork starts it fresh.
+Without a recorded session id, Vibe and Codex continue their last session (`vibe --continue`, `codex resume --last`), since nothing publishes their id yet.
+`claude-api` is Claude Code with `ANTHROPIC_API_KEY=${CS_ANTHROPIC_API_KEY:?}` in front: the key comes from the window's shell (direnv, `.bashrc`), a plain `claude` in the same folder keeps the subscription, and an unset variable stops the line instead of falling back silently.
+The *Start Claude* button shows when the pane runs something other than the task's agent (Vibe as `vibe-rs`, Codex as `codex` or `node`).
+
+Tags: windows, linux
+
+Covers:
+- req~task-agent~1
+
+Needs: impl, utest
+
+### Agent picked with its own models in the dialogs
+`dsn~agent-mode-select~1`
+
+*Add task* has an agent picker next to model and effort, preset with the category's agent and reset to it when the category changes; *Fork* and *Open remote window* use the task's agent.
+Each lists that agent's models and efforts (`Agent.models()`/`efforts()`): Claude Code's aliases, Vibe's catalog ids with no effort box (Vibe's thinking level cannot be set from outside), Codex's guessed ids with `minimal` … `xhigh`.
+Claude Code gets the picks as `/model`/`/effort` after the start (`dsn~claude-mode-select~3`); Vibe and Codex only take them on the start line — `VIBE_ACTIVE_MODEL=<id>`, `-m <id> -c model_reasoning_effort=<e>` — since their `/model` only opens a picker; a value not in the agent's list is dropped.
+An agent other than the category's is carried in `ClaudeMode.agent` and, for a live task with a working directory, written as `claude.agent` into the new file; a PR task has no `claude:` section yet, so there the pick holds for the first start only.
+
+Tags: windows, linux
+
+Covers:
+- req~task-agent~1
+
+Needs: impl, utest
+
+### Status of the CLIs without hooks
+`dsn~agent-status~1`
+
+A window without `@cs_status` gets its status column from the tmux format itself (`TmuxStatusPoller.STATUS_FORMAT`): a `vibe-rs` pane reads `working` while Vibe's tab status prefixes the pane title with `>> `, else `waiting` (`? ` = asks for a permission) — seen with Vibe 3.1.3.
+A `codex`/`node` pane reads `waiting`, and `working` while the bottom of its pane shows `esc to interrupt` (a `busy|windowId` marker of the pane grep) — guessed, no Codex was at hand.
+Limit and API-error detection stay Claude-only.
+
+Tags: windows, linux
+
+Covers:
+- req~task-agent~1
+
+Needs: impl, utest
+
 ### Task title synced back from the Claude session
 `dsn~claude-title-sync~3`
 
@@ -2420,7 +2480,7 @@ The stage title is `<category> | <n> waiting | <n> working | ContextSwitcher` fo
 The counts are over that category's tasks: `waiting` is the same "needs the user" set the awaits-input filter uses (`dsn~awaits-input-filter~1`), `working` the orange running dot.
 The app name goes last because a taskbar button or window switcher truncates the end: the category and its counts are what distinguish two ContextSwitcher windows, the app name is not.
 Selecting a category header, a task, or a corrupt row switches the title's category; a label header leaves it alone (it sits inside the category already shown).
-A virtual-desktop switch under the active-desktop filter (`dsn~active-desktop-filter~6`) switches it too, to the category of the task that desktop re-selects (`dsn~desktop-last-task-selection~5`) — even while that selection waits for the queue box to lose the keyboard.
+A virtual-desktop switch under the active-desktop filter (`dsn~active-desktop-filter~6`) switches it too, to the category of the task that desktop re-selects (`dsn~desktop-last-task-selection~6`) — even while that selection waits for the queue box to lose the keyboard.
 A desktop with no task to select names itself: its desktop name stands in for the category, so the title never keeps the previous desktop's category.
 The counts follow the status poller (`dsn~task-running-indicator~7`) and every row rebuild, so the title stays as current as the dots.
 
@@ -2726,7 +2786,7 @@ The task-list selection listener calls `recordHistory(id)` for every loaded task
 `navigateHistory(±1)` first drops every entry whose task no longer exists in `entries` (deleted or renamed since the visit), adjusting the cursor for each removal below it, then moves the cursor one step and hands the id to `selectTask` — which already reveals a row a collapsed group or a find query hides.
 Back is therefore never a no-op that looks like a dead button; `updateHistoryButtons` disables each arrow at its end of the trail.
 A visit replaced within `TRANSIENT_VISIT_NANOS` (1 s) of being appended is no visit: the next task takes its entry instead of being appended after it.
-A desktop switch re-selects that desktop's last task (`dsn~desktop-last-task-selection~5`) and the browser window it activates reports its tab a moment later (`dsn~browser-tab-selects-task~7`); Back then landed on the task that had only flashed, not on the one worked on before (field report 2026-09-13).
+A desktop switch re-selects that desktop's last task (`dsn~desktop-last-task-selection~6`) and the browser window it activates reports its tab a moment later (`dsn~browser-tab-selects-task~7`); Back then landed on the task that had only flashed, not on the one worked on before (field report 2026-09-13).
 Only an append stamps the time and `navigateHistory` clears it, so the replaced entry is always the newest one and a step taken with the arrows is never overwritten.
 
 The two icon buttons (`ARROW_LEFT`, `ARROW_RIGHT`) sit at the **left** end of the list toolbar (`dsn~task-list-toolbar~3`), before the add menu, where a browser puts them.
@@ -2849,15 +2909,18 @@ Covers:
 Needs: impl, utest
 
 ### Last selected task per desktop
-`dsn~desktop-last-task-selection~5`
+`dsn~desktop-last-task-selection~6`
 
 `MainWindow` maps desktop name → last selected task id in a preferences child node (`lastTaskByDesktop`, so the memory outlives a restart): the task list's selection listener records every selected `TaskEntry.Loaded` under the currently active desktop (nothing is recorded while the active desktop is unknown — non-Windows, unnamed, or not yet read).
 `updateActiveDesktop` — only while the filter is on — reads the remembered id *before* its rebuild, whose own selection changes would otherwise be recorded under the desktop just switched to and overwrite it, and re-selects the task afterwards via `selectTask`, which also scrolls the row into view; the selection change then drives the terminal, editor, and queue panes as any click would.
 Only an id the narrowed rows actually show is handed to `selectTask` — a deleted or otherwise filtered-out id would sit in `pendingSelectionId` forever and block the selection preservation of every later rebuild — and a desktop with no usable remembered id falls back to the first task of the narrowed list.
+A desktop whose narrowed list holds no task at all empties the task panes instead (`MainWindow.showNoTask`): no previewed task, the terminal's "Select a task" placeholder, an empty queue, and no file in the editor lane (unsaved edits of the file being left are saved first) — the panes never keep the previous desktop's task beside an empty list (field report 2026-11-20).
 
 
-The re-selection is skipped while the keyboard sits in one of the queue pane's text boxes **and that box holds text** (`MainWindow.queueFieldFocused`, the guard `selectCreatedTask` has carried since `dsn~task-from-pr~6`).
+The re-selection is skipped while the user is **typing** in one of the queue pane's text boxes: the keyboard sits in the box, the box holds text, **and** a character was typed inside the queue pane within the last `QUEUE_TYPING_PAUSE_NANOS` (3 s; a `KEY_TYPED` filter on the queue pane's root stamps the time) (`MainWindow.queueFieldFocused`, the guard `selectCreatedTask` has carried since `dsn~task-from-pr~6`).
 An empty box does not count: it is the queue's resting focus (it takes the keyboard back after every send) and the scene keeps it while the user is on another desktop, so a focus-only guard blocked every switch and left the previous desktop's task in the terminal (field report 2026-10-31).
+A box that holds text but was not typed in recently does not count either: a click on a queued message leaves the keyboard in that message's editor, which is never empty, and the scene keeps it there across the switch, so the list and title moved to the new desktop while the terminal stayed on the previous desktop's task (field report 2026-11-20).
+The desktop hotkey itself (`Win+Ctrl+→`) types no character, so it never stamps the time.
 A selection change swaps the queue pane to the new task, and `QueuePane.showTask` **commits the half-typed message as the previous task's draft** before clearing the box — so a desktop switch arriving mid-sentence reads as "I typed something in the queue field, focus was stolen to the task list - and my typed letters lost" (field report 2026-09-12; the letters were not lost, they were filed under the task the user had left).
 The list still follows the desktop — only the selection waits, and the next switch or a click applies it.
 A desktop switch is an *ambient* event, unlike the click or keypress that every other selection comes from, so it is the one that must yield to someone typing.
@@ -3027,7 +3090,7 @@ Needs: impl, utest
 
 A successful queued send records the delivered text as the task's **last sent message** (`QueueFile.saveSent` — keyed by the task the send was for, so a selection change while the send is in flight still records the right task) and shows it in a read-only wrapped `TextArea` at the queue pane's **top**, above the status line and the queue (changed in `~3` — see `dsn~message-queue-ui~26`): a muted "Last sent" caption, a subtly different background (`.queue-last-sent .content` in `main.css` — AtlantaFX paints a text area's background on its `.content` child, so an inline style would not take), collapsed while the task has no recorded send.
 The box scrolls internally when the message exceeds its three rows.
-A grip under the area (the queue boxes' `resizeGrip`, `dsn~message-queue-ui~26`) drags the last-sent box taller, and with it the viewport over the history; not persisted.
+A grip under the area (the queue boxes' `resizeGrip`, `dsn~message-queue-ui~26`) drags the last-sent box taller, and with it the viewport over the history; the height is kept in the user preferences (`queueLastSentHeight`), for every task and across restarts.
 The earlier sent messages get an identical read-only box each, stacked **above** the last one inside a `ScrollPane` whose `prefViewportHeight` is bound to the last-sent box's height: the pane shows exactly the last send as before, and scrolling up inside it walks back through the history (oldest at the top).
 The caption says "Last sent (scroll up for older)" while there is history, so the hidden messages are discoverable; the older boxes carry the attachment-marker preview and the same Resend/Copy menu (changed in `~5`; before, only the last box had it).
 `QueuePane.showSent` refills the whole stack from disk after every send (the files are tiny and local, like the queue) and parks the viewport at the bottom via `Platform.runLater`.

@@ -93,6 +93,41 @@ Covers:
 
 Needs: dsn
 
+### Profile chosen by the connected screens
+`req~screen-chosen-profile~1`
+
+Where the laptop is shows in which screens are connected: docked at the desk the big monitor is there, in the lecture hall the projector.
+Docking should put windows onto the main screen without first switching to some task, and undocking should give the look back.
+`settings.yaml` therefore maps connected screens to a profile, first matching rule wins; that profile lies between the default and the category's profile, and it is applied again whenever the set of screens changes — once that set has settled, since waking up docked reconfigures the displays many times within seconds.
+The status bar names the screen-chosen profile, so the machine's look has a visible reason.
+
+Tags: windows, linux_later
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
+### Share project and context with koppter
+`req~koppter-sync~1`
+
+The user keeps tasks in a todo.txt file with koppter: `+project` says what a task belongs to, `@context` where it can be done.
+A category names the todo.txt project it works on — several categories may name the same one, such as the same project worked on this machine and on a remote — and, optionally, the contexts it belongs to.
+The current context is where the user is, which the screen-chosen profile or the status bar's override already says (lecture hall, desk, home): a profile names its context, by default its own name.
+With the sharing turned on in `settings.yaml`, the two applications follow each other:
+switching to a task of a category with a project, or a change of the context, sets koppter's project and context filter;
+a project or context picked in ContextSwitcher's filter menu does the same;
+and a change of koppter's project or context filter narrows ContextSwitcher's task list to the categories of that project and context.
+A change that came from the other application is not sent back, so the two never answer each other without end.
+A filter sent while ContextSwitcher is not running starts no instance, and koppter's window is not raised by a change ContextSwitcher sent.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Open the task's note
 `req~open-task-note~1`
 
@@ -580,6 +615,52 @@ Tags: windows
 
 Covers:
 - req~environment-profiles~1
+
+Needs: impl, utest
+
+### Screen-chosen profile
+`dsn~screen-chosen-profile~1`
+
+`ScreenProfiles.parse` reads `settings.yaml`'s `screenProfiles:` list — entries `{screen: <selector>, profile: <name>}`, leniently (an entry without both keys is skipped, an unparseable file is no rules) — and `pick` returns the profile of the first rule one of the connected screens matches, null for none.
+A selector matches a `ConnectedScreen` as a profile's `screens:` key does: EDID name or product code, `primary`, `internal`, `external`, case-insensitive.
+`EnvironmentProfiles.effective(screen, category, override)` layers per key `default` < screen-chosen < category < override; `EnvironmentProfileAction` takes the screen-chosen name from a supplier and labels the chip with the layers, `desk (screens) + lecture`.
+
+`ScreenWatch` keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside like `WindowGather`'s) that polls the active screens every 500 ms and prints a set only after it stayed unchanged for 3 s, never an empty one (standby); it exits once the app's process is gone, and `Main.stop` stops it.
+`Main.screensChanged` picks the profile for each reported set; when it differs from the one in effect, `EnvironmentProfileAction.reapply` applies the effective profile for the category last switched to, with the outcome as a status-bar message.
+The first set after the start applies only when a rule matches, so starting the app does not reset the machine to `default` unasked.
+`MainWindow.showScreenProfile` puts `<name> (screens)` on the override button while no override is chosen.
+With `gatherWindows:` in the screen-chosen profile, docking gathers windows onto the main screen: the gather watcher (`dsn~environment-profile-gather-windows~1`) starts with the profile and pulls every window over.
+Off Windows `ScreenWatch` starts nothing.
+
+Tags: windows
+
+Covers:
+- req~screen-chosen-profile~1
+
+Needs: impl, utest
+
+### Project and context shared with koppter
+`dsn~koppter-sync~1`
+
+`settings.yaml`'s `koppterSync: true` turns the sharing on (`KoppterSync.enabled`, read fresh on every use like the profiles); off, nothing is sent, a received filter only gets a status-bar message, and the context does not narrow the list.
+A category names its project with `project:` (`TaskFileParser.groupProject`, nested as `papers>survey`, a leading `+` dropped) and its contexts with `contexts:` (`groupContexts`, a list or one name, `@` dropped); both are fields of the category form (`FrontmatterCatalog`).
+`KoppterSync.Selection` is a set of projects and a set of contexts; `matches(project, contexts)` keeps a category whose project is a selected one or lies below it, and whose contexts include a selected one or are empty — a category without `contexts:` belongs to every context, one without `project:` falls out while a project is selected.
+`KoppterSync.profileContext` gives the context of a profile: its `context:` key, else its name; none for `default` without `context:` and for `context: off`.
+
+Outgoing, `Main.sendToKoppter` opens `koppter://sync?project=…&context=…` (`KoppterSync.koppterUrl`, every character but letters, digits and `-._~` percent-encoded, as koppter's own links are) through `Main.openUrl`; a key the link does not name clears it in koppter.
+It is called after a switch to a task or category whose category names a `project:` (one without leaves koppter's project alone), by `Main.contextChanged` when the context of `override ?? screen-chosen profile` changes — which also puts that context into the task list's filter —, and by a change in the filter menu.
+Incoming, `DeepLink` parses `contextswitcher://filter?…` as `Kind.FILTER` with the raw query, which `KoppterSync.parseQuery` decodes (a literal `+` stays, so a project's sign is not read as a space); `Main.handleDeepLink` puts it into the task list's filter without raising the window.
+A second start that received such a link and finds no running instance ends without launching one (`DeepLink.isFilterLink`), as koppter sends one at every change of its filter.
+`KoppterSync.Guard` remembers the last selection sent or received and lets only a different one go out, so a filter from koppter is not sent back and a repeated switch within one project sends nothing.
+
+`MainWindow` keeps the filter in memory (`projectContextFilter`, not persisted — it comes from koppter and the profile).
+`rebuildRows` drops the tasks of categories not in it and the task-less folders likewise, reading each `CONTEXTSWITCHER.md` at most once per rebuild; a config that does not load is kept, so its warning stays visible; a typed query suspends it, like the other content filters.
+The filter menu's "Projects and contexts" submenu offers a check item per `project:` and per `contexts:` entry the categories name, plus the ones selected, and "Clear"; a non-empty filter counts towards the filter button's badge.
+
+Tags: windows, linux
+
+Covers:
+- req~koppter-sync~1
 
 Needs: impl, utest
 

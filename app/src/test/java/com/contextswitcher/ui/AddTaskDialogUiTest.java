@@ -4,6 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
+import com.contextswitcher.tasks.Agent;
 import com.contextswitcher.tasks.TaskFileParser;
 
 import javafx.application.Platform;
@@ -133,7 +134,7 @@ class AddTaskDialogUiTest {
     }
 
     /// The inactivity checkbox writes the idle janitor's flag into the new file.
-    // [utest->dsn~idle-task-removal~1]
+    // [utest->dsn~idle-task-removal~2]
     @Test
     void autoRemoveCheckboxFlagsTheNewTask() throws Exception {
         openAddTask();
@@ -189,6 +190,28 @@ class AddTaskDialogUiTest {
         Platform.runLater(go::fire);
         awaitPresent(() -> Optional.of(field.getText()).filter("Eta\n\nGo"::equals),
                 "Go appended to the description");
+        FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
+    }
+
+    /// The agent picker starts on the category's agent (Claude Code in the
+    /// fresh config's root); picking Vibe swaps the model list for Vibe's and
+    /// hides the effort box, which Vibe cannot take.
+    // [utest->dsn~agent-mode-select~1]
+    @Test
+    @SuppressWarnings("unchecked")
+    void agentPickerSwapsTheModelLists() {
+        openAddTask();
+        Button plain = awaitButton("Add plain task");
+        ComboBox<Agent> agent = (ComboBox<Agent>) plain.getScene().lookup("#add-task-agent");
+        assertThat(agent.getValue()).isEqualTo(Agent.CLAUDE);
+        var row = agent.getParent().getChildrenUnmodifiable();
+        ComboBox<String> model = (ComboBox<String>) row.get(1);
+        ComboBox<String> effort = (ComboBox<String>) row.get(2);
+        assertThat(model.getItems()).contains("opus");
+        Platform.runLater(() -> agent.setValue(Agent.VIBE));
+        // Last thing fillModes does — reading the lists before it would race the FX thread.
+        awaitPresent(() -> Optional.of(effort).filter(box -> !box.isVisible()), "the effort box hidden");
+        assertThat(model.getItems()).contains("mistral-large-4-0").doesNotContain("opus");
         FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
     }
 

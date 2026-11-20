@@ -13,6 +13,8 @@ import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.TextArea;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 
 import com.contextswitcher.Main;
@@ -28,7 +30,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// A virtual-desktop switch must not move the selection while the user is
-/// typing in the queue pane's message box (`dsn~desktop-last-task-selection~5`).
+/// typing in the queue pane's message box (`dsn~desktop-last-task-selection~6`).
 ///
 /// The switch is the one *ambient* source of a selection change — every other
 /// one is a click or a keypress — and a selection change swaps the queue pane
@@ -42,13 +44,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// tasks directory between its methods and several of its assertions are exact
 /// row sets, so two extra categories here turned one pre-existing failure into
 /// five.
-// [utest->dsn~desktop-last-task-selection~5]
+// [utest->dsn~desktop-last-task-selection~6]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class DesktopSwitchWhileTypingUiTest {
 
     @Test
-    void aDesktopSwitchLeavesTheSelectionAloneOnlyWhileTheQueueBoxHoldsText() throws Exception {
+    void aDesktopSwitchLeavesTheSelectionAloneOnlyWhileTheUserTypesInTheQueueBox() throws Exception {
         Path dir = UiTestSupport.tasksDir;
         Files.createDirectories(dir.resolve("pi"));
         Files.createDirectories(dir.resolve("rho"));
@@ -69,10 +71,27 @@ class DesktopSwitchWhileTypingUiTest {
         runFx(() -> mainWindow().selectTask("pi/typing"));
         awaitSelected("pi/typing");
 
-        // The keyboard goes into the message box, mid-word.
+        // A box that holds text but was not typed in is no typing: a click on a
+        // queued message leaves the keyboard in its (never empty) editor, and
+        // holding on that left the terminal on the previous desktop's task
+        // (field report 2026-11-20).
         runFx(() -> {
             queueBox().requestFocus();
-            queueBox().setText("half a wo");
+            queueBox().setText("clicked, not typed");
+        });
+        UiTestSupport.sleep();
+        runFx(() -> mainWindow().updateActiveDesktop("Rho"));
+        awaitSelected("rho/other");
+        runFx(() -> mainWindow().updateActiveDesktop("Pi"));
+        awaitSelected("pi/typing");
+
+        // The keyboard goes into the message box, mid-word: a real keystroke.
+        runFx(() -> {
+            queueBox().requestFocus();
+            queueBox().setText("half a w");
+            queueBox().end();
+            queueBox().fireEvent(new KeyEvent(KeyEvent.KEY_TYPED, "o", "", KeyCode.UNDEFINED,
+                    false, false, false, false));
         });
         UiTestSupport.sleep();
 
@@ -108,6 +127,16 @@ class DesktopSwitchWhileTypingUiTest {
         // previous desktop's task (field report 2026-10-31).
         runFx(() -> queueBox().clear());
         runFx(() -> mainWindow().updateActiveDesktop("Pi"));
+        runFx(() -> mainWindow().updateActiveDesktop("Rho"));
+        awaitSelected("rho/other");
+
+        // A desktop without tasks shows no task: the panes do not keep the
+        // previous desktop's one beside the empty list (field report 2026-11-20).
+        runFx(() -> mainWindow().updateActiveDesktop("Sigma"));
+        awaitVisible("rho/other", false);
+        assertThat(callFx(() -> mainWindow().selectedTaskId() == null))
+                .as("no task is previewed on an empty desktop")
+                .isTrue();
         runFx(() -> mainWindow().updateActiveDesktop("Rho"));
         awaitSelected("rho/other");
     }

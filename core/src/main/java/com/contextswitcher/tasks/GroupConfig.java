@@ -27,6 +27,8 @@ import org.jspecify.annotations.Nullable;
 /// resuming reopens them (`dsn~complete-control-desktop~1`).
 /// `pinned` lifts the category above the unpinned ones in the task list
 /// (`dsn~pinned-categories~1`).
+/// `agent` is the coding-agent CLI its tasks' windows run ([Agent]);
+/// a task's own `claude.agent` wins.
 /// `autoPr` turns the category into an *auto category*: its tasks are not
 /// added by hand but reconciled from a GitHub PR search
 /// (`dsn~auto-pr-category~3`).
@@ -56,7 +58,8 @@ public record GroupConfig(
         boolean pinned,
         @Nullable AutoPr autoPr,
         boolean autoDelete,
-        Task.@Nullable TerminalConfig terminal) {
+        Task.@Nullable TerminalConfig terminal,
+        @Nullable Agent agent) {
 
     /// The `auto:` section of an auto category: the GitHub `search` `query`
     /// whose open pull requests become tasks, the size filter `maxSloc` (the
@@ -75,7 +78,19 @@ public record GroupConfig(
     public static final String DEFAULT_BASE_BRANCH = "origin/main";
 
     public static final GroupConfig EMPTY = new GroupConfig(null, null, null, null, null, null,
-            null, null, null, List.of(), List.of(), false, false, null, false, null);
+            null, null, null, List.of(), List.of(), false, false, null, false, null, null);
+
+    /// Back-compat constructor without `agent` (Claude Code, unless the task says otherwise).
+    // [impl->dsn~task-agent~1]
+    public GroupConfig(@Nullable String remote, @Nullable String workspacesRoot,
+            @Nullable String workdir, @Nullable String repo, @Nullable String desktop,
+            @Nullable String mainCheckout, @Nullable String baseBranch,
+            Task.@Nullable IntellijConfig intellij, Task.@Nullable BrowserConfig browser,
+            List<String> folders, List<String> tags, boolean completeControl, boolean pinned,
+            @Nullable AutoPr autoPr, boolean autoDelete, Task.@Nullable TerminalConfig terminal) {
+        this(remote, workspacesRoot, workdir, repo, desktop, mainCheckout, baseBranch,
+                intellij, browser, folders, tags, completeControl, pinned, autoPr, autoDelete, terminal, null);
+    }
 
     /// Back-compat constructor without `terminal` (no category terminal tab).
     public GroupConfig(@Nullable String remote, @Nullable String workspacesRoot,
@@ -163,6 +178,12 @@ public record GroupConfig(
         this(remote, workspacesRoot, workdir, repo, desktop, null, null, tags);
     }
 
+    /// The agent CLI a new task of the group starts: `agent`, else Claude Code.
+    // [impl->dsn~task-agent~1]
+    public Agent agentOrDefault() {
+        return agent == null ? Agent.CLAUDE : agent;
+    }
+
     /// The branch the group's diffs are based on — `baseBranch`, defaulted.
     public String resolveBaseBranch() {
         return baseBranch != null ? baseBranch : DEFAULT_BASE_BRANCH;
@@ -184,7 +205,8 @@ public record GroupConfig(
         return remote == null && workspacesRoot == null && workdir == null && repo == null
                 && desktop == null && mainCheckout == null && baseBranch == null
                 && intellij == null && browser == null && folders.isEmpty() && tags.isEmpty()
-                && !pinned && autoPr == null && !autoDelete && terminal == null;
+                && !pinned && autoPr == null && !autoDelete && terminal == null
+                && agent == null;
     }
 
     /// The working directory a new task in the group inherits: an explicit

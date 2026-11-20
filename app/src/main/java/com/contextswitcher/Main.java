@@ -45,6 +45,7 @@ import com.contextswitcher.analysis.RefactoringMinerPoller;
 import com.contextswitcher.analysis.RefactoringMinerView;
 import com.contextswitcher.config.AppSettings;
 import com.contextswitcher.config.EnvironmentProfiles;
+import com.contextswitcher.config.ScreenProfiles;
 import com.contextswitcher.config.HostSettings;
 import com.contextswitcher.config.InstalledExtension;
 import com.contextswitcher.config.EnergySaver;
@@ -71,6 +72,8 @@ import com.contextswitcher.local.BrowserWindowFocus;
 import com.contextswitcher.local.JetBrainsClientFocus;
 import com.contextswitcher.local.WindowsDesktopPin;
 import com.contextswitcher.local.LocalFolderFocus;
+import com.contextswitcher.local.ScreenWatch;
+import com.contextswitcher.config.KoppterSync;
 import com.contextswitcher.local.WindowGather;
 import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
@@ -120,6 +123,7 @@ import com.contextswitcher.switching.TmuxResurrect;
 import com.contextswitcher.switching.TmuxWindowOwnership;
 import com.contextswitcher.tasks.Gitkeep;
 import com.contextswitcher.tasks.GitRemote;
+import com.contextswitcher.tasks.Agent;
 import com.contextswitcher.tasks.GroupConfig;
 import com.contextswitcher.tasks.Task;
 import com.contextswitcher.terminal.PaneSnapshots;
@@ -142,6 +146,7 @@ import com.contextswitcher.tasks.TaskRepository;
 import com.contextswitcher.tasks.TaskStatus;
 import com.contextswitcher.ui.Alerts;
 import com.contextswitcher.ui.AnsiTextWindow;
+import com.contextswitcher.ui.CloseConfirmation;
 import com.contextswitcher.ui.MainWindow;
 import com.contextswitcher.ui.SetupWizard;
 import com.contextswitcher.ui.WhatsNew;
@@ -331,11 +336,22 @@ public class Main extends Application {
     /// The `gatherWindows` watcher of the environment profile in effect;
     /// stopped on exit. [impl->dsn~environment-profile-gather-windows~1]
     private final WindowGather windowGather = new WindowGather();
+    /// Reports the connected screens; stopped on exit. [impl->dsn~screen-chosen-profile~1]
+    private final ScreenWatch screenWatch = new ScreenWatch();
+    /// The profile the connected screens chose (`screenProfiles:`); null: none.
+    private volatile @Nullable String screenProfile;
+    /// Whether the screen watcher has reported a first screen set.
+    private boolean screensSeen;
     /// The status bar's environment-profile override (null: none), laid over
     /// the category's profile on every switch. Session-only on purpose: a
     /// restart starts in the plain category look.
     // [impl->dsn~environment-profile-override~1]
     private volatile @Nullable String profileOverride;
+    /// What ContextSwitcher last told koppter, or took from it: the project of
+    /// the category switched to and the context of the profile in effect.
+    // [impl->dsn~koppter-sync~1]
+    private volatile KoppterSync.Selection koppterSelection = KoppterSync.Selection.EMPTY;
+    private final KoppterSync.Guard koppterGuard = new KoppterSync.Guard();
     private @Nullable TerminalPane terminalPane;
     /// The `todoTxt` file the task rows read their todo lines from.
     private final com.contextswitcher.tasks.TodoTxt.File todoTxt = new com.contextswitcher.tasks.TodoTxt.File();
@@ -487,6 +503,14 @@ public class Main extends Application {
                 Logger.warn("Cannot read settings for forwarding to a running instance: {}", e.getMessage());
             }
         }
+        // koppter sends its filter at every change; with no instance running
+        // there is nothing to filter, and starting one each time would be a
+        // window popping up for a click in another program.
+        // [impl->dsn~koppter-sync~1]
+        if (deepLinkUrl != null && DeepLink.isFilterLink(deepLinkUrl)) {
+            Logger.info("No running instance takes {}; not starting one for it", deepLinkUrl);
+            return;
+        }
         launch(args);
     }
 
@@ -636,6 +660,7 @@ public class Main extends Application {
         EnvironmentProfileAction environmentProfile = new EnvironmentProfileAction(
                 () -> EnvironmentProfiles.parse(readSettingsFile(configDir())),
                 group -> groupLink(files, group, TaskFileParser::groupProfile),
+                () -> screenProfile,
                 () -> profileOverride,
                 profile -> {
                     WindowsEnvironment.ApplyResult result = windowsEnvironment.apply(profile);
@@ -846,8 +871,8 @@ public class Main extends Application {
                 (task, done) -> refreshClaudeFromWindow(ssh, files, task, done),
                 (task, newTitle) -> renameTmuxWindow(ssh, task, newTitle),
                 this::openUrl,
-                (url, desktop) -> actionExecutor.execute(
-                        () -> reportFocusUrl(extensionServer, url, desktop)),
+                (entry, desktop) -> actionExecutor.execute(
+                        () -> reportFocusUrl(extensionServer, entry.url(), desktop, entry.browser())),
                 (urls, answer) -> actionExecutor.execute(() -> {
                     int open = countOpenTabs(extensionServer, urls);
                     Platform.runLater(() -> answer.accept(open));
@@ -1031,7 +1056,7 @@ public class Main extends Application {
             }
         });
         window.setOnStartClaude((task, onSettled) ->
-                startClaude(ssh, settings.claudeAuto(), task, onSettled));
+                startClaude(ssh, settings.claudeAuto(), task, task.agent(groupConfig(files, task)), onSettled));
         // The Claude half of the window choice play makes, from the terminal
         // placeholder's `Start Claude` button: it opens play's dialog for the
         // model and effort instead of taking the remote CLI's defaults — but
@@ -1044,7 +1069,8 @@ public class Main extends Application {
         // [impl->dsn~claude-mode-select~3]
         terminalPane.setWindowStarter(task -> {
             MainWindow.RemoteWindowChoice choice =
-                    MainWindow.askRemoteWindow(dialogOwner(), task, taskRemote(files, task), false);
+                    MainWindow.askRemoteWindow(dialogOwner(), task, taskRemote(files, task), false,
+                            task.agent(groupConfig(files, task)));
             if (choice == null) {
                 window.refreshPreview(task.id());
                 return;
@@ -1061,6 +1087,8 @@ public class Main extends Application {
                 () -> EnvironmentProfiles.parse(readSettingsFile(configDir())).names(),
                 choice -> {
                     profileOverride = choice;
+                    // [impl->dsn~koppter-sync~1]
+                    contextChanged(window);
                     window.statusBar().message("Applying "
                             + (choice == null ? "the category profile" : "profile " + choice) + " …");
                     actionExecutor.execute(() -> {
@@ -1069,6 +1097,13 @@ public class Main extends Application {
                                 (result.ok() ? "Profile " : "Profile failed — ") + result.detail()));
                     });
                 });
+        // Docking, undocking, a projector: the connected screens pick a
+        // profile of their own, applied without a task switch.
+        // [impl->dsn~screen-chosen-profile~1]
+        screenWatch.start(screens -> screensChanged(screens, window, environmentProfile));
+        // A project or context picked in the filter menu goes to koppter.
+        // [impl->dsn~koppter-sync~1]
+        window.installProjectContextFilter(selection -> actionExecutor.execute(() -> sendToKoppter(selection)));
         this.window = window;
         this.stage = stage;
         this.windowPositions = new WindowPositions(configDir());
@@ -1090,11 +1125,7 @@ public class Main extends Application {
         // Leaving ends the Claude sessions the app hosts on Windows, so the
         // window's close asks first while one runs.
         // [impl->dsn~owned-session-close-confirm~1]
-        stage.addEventHandler(javafx.stage.WindowEvent.WINDOW_CLOSE_REQUEST, event -> {
-            if (!window.confirmLeave("Closing ContextSwitcher")) {
-                event.consume();
-            }
-        });
+        CloseConfirmation.guard(stage, () -> window.confirmLeave("Closing ContextSwitcher"));
         // The wizard's first project, created once the window is up: the
         // category and its setup session need the repository and the live-task
         // machinery that did not exist while the wizard ran.
@@ -1190,7 +1221,7 @@ public class Main extends Application {
                 // already in the window. [impl->dsn~auto-suspend-idle~2]
                 idle -> Platform.runLater(() -> {
                     window.autoSuspendIdle(idle, autoSuspendMinutes * 60L);
-                    // [impl->dsn~idle-task-removal~1]
+                    // [impl->dsn~idle-task-removal~2]
                     window.autoRemoveIdle(idle);
                 }),
                 // The flag a restarted session has to be given back.
@@ -1214,7 +1245,7 @@ public class Main extends Application {
         // [impl->dsn~merged-task-cleanup~2]
         window.setOnMergedCleanup(task -> cleanupMerged(files, snapshots, taskBackup,
                 suspendOrchestrator, sessionCleanup, task, mergedCleanupDays));
-        // [impl->dsn~idle-task-removal~1]
+        // [impl->dsn~idle-task-removal~2]
         window.setOnIdleRemoval(task -> cleanupIdle(files, snapshots, taskBackup,
                 suspendOrchestrator, sessionCleanup, task));
         PrStatePoller prPoller = new PrStatePoller(new PrStateLookup(new LocalCommandRunner()),
@@ -2196,6 +2227,39 @@ public class Main extends Application {
             scheduler.shutdownNow();
         }
         windowGather.close();
+        screenWatch.close();
+    }
+
+    /// A stable new set of connected screens: picks the profile its
+    /// `screenProfiles:` rule names and, when that differs from the one in
+    /// effect, re-applies the environment profile. The first set after the
+    /// start applies only when a rule matches — starting at the desk should
+    /// not reset the machine to `default` behind the user's back.
+    // [impl->dsn~screen-chosen-profile~1]
+    private void screensChanged(List<ScreenProfiles.ConnectedScreen> screens, MainWindow window,
+            EnvironmentProfileAction environmentProfile) {
+        String settingsText = readSettingsFile(configDir());
+        String chosen = ScreenProfiles.parse(settingsText).pick(screens);
+        boolean first;
+        synchronized (this) {
+            first = !screensSeen;
+            screensSeen = true;
+        }
+        String before = screenProfile;
+        screenProfile = chosen;
+        Platform.runLater(() -> window.showScreenProfile(chosen));
+        // [impl->dsn~koppter-sync~1]
+        contextChanged(window);
+        if (first ? chosen == null : Objects.equals(before, chosen)) {
+            return;
+        }
+        if (EnvironmentProfiles.parse(settingsText).isEmpty()) {
+            return;
+        }
+        Logger.info("Screens chose profile {} (was {})", chosen, before);
+        ActionResult result = environmentProfile.reapply();
+        Platform.runLater(() -> window.statusBar().message("Screens changed — "
+                + (result.ok() ? "profile " : "profile failed — ") + result.detail()));
     }
 
     /// Opens the tasks directory in the OS file manager (Explorer on Windows,
@@ -2342,7 +2406,12 @@ public class Main extends Application {
     /// root-level task or a category without `CONTEXTSWITCHER.md`.
     // [impl->dsn~auto-delete-opt-in~1]
     private static GroupConfig groupConfig(MainWindow.TaskFileAccess files, Task task) {
-        String group = taskGroup(task);
+        return groupConfig(files, taskGroup(task));
+    }
+
+    /// The config of category `group`, read fresh; [GroupConfig#EMPTY] for the
+    /// root or a category without `CONTEXTSWITCHER.md`.
+    private static GroupConfig groupConfig(MainWindow.TaskFileAccess files, String group) {
         String fileName = group + "/" + TaskRepository.GROUP_CONFIG_FILE_NAME;
         return group.isEmpty() || !files.exists(fileName)
                 ? GroupConfig.EMPTY
@@ -2531,6 +2600,21 @@ public class Main extends Application {
         } catch (IllegalArgumentException e) {
             Logger.warn("Ignoring bad deep link: {}", e.getMessage());
             window.statusBar().message("Cannot open link: " + e.getMessage());
+            return;
+        }
+        // koppter's filter: the categories of its project and context, without
+        // raising the window — the user is working in koppter.
+        // [impl->dsn~koppter-sync~1]
+        if (link.kind() == DeepLink.Kind.FILTER) {
+            if (!KoppterSync.enabled(readSettingsFile(configDir()))) {
+                window.statusBar().message("koppter sent a filter, but koppterSync is off in settings.yaml");
+                return;
+            }
+            KoppterSync.Selection selection = KoppterSync.parseQuery(link.target());
+            koppterGuard.received(selection);
+            koppterSelection = selection;
+            window.setProjectContextFilter(selection);
+            window.statusBar().message("koppter: " + selection);
             return;
         }
         TaskEntry.@Nullable Loaded loaded = null;
@@ -2733,7 +2817,7 @@ public class Main extends Application {
                     continue;
                 }
                 TmuxResurrect.Resurrected result =
-                        resurrect.resurrect(remote, tmux, task.claude(), task.title());
+                        resurrect.resurrect(remote, tmux, withCategoryDefaults(files, task).claude(), task.title());
                 if (result == null) {
                     // Leave the old window: line in place — nothing replaced it.
                     errors.append("\n").append(task.title()).append(": resurrect failed (see log)");
@@ -3619,7 +3703,8 @@ public class Main extends Application {
                 window.selectCreatedTask(taskId);
                 creationStep(window, taskId, "Creating the tmux window …");
                 executor.execute(() -> {
-                    ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+                    ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto,
+                            groupConfig(files, group).agentOrDefault());
                     String windowId = launcher
                             .launch(remote, session, title, prompt, null, mode,
                                     step -> Platform.runLater(() -> creationStep(window, taskId, step)),
@@ -3826,11 +3911,11 @@ public class Main extends Application {
         // [impl->dsn~task-create-progress~6]
         // The description lives under # Notes from the start, so nothing
         // is lost when the title is later replaced by Claude's @cs_title.
-        String content = ClaudeWindowLauncher.liveTaskContent(title, remote, workdir, appendix)
+        String content = ClaudeWindowLauncher.liveTaskContent(title, remote, workdir, appendix, mode.agent())
                 + (hints ? "\nCreated on %s.\n".formatted(LocalDate.now()) : "");
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~2]
-        // [impl->dsn~idle-task-removal~1]
+        // [impl->dsn~idle-task-removal~2]
         String withPrs = TaskFileParser.withFlag(TaskFileParser.addUrlsFrom(content, title),
                 IdleRemoval.KEY, autoRemove);
         // Dated like the per-task worktrees; the description slug is
@@ -3870,7 +3955,8 @@ public class Main extends Application {
                 Platform.runLater(() -> finishCreation(window, taskId, null, remote, unmade));
                 return;
             }
-            ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+            ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto,
+                    groupConfig(files, group).agentOrDefault());
             String windowId = launcher
                     .launch(remote, session, title, prompt, workdir, mode,
                             step -> Platform.runLater(() -> creationStep(window, taskId, step)),
@@ -3981,7 +4067,8 @@ public class Main extends Application {
         window.statusBar().message("Forking " + statusName + " …");
         window.creationProgress(taskId, "Creating the tmux window …");
         executor.execute(() -> {
-            ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+            ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto,
+                    source.agent(groupConfig));
             String windowId = launcher
                     .launch(remote, session, instruction, prompt, cwd, mode,
                             step -> Platform.runLater(() -> window.creationProgress(taskId, step)),
@@ -4086,7 +4173,8 @@ public class Main extends Application {
                 String description = task.notes().isBlank() ? task.title() : task.notes().strip();
                 String prompt = ClaudeWindowLauncher.liveTaskPrompt(description, repo, bootstrapWorktree && cwd != null,
                         group, groupConfig.effectiveMainCheckout(), null);
-                ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto);
+                ClaudeWindowLauncher launcher = new ClaudeWindowLauncher(ssh, sender, claudeAuto,
+                        task.agent(groupConfig));
                 windowId = launcher
                         .launch(remote, session, task.title(), prompt, cwd, mode,
                                 step -> Platform.runLater(() -> creationStep(window, task.id(), step)),
@@ -4122,7 +4210,8 @@ public class Main extends Application {
     /// next to `IDEA`. Runs off the FX thread; `onSettled` re-enables the
     /// button on the FX thread either way.
     // [impl->dsn~start-claude-button~2]
-    private void startClaude(SshCommandRunner ssh, boolean claudeAuto, Task task, Runnable onSettled) {
+    private void startClaude(SshCommandRunner ssh, boolean claudeAuto, Task task, Agent agent,
+            Runnable onSettled) {
         ExecutorService executor = this.actionExecutor;
         String remote = task.remote();
         Task.TmuxConfig tmux = task.tmux();
@@ -4135,7 +4224,7 @@ public class Main extends Application {
         MainWindow currentWindow = this.window;
         executor.execute(() -> {
             boolean sent = new TmuxResurrect(ssh, claudeAuto)
-                    .startClaude(remote, windowId, sessionId);
+                    .startClaude(remote, windowId, sessionId, agent);
             Platform.runLater(() -> {
                 if (currentWindow != null) {
                     currentWindow.statusBar().message(sent
@@ -4598,9 +4687,21 @@ public class Main extends Application {
     /// 2026-09-10); the tab moves to them instead.
     // [impl->dsn~pr-open-on-category-desktop~3]
     private void reportFocusUrl(ExtensionServer extensionServer, String url, @Nullable String desktop) {
-        ExtensionProtocol.Result result = desktop == null
+        reportFocusUrl(extensionServer, url, desktop, null);
+    }
+
+    /// `pinned`: the browser a `browser.urls` entry names — its extension shows
+    /// the tab, without the desktop dance, which raises and launches windows
+    /// of the driven browser only.
+    // [impl->dsn~browser-url-pinned-browser~1]
+    private void reportFocusUrl(ExtensionServer extensionServer, String url, @Nullable String desktop,
+            @Nullable Browser pinned) {
+        ExtensionProtocol.Result result = pinned != null
+                ? extensionServer.focusUrl(url, true, null, null, false, pinned)
+                : desktop == null
                 ? extensionServer.focusUrl(url)
                 : openOnDesktop(extensionServer, desktop, url);
+        Browser shown = pinned != null ? pinned : drivenBrowser();
         // The extension activated the tab but cannot raise Firefox past the
         // foreground-stealing lock while this app is in front; bring the exact
         // window forward ourselves, matched by the focused tab's title so the
@@ -4608,13 +4709,13 @@ public class Main extends Application {
         // title means a freshly opened tab whose window we cannot title-match.
         String windowTitle = result.title();
         if (result.ok() && windowTitle != null && !windowTitle.isBlank()) {
-            new BrowserWindowFocus(new LocalCommandRunner(), drivenBrowser()).focus(windowTitle);
+            new BrowserWindowFocus(new LocalCommandRunner(), shown).focus(windowTitle);
         }
         MainWindow currentWindow = this.window;
         if (currentWindow == null) {
             return;
         }
-        String name = drivenBrowser().displayName();
+        String name = shown.displayName();
         String text = result.ok()
                 ? name + ": " + result.detail() + " — " + url
                 : "Cannot show in " + name + ": " + result.detail();
@@ -5377,6 +5478,46 @@ public class Main extends Application {
         // [impl->dsn~terminal-pane~14]
         orchestrator.switchTo(effective, only, window.statusBar()::update,
                 () -> window.refreshPreview(effective.id()));
+        // The category's project goes to koppter; one without `project:`
+        // leaves koppter's project alone. [impl->dsn~koppter-sync~1]
+        String project = groupLink(files, taskGroup(task), TaskFileParser::groupProject);
+        if (project != null) {
+            sendToKoppter(koppterSelection.withProjects(Set.of(project)));
+        }
+    }
+
+    /// Hands `selection` to koppter (`koppter://sync?…`) when `koppterSync` is
+    /// on and it differs from what koppter last got from or sent to us.
+    // [impl->dsn~koppter-sync~1]
+    private void sendToKoppter(KoppterSync.Selection selection) {
+        koppterSelection = selection;
+        if (!KoppterSync.enabled(readSettingsFile(configDir())) || !koppterGuard.send(selection)) {
+            return;
+        }
+        Logger.info("Sending koppter {}", selection);
+        openUrl(KoppterSync.koppterUrl(selection));
+    }
+
+    /// The context of the profile the screens or the override chose: put
+    /// into the task list's filter and handed to koppter when it changed.
+    /// Not the category's profile — the context is where the user is, not
+    /// what they work on.
+    // [impl->dsn~koppter-sync~1]
+    private void contextChanged(MainWindow window) {
+        String settingsText = readSettingsFile(configDir());
+        if (!KoppterSync.enabled(settingsText)) {
+            return;
+        }
+        String override = profileOverride;
+        String context = KoppterSync.profileContext(settingsText, override != null ? override : screenProfile);
+        Set<String> contexts = context == null ? Set.of() : Set.of(context);
+        if (contexts.equals(koppterSelection.contexts())) {
+            return;
+        }
+        KoppterSync.Selection next = koppterSelection.withContexts(contexts);
+        Platform.runLater(() -> window.setProjectContextFilter(
+                window.projectContextFilter().withContexts(contexts)));
+        sendToKoppter(next);
     }
 
     /// The task with its category's action defaults folded in — what a switch
@@ -5522,7 +5663,7 @@ public class Main extends Application {
     /// [IdleRemoval] decides): the merged janitor's archive-and-remove without
     /// its screen judgment — the user asked for it when creating the task —
     /// and with the workdir removed only as a linked git worktree.
-    // [impl->dsn~idle-task-removal~1]
+    // [impl->dsn~idle-task-removal~2]
     private void cleanupIdle(MainWindow.TaskFileAccess files, PaneSnapshots snapshots,
             TaskGitBackup backup, SwitchOrchestrator orchestrator,
             ClaudeSessionCleanup cleanup, Task task) {

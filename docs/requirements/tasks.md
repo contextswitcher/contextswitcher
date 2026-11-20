@@ -213,7 +213,7 @@ Needs: dsn
 
 A small task should not linger: when creating it, the user can tick *Remove session and worktree after 1 day of inactivity*.
 Once such a task's Claude session has been inactive for a day, the application ends its window, removes the Claude transcript and its worktree, and deletes the task file — checked continuously while it runs, so also right after it starts.
-Only a linked git worktree is removed, never a full checkout.
+Only a linked git worktree is removed, never a full checkout, and its branch is deleted with it.
 As with a merged task, the last screen is appended to the notes and the task directory is committed first.
 A pinned task is never removed this way.
 
@@ -297,13 +297,14 @@ Covers:
 Needs: impl, utest
 
 ### A quick task removes itself after a day of inactivity
-`dsn~idle-task-removal~1`
+`dsn~idle-task-removal~2`
 
 The *Add task* dialog's checkbox writes `autoRemoveIdle: true` into the new file (plain, local and remote Claude alike; `TaskFileParser.withFlag`).
 `MainWindow.autoRemoveIdle` runs on every status-poll tick right after the auto-suspend and nominates **one** task per tick that `IdleRemoval.due` accepts and whose file carries the flag — never the selected row, never one it already nominated.
 Due means: a `claude:` section, not pinned, and either **active** with a window the poll reports idle for 24 hours and not `working`, or **suspended** for 24 hours (the `dsn~suspended-timestamp~1` stamp); a done task is left alone.
 It is not gated by the category's `autoDelete` (`dsn~auto-delete-opt-in~1`): ticking the box is the per-task opt-in.
 `Main.cleanupIdle` archives and removes like `dsn~merged-task-cleanup~2` (shared `archiveAndRemove`), without judging the last screen, and with `ClaudeSessionCleanup.Choices.worktreeOnly`: the workdir goes by `git -C <dir> worktree remove --force <dir>` after `rejectWorkdir`, so git refuses a main working tree or a directory that is no linked worktree, and the directory stays.
+The worktree's branch goes with it (`~1`→`~2`, Oliver: "also delete the worktree's branch"): `git rev-parse --path-format=absolute --git-common-dir --abbrev-ref HEAD` asked *before* the removal names repository and branch, and `git --git-dir=<common dir> branch -D <branch>` follows a successful removal — skipped for a detached HEAD; git itself refuses a branch still checked out in another worktree.
 
 Tags: windows, linux
 

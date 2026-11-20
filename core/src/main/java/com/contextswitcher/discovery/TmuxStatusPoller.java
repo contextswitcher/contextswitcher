@@ -298,6 +298,27 @@ public class TmuxStatusPoller implements AutoCloseable {
                 "send-keys", "-t", "'" + windowId + "'", "Enter");
     }
 
+    /// tmux format condition: the pane runs the Codex CLI (natively, or as
+    /// the npm package's Node wrapper — a guess, no Codex was at hand).
+    // ponytail: `node` also matches a dev server in a plain-shell task window (it then reads waiting); a Codex notify hook setting @cs_status would be exact.
+    private static final String CODEX_PANE =
+            "#{||:#{==:#{pane_current_command},codex},#{==:#{pane_current_command},node}}";
+
+    /// The status column: `@cs_status` when the window publishes one (Claude's
+    /// hooks), else derived for the CLIs without hooks — Vibe's tab status
+    /// prefixes the pane title with `>> ` while it works (and `? ` while it
+    /// asks), so `working`/`waiting` straight from tmux; a Codex pane reads
+    /// `waiting` unless its pane grep says busy ([#BUSY]); anything else stays
+    /// empty, as before.
+    // [impl->dsn~agent-status~1]
+    static final String STATUS_FORMAT = "#{?@cs_status,#{@cs_status},"
+            + "#{?#{==:#{pane_current_command},vibe-rs},#{?#{m:>> *,#{pane_title}},working,waiting},"
+            + "#{?" + CODEX_PANE + ",waiting,}}}";
+
+    /// Marker of the pane grep for a Codex turn in progress: its status line
+    /// "Working (12s • esc to interrupt)" (guessed from Codex's TUI).
+    static final String BUSY = "busy";
+
     /// One remote shell line: snapshot the host clock, then print
     /// `windowId|status|idleSeconds` per window (idle = now − last pane
     /// activity, computed remotely). The tmux format is single-quoted so the
@@ -328,9 +349,13 @@ public class TmuxStatusPoller implements AutoCloseable {
     public static List<String> statusCommand() {
         return List.of("now=$(date +%s); "
                 + "tmux list-windows -a "
-                + "-F '#{window_id}|#{@cs_status}|#{window_activity}|#{@cs_model}|#{@cs_effort}"
+                + "-F '#{window_id}|" + STATUS_FORMAT + "|#{window_activity}|#{@cs_model}|#{@cs_effort}"
                 + "|#{@cs_session_id}|#{pane_current_command}' "
                 + "| awk -F'|' -v n=$now 'BEGIN{OFS=FS} {print $1,$2,n-$3,$4,$5,$6,$7}'; "
+                + "for w in $(tmux list-windows -a -F '#{?" + CODEX_PANE + ",#{window_id},}'); do "
+                + "tmux capture-pane -p -J -t $w 2>/dev/null | grep -v '^ *$' | tail -6 "
+                + "| grep -qi 'esc to interrupt' && echo '" + BUSY + "|'$w; "
+                + "done; "
                 + "for w in $(tmux list-windows -a -F '#{?@cs_status,#{window_id},}'); do "
                 + "tmux capture-pane -p -J -S -12 -t $w 2>/dev/null "
                 + "| grep -qE '" + LIMIT_PATTERN + "' && echo '" + LIMIT + "|'$w; "
@@ -506,6 +531,7 @@ public class TmuxStatusPoller implements AutoCloseable {
     public static void parseInto(String host, String stdout, Map<String, String> out, long idleThresholdSeconds) {
         Set<String> limited = parseLimited(stdout);
         Set<String> interrupted = parseMarked(stdout, INTERRUPTED);
+        Set<String> busy = parseMarked(stdout, BUSY);
         for (String line : stdout.split("\\R")) {
             if (line.isBlank()) {
                 continue;
@@ -515,6 +541,10 @@ public class TmuxStatusPoller implements AutoCloseable {
                 continue;
             }
             String status = parts[1].strip();
+            // [impl->dsn~agent-status~1]
+            if (busy.contains(parts[0])) {
+                status = "working";
+            }
             if (!status.isEmpty()) {
                 String effective = effectiveStatus(status, parseIdle(parts[2]), idleThresholdSeconds);
                 if (!"working".equalsIgnoreCase(effective)) {

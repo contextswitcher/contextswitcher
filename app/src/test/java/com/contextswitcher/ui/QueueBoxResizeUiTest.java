@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.prefs.Preferences;
 
 import com.contextswitcher.tasks.TaskEntry;
 
@@ -94,6 +95,10 @@ class QueueBoxResizeUiTest {
         });
 
         awaitFx(() -> sent.getHeight() > before + 50, "the sent viewport to grow with the drag");
+
+        runFx(() -> Event.fireEvent(grip, mouse(MouseEvent.MOUSE_RELEASED, 60)));
+        assertThat(Preferences.userNodeForPackage(QueuePane.class).getDouble(QueuePane.SENT_HEIGHT, -1))
+                .isGreaterThan(before + 50);
     }
 
     /// A press/drag at screen y `screenY` — the handler reads screen

@@ -54,12 +54,21 @@ class ClaudeSessionCleanupTest {
                 ClaudeSessionCleanup.workdirCommand("/data/koppor/ws/2026-07-17-task"));
     }
 
-    // [utest->dsn~idle-task-removal~1]
+    // [utest->dsn~idle-task-removal~2]
     @Test
     void worktreeCommandLetsGitRefuseAFullCheckout() {
         assertEquals(List.of("git", "-C", "'/data/koppor/ws/2026-07-17-task'", "worktree", "remove",
                         "--force", "'/data/koppor/ws/2026-07-17-task'"),
                 ClaudeSessionCleanup.worktreeCommand("/data/koppor/ws/2026-07-17-task"));
+    }
+
+    // [utest->dsn~idle-task-removal~2]
+    @Test
+    void theWorktreesBranchIsDeletedInItsRepository() {
+        assertEquals(List.of("git", "--git-dir='/data/koppor/ws/repo/.git'", "branch", "-D", "'fix-typo'"),
+                ClaudeSessionCleanup.branchDeleteCommand("/data/koppor/ws/repo/.git\nfix-typo\n"));
+        assertNull(ClaudeSessionCleanup.branchDeleteCommand("/data/koppor/ws/repo/.git\nHEAD\n"));
+        assertNull(ClaudeSessionCleanup.branchDeleteCommand("fatal: not a git repository"));
     }
 
     @Test

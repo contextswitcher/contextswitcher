@@ -55,6 +55,7 @@ import com.contextswitcher.analysis.RefactoringSummary;
 import com.contextswitcher.config.AppSettings;
 import com.contextswitcher.config.Browser;
 import com.contextswitcher.config.EnergySaver;
+import com.contextswitcher.config.KoppterSync;
 import com.contextswitcher.discovery.ClaudeSessionCleanup;
 import com.contextswitcher.discovery.LocalClaudeSessions;
 import com.contextswitcher.local.AppUpdate;
@@ -66,6 +67,7 @@ import com.contextswitcher.queue.QueueFile;
 import com.contextswitcher.tasks.AutoPrReconcile;
 import com.contextswitcher.tasks.Frontmatter;
 import com.contextswitcher.tasks.FrontmatterCatalog;
+import com.contextswitcher.tasks.Agent;
 import com.contextswitcher.tasks.GroupConfig;
 import com.contextswitcher.tasks.IdleRemoval;
 import com.contextswitcher.tasks.MergedCleanup;
@@ -260,7 +262,7 @@ public class MainWindow {
     /// when it has none): a tab that must be *opened* is opened there.
     // [impl->dsn~pr-state-indicator~3]
     // [impl->dsn~pr-open-on-category-desktop~3]
-    private final BiConsumer<String, @Nullable String> onFocusUrlInBrowser;
+    private final BiConsumer<Task.UrlEntry, @Nullable String> onFocusUrlInBrowser;
     /// Counts how many of the given URLs have a browser tab open **right now**
     /// (`Main.countOpenTabs`), off the FX thread, and hands the number back on
     /// it — `-1` when the question cannot be asked at all (no extension
@@ -307,6 +309,14 @@ public class MainWindow {
     /// below the editor in the right lane.
     // [impl->dsn~message-queue-ui~26]
     private final Node queueNode;
+    /// When a character was last typed anywhere in the queue pane
+    /// (`System.nanoTime`); [#queueFieldFocused] only counts typing this recent.
+    // [impl->dsn~desktop-last-task-selection~6]
+    private long lastQueueKeystrokeNanos;
+    /// How long after the last keystroke in the queue pane a desktop switch
+    /// still counts as arriving mid-sentence.
+    // [impl->dsn~desktop-last-task-selection~6]
+    static final long QUEUE_TYPING_PAUSE_NANOS = 3_000_000_000L;
     private final Runnable onPreviewCleared;
     /// Focuses the terminal mirror after a click on a task row ([TaskListCell]),
     /// so the user can type into the task's tmux window straight away.
@@ -500,6 +510,15 @@ public class MainWindow {
     /// filters and the tag submenu; its badge shows how many are active.
     // [impl->dsn~task-list-toolbar~3]
     private @Nullable MenuButton filterButton;
+    /// The project and context filter shared with koppter: only categories
+    /// whose `project:` and `contexts:` match stay. Set from the filter menu,
+    /// from koppter's `contextswitcher://filter` link and from the context of
+    /// the environment profile ([#setProjectContextFilter]); session-only.
+    // [impl->dsn~koppter-sync~1]
+    private KoppterSync.Selection projectContextFilter = KoppterSync.Selection.EMPTY;
+    /// Told about a change the user made in the filter menu, so `Main` hands
+    /// it on to koppter.
+    private Consumer<KoppterSync.Selection> onProjectContextFilter = selection -> { };
     /// When on, the list shows only active tasks whose live `@cs_status` is
     /// `waiting` or `attention` — the rows needing the user's input next. Kept
     /// across restarts like the other filters.
@@ -567,7 +586,7 @@ public class MainWindow {
     /// not the previous desktop's. Kept across restarts (a preferences child
     /// node, one entry per desktop): the memory is worthless if the first
     /// switch after every launch has nothing to restore.
-    // [impl->dsn~desktop-last-task-selection~5]
+    // [impl->dsn~desktop-last-task-selection~6]
     static final Preferences LAST_TASK_BY_DESKTOP =
             Preferences.userNodeForPackage(MainWindow.class).node("lastTaskByDesktop");
     /// When on, the list shows only running (active) tasks — suspended and done
@@ -652,7 +671,7 @@ public class MainWindow {
     /// `Main`, a no-op until then. [impl->dsn~merged-task-cleanup~2]
     private Consumer<Task> onMergedCleanup = task -> { };
 
-    /// Removes one task the idle janitor nominated (`dsn~idle-task-removal~1`).
+    /// Removes one task the idle janitor nominated (`dsn~idle-task-removal~2`).
     private Consumer<Task> onIdleRemoval = task -> { };
 
     /// Ids already handed to [#onIdleRemoval], so the next poll tick — the
@@ -660,7 +679,7 @@ public class MainWindow {
     private final Set<String> idleRemovals = new HashSet<>();
 
     /// Installs the idle janitor (see [#autoRemoveIdle]).
-    // [impl->dsn~idle-task-removal~1]
+    // [impl->dsn~idle-task-removal~2]
     public void setOnIdleRemoval(Consumer<Task> handler) {
         this.onIdleRemoval = handler;
     }
@@ -1026,7 +1045,7 @@ public class MainWindow {
             Consumer<Task> onSwitch, Consumer<Task> onSuspend,
             BiConsumer<Task, Runnable> onRefreshClaude,
             BiConsumer<Task, String> onRenamed, Consumer<String> onOpenUrl,
-            BiConsumer<String, @Nullable String> onFocusUrlInBrowser,
+            BiConsumer<Task.UrlEntry, @Nullable String> onFocusUrlInBrowser,
             BiConsumer<List<String>, IntConsumer> onCountOpenTabs, BiConsumer<String, Runnable> onFocusDesktop,
             BiConsumer<List<String>, Runnable> onOpenFolders,
             Consumer<Boolean> onActiveDesktopFilter,
@@ -1078,6 +1097,10 @@ public class MainWindow {
         this.files = files;
         this.terminal = terminal;
         this.queueNode = queueNode;
+        // [impl->dsn~desktop-last-task-selection~6]
+        this.lastQueueKeystrokeNanos = System.nanoTime() - QUEUE_TYPING_PAUSE_NANOS;
+        queueNode.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED,
+                event -> lastQueueKeystrokeNanos = System.nanoTime());
         this.onPreviewCleared = onPreviewCleared;
         this.onFocusTerminal = onFocusTerminal;
         this.onRethemeTerminal = onRethemeTerminal;
@@ -1112,6 +1135,10 @@ public class MainWindow {
     // [impl->dsn~environment-profile-override~1]
     private final MenuButton profileOverride = hiddenUntilInstalled(iconMenuButton(MDITechnology.MONITOR_SHARE,
             "Environment profile override — laid over the category's profile until switched back"));
+    /// The override chosen in [#profileOverride]'s menu; null: none.
+    private @Nullable String overrideChoice;
+    /// The profile the connected screens chose; null: none ([#showScreenProfile]).
+    private @Nullable String screenChoice;
     /// The commit the running app was built from, in the status bar's right
     /// corner — empty until [#showCommit] fills it (git is asked off the FX
     /// thread), and empty forever when the app runs out of a zip.
@@ -1177,13 +1204,14 @@ public class MainWindow {
     public void installProfileOverride(Supplier<List<String>> names, Consumer<@Nullable String> onChoose) {
         profileOverride.setVisible(true);
         profileOverride.setOnShowing(event -> {
-            String active = profileOverride.getText();
+            String active = overrideChoice;
             ToggleGroup group = new ToggleGroup();
             RadioMenuItem none = new RadioMenuItem("Category profile");
             none.setToggleGroup(group);
             none.setSelected(active == null || active.isEmpty());
             none.setOnAction(e -> {
-                profileOverride.setText(null);
+                overrideChoice = null;
+                updateProfileText();
                 onChoose.accept(null);
             });
             List<MenuItem> items = new ArrayList<>(List.of(none, new SeparatorMenuItem()));
@@ -1192,7 +1220,8 @@ public class MainWindow {
                 item.setToggleGroup(group);
                 item.setSelected(name.equals(active));
                 item.setOnAction(e -> {
-                    profileOverride.setText(name);
+                    overrideChoice = name;
+                    updateProfileText();
                     onChoose.accept(name);
                 });
                 items.add(item);
@@ -1207,6 +1236,20 @@ public class MainWindow {
         // A MenuButton with no items never opens, so the showing handler
         // would never run.
         profileOverride.getItems().setAll(new MenuItem());
+    }
+
+    /// Names the profile the connected screens chose (null: none) on the
+    /// override button while no override is active — `desk (screens)` — so
+    /// the look the machine is in has a visible reason. FX thread.
+    // [impl->dsn~screen-chosen-profile~1]
+    public void showScreenProfile(@Nullable String name) {
+        screenChoice = name;
+        updateProfileText();
+    }
+
+    private void updateProfileText() {
+        profileOverride.setText(overrideChoice != null ? overrideChoice
+                : screenChoice != null ? screenChoice + " (screens)" : null);
     }
 
     /// Whether to leave the app — closing it or restarting it for an update —
@@ -2119,7 +2162,8 @@ public class MainWindow {
             return false;
         }
         String command = commandByKey.get(task.remote() + " " + tmux.window());
-        return command != null && !"claude".equals(command);
+        // [impl->dsn~task-agent~1]
+        return command != null && !task.agent(groupDefaults(groupOf(task.id()))).runsIn(command);
     }
 
     /// The Claude session the task's recorded window really hosts, when the
@@ -2298,6 +2342,8 @@ public class MainWindow {
         ClaudeMode remembered = lastMode();
         QueuePane.selectMode(modelBox, remembered.model());
         QueuePane.selectMode(effortBox, remembered.effort());
+        // [impl->dsn~agent-mode-select~1]
+        QueuePane.fillModes(modelBox, effortBox, source.agent(groupDefaults(groupOf(source.id()))));
         HBox modeRow = new HBox(6, modelBox, effortBox);
 
         VBox content = new VBox(6, field, modeRow, keysHint);
@@ -2437,7 +2483,7 @@ public class MainWindow {
     /// Shows `entry`'s page in the browser, on the virtual desktop of `group`.
     private void openInBrowser(Task.UrlEntry entry, String group) {
         statusBar.message("Opening " + entry.display() + " …");
-        onFocusUrlInBrowser.accept(entry.url(), group.isEmpty() ? null : groupDesktop(group));
+        onFocusUrlInBrowser.accept(entry, group.isEmpty() ? null : groupDesktop(group));
     }
 
     /// Highlights the browser URL of the tab in view (null: none known) in the
@@ -2680,6 +2726,9 @@ public class MainWindow {
         boolean awaiting = !searching && awaitsInputOnly;
         // [impl->dsn~running-tasks-filter~2]
         boolean running = !searching && runningTasksOnly;
+        // [impl->dsn~koppter-sync~1]
+        KoppterSync.Selection projectContext = searching ? KoppterSync.Selection.EMPTY : projectContextFilter;
+        Map<String, Boolean> inProjectContext = new HashMap<>();
         long recentSuspendedCutoff = System.currentTimeMillis()
                 - java.time.Duration.ofDays(RECENT_SUSPENDED_DAYS).toMillis();
         // The active-desktop filter narrows only when we actually know the
@@ -2697,7 +2746,7 @@ public class MainWindow {
         // The find field's category chip narrows the list to that category.
         // [impl->dsn~category-search~3]
         String scope = scopeCategory;
-        boolean narrowed = searching || filtering || awaiting || running
+        boolean narrowed = searching || filtering || awaiting || running || !projectContext.isEmpty()
                 || activeDesktopFilter != null || scope != null || !inactiveHosts.isEmpty();
         // Force-expanding every group belongs to a *find* — a query or a tag
         // selection, where the point is to see every match without extra
@@ -2765,6 +2814,10 @@ public class MainWindow {
             }
             // [impl->dsn~awaits-input-filter~1]
             if (awaiting && !awaitsInput(entry)) {
+                continue;
+            }
+            // [impl->dsn~koppter-sync~1]
+            if (!projectContext.isEmpty() && !inProjectContext(entry.group(), projectContext, inProjectContext)) {
                 continue;
             }
             // Show only the categories on the active virtual desktop.
@@ -2852,6 +2905,11 @@ public class MainWindow {
                 }
                 // [impl->dsn~category-search~3]
                 if (scope != null && !folder.equals(scope)) {
+                    continue;
+                }
+                // A category's project and contexts are its own, like its desktop.
+                // [impl->dsn~koppter-sync~1]
+                if (!projectContext.isEmpty() && !inProjectContext(folder, projectContext, inProjectContext)) {
                     continue;
                 }
                 // [impl->dsn~host-on-off~2]
@@ -3151,7 +3209,7 @@ public class MainWindow {
                 if (EnergySaver.active()) {
                     EnergySaver.refreshTask();
                 }
-                // [impl->dsn~desktop-last-task-selection~5]
+                // [impl->dsn~desktop-last-task-selection~6]
                 rememberLastTask(activeDesktop, loaded.id());
                 showCategoryInTitle(loaded.group());
                 onPreview.accept(loaded.task());
@@ -3219,6 +3277,143 @@ public class MainWindow {
     /// `computeIfAbsent` (which does not cache a null).
     // [impl->dsn~active-desktop-filter~6]
     // [impl->dsn~fallback-desktop~2]
+    /// Whether the category `group` belongs to the project and context
+    /// `selection` ([KoppterSync.Selection#matches]), memoized per rebuild. A
+    /// task outside any category has no project; a config that does not load
+    /// is kept, so its header warning stays visible.
+    // [impl->dsn~koppter-sync~1]
+    private boolean inProjectContext(String group, KoppterSync.Selection selection, Map<String, Boolean> memo) {
+        return memo.computeIfAbsent(group, name -> {
+            if (name.isEmpty()) {
+                return selection.matches(null, List.of());
+            }
+            String configFile = groupConfigFileName(name);
+            if (!files.exists(configFile)) {
+                return selection.matches(null, List.of());
+            }
+            String content = files.load(configFile);
+            if (parser.groupConfigError(content) != null) {
+                return true;
+            }
+            return selection.matches(TaskFileParser.groupProject(content), TaskFileParser.groupContexts(content));
+        });
+    }
+
+    /// The `project:`s and `contexts:` the categories name — what the filter
+    /// menu offers.
+    // [impl->dsn~koppter-sync~1]
+    private KoppterSync.Selection categoryProjectsAndContexts() {
+        Set<String> projects = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        Set<String> contexts = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        Set<String> groups = new TreeSet<>(folders);
+        entries.forEach(entry -> groups.add(entry.group()));
+        for (String group : groups) {
+            if (group.isEmpty() || !files.exists(groupConfigFileName(group))) {
+                continue;
+            }
+            String content = files.load(groupConfigFileName(group));
+            String project = TaskFileParser.groupProject(content);
+            if (project != null) {
+                projects.add(project);
+            }
+            contexts.addAll(TaskFileParser.groupContexts(content));
+        }
+        return new KoppterSync.Selection(projects, contexts);
+    }
+
+    /// Sets the project and context filter without telling `Main` — the
+    /// change came from koppter or from the environment profile. FX thread.
+    // [impl->dsn~koppter-sync~1]
+    public void setProjectContextFilter(KoppterSync.Selection selection) {
+        if (selection.equals(projectContextFilter)) {
+            return;
+        }
+        projectContextFilter = selection;
+        updateFilterButton();
+        rebuildRows();
+    }
+
+    /// The project and context filter in effect.
+    public KoppterSync.Selection projectContextFilter() {
+        return projectContextFilter;
+    }
+
+    /// Where a change the user makes in the filter menu's project and context
+    /// items goes.
+    // [impl->dsn~koppter-sync~1]
+    public void installProjectContextFilter(Consumer<KoppterSync.Selection> onChange) {
+        this.onProjectContextFilter = onChange;
+    }
+
+    /// The filter menu's "Projects and contexts" submenu: a check item per
+    /// `project:` and per `contexts:` entry the categories name (and per one
+    /// koppter selected), plus "Clear". Filled each time it opens.
+    // [impl->dsn~koppter-sync~1]
+    private Menu projectContextMenu() {
+        Menu menu = new Menu("Projects and contexts", new SvgNode(MDIInterface.TAG_MULTIPLE.path(), 14));
+        menu.setId("project-context-menu");
+        // A placeholder child: a Menu without items never fires onShowing.
+        menu.getItems().add(new MenuItem("(none)"));
+        menu.setOnShowing(event -> {
+            menu.getItems().clear();
+            KoppterSync.Selection offered = categoryProjectsAndContexts();
+            KoppterSync.Selection current = projectContextFilter;
+            Set<String> projects = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+            projects.addAll(offered.projects());
+            projects.addAll(current.projects());
+            Set<String> contexts = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+            contexts.addAll(offered.contexts());
+            contexts.addAll(current.contexts());
+            if (projects.isEmpty() && contexts.isEmpty()) {
+                MenuItem none = new MenuItem("(no category names a project: or contexts:)");
+                none.setDisable(true);
+                menu.getItems().add(none);
+                return;
+            }
+            for (String project : projects) {
+                CheckMenuItem item = new CheckMenuItem("+" + project);
+                item.setSelected(current.projects().contains(project));
+                item.setOnAction(click -> changeProjectContextFilter(
+                        toggled(projectContextFilter.projects(), project, item.isSelected()), null));
+                menu.getItems().add(item);
+            }
+            if (!projects.isEmpty() && !contexts.isEmpty()) {
+                menu.getItems().add(new SeparatorMenuItem());
+            }
+            for (String context : contexts) {
+                CheckMenuItem item = new CheckMenuItem("@" + context);
+                item.setSelected(current.contexts().contains(context));
+                item.setOnAction(click -> changeProjectContextFilter(
+                        null, toggled(projectContextFilter.contexts(), context, item.isSelected())));
+                menu.getItems().add(item);
+            }
+            MenuItem clear = new MenuItem("Clear");
+            clear.setDisable(current.isEmpty());
+            clear.setOnAction(click -> changeProjectContextFilter(Set.of(), Set.of()));
+            menu.getItems().addAll(new SeparatorMenuItem(), clear);
+        });
+        return menu;
+    }
+
+    private static Set<String> toggled(Set<String> names, String name, boolean on) {
+        Set<String> result = new TreeSet<>(names);
+        if (on) {
+            result.add(name);
+        } else {
+            result.remove(name);
+        }
+        return result;
+    }
+
+    /// A change from the filter menu: applied, then handed to `Main`.
+    private void changeProjectContextFilter(@Nullable Set<String> projects, @Nullable Set<String> contexts) {
+        KoppterSync.Selection next = new KoppterSync.Selection(
+                projects == null ? projectContextFilter.projects() : projects,
+                contexts == null ? projectContextFilter.contexts() : contexts);
+        setProjectContextFilter(next);
+        onProjectContextFilter.accept(next);
+    }
+
     private boolean onActiveDesktop(String group, String activeDesktopFilter,
             Map<String, @Nullable String> desktopByGroup) {
         if (!desktopByGroup.containsKey(group)) {
@@ -3482,9 +3677,35 @@ public class MainWindow {
         ClaudeMode remembered = lastMode();
         QueuePane.selectMode(modelBox, remembered.model());
         QueuePane.selectMode(effortBox, remembered.effort());
-        HBox modeRow = new HBox(6, modelBox, effortBox);
+        // The CLI the new session starts, preset with the category's; the
+        // model and effort lists follow it.
+        // [impl->dsn~agent-mode-select~1]
+        ComboBox<Agent> agentBox = new ComboBox<>(FXCollections.observableArrayList(Agent.values()));
+        agentBox.setId("add-task-agent");
+        agentBox.getStyleClass().add(Styles.SMALL);
+        agentBox.setFocusTraversable(false);
+        agentBox.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(@Nullable Agent agent) {
+                return agent == null ? "" : agent.id();
+            }
+
+            @Override
+            public @Nullable Agent fromString(String text) {
+                return Agent.parse(text);
+            }
+        });
+        agentBox.valueProperty().addListener((obs, old, agent) -> {
+            if (agent != null) {
+                QueuePane.fillModes(modelBox, effortBox, agent);
+            }
+        });
+        agentBox.setValue(groupDefaults(categoryBox.getValue()).agentOrDefault());
+        categoryBox.valueProperty().addListener((obs, old, value) ->
+                agentBox.setValue(groupDefaults(value).agentOrDefault()));
+        HBox modeRow = new HBox(6, agentBox, modelBox, effortBox);
         // For a quick task: the app removes session and worktree once it has
-        // been quiet a day. [impl->dsn~idle-task-removal~1]
+        // been quiet a day. [impl->dsn~idle-task-removal~2]
         CheckBox autoRemove = new CheckBox(
                 "Remove session and worktree after 1 day of inactivity");
         autoRemove.setId("add-task-auto-remove");
@@ -3571,10 +3792,14 @@ public class MainWindow {
         // [impl->dsn~task-create-retry-prefill~1]
         lastSubmittedInput = input;
         lastSubmittedClip = Clipboard.getSystemClipboard().getString();
-        ClaudeMode mode = new ClaudeMode(
-                QueuePane.modeValue(modelBox), QueuePane.modeValue(effortBox));
-        rememberMode(mode);
         String group = categoryBox.getValue();
+        // Only a pick other than the category's is carried (and recorded).
+        // [impl->dsn~agent-mode-select~1]
+        Agent pickedAgent = agentBox.getValue();
+        ClaudeMode mode = new ClaudeMode(
+                QueuePane.modeValue(modelBox), QueuePane.modeValue(effortBox),
+                pickedAgent == null || pickedAgent == groupDefaults(group).agentOrDefault() ? null : pickedAgent);
+        rememberMode(new ClaudeMode(mode.model(), mode.effort()));
         AddTarget target = addTarget(group);
         GroupConfig defaults = target.defaults();
         String remote = target.remote();
@@ -3821,7 +4046,7 @@ public class MainWindow {
         return createTitleTask(title, group, notes, false);
     }
 
-    /// As above; `autoRemove` writes the idle janitor's flag (`dsn~idle-task-removal~1`).
+    /// As above; `autoRemove` writes the idle janitor's flag (`dsn~idle-task-removal~2`).
     private @Nullable String createTitleTask(String title, String group, @Nullable String notes,
             boolean autoRemove) {
         String base = group.isEmpty() ? title : group + "/" + title;
@@ -4537,7 +4762,8 @@ public class MainWindow {
     /// section, so the next play focuses it normally.
     // [impl->dsn~remote-window-choice~7]
     private void promptRemoteWindow(Task task) {
-        RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, taskRemote(task), true);
+        RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, taskRemote(task), true,
+                task.agent(groupDefaults(groupOf(task.id()))));
         if (choice != null) {
             onStartRemoteWindow.start(task, choice.withClaude(), choice.mode());
         }
@@ -4563,8 +4789,16 @@ public class MainWindow {
     // [impl->dsn~claude-mode-select~3]
     public static @Nullable RemoteWindowChoice askRemoteWindow(@Nullable Window owner,
             Task task, @Nullable String remote, boolean offerTmux) {
+        return askRemoteWindow(owner, task, remote, offerTmux, Agent.CLAUDE);
+    }
+
+    /// As [#askRemoteWindow(Window, Task, String, boolean)], offering
+    /// `agent`'s models and efforts and naming it on the start button.
+    // [impl->dsn~agent-mode-select~1]
+    public static @Nullable RemoteWindowChoice askRemoteWindow(@Nullable Window owner,
+            Task task, @Nullable String remote, boolean offerTmux, Agent agent) {
         ButtonType tmux = new ButtonType("tmux", ButtonBar.ButtonData.OK_DONE);
-        ButtonType claude = new ButtonType("claude", ButtonBar.ButtonData.OK_DONE);
+        ButtonType claude = new ButtonType(agent.isClaude() ? "claude" : agent.id(), ButtonBar.ButtonData.OK_DONE);
         Alert alert = offerTmux
                 ? Alerts.plain(owner, Alert.AlertType.CONFIRMATION, "", tmux, claude, ButtonType.CANCEL)
                 : Alerts.plain(owner, Alert.AlertType.CONFIRMATION, "", claude, ButtonType.CANCEL);
@@ -4575,6 +4809,7 @@ public class MainWindow {
         ClaudeMode remembered = lastMode();
         QueuePane.selectMode(modelBox, remembered.model());
         QueuePane.selectMode(effortBox, remembered.effort());
+        QueuePane.fillModes(modelBox, effortBox, agent);
         String host = remote == null ? "the remote" : remote;
         Label message = new Label(offerTmux
                 ? "\"" + task.title() + "\" has a remote but no tmux window yet.\n"
@@ -5489,7 +5724,7 @@ public class MainWindow {
     /// also runs right after the app started. Never the selected row; the
     /// flag is read from the file only for a task that is otherwise due.
     // ponytail: one task per tick, like the auto-suspend.
-    // [impl->dsn~idle-task-removal~1]
+    // [impl->dsn~idle-task-removal~2]
     public void autoRemoveIdle(Map<String, Long> idleByKey) {
         ListView<Object> list = taskList;
         String selectedId = list != null
@@ -6309,6 +6544,22 @@ public class MainWindow {
         editorFileLabel.setText(text.toString());
         editorFileLabel.getStyleClass().removeAll(Styles.TEXT_MUTED, Styles.WARNING);
         editorFileLabel.getStyleClass().add(duplicates.isEmpty() ? Styles.TEXT_MUTED : Styles.WARNING);
+    }
+
+    /// Empties every task pane: no previewed task, a blank terminal and queue
+    /// (`onPreviewCleared`), and an editor lane with no file open — unsaved
+    /// edits of the file being left are saved first, as on a task switch.
+    // [impl->dsn~desktop-last-task-selection~6]
+    private void showNoTask() {
+        pendingSelectionId = null;
+        previewedTask = null;
+        onPreviewCleared.run();
+        renderPrHeader();
+        formPanes.forEach(ConfigFormPane::commit);
+        saveEditorIfDirty();
+        editedFileName = null;
+        setEditorText("");
+        editorFileLabel.setText("No task selected");
     }
 
     private void setEditorText(String content) {
@@ -7210,7 +7461,7 @@ public class MainWindow {
         CheckMenuItem runningItem = runningTasksItem();
         button.getItems().addAll(awaitsInputItem(), runningItem, recentSuspendedItem(runningItem), desktopItem,
                 noDesktopCategoriesItem(desktopItem), new SeparatorMenuItem(), tagFilterMenu(),
-                hostsMenu());
+                projectContextMenu(), hostsMenu());
         updateFilterButton();
         return button;
     }
@@ -7228,7 +7479,9 @@ public class MainWindow {
         // [impl->dsn~host-on-off~2]
         int active = (awaitsInputOnly ? 1 : 0) + (activeDesktopOnly ? 1 : 0)
                 + (runningTasksOnly ? 1 : 0) + (activeTags.isEmpty() ? 0 : 1)
-                + (inactiveHosts.isEmpty() ? 0 : 1);
+                + (inactiveHosts.isEmpty() ? 0 : 1)
+                // [impl->dsn~koppter-sync~1]
+                + (projectContextFilter.isEmpty() ? 0 : 1);
         // A digit-wide figure space rather than "" keeps the button's width: a
         // width change re-flows an overflowing toolbar, and the re-flow
         // detaches the button and closes its open menu mid-tick.
@@ -7504,7 +7757,7 @@ public class MainWindow {
         // Read before the rebuild: the rebuild's own selection changes run
         // through the list's listener, which would record them under the
         // desktop just switched to — overwriting what it remembered.
-        // [impl->dsn~desktop-last-task-selection~5]
+        // [impl->dsn~desktop-last-task-selection~6]
         String last = desktop == null ? null : LAST_TASK_BY_DESKTOP.get(desktop, null);
         rebuildRows();
         // Re-select the task last selected on the now-active desktop, so the
@@ -7515,7 +7768,7 @@ public class MainWindow {
         // preservation) — a desktop with nothing remembered, or whose
         // remembered task is gone, falls back to its first task, since the
         // previous desktop's task is exactly the foreign view to avoid.
-        // [impl->dsn~desktop-last-task-selection~5]
+        // [impl->dsn~desktop-last-task-selection~6]
         TaskEntry.@Nullable Loaded target = visibleRows.stream()
                 .filter(TaskEntry.Loaded.class::isInstance)
                 .map(TaskEntry.Loaded.class::cast)
@@ -7536,9 +7789,17 @@ public class MainWindow {
         // `selectCreatedTask` has kept this guard for the same reason since
         // `dsn~task-from-pr~6`; the desktop switch is the other caller that
         // needed it.
-        // [impl->dsn~desktop-last-task-selection~5]
-        if (target != null && !queueFieldFocused()) {
-            selectTask(target.id());
+        // [impl->dsn~desktop-last-task-selection~6]
+        if (!queueFieldFocused()) {
+            if (target != null) {
+                selectTask(target.id());
+            } else {
+                // A desktop without tasks shows no task: the panes would
+                // otherwise keep the previous desktop's terminal, queue and
+                // notes beside an empty list (field report 2026-11-20).
+                // [impl->dsn~desktop-last-task-selection~6]
+                showNoTask();
+            }
         }
         // The title follows the desktop even when the selection waits or
         // there is nothing to select: the target's category, else the
@@ -7555,7 +7816,7 @@ public class MainWindow {
     /// A desktop that is not known (non-Windows, unnamed, not yet read) has no
     /// key to store under, and an over-long name would blow the preferences
     /// key limit — both simply record nothing.
-    // [impl->dsn~desktop-last-task-selection~5]
+    // [impl->dsn~desktop-last-task-selection~6]
     private void rememberLastTask(@Nullable String desktop, String taskId) {
         if (desktop != null && desktop.length() <= Preferences.MAX_KEY_LENGTH
                 && taskId.length() <= Preferences.MAX_VALUE_LENGTH) {
@@ -7968,15 +8229,21 @@ public class MainWindow {
     }
 
     /// Whether the user is mid-message in one of the queue pane's text boxes:
-    /// the keyboard sits there **and** the box holds text. An empty box is
-    /// the queue's resting focus — it takes the keyboard back after every
-    /// send, and the scene keeps it while the user works on another desktop —
-    /// so guarding on focus alone blocked every desktop switch, leaving the
-    /// previous desktop's task in the terminal (field report 2026-10-31).
-    /// An empty box has nothing a task swap could misfile.
+    /// the keyboard sits there, the box holds text, **and** a character was
+    /// typed in the queue pane within [#QUEUE_TYPING_PAUSE_NANOS]. An empty
+    /// box is the queue's resting focus — it takes the keyboard back after
+    /// every send, and the scene keeps it while the user works on another
+    /// desktop — so guarding on focus alone blocked every desktop switch,
+    /// leaving the previous desktop's task in the terminal (field report
+    /// 2026-10-31). A clicked queued message's editor is never empty yet is
+    /// no typing either; guarding on focus plus text did the same (field
+    /// report 2026-11-20).
     // [impl->dsn~task-from-pr~6]
-    // [impl->dsn~desktop-last-task-selection~5]
+    // [impl->dsn~desktop-last-task-selection~6]
     private boolean queueFieldFocused() {
+        if (System.nanoTime() - lastQueueKeystrokeNanos >= QUEUE_TYPING_PAUSE_NANOS) {
+            return false;
+        }
         Scene scene = queueNode.getScene();
         Node focused = scene == null ? null : scene.getFocusOwner();
         if (!(focused instanceof TextInputControl field) || field.getText().isEmpty()) {

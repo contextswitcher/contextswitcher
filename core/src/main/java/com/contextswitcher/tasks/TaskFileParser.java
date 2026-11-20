@@ -715,7 +715,9 @@ public class TaskFileParser {
                 parseAutoPr(data.get("auto")),
                 // [impl->dsn~auto-delete-opt-in~1]
                 Boolean.parseBoolean(String.valueOf(data.get("autoDelete"))),
-                terminal);
+                terminal,
+                // [impl->dsn~task-agent~1]
+                Agent.parse(optionalString(data, "agent", null)));
     }
 
     /// The `auto:` section of an auto category, or null when the category
@@ -1004,6 +1006,27 @@ public class TaskFileParser {
     // [impl->dsn~environment-profiles~1]
     public static @Nullable String groupProfile(String content) {
         return groupString(content, "profile");
+    }
+
+    /// The todo.txt `project:` a group's `CONTEXTSWITCHER.md` names (nested as
+    /// `papers>survey`, with or without its `+`), or null — what the filter
+    /// shared with koppter selects the category by.
+    // [impl->dsn~koppter-sync~1]
+    public static @Nullable String groupProject(String content) {
+        String project = groupString(content, "project");
+        return project == null ? null : project.replaceFirst("^\\+", "");
+    }
+
+    /// The todo.txt `contexts:` of a group's `CONTEXTSWITCHER.md` — a list or a
+    /// single name, each with or without its `@`; empty when absent, which
+    /// means the category belongs to every context.
+    // [impl->dsn~koppter-sync~1]
+    public static List<String> groupContexts(String content) {
+        Object value = groupValue(content, "contexts");
+        List<?> items = value instanceof List<?> list ? list : value == null ? List.of() : List.of(value);
+        return items.stream().filter(java.util.Objects::nonNull).map(Object::toString)
+                .map(String::strip).map(name -> name.replaceFirst("^@", ""))
+                .filter(name -> !name.isEmpty()).toList();
     }
 
     /// A top-level string key of a group's `CONTEXTSWITCHER.md` frontmatter,
@@ -1478,7 +1501,7 @@ public class TaskFileParser {
 
     /// Sets (or removes) a top-level boolean `key: true` line textually, as
     /// [#withPinned] describes — off removes the line.
-    // [impl->dsn~idle-task-removal~1]
+    // [impl->dsn~idle-task-removal~2]
     public static String withFlag(String content, String key, boolean on) {
         String normalized = content.replace("\r\n", "\n");
         String[] lines = normalized.split("\n", -1);
@@ -1669,9 +1692,6 @@ public class TaskFileParser {
         if (close < 0) {
             return content;
         }
-        String item = title == null || title.isBlank()
-                ? "    - " + yamlScalar(url)
-                : "    - url: " + yamlScalar(url) + "\n      title: " + yamlScalar(title);
         java.util.List<String> out = new java.util.ArrayList<>(java.util.Arrays.asList(lines));
         if (browser >= 0) {
             // Walk the `urls:` list items within the browser block (up to the
@@ -1680,6 +1700,11 @@ public class TaskFileParser {
             int firstUrl = -1;
             int lastUrl = -1;
             int sortedAt = -1;
+            // The new item copies the existing items' indentation: YAML
+            // allows `- ` both at the depth of `urls:` and deeper, but one
+            // list must not mix the two (a 4-space item above 2-space ones
+            // breaks the whole frontmatter).
+            int itemIndent = 4;
             for (int i = browser + 1; i < close; i++) {
                 String stripped = lines[i].stripLeading();
                 int indent = lines[i].length() - stripped.length();
@@ -1692,6 +1717,7 @@ public class TaskFileParser {
                     }
                     if (firstUrl < 0) {
                         firstUrl = i;
+                        itemIndent = indent;
                     }
                     lastUrl = i;
                     if (sortedAt < 0 && itemUrl(stripped).compareTo(url) > 0) {
@@ -1699,6 +1725,7 @@ public class TaskFileParser {
                     }
                 }
             }
+            String item = listItem(url, title, itemIndent);
             int at = first && firstUrl >= 0 ? firstUrl : sortedAt;
             if (at >= 0) {
                 out.add(at, item);
@@ -1706,9 +1733,18 @@ public class TaskFileParser {
                 out.add(lastUrl >= 0 ? lastUrl + 1 : browser + 1, lastUrl >= 0 ? item : "  urls:\n" + item);
             }
         } else {
-            out.add(close, "browser:\n  urls:\n" + item);
+            out.add(close, "browser:\n  urls:\n" + listItem(url, title, 4));
         }
         return String.join("\n", out);
+    }
+
+    /// One `browser.urls` item at `indent` spaces: the plain `- <url>` form,
+    /// or the map form with its `title:` aligned under `url:`.
+    private static String listItem(String url, @Nullable String title, int indent) {
+        String pad = " ".repeat(indent);
+        return title == null || title.isBlank()
+                ? pad + "- " + yamlScalar(url)
+                : pad + "- url: " + yamlScalar(url) + "\n" + pad + "  title: " + yamlScalar(title);
     }
 
     /// The comparable URL of a `urls:` list item's first line, for the sorted
@@ -1886,7 +1922,9 @@ public class TaskFileParser {
                 requiredString(claude, "cwd", "claude"),
                 optionalString(claude, "sessionId", null),
                 optionalString(claude, "workspace", null),
-                optionalString(claude, "commit", null));
+                optionalString(claude, "commit", null),
+                // [impl->dsn~task-agent~1]
+                Agent.parse(optionalString(claude, "agent", null)));
     }
 
     private Task.@Nullable BrowserConfig parseBrowser(@Nullable Map<String, Object> browser) throws TaskParseException {
@@ -1916,10 +1954,13 @@ public class TaskFileParser {
                     throw new TaskParseException("'browser.urls' map entry needs a 'url'");
                 }
                 Object title = map.get("title");
+                Object pinned = map.get("browser");
                 String normalized = Task.normalizeUrl(url.toString());
                 if (seen.add(normalized)) {
+                    // [impl->dsn~browser-url-pinned-browser~1]
                     result.add(new Task.UrlEntry(normalized,
-                            title == null ? null : title.toString()));
+                            title == null ? null : title.toString(),
+                            pinned == null ? null : com.contextswitcher.config.Browser.named(pinned.toString())));
                 }
             } else {
                 String normalized = Task.normalizeUrl(stringify(item));

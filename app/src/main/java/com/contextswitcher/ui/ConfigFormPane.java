@@ -19,7 +19,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -73,9 +72,6 @@ final class ConfigFormPane {
     /// Told before this pane takes the raw editor, so a sibling pane showing
     /// it gives it up first — the editor is one node.
     private Runnable onRawShown = () -> { };
-    /// Set while an invalid form un-toggles the raw view, so that switch back
-    /// does not rebuild the form and throw away what the user typed.
-    private boolean revertingToggle;
     /// Whether the focus is in this pane, in a focused window — when it goes,
     /// the form is saved.
     private boolean focusInside;
@@ -310,39 +306,22 @@ final class ConfigFormPane {
         }
     }
 
-    /// False when the form is invalid, after an alert saying why.
-    private boolean applyForm() {
+    private void applyForm() {
         ConfigForm current = form;
         if (current == null) {
-            return true;
+            return;
         }
         String content = text.get();
-        return switch (current.mergeInto(content)) {
-            case ConfigForm.MergeResult.Invalid(String reason) -> {
-                Alerts.plain(Alerts.windowOf(root), Alert.AlertType.ERROR, reason).show();
-                yield false;
-            }
-            case ConfigForm.MergeResult.Merged(String merged) -> {
-                if (!merged.equals(content)) {
-                    apply.accept(merged);
-                }
-                yield true;
-            }
-        };
+        String merged = current.mergeInto(content);
+        if (!merged.equals(content)) {
+            apply.accept(merged);
+        }
     }
 
     private void switchView(boolean raw) {
-        if (revertingToggle) {
-            return;
-        }
         if (raw) {
             // Form edits are carried into the raw view before it shows.
-            if (!applyForm()) {
-                revertingToggle = true;
-                rawToggle.setSelected(false);
-                revertingToggle = false;
-                return;
-            }
+            applyForm();
             form = null;
             reloadButton.setDisable(true);
             onRawShown.run();

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.contextswitcher.ssh.SshCommandRunner;
+import com.contextswitcher.tasks.Agent;
 import com.contextswitcher.tasks.Task;
 import org.jspecify.annotations.Nullable;
 import org.tinylog.Logger;
@@ -64,9 +65,15 @@ public class TmuxResurrect {
     /// otherwise.
     // [impl->dsn~start-claude-button~2]
     static List<String> startCommand(String windowId, @Nullable String sessionId, boolean auto) {
-        String flags = auto ? " --dangerously-skip-permissions" : "";
-        String line = sessionId == null ? "claude" + flags
-                : "claude --resume " + sessionId + flags + " || claude" + flags;
+        return startCommand(windowId, sessionId, auto, Agent.CLAUDE);
+    }
+
+    /// As [#startCommand(String, String, boolean)], for `agent`'s CLI —
+    /// which without a recorded id continues its last session in the folder
+    /// rather than starting fresh ([Agent#resumeLine]).
+    // [impl->dsn~task-agent~1]
+    static List<String> startCommand(String windowId, @Nullable String sessionId, boolean auto, Agent agent) {
+        String line = agent.resumeLine(sessionId, auto);
         return List.of("tmux", "send-keys", "-t", "'" + windowId + "'", "'" + line + "'", "Enter");
     }
 
@@ -75,7 +82,13 @@ public class TmuxResurrect {
     /// the keys went out.
     // [impl->dsn~start-claude-button~2]
     public boolean startClaude(String remote, String windowId, @Nullable String sessionId) {
-        return ssh.run(remote, startCommand(windowId, sessionId, claudeAuto)).ok();
+        return startClaude(remote, windowId, sessionId, Agent.CLAUDE);
+    }
+
+    /// As [#startClaude(String, String, String)], for `agent`'s CLI.
+    // [impl->dsn~task-agent~1]
+    public boolean startClaude(String remote, String windowId, @Nullable String sessionId, Agent agent) {
+        return ssh.run(remote, startCommand(windowId, sessionId, claudeAuto, agent)).ok();
     }
 
     /// The remote's error output of the last [#createWindow] that returned
@@ -120,8 +133,12 @@ public class TmuxResurrect {
         }
         String windowId = created.stdout().strip();
         boolean resumed = false;
-        if (claude != null && claude.sessionId() != null) {
-            resumed = ssh.run(remote, resumeCommand(windowId, claude.sessionId(), claudeAuto)).ok();
+        // Claude needs its recorded id; the other CLIs continue their last
+        // session in the folder (nothing records their id yet).
+        // [impl->dsn~task-agent~1]
+        if (claude != null && (claude.sessionId() != null || !claude.agentOrDefault().isClaude())) {
+            resumed = ssh.run(remote, startCommand(windowId, claude.sessionId(), claudeAuto,
+                    claude.agentOrDefault())).ok();
         }
         return new Resurrected(windowId, resumed);
     }

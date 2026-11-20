@@ -84,7 +84,7 @@ public class BrowserFocusAction implements SwitchAction {
         }
         Task.BrowserConfig browser = task.browser();
         if (browser != null && !browser.urls().isEmpty()) {
-            openConfiguredUrls(browser.urls(), task.tabGroup(), failures, details);
+            openConfiguredUrls(browser.entries(), task.tabGroup(), failures, details);
         }
         if (details.isEmpty() && failures.isEmpty()) {
             return ActionResult.failure("no browser URL configured");
@@ -99,13 +99,16 @@ public class BrowserFocusAction implements SwitchAction {
     /// is built front to back — with only the first one activated, so the
     /// task's primary page is what the user lands on and the rest arrive
     /// behind it.
-    private void openConfiguredUrls(List<String> urls, String group,
+    /// An entry pinned to a browser goes to that browser's extension.
+    // [impl->dsn~browser-url-pinned-browser~1]
+    private void openConfiguredUrls(List<Task.UrlEntry> urls, String group,
             List<String> failures, List<String> details) {
-        ExtensionProtocol.Result first = tabs.focusUrl(urls.getFirst(), true, null, group, false);
-        for (String url : urls.subList(1, urls.size())) {
-            ExtensionProtocol.Result result = tabs.focusUrl(url, true, null, group, true);
+        Task.UrlEntry head = urls.getFirst();
+        ExtensionProtocol.Result first = tabs.focusUrl(head.url(), true, null, group, false, head.browser());
+        for (Task.UrlEntry entry : urls.subList(1, urls.size())) {
+            ExtensionProtocol.Result result = tabs.focusUrl(entry.url(), true, null, group, true, entry.browser());
             if (!result.ok()) {
-                failures.add(result.detail() + " — " + url);
+                failures.add(result.detail() + " — " + entry.url());
             }
         }
         String detail = urls.size() == 1
