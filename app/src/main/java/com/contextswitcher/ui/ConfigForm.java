@@ -335,34 +335,15 @@ final class ConfigForm {
 
     // --- writing back ------------------------------------------------------
 
-    /// What applying the form gives: the patched file text, or why the form
-    /// cannot be applied. Showing the reason is the caller's business.
-    sealed interface MergeResult {
-
-        record Merged(String content) implements MergeResult {
-        }
-
-        record Invalid(String reason) implements MergeResult {
-        }
-    }
-
     /// Reads the controls and patches the result back into `content` — see
-    /// [#mergeValues].
-    MergeResult mergeInto(String content) {
+    /// [#merge]. Every field is optional: a blank title drops the key, and
+    /// the task then shows its id.
+    String mergeInto(String content) {
         Map<String, @Nullable Object> values = new LinkedHashMap<>();
         for (Field field : fields) {
             values.put(field.key(), read(field, controls.get(field.key())));
         }
-        return mergeValues(content, fields, values);
-    }
-
-    /// [#merge], behind the form's one rule: a task keeps its title.
-    static MergeResult mergeValues(String content, List<Field> fields,
-            Map<String, @Nullable Object> values) {
-        if (values.containsKey("title") && String.valueOf(values.get("title")).isBlank()) {
-            return new MergeResult.Invalid("The title cannot be empty.");
-        }
-        return new MergeResult.Merged(merge(content, fields, values));
+        return merge(content, fields, values);
     }
 
     /// Patches every changed field back into `content`, leaving untouched keys,

@@ -180,15 +180,16 @@ class ConfigFormMergeTest {
         assertThat(data).doesNotContainKey("folder");
     }
 
-    /// A task without a title cannot be applied: the result names why, and
-    /// nothing is merged.
+    /// The title is optional: a blank one drops the key (the task then shows
+    /// its id) instead of refusing the form.
     @Test
-    void anEmptyTitleIsRefusedWithAReason() {
+    void anEmptyTitleDropsTheKey() {
         Map<String, Object> values = new LinkedHashMap<>(ConfigForm.seeds(FrontmatterCatalog.TASK, TASK));
         values.put("title", "  ");
 
-        assertThat(ConfigForm.mergeValues(TASK, FrontmatterCatalog.TASK, values))
-                .isEqualTo(new ConfigForm.MergeResult.Invalid("The title cannot be empty."));
+        String out = ConfigForm.merge(TASK, FrontmatterCatalog.TASK, values);
+        assertThat(Frontmatter.parse(out)).doesNotContainKey("title");
+        assertThat(out).contains("# keep me");
     }
 
     @Test
@@ -196,9 +197,8 @@ class ConfigFormMergeTest {
         Map<String, Object> values = new LinkedHashMap<>(ConfigForm.seeds(FrontmatterCatalog.TASK, TASK));
         values.put("title", "Renamed");
 
-        assertThat(ConfigForm.mergeValues(TASK, FrontmatterCatalog.TASK, values))
-                .isInstanceOfSatisfying(ConfigForm.MergeResult.Merged.class,
-                        merged -> assertThat(merged.content()).contains("title: Renamed").contains("# keep me"));
+        assertThat(ConfigForm.merge(TASK, FrontmatterCatalog.TASK, values))
+                .contains("title: Renamed").contains("# keep me");
     }
 
     /// Merges `changes` (field key → the control's value) over the file's own
