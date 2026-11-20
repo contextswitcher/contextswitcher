@@ -223,11 +223,11 @@ class FilterAndCombineUiTest {
     }
 
     /// Switching desktops brings back the task that was selected while that
-    /// desktop was last in view (`dsn~desktop-last-task-selection~5`). Field
+    /// desktop was last in view (`dsn~desktop-last-task-selection~6`). Field
     /// report 2026-09-08: the switch kept showing the *previous* desktop's task
     /// — the filter rebuild ran first, and the selection it left behind was
     /// recorded under the new desktop before the remembered id was read.
-    // [utest->dsn~desktop-last-task-selection~5]
+    // [utest->dsn~desktop-last-task-selection~6]
     @Test
     void aDesktopSwitchSelectsThatDesktopsLastTask() throws Exception {
         Path dir = UiTestSupport.tasksDir;

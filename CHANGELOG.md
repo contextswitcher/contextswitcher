@@ -22,6 +22,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- Switching virtual desktops after clicking a queued message selects the new desktop's task again; the switch now waits only while you are actually typing in the Queue pane (a keystroke within the last 3 seconds).
 - Adding a URL or a Claude PR to a task whose `browser.urls` items sit at the same indentation as `urls:` no longer breaks the task file with "Invalid YAML frontmatter"; the new item takes the indentation of the existing ones.
 
 ## [2026-11-19] - 2026-11-19

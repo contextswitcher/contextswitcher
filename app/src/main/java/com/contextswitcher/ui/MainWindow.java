@@ -308,6 +308,14 @@ public class MainWindow {
     /// below the editor in the right lane.
     // [impl->dsn~message-queue-ui~26]
     private final Node queueNode;
+    /// When a character was last typed anywhere in the queue pane
+    /// (`System.nanoTime`); [#queueFieldFocused] only counts typing this recent.
+    // [impl->dsn~desktop-last-task-selection~6]
+    private long lastQueueKeystrokeNanos;
+    /// How long after the last keystroke in the queue pane a desktop switch
+    /// still counts as arriving mid-sentence.
+    // [impl->dsn~desktop-last-task-selection~6]
+    static final long QUEUE_TYPING_PAUSE_NANOS = 3_000_000_000L;
     private final Runnable onPreviewCleared;
     /// Focuses the terminal mirror after a click on a task row ([TaskListCell]),
     /// so the user can type into the task's tmux window straight away.
@@ -577,7 +585,7 @@ public class MainWindow {
     /// not the previous desktop's. Kept across restarts (a preferences child
     /// node, one entry per desktop): the memory is worthless if the first
     /// switch after every launch has nothing to restore.
-    // [impl->dsn~desktop-last-task-selection~5]
+    // [impl->dsn~desktop-last-task-selection~6]
     static final Preferences LAST_TASK_BY_DESKTOP =
             Preferences.userNodeForPackage(MainWindow.class).node("lastTaskByDesktop");
     /// When on, the list shows only running (active) tasks — suspended and done
@@ -1088,6 +1096,10 @@ public class MainWindow {
         this.files = files;
         this.terminal = terminal;
         this.queueNode = queueNode;
+        // [impl->dsn~desktop-last-task-selection~6]
+        this.lastQueueKeystrokeNanos = System.nanoTime() - QUEUE_TYPING_PAUSE_NANOS;
+        queueNode.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED,
+                event -> lastQueueKeystrokeNanos = System.nanoTime());
         this.onPreviewCleared = onPreviewCleared;
         this.onFocusTerminal = onFocusTerminal;
         this.onRethemeTerminal = onRethemeTerminal;
@@ -3194,7 +3206,7 @@ public class MainWindow {
                 if (EnergySaver.active()) {
                     EnergySaver.refreshTask();
                 }
-                // [impl->dsn~desktop-last-task-selection~5]
+                // [impl->dsn~desktop-last-task-selection~6]
                 rememberLastTask(activeDesktop, loaded.id());
                 showCategoryInTitle(loaded.group());
                 onPreview.accept(loaded.task());
@@ -7686,7 +7698,7 @@ public class MainWindow {
         // Read before the rebuild: the rebuild's own selection changes run
         // through the list's listener, which would record them under the
         // desktop just switched to — overwriting what it remembered.
-        // [impl->dsn~desktop-last-task-selection~5]
+        // [impl->dsn~desktop-last-task-selection~6]
         String last = desktop == null ? null : LAST_TASK_BY_DESKTOP.get(desktop, null);
         rebuildRows();
         // Re-select the task last selected on the now-active desktop, so the
@@ -7697,7 +7709,7 @@ public class MainWindow {
         // preservation) — a desktop with nothing remembered, or whose
         // remembered task is gone, falls back to its first task, since the
         // previous desktop's task is exactly the foreign view to avoid.
-        // [impl->dsn~desktop-last-task-selection~5]
+        // [impl->dsn~desktop-last-task-selection~6]
         TaskEntry.@Nullable Loaded target = visibleRows.stream()
                 .filter(TaskEntry.Loaded.class::isInstance)
                 .map(TaskEntry.Loaded.class::cast)
@@ -7718,7 +7730,7 @@ public class MainWindow {
         // `selectCreatedTask` has kept this guard for the same reason since
         // `dsn~task-from-pr~6`; the desktop switch is the other caller that
         // needed it.
-        // [impl->dsn~desktop-last-task-selection~5]
+        // [impl->dsn~desktop-last-task-selection~6]
         if (target != null && !queueFieldFocused()) {
             selectTask(target.id());
         }
@@ -7737,7 +7749,7 @@ public class MainWindow {
     /// A desktop that is not known (non-Windows, unnamed, not yet read) has no
     /// key to store under, and an over-long name would blow the preferences
     /// key limit — both simply record nothing.
-    // [impl->dsn~desktop-last-task-selection~5]
+    // [impl->dsn~desktop-last-task-selection~6]
     private void rememberLastTask(@Nullable String desktop, String taskId) {
         if (desktop != null && desktop.length() <= Preferences.MAX_KEY_LENGTH
                 && taskId.length() <= Preferences.MAX_VALUE_LENGTH) {
@@ -8150,15 +8162,21 @@ public class MainWindow {
     }
 
     /// Whether the user is mid-message in one of the queue pane's text boxes:
-    /// the keyboard sits there **and** the box holds text. An empty box is
-    /// the queue's resting focus — it takes the keyboard back after every
-    /// send, and the scene keeps it while the user works on another desktop —
-    /// so guarding on focus alone blocked every desktop switch, leaving the
-    /// previous desktop's task in the terminal (field report 2026-10-31).
-    /// An empty box has nothing a task swap could misfile.
+    /// the keyboard sits there, the box holds text, **and** a character was
+    /// typed in the queue pane within [#QUEUE_TYPING_PAUSE_NANOS]. An empty
+    /// box is the queue's resting focus — it takes the keyboard back after
+    /// every send, and the scene keeps it while the user works on another
+    /// desktop — so guarding on focus alone blocked every desktop switch,
+    /// leaving the previous desktop's task in the terminal (field report
+    /// 2026-10-31). A clicked queued message's editor is never empty yet is
+    /// no typing either; guarding on focus plus text did the same (field
+    /// report 2026-11-20).
     // [impl->dsn~task-from-pr~6]
-    // [impl->dsn~desktop-last-task-selection~5]
+    // [impl->dsn~desktop-last-task-selection~6]
     private boolean queueFieldFocused() {
+        if (System.nanoTime() - lastQueueKeystrokeNanos >= QUEUE_TYPING_PAUSE_NANOS) {
+            return false;
+        }
         Scene scene = queueNode.getScene();
         Node focused = scene == null ? null : scene.getFocusOwner();
         if (!(focused instanceof TextInputControl field) || field.getText().isEmpty()) {
