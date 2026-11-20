@@ -85,6 +85,14 @@ class ClaudeWindowLauncherTest {
     // The delivery check looks for the prompt's first real line in the
     // pane; marker-only lines are skipped (they are rewritten on the way),
     // and the probe is short enough to survive Claude's line wrapping.
+    // Vibe shows a sent long prompt only as its paste marker; that counts
+    // as landed, or the launcher pasted it three more times.
+    @Test
+    void collapsedPasteCountsAsLanded() {
+        assertThat(ClaudeWindowLauncher.landed("> [Pasted 809 characters]", "Jump to category")).isTrue();
+        assertThat(ClaudeWindowLauncher.landed("> ", "Jump to category")).isFalse();
+    }
+
     @Test
     void probeIsTheFirstMarkerFreeLineCapped() {
         assertThat(ClaudeWindowLauncher.probe("\n[image: a.png]\n  Fix the scrollbar in the file field of the entry editor\nmore"))

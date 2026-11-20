@@ -286,7 +286,8 @@ public class ClaudeWindowLauncher {
     /// while Claude's TUI is still (re)starting, e.g. right after the model
     /// switch, is silently dropped, and the chat then sits empty. Checked
     /// after a short grace period; the probe is the prompt's first line
-    /// (see [#probe]), looked up in the joined pane text plus scrollback.
+    /// (see [#probe]), looked up in the joined pane text plus scrollback,
+    /// or a collapsed-paste marker ([#landed]).
     private boolean visible(String remote, String windowId, String prompt) {
         String probe = probe(prompt);
         if (probe.isEmpty()) {
@@ -299,7 +300,14 @@ public class ClaudeWindowLauncher {
             return true;
         }
         SshCommandRunner.SshResult captured = ssh.run(remote, capturePaneCommand(windowId));
-        return !captured.ok() || captured.stdout().contains(probe);
+        return !captured.ok() || landed(captured.stdout(), probe);
+    }
+
+    /// Whether `pane` shows the prompt: its probe, or the marker a CLI
+    /// collapses a long paste into — Vibe keeps `[Pasted 809 characters]`
+    /// even after sending, so looking for the probe alone pasted it again.
+    static boolean landed(String pane, String probe) {
+        return pane.contains(probe) || pane.contains("[Pasted ");
     }
 
     /// The pane's visible text plus recent scrollback, wrapped lines joined

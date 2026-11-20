@@ -12,6 +12,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - The *Add task* buttons and hints name the picked agent (*Add remote Vibe*); *Add local* stays Claude-only and is disabled for Vibe and Codex.
 
+### Fixed
+
+- A Vibe task no longer gets its first prompt pasted several times: Vibe shows a long paste only as `[Pasted … characters]`, which the app now accepts as delivered.
+
 ## [2026-11-20] - 2026-11-20
 
 ### Added
