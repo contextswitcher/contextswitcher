@@ -22,9 +22,10 @@ class TodoTxtTest {
 
         assertThat(byTask).containsOnlyKeys("jabref/fix-npe", "My Category/a+b");
         assertThat(byTask.get("jabref/fix-npe")).containsExactly(new TodoTxt.Line(
+                List.of("+JabRef"),
                 "(B) Review the comments see https://example.org/x",
-                List.of("+JabRef", "@desk", "due 2026-11-20", "#review")));
-        assertThat(byTask.get("My Category/a+b")).containsExactly(new TodoTxt.Line("Name it", List.of()));
+                List.of("@desk", "due 2026-11-20", "#review")));
+        assertThat(byTask.get("My Category/a+b")).containsExactly(new TodoTxt.Line(List.of(), "Name it", List.of()));
     }
 
     @Test

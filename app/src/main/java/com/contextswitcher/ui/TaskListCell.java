@@ -1420,6 +1420,9 @@ public class TaskListCell extends ListCell<Object> {
             Label todoText = new Label(todo.text());
             todoText.setMinWidth(0);
             todoText.getStyleClass().add(ROW_DETAIL);
+            for (String project : todo.projects()) {
+                todoLine.getChildren().add(TagChips.chip(project, null));
+            }
             todoLine.getChildren().add(todoText);
             for (String label : todo.labels()) {
                 todoLine.getChildren().add(TagChips.chip(label, null));

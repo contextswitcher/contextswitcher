@@ -3603,7 +3603,7 @@ Needs: impl, utest
 
 The setting `todoTxt` names the file; empty, the default, turns the lines off.
 `TodoTxt.byTask` reads every line that is not completed (`x `) and carries `cs:<id>`, the id decoded from the percent-encoded form a ContextSwitcher link has, as koppter stores it.
-It renders the line as its priority `(A)` and description, followed by chips for `+project`, `@context`, `#tag` and `due <date>`; the creation date, `cs:` and the other `key:value` tags (planning data such as `t:` or `rec:`) are left out.
+It renders the line as chips for its `+project`s, directly before its priority `(A)` and description, followed by chips for `@context`, `#tag` and `due <date>`; the creation date, `cs:` and the other `key:value` tags (planning data such as `t:` or `rec:`) are left out.
 `TaskListCell` adds one line per such todo below the row's second line.
 `TodoTxt.File` reads the file again only when its modification time changes, so a row repaint costs one `stat`; an edit of the file shows on the next repaint of the list.
 
