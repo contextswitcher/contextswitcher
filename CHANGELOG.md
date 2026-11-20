@@ -16,6 +16,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Changed
 
 - The *Add task* buttons and hints name the picked agent (*Add remote Vibe*); *Add local* stays Claude-only and is disabled for Vibe and Codex.
+- With *Labels* or *PR status* grouping, a task row shows its category directly before the title instead of on the second line.
 
 ### Fixed
 

@@ -1164,7 +1164,7 @@ Needs an imported plain-shell task — a tmux window that carried no Claude when
 - [ ] Suspended tasks stay below active ones and error rows stay on top in every mode.
 - [ ] Restart the app → the chosen sort mode is still active (button label shows it).
 - [ ] Group menu → **Labels** → the list groups under colored tag chips (task count per label); a task with two tags appears under both; untagged tasks stay in the top ungrouped block; the Done section is unchanged.
-- [ ] With **Labels** grouping on, a grouped task's second line leads with its muted category name (`jabref ·`) before the chips; a root-level task shows none; back to **Folder** → the category vanishes from the rows again.
+- [ ] With **Labels** grouping on, a grouped task's title is led by its muted category name (`jabref Fix the NPE`); a root-level task shows none; back to **Folder** → the category vanishes from the rows again.
 - [ ] Click a label header → it collapses/expands; no context menu, and dropping a task row onto it does nothing.
 - [ ] Back to **Folder** → folder grouping returns, including empty folders with their "Add task…" row.
 - [ ] Group menu → **PR status** (`dsn~pr-status-grouping~1`) → JabRef tasks group under `status: …` labels, tasks of repos without such labels under draft / changes requested / ready; merge queue, merged, closed are their own groups, in workflow order; tasks without a PR stay on top.
