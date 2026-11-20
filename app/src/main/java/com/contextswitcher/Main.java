@@ -146,6 +146,7 @@ import com.contextswitcher.tasks.TaskRepository;
 import com.contextswitcher.tasks.TaskStatus;
 import com.contextswitcher.ui.Alerts;
 import com.contextswitcher.ui.AnsiTextWindow;
+import com.contextswitcher.ui.CloseConfirmation;
 import com.contextswitcher.ui.MainWindow;
 import com.contextswitcher.ui.SetupWizard;
 import com.contextswitcher.ui.WhatsNew;
@@ -1124,11 +1125,7 @@ public class Main extends Application {
         // Leaving ends the Claude sessions the app hosts on Windows, so the
         // window's close asks first while one runs.
         // [impl->dsn~owned-session-close-confirm~1]
-        stage.addEventHandler(javafx.stage.WindowEvent.WINDOW_CLOSE_REQUEST, event -> {
-            if (!window.confirmLeave("Closing ContextSwitcher")) {
-                event.consume();
-            }
-        });
+        CloseConfirmation.guard(stage, () -> window.confirmLeave("Closing ContextSwitcher"));
         // The wizard's first project, created once the window is up: the
         // category and its setup session need the repository and the live-task
         // machinery that did not exist while the wizard ran.

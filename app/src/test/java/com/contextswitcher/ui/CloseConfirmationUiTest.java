@@ -14,6 +14,7 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 
 import io.gitlab.fxlabs.testfx.junit.jupiter.TestFxApplication;
 
@@ -26,7 +27,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// The leave confirmation (`dsn~owned-session-close-confirm~1`): it lists the
 /// running tasks under their categories, a click on a task stays (answers
 /// false) and hands that task over to be shown, and only "Close and end them"
-/// answers true.
+/// answers true. The guard on the main window really keeps it open on a
+/// "stay" answer, also beside ShellFX's own close handler.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
 // [utest->dsn~owned-session-close-confirm~1]
@@ -85,6 +87,38 @@ class CloseConfirmationUiTest {
         Platform.runLater(cancel::fire);
 
         assertThat(answer.get(10, TimeUnit.SECONDS)).isFalse();
+    }
+
+    @Test
+    void guardKeepsAShellClosedWindowOpenWhenToldToStay() throws Exception {
+        assertThat(closeShellStage(false)).isTrue();
+    }
+
+    @Test
+    void guardLetsAShellClosedWindowCloseWhenToldToLeave() throws Exception {
+        assertThat(closeShellStage(true)).isFalse();
+    }
+
+    /// A stage closed the way ShellFX closes the main window — its
+    /// `onCloseRequest` handler consumes the event and closes the stage
+    /// itself — guarded with `mayLeave`; answers whether it still shows after
+    /// a close request.
+    private static boolean closeShellStage(boolean mayLeave) throws Exception {
+        CompletableFuture<Boolean> showing = new CompletableFuture<>();
+        Platform.runLater(() -> {
+            Stage shell = new Stage();
+            shell.setScene(new Scene(new StackPane(), 200, 100));
+            shell.setOnCloseRequest(event -> {
+                event.consume();
+                shell.close();
+            });
+            CloseConfirmation.guard(shell, () -> mayLeave);
+            shell.show();
+            shell.fireEvent(new WindowEvent(shell, WindowEvent.WINDOW_CLOSE_REQUEST));
+            showing.complete(shell.isShowing());
+            shell.close();
+        });
+        return showing.get(10, TimeUnit.SECONDS);
     }
 
     @Test

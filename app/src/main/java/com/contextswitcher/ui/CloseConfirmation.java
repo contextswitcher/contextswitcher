@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 import atlantafx.base.theme.Styles;
@@ -16,7 +17,9 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.stage.WindowEvent;
 import org.jspecify.annotations.Nullable;
 
 /// Asks before the app is left while it still hosts Claude sessions
@@ -36,6 +39,20 @@ public final class CloseConfirmation {
     static final ButtonType END = new ButtonType("Close and end them", ButtonBar.ButtonData.OK_DONE);
 
     private CloseConfirmation() {
+    }
+
+    /// Makes a close request on `stage` ask `mayLeave` first and drop the
+    /// request when it answers false. An event *filter*, not a handler: the
+    /// ShellFX shell (MADR 0032) sets the stage's `onCloseRequest` to a handler
+    /// that consumes the event and closes the window itself, so a handler's
+    /// `consume()` beside it stopped nothing — Cancel closed the app anyway.
+    /// A filter that consumes ends dispatch before any handler runs.
+    public static void guard(Stage stage, BooleanSupplier mayLeave) {
+        stage.addEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, event -> {
+            if (!mayLeave.getAsBoolean()) {
+                event.consume();
+            }
+        });
     }
 
     /// `rows` by category — the task id's folder part, "" for the root —

@@ -26,6 +26,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - Switching virtual desktops after clicking a queued message selects the new desktop's task again; the switch now waits only while you are actually typing in the Queue pane (a keystroke within the last 3 seconds).
 - Switching to a virtual desktop without tasks empties the Terminal, Queue and Notes panes instead of leaving the previous desktop's task in them.
 - Adding a URL or a Claude PR to a task whose `browser.urls` items sit at the same indentation as `urls:` no longer breaks the task file with "Invalid YAML frontmatter"; the new item takes the indentation of the existing ones.
+- *Cancel* in the "Claude sessions are running" dialog on closing the window keeps ContextSwitcher open again; it exited anyway.
 
 ## [2026-11-19] - 2026-11-19
 
