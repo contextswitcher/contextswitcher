@@ -572,6 +572,7 @@ A native Android app reads the same task repository from your phone: the task li
 The sync runs over HTTPS with a personal access token (a new task is the phone's only push); SSH uses an in-process client (no `ssh` binary on Android) with trust-on-first-use host keys and a single OpenSSH private key from the settings screen; a remote the phone cannot reach directly gets a jump host there (*Jump hosts*, `user@host via user@jump`, the phone's `ProxyJump`).
 Build it with `gradlew :android:assembleDebug`; the module is only included when an Android SDK is configured (`ANDROID_HOME` or `local.properties`), so SDK-less machines build exactly as before.
 Connected to a car, the same APK shows on the Android Auto head unit — the tasks with a Claude session, those waiting for you first, and per task a dictated or canned message; being sideloaded, it needs *Unknown sources* enabled in Android Auto's developer settings (tap the version there ten times).
+When Claude finishes in the task opened last, the car also announces it like an incoming message: it reads Claude's answer aloud and takes a spoken reply into the session.
 
 **GitHub tokens.** The settings screen's *Username* is your GitHub login; the two token fields are personal access tokens:
 

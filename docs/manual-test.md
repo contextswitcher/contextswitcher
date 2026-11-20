@@ -1420,6 +1420,17 @@ Needs the debug APK on a phone, an *Update token* (or a *Token*) with read acces
 - [ ] Leave *Update token* blank with a *Token* that reads both repositories → **Update** still appears.
 - [ ] Use a token without access to the ContextSwitcher repository → a Snackbar says the token cannot read it, once per start; the task list works as before.
 
+## Spoken reply to the finished alert in the car (`dsn~android-auto-reply~1`)
+
+Needs the debug APK on a phone connected to Android Auto with *Unknown sources* enabled in its developer settings, and a task whose Claude session records `claude.sessionId`.
+
+- [ ] Open the task on the phone, send a prompt that takes a minute, turn the screen off → when Claude stops, the car announces a message from the task's title.
+- [ ] Let it be read → Claude's last answer is spoken, not "Claude finished".
+- [ ] Reply by voice → the sentence arrives in the session behind the voice-mode hint; the notification is gone on the phone.
+- [ ] When that turn ends, the car announces the next answer; it is a few spoken sentences.
+- [ ] Without network, reply → the phone shows *Reply not sent, kept on the phone* and the text is in the task's enqueued list.
+- [ ] On the phone alone: the alert shows the task's title, the answer as text and *Claude finished* in its header line; tapping it opens the task.
+
 ## Android finish notification (`dsn~android-finish-notification~1`)
 
 Needs the debug APK on a phone and a task whose Claude session can be given a prompt.

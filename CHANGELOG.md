@@ -11,6 +11,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Added
 
 - Android: a long press on a task in the list offers *Cancel* (Esc to Claude) and *Delete task…*, which cancels Claude first.
+- Android Auto: when Claude finishes in the watched task, the car announces it like an incoming message, reads Claude's answer aloud and takes a spoken reply into the session; on the phone the alert now shows the answer.
 
 ### Changed
 

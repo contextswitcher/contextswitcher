@@ -179,6 +179,20 @@ Covers:
 
 Needs: dsn
 
+### Answer a finished turn by voice in the car
+`req~android-auto-reply~1`
+
+When Claude finishes in the watched task while the phone is connected to a car, Android Auto announces it like an incoming message, reads Claude's answer aloud and takes a spoken reply, which goes into the task's session — without opening an app on the head unit or touching the phone.
+The next finished turn is announced the same way, so a conversation with the session goes back and forth by voice.
+A reply that cannot be sent is not lost.
+
+Tags: android
+
+Covers:
+- feat~android-companion-app~1
+
+Needs: dsn
+
 ### Walk through a category's tasks by voice
 `req~android-voice-tour~1`
 
@@ -681,6 +695,23 @@ Tags: android
 
 Covers:
 - req~android-auto~1
+
+Needs: impl, utest
+
+### Finished alert as a message with a spoken reply
+`dsn~android-auto-reply~1`
+
+`TaskWatchService` posts the *Claude finished* alert (`dsn~android-finish-notification~1`) as a `MessagingStyle` notification: the sender is the task's title and the message Claude's last answer, read with `ClaudeTranscript` (`dsn~android-voice-tour~1`) from the session the window publishes (`@cs_session_id`, else the task's `claude.sessionId`) and cut at 4000 characters; without an answer the message is "Claude finished.".
+The alert's name, and a pending update, move to the notification's sub text.
+It carries the two actions Android Auto asks of a messaging notification, both invisible on the phone and without user interface: a reply with one `RemoteInput` and a mark-as-read, each a `PendingIntent` to the service itself; `automotive_app_desc.xml` declares `notification` next to `template`.
+`handleReply` cancels the alert and sends a reply as `VoiceTour.spokenReply(text)` into the window the alert was raised for; on failure the text joins the phone's enqueued store (`dsn~android-enqueue~1`) and a notification says so.
+The reply is sent unconfirmed — the car asks before sending — and only this alert has one: the session is idle then, whereas text typed into a permission prompt (*Claude needs you*) would pick an option.
+Ceiling: only the watched task (the one opened last) announces itself; nothing of it ran on a head unit.
+
+Tags: android
+
+Covers:
+- req~android-auto-reply~1
 
 Needs: impl, utest
 
