@@ -22,9 +22,23 @@ class TmuxStatusPollerTest {
         assertThat(TmuxStatusPoller.statusCommand()).singleElement().asString()
                 .startsWith("now=$(date +%s); "
                         + "tmux list-windows -a "
-                        + "-F '#{window_id}|#{@cs_status}|#{window_activity}|#{@cs_model}|#{@cs_effort}"
+                        + "-F '#{window_id}|" + TmuxStatusPoller.STATUS_FORMAT
+                        + "|#{window_activity}|#{@cs_model}|#{@cs_effort}"
                         + "|#{@cs_session_id}|#{pane_current_command}' "
                         + "| awk -F'|' -v n=$now 'BEGIN{OFS=FS} {print $1,$2,n-$3,$4,$5,$6,$7}'");
+    }
+
+    /// A Codex pane reads waiting from the format and working while its grep
+    /// finds the busy line; Vibe's status arrives in the status column itself.
+    // [utest->dsn~agent-status~1]
+    @Test
+    void busyMarkerMakesACodexWindowWorking() {
+        Map<String, String> out = new HashMap<>();
+        TmuxStatusPoller.parseInto("h", "@1|waiting|3||||node\n@2|waiting|3||||codex\n@3|working|1||||vibe-rs\nbusy|@1\n", out);
+        assertThat(out).containsEntry("h @1", "working").containsEntry("h @2", "waiting")
+                .containsEntry("h @3", "working");
+        assertThat(TmuxStatusPoller.statusCommand()).singleElement().asString()
+                .contains("grep -qi 'esc to interrupt' && echo 'busy|'$w");
     }
 
     /// The pane grep only visits windows that publish a status, and the command

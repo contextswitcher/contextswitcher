@@ -10,6 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Added
 
+- *Add task* picks the coding agent (Claude Code, Claude Code on an API key, Vibe, Codex) with that agent's models; Vibe and Codex tasks show the running dot too.
 - With `koppterSync: true`, a category's `project:` and `contexts:` and the context of the screen-chosen or overridden profile are shared with koppter's todo.txt filter, both ways; the filter menu gains *Projects and contexts*, and `contextswitcher://filter?project=…&context=…` sets it.
 - A single browser URL of a task can open in Chrome (or Firefox) while the other browser handles the rest: start its line with `[chrome] `.
 - The connected screens pick an environment profile of their own (`screenProfiles:` in `settings.yaml`), applied on docking and undocking without a task switch; a profile with `gatherWindows: DELL U3223QE` then pulls the windows onto that monitor. The status bar shows it as `desk (screens)`.

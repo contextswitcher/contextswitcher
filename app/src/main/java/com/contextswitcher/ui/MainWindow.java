@@ -67,6 +67,7 @@ import com.contextswitcher.queue.QueueFile;
 import com.contextswitcher.tasks.AutoPrReconcile;
 import com.contextswitcher.tasks.Frontmatter;
 import com.contextswitcher.tasks.FrontmatterCatalog;
+import com.contextswitcher.tasks.Agent;
 import com.contextswitcher.tasks.GroupConfig;
 import com.contextswitcher.tasks.IdleRemoval;
 import com.contextswitcher.tasks.MergedCleanup;
@@ -2341,6 +2342,8 @@ public class MainWindow {
         ClaudeMode remembered = lastMode();
         QueuePane.selectMode(modelBox, remembered.model());
         QueuePane.selectMode(effortBox, remembered.effort());
+        // [impl->dsn~agent-mode-select~1]
+        QueuePane.fillModes(modelBox, effortBox, source.agent(groupDefaults(groupOf(source.id()))));
         HBox modeRow = new HBox(6, modelBox, effortBox);
 
         VBox content = new VBox(6, field, modeRow, keysHint);
@@ -3674,7 +3677,33 @@ public class MainWindow {
         ClaudeMode remembered = lastMode();
         QueuePane.selectMode(modelBox, remembered.model());
         QueuePane.selectMode(effortBox, remembered.effort());
-        HBox modeRow = new HBox(6, modelBox, effortBox);
+        // The CLI the new session starts, preset with the category's; the
+        // model and effort lists follow it.
+        // [impl->dsn~agent-mode-select~1]
+        ComboBox<Agent> agentBox = new ComboBox<>(FXCollections.observableArrayList(Agent.values()));
+        agentBox.setId("add-task-agent");
+        agentBox.getStyleClass().add(Styles.SMALL);
+        agentBox.setFocusTraversable(false);
+        agentBox.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(@Nullable Agent agent) {
+                return agent == null ? "" : agent.id();
+            }
+
+            @Override
+            public @Nullable Agent fromString(String text) {
+                return Agent.parse(text);
+            }
+        });
+        agentBox.valueProperty().addListener((obs, old, agent) -> {
+            if (agent != null) {
+                QueuePane.fillModes(modelBox, effortBox, agent);
+            }
+        });
+        agentBox.setValue(groupDefaults(categoryBox.getValue()).agentOrDefault());
+        categoryBox.valueProperty().addListener((obs, old, value) ->
+                agentBox.setValue(groupDefaults(value).agentOrDefault()));
+        HBox modeRow = new HBox(6, agentBox, modelBox, effortBox);
         // For a quick task: the app removes session and worktree once it has
         // been quiet a day. [impl->dsn~idle-task-removal~2]
         CheckBox autoRemove = new CheckBox(
@@ -3763,10 +3792,14 @@ public class MainWindow {
         // [impl->dsn~task-create-retry-prefill~1]
         lastSubmittedInput = input;
         lastSubmittedClip = Clipboard.getSystemClipboard().getString();
-        ClaudeMode mode = new ClaudeMode(
-                QueuePane.modeValue(modelBox), QueuePane.modeValue(effortBox));
-        rememberMode(mode);
         String group = categoryBox.getValue();
+        // Only a pick other than the category's is carried (and recorded).
+        // [impl->dsn~agent-mode-select~1]
+        Agent pickedAgent = agentBox.getValue();
+        ClaudeMode mode = new ClaudeMode(
+                QueuePane.modeValue(modelBox), QueuePane.modeValue(effortBox),
+                pickedAgent == null || pickedAgent == groupDefaults(group).agentOrDefault() ? null : pickedAgent);
+        rememberMode(new ClaudeMode(mode.model(), mode.effort()));
         AddTarget target = addTarget(group);
         GroupConfig defaults = target.defaults();
         String remote = target.remote();
@@ -4729,7 +4762,8 @@ public class MainWindow {
     /// section, so the next play focuses it normally.
     // [impl->dsn~remote-window-choice~7]
     private void promptRemoteWindow(Task task) {
-        RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, taskRemote(task), true);
+        RemoteWindowChoice choice = askRemoteWindow(dialogOwner(), task, taskRemote(task), true,
+                task.agent(groupDefaults(groupOf(task.id()))));
         if (choice != null) {
             onStartRemoteWindow.start(task, choice.withClaude(), choice.mode());
         }
@@ -4755,8 +4789,16 @@ public class MainWindow {
     // [impl->dsn~claude-mode-select~3]
     public static @Nullable RemoteWindowChoice askRemoteWindow(@Nullable Window owner,
             Task task, @Nullable String remote, boolean offerTmux) {
+        return askRemoteWindow(owner, task, remote, offerTmux, Agent.CLAUDE);
+    }
+
+    /// As [#askRemoteWindow(Window, Task, String, boolean)], offering
+    /// `agent`'s models and efforts and naming it on the start button.
+    // [impl->dsn~agent-mode-select~1]
+    public static @Nullable RemoteWindowChoice askRemoteWindow(@Nullable Window owner,
+            Task task, @Nullable String remote, boolean offerTmux, Agent agent) {
         ButtonType tmux = new ButtonType("tmux", ButtonBar.ButtonData.OK_DONE);
-        ButtonType claude = new ButtonType("claude", ButtonBar.ButtonData.OK_DONE);
+        ButtonType claude = new ButtonType(agent.isClaude() ? "claude" : agent.id(), ButtonBar.ButtonData.OK_DONE);
         Alert alert = offerTmux
                 ? Alerts.plain(owner, Alert.AlertType.CONFIRMATION, "", tmux, claude, ButtonType.CANCEL)
                 : Alerts.plain(owner, Alert.AlertType.CONFIRMATION, "", claude, ButtonType.CANCEL);
@@ -4767,6 +4809,7 @@ public class MainWindow {
         ClaudeMode remembered = lastMode();
         QueuePane.selectMode(modelBox, remembered.model());
         QueuePane.selectMode(effortBox, remembered.effort());
+        QueuePane.fillModes(modelBox, effortBox, agent);
         String host = remote == null ? "the remote" : remote;
         Label message = new Label(offerTmux
                 ? "\"" + task.title() + "\" has a remote but no tmux window yet.\n"

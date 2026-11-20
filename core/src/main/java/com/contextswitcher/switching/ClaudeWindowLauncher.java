@@ -74,8 +74,17 @@ public class ClaudeWindowLauncher {
     /// As [#startClaudeCommand(String, boolean, String)], for `agent`'s CLI.
     // [impl->dsn~task-agent~1]
     static List<String> startClaudeCommand(String windowId, boolean auto, @Nullable String forkFrom, Agent agent) {
+        return startClaudeCommand(windowId, auto, forkFrom, agent, ClaudeMode.DEFAULT);
+    }
+
+    /// As [#startClaudeCommand(String, boolean, String, Agent)], with `mode`'s
+    /// model and effort on the start line for the CLIs that take them there
+    /// ([Agent#startLine(boolean, ClaudeMode)]).
+    // [impl->dsn~agent-mode-select~1]
+    static List<String> startClaudeCommand(String windowId, boolean auto, @Nullable String forkFrom, Agent agent,
+            ClaudeMode mode) {
         String target = "'" + windowId + "'";
-        String claude = "'" + (forkFrom == null ? agent.startLine(auto) : agent.forkLine(forkFrom, auto)) + "'";
+        String claude = "'" + (forkFrom == null ? agent.startLine(auto, mode) : agent.forkLine(forkFrom, auto)) + "'";
         return List.of("tmux",
                 "send-keys", "-t", target, claude, "Enter", "\\;",
                 "run-shell", "'sleep 5'");
@@ -129,6 +138,9 @@ public class ClaudeWindowLauncher {
     public @Nullable String launch(String remote, String session, String title, String prompt,
             @Nullable String cwd, ClaudeMode mode, Consumer<String> onStep,
             Consumer<String> onWindow, @Nullable String forkFrom) {
+        // The dialog's pick wins over the category's ([ClaudeMode#agent]).
+        // [impl->dsn~agent-mode-select~1]
+        Agent agent = mode.agent() != null ? mode.agent() : this.agent;
         onStep.accept("Creating the tmux window …");
         SshCommandRunner.SshResult created =
                 ssh.run(remote, newWindowCommand(session, cwd, title));
@@ -145,7 +157,7 @@ public class ClaudeWindowLauncher {
         onWindow.accept(windowId);
         onStep.accept("Starting Claude …");
         SshCommandRunner.SshResult started =
-                ssh.run(remote, startClaudeCommand(windowId, claudeAuto, forkFrom, agent));
+                ssh.run(remote, startClaudeCommand(windowId, claudeAuto, forkFrom, agent, mode));
         if (!started.ok()) {
             Logger.warn("Window {} created on {}, but starting Claude failed: {}",
                     windowId, remote, started.stderr().strip());
@@ -446,10 +458,21 @@ public class ClaudeWindowLauncher {
     // [impl->dsn~task-create-live~8]
     public static String liveTaskContent(String description, String remote, @Nullable String workdir,
             @Nullable String appendix) {
+        return liveTaskContent(description, remote, workdir, appendix, null);
+    }
+
+    /// As [#liveTaskContent(String, String, String, String)], recording
+    /// `agent` (the Add-task dialog's pick over the category's) as
+    /// `claude.agent`, so resume and restart keep the CLI. Only with a
+    /// `workdir`: a `claude:` section needs its `cwd`.
+    // [impl->dsn~agent-mode-select~1]
+    public static String liveTaskContent(String description, String remote, @Nullable String workdir,
+            @Nullable String appendix, @Nullable Agent agent) {
         String notes = appendix == null || appendix.isBlank()
                 ? description.strip() : description.strip() + "\n\n" + appendix.strip();
         String claudeSection = workdir == null ? ""
-                : "claude:\n  cwd: " + TaskFileParser.yamlScalar(workdir) + "\n";
+                : "claude:\n  cwd: " + TaskFileParser.yamlScalar(workdir) + "\n"
+                        + (agent == null ? "" : "  agent: " + agent.id() + "\n");
         return """
                 ---
                 title: %s

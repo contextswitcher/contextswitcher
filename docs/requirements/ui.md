@@ -1944,8 +1944,36 @@ Per agent (`Agent`): start line, resume line (with the `|| <start>` fallback), f
 Vibe starts with `--trust`, since its folder-trust question would swallow the prompt paste; it cannot fork, so a fork starts it fresh.
 Without a recorded session id, Vibe and Codex continue their last session (`vibe --continue`, `codex resume --last`), since nothing publishes their id yet.
 `claude-api` is Claude Code with `ANTHROPIC_API_KEY=${CS_ANTHROPIC_API_KEY:?}` in front: the key comes from the window's shell (direnv, `.bashrc`), a plain `claude` in the same folder keeps the subscription, and an unset variable stops the line instead of falling back silently.
-The model and effort picks (`dsn~claude-mode-select~3`) are sent to Claude Code only; the *Start Claude* button shows when the pane runs something other than the task's agent (Vibe as `python…`, Codex as `node`).
-Status dots, limit and API-error detection stay Claude-only for now.
+The *Start Claude* button shows when the pane runs something other than the task's agent (Vibe as `vibe-rs`, Codex as `codex` or `node`).
+
+Tags: windows, linux
+
+Covers:
+- req~task-agent~1
+
+Needs: impl, utest
+
+### Agent picked with its own models in the dialogs
+`dsn~agent-mode-select~1`
+
+*Add task* has an agent picker next to model and effort, preset with the category's agent and reset to it when the category changes; *Fork* and *Open remote window* use the task's agent.
+Each lists that agent's models and efforts (`Agent.models()`/`efforts()`): Claude Code's aliases, Vibe's catalog ids with no effort box (Vibe's thinking level cannot be set from outside), Codex's guessed ids with `minimal` … `xhigh`.
+Claude Code gets the picks as `/model`/`/effort` after the start (`dsn~claude-mode-select~3`); Vibe and Codex only take them on the start line — `VIBE_ACTIVE_MODEL=<id>`, `-m <id> -c model_reasoning_effort=<e>` — since their `/model` only opens a picker; a value not in the agent's list is dropped.
+An agent other than the category's is carried in `ClaudeMode.agent` and, for a live task with a working directory, written as `claude.agent` into the new file; a PR task has no `claude:` section yet, so there the pick holds for the first start only.
+
+Tags: windows, linux
+
+Covers:
+- req~task-agent~1
+
+Needs: impl, utest
+
+### Status of the CLIs without hooks
+`dsn~agent-status~1`
+
+A window without `@cs_status` gets its status column from the tmux format itself (`TmuxStatusPoller.STATUS_FORMAT`): a `vibe-rs` pane reads `working` while Vibe's tab status prefixes the pane title with `>> `, else `waiting` (`? ` = asks for a permission) — seen with Vibe 3.1.3.
+A `codex`/`node` pane reads `waiting`, and `working` while the bottom of its pane shows `esc to interrupt` (a `busy|windowId` marker of the pane grep) — guessed, no Codex was at hand.
+Limit and API-error detection stay Claude-only.
 
 Tags: windows, linux
 

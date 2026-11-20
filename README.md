@@ -215,7 +215,10 @@ A task's own frontmatter always wins over these defaults.
   It is read whenever the app starts or resumes a window, so changing it applies to the next start, and a recorded session id of the old agent is useless to the new one (the window then starts fresh).
   `claude-api` is Claude Code billed to an API key instead of the subscription — useful when the subscription's limit is reached: the line typed is `ANTHROPIC_API_KEY=${CS_ANTHROPIC_API_KEY:?} claude`, so the key comes from `CS_ANTHROPIC_API_KEY` in the remote shell — from direnv (an `.envrc` in the working directory with `export CS_ANTHROPIC_API_KEY=…`, after `direnv allow`) or `~/.bashrc` — and a plain `claude` in the same folder keeps using the subscription.
   Claude Code asks once whether to use the key.
-  For Vibe and Codex only start, resume (their last session in the folder) and `claudeAuto` (`--auto-approve`, `--dangerously-bypass-approvals-and-sandbox`) work so far: no model picker, no status dots.
+  For Vibe and Codex, resume continues their last session in the folder, and `claudeAuto` means `--auto-approve` or `--dangerously-bypass-approvals-and-sandbox`.
+  Their model (and Codex's effort) is picked in *Add task* and applies at the start only — their `/model` opens a picker the app cannot drive; Vibe's thinking level is Vibe's own.
+  The running dot works without hooks: Vibe marks its pane title while it works; Codex's is read from its *esc to interrupt* line (untested).
+  *Add task* also picks the agent for this one task, preset with the category's.
 * `desktop:` is the virtual desktop's name as shown in the Windows Task View; the header's play button switches to it, and the filter menu's **active desktop** entry narrows the list to it.
   A category naming none uses the `fallbackDesktop` setting (`misc` by default; empty turns the fallback off).
   The nested form `desktop: {name: jabref, completeControl: true}` puts the desktop under **complete control**: suspending a task of the category stores the tab URLs of every browser window on that desktop into the task file (`storedTabs:`) and closes those windows — a clean desktop whenever you switch to it manually — and resuming reopens them there (tabs still open are kept, not reopened; windows pinned to all desktops are never touched).

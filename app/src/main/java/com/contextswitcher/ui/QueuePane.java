@@ -27,6 +27,7 @@ import javax.imageio.ImageIO;
 
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
+import com.contextswitcher.tasks.Agent;
 import com.contextswitcher.queue.Attachments;
 import com.contextswitcher.queue.QodoImported;
 import com.contextswitcher.queue.QodoReconcile;
@@ -1560,6 +1561,26 @@ public class QueuePane {
         if (value != null && box.getItems().indexOf(value) > 0) {
             box.getSelectionModel().select(value);
         }
+    }
+
+    /// Refills a dialog's model and effort [#modeBox]es with `agent`'s
+    /// choices, keeping a pick the new list still offers; the effort box is
+    /// hidden for a CLI without efforts (Vibe).
+    // [impl->dsn~agent-mode-select~1]
+    public static void fillModes(ComboBox<String> modelBox, ComboBox<String> effortBox, Agent agent) {
+        refill(modelBox, agent.models());
+        refill(effortBox, agent.efforts());
+        effortBox.setVisible(!agent.efforts().isEmpty());
+        effortBox.setManaged(!agent.efforts().isEmpty());
+    }
+
+    private static void refill(ComboBox<String> box, List<String> values) {
+        String picked = modeValue(box);
+        String asIs = box.getItems().getFirst();
+        box.getItems().setAll(asIs);
+        box.getItems().addAll(values);
+        box.getSelectionModel().selectFirst();
+        selectMode(box, picked);
     }
 
     /// The argument picked in a [#modeBox], or null for its "as is" entry.

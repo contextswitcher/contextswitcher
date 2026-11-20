@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.contextswitcher.queue.ClaudeMode;
+import com.contextswitcher.switching.ClaudeWindowLauncher;
 import org.junit.jupiter.api.Test;
 
 // [utest->dsn~task-agent~1]
@@ -68,9 +70,31 @@ class AgentTest {
     @Test
     void paneCommandMatchesTheInterpreter() {
         assertTrue(Agent.CLAUDE_API.runsIn("claude"));
-        assertTrue(Agent.VIBE.runsIn("python3"));
+        assertTrue(Agent.VIBE.runsIn("vibe-rs"));
         assertTrue(Agent.CODEX.runsIn("node"));
         assertFalse(Agent.CLAUDE.runsIn("bash"));
         assertFalse(Agent.VIBE.runsIn(null));
+    }
+
+    /// Vibe and Codex take the pick on the start line; an unlisted value
+    /// (a Claude alias, a typo) never reaches the shell.
+    // [utest->dsn~agent-mode-select~1]
+    @Test
+    void modelAndEffortGoOnTheStartLine() {
+        assertEquals("VIBE_ACTIVE_MODEL=mistral-medium-latest vibe --trust",
+                Agent.VIBE.startLine(false, new ClaudeMode("mistral-medium-latest", "high")));
+        assertEquals("vibe --trust", Agent.VIBE.startLine(false, new ClaudeMode("opus", null)));
+        assertEquals("codex -m gpt-5.5 -c model_reasoning_effort=high",
+                Agent.CODEX.startLine(false, new ClaudeMode("gpt-5.5", "high")));
+        assertEquals("claude", Agent.CLAUDE.startLine(false, new ClaudeMode("opus", "max")));
+        assertTrue(Agent.VIBE.efforts().isEmpty());
+    }
+
+    /// The Add-task pick lands in the new file, so a resume keeps the CLI.
+    // [utest->dsn~agent-mode-select~1]
+    @Test
+    void livetaskRecordsThePickedAgent() throws Exception {
+        String content = ClaudeWindowLauncher.liveTaskContent("Do it", "devbox", "/w", null, Agent.CODEX);
+        assertEquals(Agent.CODEX, parser.parse("g/t", content).agent(GroupConfig.EMPTY));
     }
 }

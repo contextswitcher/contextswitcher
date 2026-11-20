@@ -1068,7 +1068,8 @@ public class Main extends Application {
         // [impl->dsn~claude-mode-select~3]
         terminalPane.setWindowStarter(task -> {
             MainWindow.RemoteWindowChoice choice =
-                    MainWindow.askRemoteWindow(dialogOwner(), task, taskRemote(files, task), false);
+                    MainWindow.askRemoteWindow(dialogOwner(), task, taskRemote(files, task), false,
+                            task.agent(groupConfig(files, task)));
             if (choice == null) {
                 window.refreshPreview(task.id());
                 return;
@@ -3913,7 +3914,7 @@ public class Main extends Application {
         // [impl->dsn~task-create-progress~6]
         // The description lives under # Notes from the start, so nothing
         // is lost when the title is later replaced by Claude's @cs_title.
-        String content = ClaudeWindowLauncher.liveTaskContent(title, remote, workdir, appendix)
+        String content = ClaudeWindowLauncher.liveTaskContent(title, remote, workdir, appendix, mode.agent())
                 + (hints ? "\nCreated on %s.\n".formatted(LocalDate.now()) : "");
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~2]

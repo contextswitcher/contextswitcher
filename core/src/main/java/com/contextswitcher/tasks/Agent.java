@@ -1,6 +1,9 @@
 package com.contextswitcher.tasks;
 
+import java.util.List;
 import java.util.Locale;
+
+import com.contextswitcher.queue.ClaudeMode;
 
 import org.jspecify.annotations.Nullable;
 
@@ -82,6 +85,49 @@ public enum Agent {
         return start + flags(auto);
     }
 
+    /// The model picker's entries for this CLI. Claude Code's aliases; Vibe's
+    /// model ids from its catalog (3.1.3); Codex's are guessed.
+    // [impl->dsn~agent-mode-select~1]
+    public List<String> models() {
+        return switch (this) {
+            case CLAUDE, CLAUDE_API -> ClaudeMode.MODELS;
+            case VIBE -> List.of("mistral-large-4-0", "mistral-medium-latest", "zai-glm-5-3",
+                    "zai-glm-5-3-flash");
+            // ponytail: guessed, no Codex at hand; read `codex debug models` (or similar) once one is installed.
+            case CODEX -> List.of("gpt-5.5", "gpt-5.5-codex", "gpt-5.5-mini");
+        };
+    }
+
+    /// The effort picker's entries; empty for Vibe, whose thinking level
+    /// cannot be set from outside an interactive session.
+    // [impl->dsn~agent-mode-select~1]
+    public List<String> efforts() {
+        return switch (this) {
+            case CLAUDE, CLAUDE_API -> ClaudeMode.EFFORTS;
+            case VIBE -> List.of();
+            case CODEX -> List.of("minimal", "low", "medium", "high", "xhigh");
+        };
+    }
+
+    /// [#startLine(boolean)] with `mode`'s model and effort applied at the
+    /// start — for the CLIs that cannot be switched by a typed command
+    /// (Vibe's and Codex's `/model` only open a picker): `VIBE_ACTIVE_MODEL`
+    /// for Vibe, `-m`/`-c model_reasoning_effort=` for Codex. A value not in
+    /// [#models()]/[#efforts()] is dropped, so nothing unchecked reaches the
+    /// shell. Claude Code gets its picks as `/model`/`/effort` after the
+    /// start instead, so its line is unchanged.
+    // [impl->dsn~agent-mode-select~1]
+    public String startLine(boolean auto, ClaudeMode mode) {
+        String model = mode.model() != null && models().contains(mode.model()) ? mode.model() : null;
+        String effort = mode.effort() != null && efforts().contains(mode.effort()) ? mode.effort() : null;
+        return switch (this) {
+            case CLAUDE, CLAUDE_API -> startLine(auto);
+            case VIBE -> (model == null ? "" : "VIBE_ACTIVE_MODEL=" + model + " ") + startLine(auto);
+            case CODEX -> startLine(auto) + (model == null ? "" : " -m " + model)
+                    + (effort == null ? "" : " -c model_reasoning_effort=" + effort);
+        };
+    }
+
     /// The shell line resuming `sessionId`, falling back to a fresh session
     /// when the CLI no longer knows the id (or later exits non-zero) — so the
     /// window never ends at a bare prompt. Without an id: Claude starts
@@ -101,16 +147,16 @@ public enum Agent {
     }
 
     /// Whether `paneCommand` (tmux's `#{pane_current_command}`) is this
-    /// agent running. Vibe is a Python program and the Codex CLI a Node
-    /// wrapper, so tmux names the interpreter for them.
-    // ponytail: interpreter names also match any other Python/Node program in the pane; a per-agent `@cs_agent` option would be exact.
+    /// agent running. Vibe shows as `vibe-rs` (seen with 3.1.3); the Codex
+    /// CLI's npm package is a Node wrapper, so tmux may name `node` for it.
+    // ponytail: `node` also matches any other Node program in the pane; a per-agent `@cs_agent` option would be exact.
     public boolean runsIn(@Nullable String paneCommand) {
         if (paneCommand == null) {
             return false;
         }
         return switch (this) {
             case CLAUDE, CLAUDE_API -> paneCommand.equals("claude");
-            case VIBE -> paneCommand.equals("vibe") || paneCommand.startsWith("python");
+            case VIBE -> paneCommand.startsWith("vibe");
             case CODEX -> paneCommand.equals("codex") || paneCommand.equals("node");
         };
     }
