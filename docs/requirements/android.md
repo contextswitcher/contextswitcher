@@ -482,9 +482,10 @@ Covers:
 Needs: impl, utest
 
 ### Delete a task
-`dsn~android-task-delete~1`
+`dsn~android-task-delete~2`
 
 A long press on a task's row in `TaskListBody` opens a menu with *Delete task…*, confirmed in a dialog — the desktop's row context menu (`dsn~task-delete~6`), without its cleanup ticks: the phone only removes the file.
+For a task with a remote window, the delete first cancels Claude as `dsn~android-task-cancel~1` does (Oliver, 2026-11-20); a failed cancel does not stop the delete, the Snackbar names it.
 `TaskRepoSync.deleteTask(dir, username, token, taskId)` removes `<task>.md` and pushes it through the write-back of `dsn~android-task-create~2`; a file already gone from the fetched clone needs no commit.
 The list reloads from the clone afterwards; a Snackbar says *Task deleted* or why not.
 
@@ -492,6 +493,18 @@ Tags: android
 
 Covers:
 - req~task-delete~2
+
+Needs: impl, utest
+
+### Cancel Claude from the task list
+`dsn~android-task-cancel~1`
+
+The long-press menu of `dsn~android-task-delete~2` offers *Cancel* above *Delete task…* for a task with `remote:` and `tmux:`: it sends `Escape` to the task's window (`TmuxMirrorCommands.keyCommand`, the terminal bar's *Esc*, `dsn~android-terminal-keys~1`), stopping Claude's turn without opening the task; the Snackbar says *Claude cancelled* or why not.
+
+Tags: android
+
+Covers:
+- req~android-terminal-keys~1
 
 Needs: impl, utest
 
