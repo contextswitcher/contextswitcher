@@ -1960,6 +1960,7 @@ Needs: impl, utest
 Each lists that agent's models and efforts (`Agent.models()`/`efforts()`): Claude Code's aliases, Vibe's catalog ids with no effort box (Vibe's thinking level cannot be set from outside), Codex's guessed ids with `minimal` … `xhigh`.
 Claude Code gets the picks as `/model`/`/effort` after the start (`dsn~claude-mode-select~3`); Vibe and Codex only take them on the start line — `VIBE_ACTIVE_MODEL=<id>`, `-m <id> -c model_reasoning_effort=<e>` — since their `/model` only opens a picker; a value not in the agent's list is dropped.
 An agent other than the category's is carried in `ClaudeMode.agent` and, for a live task with a working directory, written as `claude.agent` into the new file; a PR task has no `claude:` section yet, so there the pick holds for the first start only.
+The *Add remote*/*Add local* buttons and their hints name the picked agent (`Agent.displayName()`); local sessions start Claude only, so *Add local* is disabled for any other agent.
 
 Tags: windows, linux
 

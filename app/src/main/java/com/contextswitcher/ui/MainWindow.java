@@ -3735,17 +3735,25 @@ public class MainWindow {
             String remote = target.remote();
             boolean remoteFromGroup = target.defaults().remote() != null;
             String localWorkdir = target.localWorkdir();
+            // The buttons and hints name the picked agent, not always Claude.
+            Agent agent = agentBox.getValue() == null ? Agent.CLAUDE : agentBox.getValue();
+            String name = agent.displayName();
+            remoteButton.setText("Add remote " + name);
+            localButton.setText("Add local " + name);
             String hint;
             if (remote == null) {
-                hint = "Add remote Claude needs a remote — set one in the group's CS config or settings.yaml.";
+                hint = "Add remote " + name + " needs a remote — set one in the group's CS config or settings.yaml.";
             } else if (remoteFromGroup) {
-                hint = "Remote Claude runs on \"" + remote + "\" (group default).";
+                hint = "Remote " + name + " runs on \"" + remote + "\" (group default).";
             } else {
-                hint = "Remote Claude runs on \"" + remote
+                hint = "Remote " + name + " runs on \"" + remote
                         + "\" (configured remote; add a group CS config to override).";
             }
             remoteHint.setText(hint);
-            localHint.setText(localWorkdir != null
+            // ponytail: local sessions start `claude` only; teach LocalClaudeLauncher the agent's start line when wanted.
+            localHint.setText(!agent.isClaude()
+                    ? "Add local " + name + " is not supported yet — local sessions run Claude."
+                    : localWorkdir != null
                     ? (com.contextswitcher.terminal.LocalClaudeLauncher.onWindows()
                             ? "Local Claude opens a session in \"" + localWorkdir
                                     + "\" (group default), hosted by this app's terminal pane."
@@ -3754,12 +3762,12 @@ public class MainWindow {
                     : "Add local Claude needs a local category — a group CS config with"
                             + " workspacesRoot/workdir and no remote.");
             remoteButton.setDisable(remote == null);
-            localButton.setDisable(localWorkdir == null);
+            localButton.setDisable(localWorkdir == null || !agent.isClaude());
             // The default follows the category the task lands in: a local one
             // starts Claude locally, a group with its own `remote:` on that
             // remote, an unconfigured group creates a plain file (the fallback
             // remote from settings.yaml is offered, but not by default).
-            Button defaultButton = localWorkdir != null ? localButton
+            Button defaultButton = localWorkdir != null && agent.isClaude() ? localButton
                     : remoteFromGroup ? remoteButton : plainButton;
             remoteButton.setDefaultButton(defaultButton == remoteButton);
             localButton.setDefaultButton(defaultButton == localButton);
@@ -3767,6 +3775,7 @@ public class MainWindow {
         };
         updateTarget.run();
         categoryBox.valueProperty().addListener((obs, old, value) -> updateTarget.run());
+        agentBox.valueProperty().addListener((obs, old, value) -> updateTarget.run());
         Runnable fireDefault = () -> Stream.of(localButton, remoteButton, plainButton)
                 .filter(Button::isDefaultButton).findFirst().ifPresent(Button::fire);
         // The area consumes plain Enter (newline), so the default button only
@@ -4798,7 +4807,7 @@ public class MainWindow {
     public static @Nullable RemoteWindowChoice askRemoteWindow(@Nullable Window owner,
             Task task, @Nullable String remote, boolean offerTmux, Agent agent) {
         ButtonType tmux = new ButtonType("tmux", ButtonBar.ButtonData.OK_DONE);
-        ButtonType claude = new ButtonType(agent.isClaude() ? "claude" : agent.id(), ButtonBar.ButtonData.OK_DONE);
+        ButtonType claude = new ButtonType(agent.isClaude() ? "claude" : agent.displayName(), ButtonBar.ButtonData.OK_DONE);
         Alert alert = offerTmux
                 ? Alerts.plain(owner, Alert.AlertType.CONFIRMATION, "", tmux, claude, ButtonType.CANCEL)
                 : Alerts.plain(owner, Alert.AlertType.CONFIRMATION, "", claude, ButtonType.CANCEL);

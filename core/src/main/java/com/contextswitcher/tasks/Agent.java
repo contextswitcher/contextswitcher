@@ -72,6 +72,16 @@ public enum Agent {
         return null;
     }
 
+    /// The name the UI shows (`Add remote Vibe`); both Claude billings read
+    /// `Claude`, the agent picker tells them apart.
+    public String displayName() {
+        return switch (this) {
+            case CLAUDE, CLAUDE_API -> "Claude";
+            case VIBE -> "Vibe";
+            case CODEX -> "Codex";
+        };
+    }
+
     /// Whether this is Claude Code (either billing): only it has the
     /// `/model`/`/effort` commands, the hooks and the pane patterns the app
     /// knows.
