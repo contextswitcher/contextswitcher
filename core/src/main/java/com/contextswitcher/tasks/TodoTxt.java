@@ -21,12 +21,11 @@ import org.jspecify.annotations.Nullable;
 // [impl->dsn~todo-txt-line~1]
 public final class TodoTxt {
 
-    /// One rendered todo.txt line: `projects` are its `+project`s, shown right
-    /// before `text`, the description led by `(A)` when the line has a priority;
-    /// `labels` are `@context`, `#tag` and `due <date>` in the order of the line.
-    public record Line(List<String> projects, String text, List<String> labels) {
+    /// One rendered todo.txt line: `text` is the description, led by `(A)` when
+    /// the line has a priority; `labels` are `+project`, `@context`, `#tag` and
+    /// `due <date>` in the order of the line.
+    public record Line(String text, List<String> labels) {
         public Line {
-            projects = List.copyOf(projects);
             labels = List.copyOf(labels);
         }
     }
@@ -55,7 +54,6 @@ public final class TodoTxt {
             }
             String id = null;
             List<String> words = new ArrayList<>();
-            List<String> projects = new ArrayList<>();
             List<String> labels = new ArrayList<>();
             boolean first = true;
             for (String word : rest.trim().split("\\s+")) {
@@ -65,9 +63,7 @@ public final class TodoTxt {
                 }
                 first = false;
                 var tag = TAG.matcher(word);
-                if (word.length() > 1 && word.startsWith("+")) {
-                    projects.add(word);
-                } else if (word.length() > 1 && (word.startsWith("@") || word.startsWith("#"))) {
+                if (word.length() > 1 && (word.startsWith("+") || word.startsWith("@") || word.startsWith("#"))) {
                     labels.add(word);
                 } else if (tag.matches()) {
                     switch (tag.group(1)) {
@@ -81,7 +77,7 @@ public final class TodoTxt {
             }
             if (id != null) {
                 out.computeIfAbsent(id, k -> new ArrayList<>())
-                        .add(new Line(projects, priority + String.join(" ", words), labels));
+                        .add(new Line(priority + String.join(" ", words), labels));
             }
         }
         return out;

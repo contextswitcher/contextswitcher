@@ -16,7 +16,6 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Changed
 
 - The *Add task* buttons and hints name the picked agent (*Add remote Vibe*); *Add local* stays Claude-only and is disabled for Vibe and Codex.
-- A todo.txt line on a task row shows its `+project` directly before the description.
 
 ### Fixed
 
