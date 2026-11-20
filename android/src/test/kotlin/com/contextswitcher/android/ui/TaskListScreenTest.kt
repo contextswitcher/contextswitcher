@@ -125,7 +125,7 @@ class TaskListScreenTest {
         composeRule.onNodeWithText("Go to category").assertDoesNotExist()
     }
 
-    // [utest->dsn~android-task-delete~1]
+    // [utest->dsn~android-task-delete~2]
     @Test
     fun `a long press offers deleting the task, after a confirmation`() {
         val tasksDir = tmpFolder.newFolder("delete")
@@ -143,6 +143,28 @@ class TaskListScreenTest {
         composeRule.onNodeWithText("Delete").performClick()
 
         assertThat(deleted).containsExactly("g/one")
+    }
+
+    // [utest->dsn~android-task-cancel~1]
+    @Test
+    fun `the long-press menu cancels a task with a remote window, and only such a task`() {
+        val tasksDir = tmpFolder.newFolder("cancel")
+        File(tasksDir, "g").mkdirs()
+        File(tasksDir, "g/live.md").writeText("---\ntitle: Live\nstatus: active\nremote: host\ntmux:\n  session: s\n  window: \"@3\"\n---\n")
+        File(tasksDir, "g/plain.md").writeText(task("Plain", "active"))
+        val groups = buildTaskListModel(tasksDir.toPath())
+        val cancelled = mutableListOf<String>()
+        composeRule.setContent {
+            MaterialTheme { Surface { TaskListBody(groups, onDeleteTask = {}, onCancelTask = { cancelled += it.id() }) } }
+        }
+
+        composeRule.onNodeWithText("Live").performTouchInput { longClick() }
+        composeRule.onNodeWithText("Cancel").performClick()
+        assertThat(cancelled).containsExactly("g/live")
+
+        composeRule.onNodeWithText("Plain").performTouchInput { longClick() }
+        composeRule.onNodeWithText("Delete task…").assertExists()
+        composeRule.onNodeWithText("Cancel").assertDoesNotExist()
     }
 
     // [utest->dsn~android-running-dot~1]

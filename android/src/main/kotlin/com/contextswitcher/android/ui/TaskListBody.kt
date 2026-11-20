@@ -49,10 +49,12 @@ import kotlinx.coroutines.launch
 /// has nothing to open. [listState] belongs to the caller, so the scroll
 /// position outlives this list while a task is open in its place.
 /// Tapping a group header lists all groups; picking one scrolls to it.
-/// A long press on a loaded task's row opens a menu with *Delete task…*
-/// when [onDeleteTask] is given; it asks before calling it.
+/// A long press on a loaded task's row opens a menu: *Cancel* (only for a
+/// task with a remote window, when [onCancelTask] is given) and *Delete
+/// task…* (when [onDeleteTask] is given; it asks before calling it).
 // [impl->dsn~android-task-list~1]
-// [impl->dsn~android-task-delete~1]
+// [impl->dsn~android-task-delete~2]
+// [impl->dsn~android-task-cancel~1]
 // [impl->dsn~android-task-list-navigation~1]
 @Composable
 fun TaskListBody(
@@ -62,6 +64,7 @@ fun TaskListBody(
     listState: LazyListState = rememberLazyListState(),
     statuses: Map<String, String> = emptyMap(),
     onDeleteTask: ((Task) -> Unit)? = null,
+    onCancelTask: ((Task) -> Unit)? = null,
 ) {
     var deleting by remember { mutableStateOf<Task?>(null) }
     var pickingGroup by rememberSaveable { mutableStateOf(false) }
@@ -69,7 +72,7 @@ fun TaskListBody(
     LazyColumn(modifier = modifier.fillMaxSize(), state = listState) {
         for (group in groups) {
             stickyHeader { GroupHeader(group.name) { pickingGroup = true } }
-            items(group.entries) { entry -> TaskRow(entry, statuses, onTaskClick, onDeleteTask?.let { { task: Task -> deleting = task } }) }
+            items(group.entries) { entry -> TaskRow(entry, statuses, onTaskClick, onDeleteTask?.let { { task: Task -> deleting = task } }, onCancelTask) }
         }
     }
     if (pickingGroup) {
@@ -93,7 +96,7 @@ fun TaskListBody(
         AlertDialog(
             onDismissRequest = { deleting = null },
             title = { Text("Delete task") },
-            text = { Text("Delete \"${task.title()}\"? This cannot be undone.") },
+            text = { Text("Delete \"${task.title()}\"?" + (if (task.tmux() != null) " Claude is cancelled first." else "") + " This cannot be undone.") },
             confirmButton = { TextButton(onClick = { deleting = null; onDeleteTask?.invoke(task) }) { Text("Delete") } },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
         )
@@ -119,7 +122,7 @@ private fun GroupHeader(name: String, onClick: () -> Unit) {
 /// parse error, mirroring the desktop's corrupt-row behavior; a loaded task
 /// shows title, status (suspended dimmed), and its tag chips.
 @Composable
-private fun TaskRow(entry: TaskEntry, statuses: Map<String, String>, onTaskClick: (Task) -> Unit, onDelete: ((Task) -> Unit)?) {
+private fun TaskRow(entry: TaskEntry, statuses: Map<String, String>, onTaskClick: (Task) -> Unit, onDelete: ((Task) -> Unit)?, onCancel: ((Task) -> Unit)?) {
     when (entry) {
         is TaskEntry.Failed -> Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             Text(text = entry.fileName, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
@@ -130,10 +133,11 @@ private fun TaskRow(entry: TaskEntry, statuses: Map<String, String>, onTaskClick
             val dimmed = task.status() == TaskStatus.SUSPENDED
             val textColor = if (dimmed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else Color.Unspecified
             var menuOpen by remember { mutableStateOf(false) }
+            val cancel = onCancel.takeIf { task.remote() != null && task.tmux() != null }
             Box {
                 Column(
                     modifier = Modifier.fillMaxWidth()
-                        .combinedClickable(onClick = { onTaskClick(task) }, onLongClick = { if (onDelete != null) menuOpen = true })
+                        .combinedClickable(onClick = { onTaskClick(task) }, onLongClick = { if (onDelete != null || cancel != null) menuOpen = true })
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                 ) {
                     Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
@@ -151,7 +155,12 @@ private fun TaskRow(entry: TaskEntry, statuses: Map<String, String>, onTaskClick
                     }
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(text = { Text("Delete task…") }, onClick = { menuOpen = false; onDelete?.invoke(task) })
+                    if (cancel != null) {
+                        DropdownMenuItem(text = { Text("Cancel") }, onClick = { menuOpen = false; cancel(task) })
+                    }
+                    if (onDelete != null) {
+                        DropdownMenuItem(text = { Text("Delete task…") }, onClick = { menuOpen = false; onDelete(task) })
+                    }
                 }
             }
         }

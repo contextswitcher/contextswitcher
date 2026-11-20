@@ -150,7 +150,7 @@ class TaskRepoSync(private val beforePush: () -> Unit = {}) {
     /// Deletes `taskId`'s file and pushes that like [createTask]; a file
     /// already gone from the fetched clone needs no commit. Null on success,
     /// else the error to show.
-    // [impl->dsn~android-task-delete~1]
+    // [impl->dsn~android-task-delete~2]
     fun deleteTask(dir: File, username: String, token: String, taskId: String): String? =
         pushChange(dir, username, token) { git ->
             if (!File(dir, "$taskId.md").delete()) {

@@ -10,7 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Added
 
-- Android: a long press on a task in the list offers *Delete task…*.
+- Android: a long press on a task in the list offers *Cancel* (Esc to Claude) and *Delete task…*, which cancels Claude first.
 
 ### Changed
 

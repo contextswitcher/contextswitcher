@@ -157,7 +157,7 @@ class TaskRepoSyncTest {
         assertThat(queueInRemote(tmp, bare, queue)).containsExactly("other")
     }
 
-    // [utest->dsn~android-task-delete~1]
+    // [utest->dsn~android-task-delete~2]
     @Test
     fun `deleting a task removes its file from the remote`(@TempDir tmp: File) {
         val bare = pushFixture(tmp, "work/first.md" to taskFixture("First"), "work/second.md" to taskFixture("Second"))
