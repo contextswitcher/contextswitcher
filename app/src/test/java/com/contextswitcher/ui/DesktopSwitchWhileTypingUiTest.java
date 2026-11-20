@@ -129,6 +129,16 @@ class DesktopSwitchWhileTypingUiTest {
         runFx(() -> mainWindow().updateActiveDesktop("Pi"));
         runFx(() -> mainWindow().updateActiveDesktop("Rho"));
         awaitSelected("rho/other");
+
+        // A desktop without tasks shows no task: the panes do not keep the
+        // previous desktop's one beside the empty list (field report 2026-11-20).
+        runFx(() -> mainWindow().updateActiveDesktop("Sigma"));
+        awaitVisible("rho/other", false);
+        assertThat(callFx(() -> mainWindow().selectedTaskId() == null))
+                .as("no task is previewed on an empty desktop")
+                .isTrue();
+        runFx(() -> mainWindow().updateActiveDesktop("Rho"));
+        awaitSelected("rho/other");
     }
 
     /// The queue pane's message box — the `TextArea` its prompt names.

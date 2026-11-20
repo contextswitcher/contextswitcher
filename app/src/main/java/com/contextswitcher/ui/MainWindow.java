@@ -6503,6 +6503,22 @@ public class MainWindow {
         editorFileLabel.getStyleClass().add(duplicates.isEmpty() ? Styles.TEXT_MUTED : Styles.WARNING);
     }
 
+    /// Empties every task pane: no previewed task, a blank terminal and queue
+    /// (`onPreviewCleared`), and an editor lane with no file open — unsaved
+    /// edits of the file being left are saved first, as on a task switch.
+    // [impl->dsn~desktop-last-task-selection~6]
+    private void showNoTask() {
+        pendingSelectionId = null;
+        previewedTask = null;
+        onPreviewCleared.run();
+        renderPrHeader();
+        formPanes.forEach(ConfigFormPane::commit);
+        saveEditorIfDirty();
+        editedFileName = null;
+        setEditorText("");
+        editorFileLabel.setText("No task selected");
+    }
+
     private void setEditorText(String content) {
         String[] parts = splitFrontmatter(content);
         setText(configEditor, parts[0]);
@@ -7731,8 +7747,16 @@ public class MainWindow {
         // `dsn~task-from-pr~6`; the desktop switch is the other caller that
         // needed it.
         // [impl->dsn~desktop-last-task-selection~6]
-        if (target != null && !queueFieldFocused()) {
-            selectTask(target.id());
+        if (!queueFieldFocused()) {
+            if (target != null) {
+                selectTask(target.id());
+            } else {
+                // A desktop without tasks shows no task: the panes would
+                // otherwise keep the previous desktop's terminal, queue and
+                // notes beside an empty list (field report 2026-11-20).
+                // [impl->dsn~desktop-last-task-selection~6]
+                showNoTask();
+            }
         }
         // The title follows the desktop even when the selection waits or
         // there is nothing to select: the target's category, else the
