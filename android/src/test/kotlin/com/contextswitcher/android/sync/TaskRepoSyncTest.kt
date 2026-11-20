@@ -157,6 +157,22 @@ class TaskRepoSyncTest {
         assertThat(queueInRemote(tmp, bare, queue)).containsExactly("other")
     }
 
+    // [utest->dsn~android-task-delete~1]
+    @Test
+    fun `deleting a task removes its file from the remote`(@TempDir tmp: File) {
+        val bare = pushFixture(tmp, "work/first.md" to taskFixture("First"), "work/second.md" to taskFixture("Second"))
+        val target = File(tmp, "clone")
+        TaskRepoSync().syncInto(target, bare.absolutePath, "user", "token")
+
+        assertThat(TaskRepoSync().deleteTask(target, "user", "token", "work/first")).isNull()
+        assertThat(TaskRepoSync().deleteTask(target, "user", "token", "work/first")).isNull()
+
+        val check = File(tmp, "check-${System.nanoTime()}")
+        Git.cloneRepository().setURI(bare.absolutePath).setDirectory(check).call().close()
+        assertThat(File(check, "work/first.md")).doesNotExist()
+        assertThat(File(check, "work/second.md")).exists()
+    }
+
     private fun queueInRemote(tmp: File, bare: File, queue: String): List<String> {
         val check = File(tmp, "check-${System.nanoTime()}")
         Git.cloneRepository().setURI(bare.absolutePath).setDirectory(check).call().close()

@@ -1,7 +1,9 @@
 package com.contextswitcher.android.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,12 +18,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -44,7 +49,10 @@ import kotlinx.coroutines.launch
 /// has nothing to open. [listState] belongs to the caller, so the scroll
 /// position outlives this list while a task is open in its place.
 /// Tapping a group header lists all groups; picking one scrolls to it.
+/// A long press on a loaded task's row opens a menu with *Delete task…*
+/// when [onDeleteTask] is given; it asks before calling it.
 // [impl->dsn~android-task-list~1]
+// [impl->dsn~android-task-delete~1]
 // [impl->dsn~android-task-list-navigation~1]
 @Composable
 fun TaskListBody(
@@ -53,13 +61,15 @@ fun TaskListBody(
     onTaskClick: (Task) -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     statuses: Map<String, String> = emptyMap(),
+    onDeleteTask: ((Task) -> Unit)? = null,
 ) {
+    var deleting by remember { mutableStateOf<Task?>(null) }
     var pickingGroup by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     LazyColumn(modifier = modifier.fillMaxSize(), state = listState) {
         for (group in groups) {
             stickyHeader { GroupHeader(group.name) { pickingGroup = true } }
-            items(group.entries) { entry -> TaskRow(entry, statuses, onTaskClick) }
+            items(group.entries) { entry -> TaskRow(entry, statuses, onTaskClick, onDeleteTask?.let { { task: Task -> deleting = task } }) }
         }
     }
     if (pickingGroup) {
@@ -77,6 +87,15 @@ fun TaskListBody(
                 }
             },
             confirmButton = { TextButton(onClick = { pickingGroup = false }) { Text("Cancel") } },
+        )
+    }
+    deleting?.let { task ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("Delete task") },
+            text = { Text("Delete \"${task.title()}\"? This cannot be undone.") },
+            confirmButton = { TextButton(onClick = { deleting = null; onDeleteTask?.invoke(task) }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
         )
     }
 }
@@ -100,7 +119,7 @@ private fun GroupHeader(name: String, onClick: () -> Unit) {
 /// parse error, mirroring the desktop's corrupt-row behavior; a loaded task
 /// shows title, status (suspended dimmed), and its tag chips.
 @Composable
-private fun TaskRow(entry: TaskEntry, statuses: Map<String, String>, onTaskClick: (Task) -> Unit) {
+private fun TaskRow(entry: TaskEntry, statuses: Map<String, String>, onTaskClick: (Task) -> Unit, onDelete: ((Task) -> Unit)?) {
     when (entry) {
         is TaskEntry.Failed -> Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             Text(text = entry.fileName, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
@@ -110,22 +129,29 @@ private fun TaskRow(entry: TaskEntry, statuses: Map<String, String>, onTaskClick
             val task = entry.task()
             val dimmed = task.status() == TaskStatus.SUSPENDED
             val textColor = if (dimmed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else Color.Unspecified
-            Column(
-                modifier = Modifier.fillMaxWidth().clickable { onTaskClick(task) }
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-            ) {
-                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    RunningDot(sessionStatus(task, statuses))
-                    // The title takes what the status leaves, so a long one wraps instead of squeezing it; a whole prompt is cut at three lines.
-                    Text(text = task.title(), color = textColor, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Text(text = task.status().yaml(), color = textColor, modifier = Modifier.padding(start = 8.dp))
-                }
-                if (task.tags().isNotEmpty()) {
-                    Row(modifier = Modifier.padding(top = 4.dp)) {
-                        for (tag in task.tags()) {
-                            TagChip(tag)
+            var menuOpen by remember { mutableStateOf(false) }
+            Box {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .combinedClickable(onClick = { onTaskClick(task) }, onLongClick = { if (onDelete != null) menuOpen = true })
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                ) {
+                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        RunningDot(sessionStatus(task, statuses))
+                        // The title takes what the status leaves, so a long one wraps instead of squeezing it; a whole prompt is cut at three lines.
+                        Text(text = task.title(), color = textColor, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        Text(text = task.status().yaml(), color = textColor, modifier = Modifier.padding(start = 8.dp))
+                    }
+                    if (task.tags().isNotEmpty()) {
+                        Row(modifier = Modifier.padding(top = 4.dp)) {
+                            for (tag in task.tags()) {
+                                TagChip(tag)
+                            }
                         }
                     }
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(text = { Text("Delete task…") }, onClick = { menuOpen = false; onDelete?.invoke(task) })
                 }
             }
         }

@@ -345,7 +345,7 @@ The user can delete a task from the task list's right-click menu.
 Deletion removes the task's Markdown file and requires an explicit confirmation, because it cannot be undone.
 A task whose live context still exists gets the suspend teardown first — deleting the file must not orphan a running tmux window or open browser tabs that nothing references anymore.
 
-Tags: windows, linux
+Tags: windows, linux, android
 
 Covers:
 - feat~tasks-as-markdown-files~1

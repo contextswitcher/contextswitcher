@@ -481,6 +481,20 @@ Covers:
 
 Needs: impl, utest
 
+### Delete a task
+`dsn~android-task-delete~1`
+
+A long press on a task's row in `TaskListBody` opens a menu with *Delete task…*, confirmed in a dialog — the desktop's row context menu (`dsn~task-delete~6`), without its cleanup ticks: the phone only removes the file.
+`TaskRepoSync.deleteTask(dir, username, token, taskId)` removes `<task>.md` and pushes it through the write-back of `dsn~android-task-create~2`; a file already gone from the fetched clone needs no commit.
+The list reloads from the clone afterwards; a Snackbar says *Task deleted* or why not.
+
+Tags: android
+
+Covers:
+- req~task-delete~2
+
+Needs: impl, utest
+
 ### Finish notification
 `dsn~android-finish-notification~1`
 

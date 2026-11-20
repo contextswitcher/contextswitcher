@@ -8,6 +8,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Added
+
+- Android: a long press on a task in the list offers *Delete task…*.
+
 ### Changed
 
 - The *Add task* buttons and hints name the picked agent (*Add remote Vibe*); *Add local* stays Claude-only and is disabled for Vibe and Codex.

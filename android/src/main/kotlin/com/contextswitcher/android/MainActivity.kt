@@ -517,6 +517,22 @@ internal fun TaskListScreen(
         }
     }
 
+    // [impl->dsn~android-task-delete~1]
+    fun deleteTask(task: Task) {
+        val settings = settingsStore.load() ?: return
+        scope.launch {
+            val error = withContext(Dispatchers.IO) {
+                TaskRepoSync().deleteTask(repoDir, settings.username, settings.token, task.id())
+            }
+            try {
+                groups = withContext(Dispatchers.IO) { buildTaskListModel(repoDir.toPath()) }
+            } catch (e: IOException) {
+                lastError = "Cannot read tasks: ${e.message}"
+            }
+            snackbarHostState.showSnackbar(error?.let { "Cannot delete the task: $it" } ?: "Task deleted")
+        }
+    }
+
     // [impl->dsn~android-task-create~2]
     fun addTask(category: String, title: String, notes: String) {
         val settings = settingsStore.load() ?: return
@@ -669,7 +685,7 @@ internal fun TaskListScreen(
         } else if (shownGroups.isEmpty()) {
             Text("No task matches", modifier = Modifier.padding(padding).padding(16.dp))
         } else {
-            TaskListBody(shownGroups, modifier = Modifier.padding(padding), onTaskClick = onOpenTask, listState = listState, statuses = statuses)
+            TaskListBody(shownGroups, modifier = Modifier.padding(padding), onTaskClick = onOpenTask, listState = listState, statuses = statuses, onDeleteTask = ::deleteTask)
         }
     }
 

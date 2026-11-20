@@ -15,6 +15,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.graphics.Color
 import com.contextswitcher.tasks.Task
 import com.contextswitcher.tasks.TaskStatus
@@ -121,6 +123,26 @@ class TaskListScreenTest {
 
         assertThat(state.firstVisibleItemIndex).isEqualTo(headerIndex(groups, "omega"))
         composeRule.onNodeWithText("Go to category").assertDoesNotExist()
+    }
+
+    // [utest->dsn~android-task-delete~1]
+    @Test
+    fun `a long press offers deleting the task, after a confirmation`() {
+        val tasksDir = tmpFolder.newFolder("delete")
+        File(tasksDir, "g").mkdirs()
+        File(tasksDir, "g/one.md").writeText(task("One", "active"))
+        val groups = buildTaskListModel(tasksDir.toPath())
+        val deleted = mutableListOf<String>()
+        composeRule.setContent {
+            MaterialTheme { Surface { TaskListBody(groups, onDeleteTask = { deleted += it.id() }) } }
+        }
+
+        composeRule.onNodeWithText("One").performTouchInput { longClick() }
+        composeRule.onNodeWithText("Delete task…").performClick()
+        assertThat(deleted).isEmpty()
+        composeRule.onNodeWithText("Delete").performClick()
+
+        assertThat(deleted).containsExactly("g/one")
     }
 
     // [utest->dsn~android-running-dot~1]
