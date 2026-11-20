@@ -18,6 +18,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - The height the *Last sent* area in the Queue pane is dragged to is kept for all tasks and after a restart.
 - A task removed after a day of inactivity also takes its worktree's git branch with it.
+- The config form no longer insists on a title: leaving the field blank removes `title:`, and the task shows its id. The *The title cannot be empty.* error no longer pops up when focus leaves the form.
 
 ### Fixed
 
