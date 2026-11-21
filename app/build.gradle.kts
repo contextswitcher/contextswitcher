@@ -295,6 +295,12 @@ jpackage {
     // jdk.unsupported for Unsafe (prism, pty4j); jdk.management for the
     // extended OperatingSystemMXBean (MemoryLog) — not part of java.se.
     addModules = listOf("java.se", "jdk.unsupported", "jdk.management")
+    // The exe's own icon: Windows shows it in the taskbar, Alt+Tab and Task
+    // Manager — the window icon (AppIcon) does not reach those. Built from the
+    // extension PNGs: `convert extension/chrome/icon-{16,32,48,128}.png app/packaging/ContextSwitcher.ico`.
+    if (hostOs == OperatingSystemFamily.WINDOWS) {
+        icon = layout.projectDirectory.file("packaging/ContextSwitcher.ico")
+    }
 }
 val jpackageImage = tasks.named("jpackageImage")
 
