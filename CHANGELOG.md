@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [Unreleased]
+
+### Fixed
+
+- Windows: the packaged app shows the ContextSwitcher icon in the taskbar, Alt+Tab and Task Manager instead of the Java icon; `just loop` is short for `just run-loop`.
+
 ## [2026-11-21] - 2026-11-21
 
 ### Added

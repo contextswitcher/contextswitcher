@@ -4,6 +4,8 @@
 # the built launcher path). Windows recipes run under cmd.
 set windows-shell := ["cmd.exe", "/c"]
 
+alias loop := run-loop
+
 # Show the recipe list when run without a recipe.
 default:
     @just --list
