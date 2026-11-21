@@ -654,11 +654,11 @@ Covers:
 
 Needs: impl, utest
 
-### Recently used categories on top of the Add-task picker
-`dsn~android-recent-categories~1`
+### Recently used categories on top of the category pickers
+`dsn~android-recent-categories~2`
 
-`AddTaskDialog`'s category picker lists the last five categories a task was added to (or Claude started in) on this phone, newest first, then a divider, then all categories as before — the recent ones included —, so a frequent category is found at the top and every category still at its usual place.
-`SettingsStore.rememberCategory` records the pick on *Add*/*Start*; a recent category no longer in the clone is left out.
+`AddTaskDialog`'s category picker and the task list's *Go to category* dialog (tap on a category header) list the last five categories picked in either of them on this phone, newest first, then a divider, then all categories as before — the recent ones included —, so a frequent category is found at the top and every category still at its usual place.
+`SettingsStore.rememberCategory` records the pick on *Add*/*Start* and on a jump, in the app's preferences, so the list survives a restart; a recent category no longer in the clone is left out.
 
 Tags: android
 

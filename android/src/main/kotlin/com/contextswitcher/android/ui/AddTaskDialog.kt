@@ -46,7 +46,7 @@ import com.contextswitcher.queue.ClaudeMode
 // [impl->dsn~android-task-create~2]
 // [impl->dsn~android-task-images~1]
 // [impl->dsn~android-live-task~4]
-// [impl->dsn~android-recent-categories~1]
+// [impl->dsn~android-recent-categories~2]
 @Composable
 fun AddTaskDialog(
     categories: List<String>,

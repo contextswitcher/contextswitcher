@@ -94,7 +94,7 @@ class SettingsStore(context: Context) {
 
     /// The last five categories a task was added to on this phone, newest first,
     /// for the top of *Add task*'s category picker.
-    // [impl->dsn~android-recent-categories~1]
+    // [impl->dsn~android-recent-categories~2]
     fun loadRecentCategories(): List<String> =
         prefs.getString(KEY_RECENT_CATEGORIES, null)?.split('\n') ?: emptyList()
 

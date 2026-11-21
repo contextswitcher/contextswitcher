@@ -10,6 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Added
 
+- Android: the *Go to category* dialog (tap on a category header) lists the recently used categories on top, like *Add task*; picks in either count.
 - Android: a long press on a task in the list offers *Cancel* (Esc to Claude) and *Delete task…*, which cancels Claude first.
 - Android Auto: when Claude finishes in the watched task, the car announces it like an incoming message, reads Claude's answer aloud and takes a spoken reply into the session; on the phone the alert now shows the answer.
 

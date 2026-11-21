@@ -714,7 +714,8 @@ internal fun TaskListScreen(
             Text("No task matches", modifier = Modifier.padding(padding).padding(16.dp))
         } else {
             TaskListBody(shownGroups, modifier = Modifier.padding(padding), onTaskClick = onOpenTask, listState = listState, statuses = statuses, onDeleteTask = ::deleteTask,
-                onCancelTask = if (ssh != null) ::cancelTask else null)
+                onCancelTask = if (ssh != null) ::cancelTask else null,
+                recentCategories = settingsStore.loadRecentCategories(), onPickCategory = settingsStore::rememberCategory)
         }
     }
 

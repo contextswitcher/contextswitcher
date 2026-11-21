@@ -125,6 +125,28 @@ class TaskListScreenTest {
         composeRule.onNodeWithText("Go to category").assertDoesNotExist()
     }
 
+    // [utest->dsn~android-recent-categories~2]
+    @Test
+    fun `go to category lists recent categories on top and reports the pick`() {
+        val tasksDir = tmpFolder.newFolder("recent")
+        for (g in listOf("alpha", "omega")) {
+            File(tasksDir, g).mkdirs()
+            File(tasksDir, "$g/one.md").writeText(task("One $g", "active"))
+        }
+        val groups = buildTaskListModel(tasksDir.toPath())
+        val picked = mutableListOf<String>()
+        composeRule.setContent {
+            MaterialTheme { Surface { TaskListBody(groups, recentCategories = listOf("omega", "gone"), onPickCategory = { picked += it }) } }
+        }
+
+        composeRule.onNodeWithText("alpha").performClick()
+        assertThat(composeRule.onAllNodesWithText("omega").fetchSemanticsNodes()).hasSize(3)
+        composeRule.onNodeWithText("gone").assertDoesNotExist()
+        composeRule.onAllNodesWithText("omega").onLast().performClick()
+
+        assertThat(picked).containsExactly("omega")
+    }
+
     // [utest->dsn~android-task-delete~2]
     @Test
     fun `a long press offers deleting the task, after a confirmation`() {

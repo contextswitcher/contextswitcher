@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,6 +66,8 @@ fun TaskListBody(
     statuses: Map<String, String> = emptyMap(),
     onDeleteTask: ((Task) -> Unit)? = null,
     onCancelTask: ((Task) -> Unit)? = null,
+    recentCategories: List<String> = emptyList(),
+    onPickCategory: (String) -> Unit = {},
 ) {
     var deleting by remember { mutableStateOf<Task?>(null) }
     var pickingGroup by rememberSaveable { mutableStateOf(false) }
@@ -81,11 +84,16 @@ fun TaskListBody(
             title = { Text("Go to category") },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    for (group in groups) {
+                    // [impl->dsn~android-recent-categories~2]
+                    val names = groups.map { it.name }
+                    val recent = recentCategories.filter { it in names }
+                    for ((i, name) in (recent + names).withIndex()) {
+                        if (i == recent.size && i > 0) HorizontalDivider()
                         TextButton(onClick = {
                             pickingGroup = false
-                            scope.launch { listState.scrollToItem(headerIndex(groups, group.name)) }
-                        }, modifier = Modifier.fillMaxWidth()) { Text(groupLabel(group.name)) }
+                            onPickCategory(name)
+                            scope.launch { listState.scrollToItem(headerIndex(groups, name)) }
+                        }, modifier = Modifier.fillMaxWidth()) { Text(groupLabel(name)) }
                     }
                 }
             },
