@@ -112,7 +112,9 @@ jobs:
         run: |
           jbang trust add https://github.com/nbbrd/
           jbang heylogs@nbbrd extract --batch -r "${GITHUB_REF_NAME#v}" -o notes.md CHANGELOG.md
-          gh release create "$GITHUB_REF_NAME" android/build/outputs/apk/debug/android-debug.apk --prerelease --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md
+          # The release title already names the date; the heading "[d] - d" would repeat it twice more.
+          sed -i '/^## \[/d' notes.md
+          gh release create "$GITHUB_REF_NAME" android/build/outputs/apk/debug/android-debug.apk --prerelease --verify-tag --title "${GITHUB_REF_NAME#v}" --notes-file notes.md
 
   changelog:
     runs-on: ubuntu-latest
