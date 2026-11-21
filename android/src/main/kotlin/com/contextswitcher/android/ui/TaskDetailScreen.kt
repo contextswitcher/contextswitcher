@@ -244,7 +244,9 @@ fun TaskDetailScreen(
                             )
                         }
                     }
-                    HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+                    // One page beyond the viewport stays composed, so the terminal keeps
+                    // its loaded output and reading position while the queue is shown.
+                    HorizontalPager(state = pagerState, beyondViewportPageCount = 1, modifier = Modifier.fillMaxSize()) { page ->
                         when (page - firstPage) {
                             -1 -> NeighbourPage("Previous task", previousTask)
                             0 -> terminal(Modifier.fillMaxSize())

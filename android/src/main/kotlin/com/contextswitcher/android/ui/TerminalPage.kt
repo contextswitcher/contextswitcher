@@ -156,7 +156,8 @@ fun TerminalPage(
 
     // While the page is visible, poll every 5s — but not while the user reads
     // further up; the effect (and its loop) cancels when the composable
-    // leaves composition (page swiped away).
+    // leaves composition (task closed; the pager keeps it composed while the
+    // queue is shown, so it polls there too).
     LaunchedEffect(task.id()) {
         while (true) {
             if (followEnd && !loadingEarlier) {

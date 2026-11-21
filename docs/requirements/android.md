@@ -352,6 +352,7 @@ The page follows the end: whenever the scroll range changes, it scrolls to the n
 Scrollback is fetched on demand, so the 5 s poll stays a screenful: `loadEarlier` raises the capture's history by 500 lines (`PaneSnapshots.captureCommand(tmux, historyLines)`, `-S -<n>`, at most 20000) when the reader reaches the top while not following the end — keeping the line they read in place once the longer text is measured — or on *Earlier*, which shows the start of what was loaded.
 A capture that does not grow marks the history exhausted and disables *Earlier*.
 The poll skips while the reader is scrolled up, and the first capture back at the end drops the history again.
+The pager keeps one page beyond the viewport composed (`beyondViewportPageCount = 1`), so swiping to the Queue page and back returns to the same reading position with the loaded output.
 
 Tags: android
 
