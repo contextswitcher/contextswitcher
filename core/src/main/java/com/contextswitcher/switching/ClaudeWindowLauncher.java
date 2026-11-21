@@ -164,6 +164,9 @@ public class ClaudeWindowLauncher {
             return windowId;
         }
         acceptTrustDialog(remote, windowId);
+        if (!agentRunning(remote, windowId, agent)) {
+            return windowId;
+        }
         // `/model`/`/effort` are Claude Code's; another CLI keeps its own default.
         // ponytail: model picking for Vibe/Codex is step 2 (their own model lists and commands).
         if (!agent.isClaude()) {
@@ -188,10 +191,14 @@ public class ClaudeWindowLauncher {
             error = sender.switchMode(remote, windowId, effort);
         }
         if (error == null) {
+            if (!agentRunning(remote, windowId, agent)) {
+                return windowId;
+            }
             onStep.accept("Sending the prompt …");
             error = sender.send(remote, windowId, prompt);
         }
-        for (int retry = 1; error == null && retry <= PROMPT_RETRIES && !visible(remote, windowId, prompt); retry++) {
+        for (int retry = 1; error == null && retry <= PROMPT_RETRIES && !visible(remote, windowId, prompt)
+                && agentRunning(remote, windowId, agent); retry++) {
             Logger.info("Prompt not visible in window {} on {} after {} s, pasting it again ({}/{})",
                     windowId, remote, VERIFY_DELAY_MS / 1000, retry, PROMPT_RETRIES);
             error = sender.send(remote, windowId, prompt);
@@ -262,6 +269,26 @@ public class ClaudeWindowLauncher {
             Logger.info("Answering Claude's folder trust dialog in window {} on {}", windowId, remote);
             ssh.run(remote, trustCommand(windowId));
         }
+    }
+
+    /// Whether the agent's CLI is (still) the pane's process. Claude can quit
+    /// right after its start (an error, the trust dialog's "No, exit"); the
+    /// mode commands and the prompt would then be typed into the shell.
+    /// An unanswered probe counts as running, so an ssh hiccup does not
+    /// swallow the prompt.
+    // [impl->dsn~claude-start-check~1]
+    private boolean agentRunning(String remote, String windowId, Agent agent) {
+        SshCommandRunner.SshResult command = ssh.run(remote, paneCommandCommand(windowId));
+        if (!command.ok() || agent.runsIn(command.stdout().strip())) {
+            return true;
+        }
+        Logger.warn("{} is not running in window {} on {} (pane runs {}); not sending the prompt",
+                agent, windowId, remote, command.stdout().strip());
+        return false;
+    }
+
+    static List<String> paneCommandCommand(String windowId) {
+        return List.of("tmux", "display-message", "-p", "-t", "'" + windowId + "'", "'#{pane_current_command}'");
     }
 
     /// The trust option's label, as Claude Code prints it.

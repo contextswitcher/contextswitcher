@@ -1652,6 +1652,20 @@ Covers:
 
 Needs: impl, utest
 
+### The prompt is only sent while the agent runs
+`dsn~claude-start-check~1`
+
+Claude can quit right after its start (an error, a refused dialog); the model/effort commands and the prompt would then land in the shell.
+So `ClaudeWindowLauncher.launch` reads the pane's `#{pane_current_command}` after the start and again before the prompt and each re-paste, and stops — logging, keeping the window — when it is not the agent's CLI (`Agent.runsIn`).
+A probe that gets no answer counts as running.
+
+Tags: windows, linux
+
+Covers:
+- req~task-from-pr~1
+
+Needs: impl, utest
+
 ### Add task via unified title/PR dialog
 `dsn~task-create-ui~15`
 
