@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-21] - 2026-11-21
+
+### Added
+
+- Android: the *Go to category* dialog (tap on a category header) lists the recently used categories on top, like *Add task*; picks in either count.
+- Android: a long press on a task in the list offers *Cancel* (Esc to Claude) and *Delete task…*, which cancels Claude first.
+- Android Auto: when Claude finishes in the watched task, the car announces it like an incoming message, reads Claude's answer aloud and takes a spoken reply into the session; on the phone the alert now shows the answer.
+
+### Changed
+
+- The *Add task* buttons and hints name the picked agent (*Add remote Vibe*); *Add local* stays Claude-only and is disabled for Vibe and Codex.
+- With *Labels* or *PR status* grouping, a task row shows its category directly before the title instead of on the second line.
+
+### Fixed
+
+- Android: scrolling up in the terminal past the loaded output keeps the line you are reading in place when older output loads, instead of jumping to the start of the loaded block.
+- A Vibe task no longer gets its first prompt pasted several times: Vibe shows a long paste only as `[Pasted … characters]`, which the app now accepts as delivered.
+- When Claude quits right after a new task's start, the task description is no longer typed into the shell; the window stays open with the shell.
+- Android: a very long task title no longer fills the whole task screen; it shows two lines, and a tap on it expands it into a scrollable area.
+
 ## [2026-11-20] - 2026-11-20
 
 ### Added
@@ -421,6 +441,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-21]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-20...v2026-11-21
 [2026-11-20]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-19...v2026-11-20
 [2026-11-19]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-18...v2026-11-19
 [2026-11-18]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-17...v2026-11-18

@@ -6,7 +6,11 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.contextswitcher.android.queue.DraftStore
@@ -162,7 +167,19 @@ fun TaskDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         topBar = {
             TopAppBar(
-                title = { Text(task.title()) },
+                // A long title (a pasted log line) would push the content off screen:
+                // two lines, a tap shows all of it, scrollable.
+                title = {
+                    var expanded by remember(task.id()) { mutableStateOf(false) }
+                    Text(
+                        task.title(),
+                        maxLines = if (expanded) Int.MAX_VALUE else 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .clickable { expanded = !expanded }
+                            .then(if (expanded) Modifier.heightIn(max = 240.dp).verticalScroll(rememberScrollState()) else Modifier),
+                    )
+                },
                 navigationIcon = {
                     TextButton(onClick = onBack) { Text("Back") }
                 },
@@ -249,6 +266,6 @@ private fun NeighbourPage(label: String, task: Task?) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(label, style = MaterialTheme.typography.labelLarge)
-        Text(task?.title() ?: "", style = MaterialTheme.typography.titleLarge)
+        Text(task?.title() ?: "", style = MaterialTheme.typography.titleLarge, maxLines = 6, overflow = TextOverflow.Ellipsis)
     }
 }

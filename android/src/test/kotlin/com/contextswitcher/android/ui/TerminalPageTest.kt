@@ -8,6 +8,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+
 import com.contextswitcher.discovery.ClaudeUpdateRestart
 import com.contextswitcher.ssh.SshCommandRunner
 import com.contextswitcher.ssh.SshCommandRunner.SshResult
@@ -208,6 +210,24 @@ class TerminalPageTest {
         composeRule.onNodeWithText("old 500\n", substring = true).assertDoesNotExist()
         // Still looking at what was the top before: "line 1", now below 500 older lines.
         assertThat(scroll.value).isEqualTo(scroll.maxValue - shortMax)
+    }
+
+    @Test
+    fun `a finger still dragging at the top keeps the reading position, too`() {
+        val scroll = ScrollState(0)
+        val screen = Screen(200, history = 1000)
+        show(screen, scroll)
+        runBlocking { composeRule.awaitIdle(); scroll.scrollTo(200) }
+        composeRule.waitForIdle()
+        val shortMax = scroll.maxValue
+
+        // Drag down past the top and keep the finger on the screen while the load runs.
+        composeRule.onNodeWithText("line 1", substring = true).performTouchInput { down(center); moveBy(androidx.compose.ui.geometry.Offset(0f, 600f)) }
+        composeRule.waitUntil(5_000) { screen.captureCommands.any { "-500" in it } && scroll.maxValue > shortMax }
+        composeRule.waitForIdle()
+
+        assertThat(scroll.value).isEqualTo(scroll.maxValue - shortMax)
+        composeRule.onNodeWithText("line 1", substring = true).performTouchInput { up() }
     }
 
     @Test

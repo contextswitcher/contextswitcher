@@ -164,6 +164,9 @@ public class ClaudeWindowLauncher {
             return windowId;
         }
         acceptTrustDialog(remote, windowId);
+        if (!agentRunning(remote, windowId, agent)) {
+            return windowId;
+        }
         // `/model`/`/effort` are Claude Code's; another CLI keeps its own default.
         // ponytail: model picking for Vibe/Codex is step 2 (their own model lists and commands).
         if (!agent.isClaude()) {
@@ -188,10 +191,14 @@ public class ClaudeWindowLauncher {
             error = sender.switchMode(remote, windowId, effort);
         }
         if (error == null) {
+            if (!agentRunning(remote, windowId, agent)) {
+                return windowId;
+            }
             onStep.accept("Sending the prompt …");
             error = sender.send(remote, windowId, prompt);
         }
-        for (int retry = 1; error == null && retry <= PROMPT_RETRIES && !visible(remote, windowId, prompt); retry++) {
+        for (int retry = 1; error == null && retry <= PROMPT_RETRIES && !visible(remote, windowId, prompt)
+                && agentRunning(remote, windowId, agent); retry++) {
             Logger.info("Prompt not visible in window {} on {} after {} s, pasting it again ({}/{})",
                     windowId, remote, VERIFY_DELAY_MS / 1000, retry, PROMPT_RETRIES);
             error = sender.send(remote, windowId, prompt);
@@ -264,6 +271,26 @@ public class ClaudeWindowLauncher {
         }
     }
 
+    /// Whether the agent's CLI is (still) the pane's process. Claude can quit
+    /// right after its start (an error, the trust dialog's "No, exit"); the
+    /// mode commands and the prompt would then be typed into the shell.
+    /// An unanswered probe counts as running, so an ssh hiccup does not
+    /// swallow the prompt.
+    // [impl->dsn~claude-start-check~1]
+    private boolean agentRunning(String remote, String windowId, Agent agent) {
+        SshCommandRunner.SshResult command = ssh.run(remote, paneCommandCommand(windowId));
+        if (!command.ok() || agent.runsIn(command.stdout().strip())) {
+            return true;
+        }
+        Logger.warn("{} is not running in window {} on {} (pane runs {}); not sending the prompt",
+                agent, windowId, remote, command.stdout().strip());
+        return false;
+    }
+
+    static List<String> paneCommandCommand(String windowId) {
+        return List.of("tmux", "display-message", "-p", "-t", "'" + windowId + "'", "'#{pane_current_command}'");
+    }
+
     /// The trust option's label, as Claude Code prints it.
     static final String TRUST_PROMPT = "Yes, I trust this folder";
 
@@ -286,7 +313,8 @@ public class ClaudeWindowLauncher {
     /// while Claude's TUI is still (re)starting, e.g. right after the model
     /// switch, is silently dropped, and the chat then sits empty. Checked
     /// after a short grace period; the probe is the prompt's first line
-    /// (see [#probe]), looked up in the joined pane text plus scrollback.
+    /// (see [#probe]), looked up in the joined pane text plus scrollback,
+    /// or a collapsed-paste marker ([#landed]).
     private boolean visible(String remote, String windowId, String prompt) {
         String probe = probe(prompt);
         if (probe.isEmpty()) {
@@ -299,7 +327,14 @@ public class ClaudeWindowLauncher {
             return true;
         }
         SshCommandRunner.SshResult captured = ssh.run(remote, capturePaneCommand(windowId));
-        return !captured.ok() || captured.stdout().contains(probe);
+        return !captured.ok() || landed(captured.stdout(), probe);
+    }
+
+    /// Whether `pane` shows the prompt: its probe, or the marker a CLI
+    /// collapses a long paste into — Vibe keeps `[Pasted 809 characters]`
+    /// even after sending, so looking for the probe alone pasted it again.
+    static boolean landed(String pane, String probe) {
+        return pane.contains(probe) || pane.contains("[Pasted ");
     }
 
     /// The pane's visible text plus recent scrollback, wrapped lines joined

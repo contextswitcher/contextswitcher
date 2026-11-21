@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <automotiveApp>
     <uses name="template" />
+    <!-- The finish alert as a message Android Auto reads out and takes a spoken reply to. -->
+    <uses name="notification" />
 </automotiveApp>

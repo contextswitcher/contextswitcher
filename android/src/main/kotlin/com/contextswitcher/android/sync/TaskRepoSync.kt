@@ -147,6 +147,21 @@ class TaskRepoSync(private val beforePush: () -> Unit = {}) {
             }
         }
 
+    /// Deletes `taskId`'s file and pushes that like [createTask]; a file
+    /// already gone from the fetched clone needs no commit. Null on success,
+    /// else the error to show.
+    // [impl->dsn~android-task-delete~2]
+    fun deleteTask(dir: File, username: String, token: String, taskId: String): String? =
+        pushChange(dir, username, token) { git ->
+            if (!File(dir, "$taskId.md").delete()) {
+                false
+            } else {
+                git.rm().addFilepattern("$taskId.md").call()
+                commit(git, "Delete task $taskId from Android")
+                true
+            }
+        }
+
     /// The phone's write-back: fetch and hard-reset, let `change` write and
     /// commit (false: nothing to change), push. A push rejected as
     /// non-fast-forward (another machine pushed in between) runs `change` once

@@ -89,7 +89,7 @@ class AddTaskDialogTest {
         assertEquals(listOf("Fix it"), added)
     }
 
-    // [utest->dsn~android-recent-categories~1]
+    // [utest->dsn~android-recent-categories~2]
     @Test
     fun `recent categories come first and stay in the full list`() {
         composeRule.setContent {

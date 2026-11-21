@@ -15,6 +15,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.graphics.Color
 import com.contextswitcher.tasks.Task
 import com.contextswitcher.tasks.TaskStatus
@@ -121,6 +123,70 @@ class TaskListScreenTest {
 
         assertThat(state.firstVisibleItemIndex).isEqualTo(headerIndex(groups, "omega"))
         composeRule.onNodeWithText("Go to category").assertDoesNotExist()
+    }
+
+    // [utest->dsn~android-recent-categories~2]
+    @Test
+    fun `go to category lists recent categories on top and reports the pick`() {
+        val tasksDir = tmpFolder.newFolder("recent")
+        for (g in listOf("alpha", "omega")) {
+            File(tasksDir, g).mkdirs()
+            File(tasksDir, "$g/one.md").writeText(task("One $g", "active"))
+        }
+        val groups = buildTaskListModel(tasksDir.toPath())
+        val picked = mutableListOf<String>()
+        composeRule.setContent {
+            MaterialTheme { Surface { TaskListBody(groups, recentCategories = listOf("omega", "gone"), onPickCategory = { picked += it }) } }
+        }
+
+        composeRule.onNodeWithText("alpha").performClick()
+        assertThat(composeRule.onAllNodesWithText("omega").fetchSemanticsNodes()).hasSize(3)
+        composeRule.onNodeWithText("gone").assertDoesNotExist()
+        composeRule.onAllNodesWithText("omega").onLast().performClick()
+
+        assertThat(picked).containsExactly("omega")
+    }
+
+    // [utest->dsn~android-task-delete~2]
+    @Test
+    fun `a long press offers deleting the task, after a confirmation`() {
+        val tasksDir = tmpFolder.newFolder("delete")
+        File(tasksDir, "g").mkdirs()
+        File(tasksDir, "g/one.md").writeText(task("One", "active"))
+        val groups = buildTaskListModel(tasksDir.toPath())
+        val deleted = mutableListOf<String>()
+        composeRule.setContent {
+            MaterialTheme { Surface { TaskListBody(groups, onDeleteTask = { deleted += it.id() }) } }
+        }
+
+        composeRule.onNodeWithText("One").performTouchInput { longClick() }
+        composeRule.onNodeWithText("Delete task…").performClick()
+        assertThat(deleted).isEmpty()
+        composeRule.onNodeWithText("Delete").performClick()
+
+        assertThat(deleted).containsExactly("g/one")
+    }
+
+    // [utest->dsn~android-task-cancel~1]
+    @Test
+    fun `the long-press menu cancels a task with a remote window, and only such a task`() {
+        val tasksDir = tmpFolder.newFolder("cancel")
+        File(tasksDir, "g").mkdirs()
+        File(tasksDir, "g/live.md").writeText("---\ntitle: Live\nstatus: active\nremote: host\ntmux:\n  session: s\n  window: \"@3\"\n---\n")
+        File(tasksDir, "g/plain.md").writeText(task("Plain", "active"))
+        val groups = buildTaskListModel(tasksDir.toPath())
+        val cancelled = mutableListOf<String>()
+        composeRule.setContent {
+            MaterialTheme { Surface { TaskListBody(groups, onDeleteTask = {}, onCancelTask = { cancelled += it.id() }) } }
+        }
+
+        composeRule.onNodeWithText("Live").performTouchInput { longClick() }
+        composeRule.onNodeWithText("Cancel").performClick()
+        assertThat(cancelled).containsExactly("g/live")
+
+        composeRule.onNodeWithText("Plain").performTouchInput { longClick() }
+        composeRule.onNodeWithText("Delete task…").assertExists()
+        composeRule.onNodeWithText("Cancel").assertDoesNotExist()
     }
 
     // [utest->dsn~android-running-dot~1]

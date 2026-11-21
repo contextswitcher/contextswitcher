@@ -212,6 +212,10 @@ class AddTaskDialogUiTest {
         // Last thing fillModes does — reading the lists before it would race the FX thread.
         awaitPresent(() -> Optional.of(effort).filter(box -> !box.isVisible()), "the effort box hidden");
         assertThat(model.getItems()).contains("mistral-large-4-0").doesNotContain("opus");
+        // The buttons name the picked agent; local sessions run Claude only.
+        Button local = awaitButton("Add local Vibe");
+        assertThat(local.isDisabled()).isTrue();
+        awaitButton("Add remote Vibe");
         FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
     }
 

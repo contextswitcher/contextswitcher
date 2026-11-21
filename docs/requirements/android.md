@@ -179,6 +179,20 @@ Covers:
 
 Needs: dsn
 
+### Answer a finished turn by voice in the car
+`req~android-auto-reply~1`
+
+When Claude finishes in the watched task while the phone is connected to a car, Android Auto announces it like an incoming message, reads Claude's answer aloud and takes a spoken reply, which goes into the task's session — without opening an app on the head unit or touching the phone.
+The next finished turn is announced the same way, so a conversation with the session goes back and forth by voice.
+A reply that cannot be sent is not lost.
+
+Tags: android
+
+Covers:
+- feat~android-companion-app~1
+
+Needs: dsn
+
 ### Walk through a category's tasks by voice
 `req~android-voice-tour~1`
 
@@ -481,6 +495,33 @@ Covers:
 
 Needs: impl, utest
 
+### Delete a task
+`dsn~android-task-delete~2`
+
+A long press on a task's row in `TaskListBody` opens a menu with *Delete task…*, confirmed in a dialog — the desktop's row context menu (`dsn~task-delete~6`), without its cleanup ticks: the phone only removes the file.
+For a task with a remote window, the delete first cancels Claude as `dsn~android-task-cancel~1` does (Oliver, 2026-11-20); a failed cancel does not stop the delete, the Snackbar names it.
+`TaskRepoSync.deleteTask(dir, username, token, taskId)` removes `<task>.md` and pushes it through the write-back of `dsn~android-task-create~2`; a file already gone from the fetched clone needs no commit.
+The list reloads from the clone afterwards; a Snackbar says *Task deleted* or why not.
+
+Tags: android
+
+Covers:
+- req~task-delete~2
+
+Needs: impl, utest
+
+### Cancel Claude from the task list
+`dsn~android-task-cancel~1`
+
+The long-press menu of `dsn~android-task-delete~2` offers *Cancel* above *Delete task…* for a task with `remote:` and `tmux:`: it sends `Escape` to the task's window (`TmuxMirrorCommands.keyCommand`, the terminal bar's *Esc*, `dsn~android-terminal-keys~1`), stopping Claude's turn without opening the task; the Snackbar says *Claude cancelled* or why not.
+
+Tags: android
+
+Covers:
+- req~android-terminal-keys~1
+
+Needs: impl, utest
+
 ### Finish notification
 `dsn~android-finish-notification~1`
 
@@ -613,11 +654,11 @@ Covers:
 
 Needs: impl, utest
 
-### Recently used categories on top of the Add-task picker
-`dsn~android-recent-categories~1`
+### Recently used categories on top of the category pickers
+`dsn~android-recent-categories~2`
 
-`AddTaskDialog`'s category picker lists the last five categories a task was added to (or Claude started in) on this phone, newest first, then a divider, then all categories as before — the recent ones included —, so a frequent category is found at the top and every category still at its usual place.
-`SettingsStore.rememberCategory` records the pick on *Add*/*Start*; a recent category no longer in the clone is left out.
+`AddTaskDialog`'s category picker and the task list's *Go to category* dialog (tap on a category header) list the last five categories picked in either of them on this phone, newest first, then a divider, then all categories as before — the recent ones included —, so a frequent category is found at the top and every category still at its usual place.
+`SettingsStore.rememberCategory` records the pick on *Add*/*Start* and on a jump, in the app's preferences, so the list survives a restart; a recent category no longer in the clone is left out.
 
 Tags: android
 
@@ -654,6 +695,23 @@ Tags: android
 
 Covers:
 - req~android-auto~1
+
+Needs: impl, utest
+
+### Finished alert as a message with a spoken reply
+`dsn~android-auto-reply~1`
+
+`TaskWatchService` posts the *Claude finished* alert (`dsn~android-finish-notification~1`) as a `MessagingStyle` notification: the sender is the task's title and the message Claude's last answer, read with `ClaudeTranscript` (`dsn~android-voice-tour~1`) from the session the window publishes (`@cs_session_id`, else the task's `claude.sessionId`) and cut at 4000 characters; without an answer the message is "Claude finished.".
+The alert's name, and a pending update, move to the notification's sub text.
+It carries the two actions Android Auto asks of a messaging notification, both invisible on the phone and without user interface: a reply with one `RemoteInput` and a mark-as-read, each a `PendingIntent` to the service itself; `automotive_app_desc.xml` declares `notification` next to `template`.
+`handleReply` cancels the alert and sends a reply as `VoiceTour.spokenReply(text)` into the window the alert was raised for; on failure the text joins the phone's enqueued store (`dsn~android-enqueue~1`) and a notification says so.
+The reply is sent unconfirmed — the car asks before sending — and only this alert has one: the session is idle then, whereas text typed into a permission prompt (*Claude needs you*) would pick an option.
+Ceiling: only the watched task (the one opened last) announces itself; nothing of it ran on a head unit.
+
+Tags: android
+
+Covers:
+- req~android-auto-reply~1
 
 Needs: impl, utest
 

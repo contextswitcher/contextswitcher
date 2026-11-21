@@ -1305,13 +1305,27 @@ public class TaskListCell extends ListCell<Object> {
             pin = statusGlyph(MDIInterface.PIN, "pinned");
             pin.setId("task-pin-icon");
         }
+        // In label view the surrounding headers are tags, so the row's folder
+        // category is invisible — lead the title with it (muted) to keep
+        // "where does this task live" answerable at a glance. Root-level
+        // tasks have no category and show nothing.
+        // [impl->dsn~task-label-grouping~3]
+        int slash = task.id().lastIndexOf('/');
+        String group = slash < 0 ? "" : task.id().substring(0, slash);
+        String category = labelView.getAsBoolean() ? group : "";
         javafx.scene.Node titleLine = title;
-        if (!queueGlyph.isEmpty() || pin != null) {
+        if (!queueGlyph.isEmpty() || pin != null || !category.isEmpty()) {
             HBox line = new HBox(4);
             line.setAlignment(Pos.CENTER_LEFT);
             line.setMinWidth(0);
             if (pin != null) {
                 line.getChildren().add(pin);
+            }
+            if (!category.isEmpty()) {
+                Label categoryLabel = new Label(category);
+                categoryLabel.setMinWidth(Region.USE_PREF_SIZE);
+                categoryLabel.getStyleClass().add(Styles.TEXT_MUTED);
+                line.getChildren().add(categoryLabel);
             }
             line.getChildren().add(title);
             if (!queueGlyph.isEmpty()) {
@@ -1361,17 +1375,9 @@ public class TaskListCell extends ListCell<Object> {
         // hides a task's other labels).
         // [impl->dsn~task-tag-filter~2]
         List<String> tags = rowTags.apply(task);
-        int slash = task.id().lastIndexOf('/');
-        String group = slash < 0 ? "" : task.id().substring(0, slash);
         String summary = configSummary(task, group.isEmpty() ? null : groupPath.apply(group));
         List<Task.UrlEntry> prs = task.prEntries();
-        // In label view the surrounding headers are tags, so the row's folder
-        // category is invisible — lead the second line with it (muted, with a
-        // separator) to keep "where does this task live" answerable at a
-        // glance. Root-level tasks have no category and show nothing.
-        // [impl->dsn~task-label-grouping~3]
-        String category = labelView.getAsBoolean() ? group : "";
-        if (!prs.isEmpty() || !category.isEmpty() || !tags.isEmpty() || !summary.isEmpty()) {
+        if (!prs.isEmpty() || !tags.isEmpty() || !summary.isEmpty()) {
             HBox secondLine = new HBox(6);
             secondLine.setAlignment(Pos.CENTER_LEFT);
             secondLine.setMinWidth(0);
@@ -1392,12 +1398,6 @@ public class TaskListCell extends ListCell<Object> {
                         }
                     }
                 }
-            }
-            if (!category.isEmpty()) {
-                Label categoryLabel = new Label(category + " ·");
-                categoryLabel.setMinWidth(Region.USE_PREF_SIZE);
-                categoryLabel.getStyleClass().addAll(Styles.TEXT_MUTED, ROW_DETAIL);
-                secondLine.getChildren().add(categoryLabel);
             }
             for (String tag : tags) {
                 secondLine.getChildren().add(tagChip(tag));

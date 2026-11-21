@@ -608,7 +608,7 @@ public class TmuxStatusPoller implements AutoCloseable {
     /// entry rather than an empty one, so a reader can tell "hosts no known
     /// Claude session" from "did not answer" (`dsn~tmux-window-ownership~4`).
     // [impl->dsn~tmux-window-ownership~4]
-    static void parseSessionIdsInto(String host, String stdout, Map<String, String> out) {
+    public static void parseSessionIdsInto(String host, String stdout, Map<String, String> out) {
         for (String line : stdout.split("\\R")) {
             if (line.isBlank()) {
                 continue;

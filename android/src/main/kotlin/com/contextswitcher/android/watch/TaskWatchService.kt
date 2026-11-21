@@ -14,6 +14,8 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
+import androidx.core.app.RemoteInput
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.contextswitcher.android.MainActivity
@@ -23,6 +25,8 @@ import com.contextswitcher.android.queue.DraftStore
 import com.contextswitcher.android.settings.SettingsStore
 import com.contextswitcher.android.ssh.KnownHostsStore
 import com.contextswitcher.android.ssh.SshjCommandRunner
+import com.contextswitcher.android.voice.VoiceTour
+import com.contextswitcher.discovery.ClaudeTranscript
 import com.contextswitcher.discovery.TmuxStatusPoller
 import com.contextswitcher.queue.MessageSender
 import com.contextswitcher.ssh.SshCommandRunner
@@ -33,6 +37,7 @@ import java.util.Date
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /// Watches the task opened last — its Claude session's `@cs_status` on the
 /// remote — and notifies when a turn ends ([FinishWatch]), also while the app
@@ -47,7 +52,8 @@ import java.util.concurrent.TimeUnit
 // [impl->dsn~android-finish-notification~1]
 class TaskWatchService : Service() {
 
-    private data class Watched(val taskId: String, val title: String, val remote: String, val tmux: Task.TmuxConfig)
+    private data class Watched(val taskId: String, val title: String, val remote: String, val tmux: Task.TmuxConfig,
+        val claudeCwd: String?, val sessionId: String?)
 
     private var watched: Watched? = null
     private var windowId: String? = null
@@ -61,6 +67,14 @@ class TaskWatchService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             stopSelf()
+            return START_NOT_STICKY
+        }
+        if (intent?.action == ACTION_REPLY || intent?.action == ACTION_READ) {
+            // Off the main thread (ssh); a service started only for this ends with it.
+            thread(name = "alert-reply") {
+                handleReply(intent)
+                if (watched == null) stopSelf()
+            }
             return START_NOT_STICKY
         }
         val next = intent?.let(::watchedOf)
@@ -114,7 +128,11 @@ class TaskWatchService : Service() {
             val status = statuses[TmuxStatusPoller.key(task.remote, window)]
             showOngoing(task, status ?: "no status")
             val updatePending = window in TmuxStatusPoller.parseUpdatePending(result.stdout())
-            finishWatch.update(status)?.let { alert(task, it, updatePending) }
+            finishWatch.update(status)?.let { alert ->
+                val sessions = HashMap<String, String>()
+                TmuxStatusPoller.parseSessionIdsInto(task.remote, result.stdout(), sessions)
+                alert(task, window, alert, updatePending, sessions[TmuxStatusPoller.key(task.remote, window)] ?: task.sessionId)
+            }
             sendEnqueued(task, window, status)
         } catch (e: RuntimeException) {
             // The scheduler silently stops a task whose run throws; keep polling.
@@ -176,21 +194,83 @@ class TaskWatchService : Service() {
                 Intent(this, TaskWatchService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE))
             .build()
 
-    private fun alert(task: Watched, alert: Alert, updatePending: Boolean) {
+    private fun alert(task: Watched, window: String, alert: Alert, updatePending: Boolean, sessionId: String?) {
         if (appStarted && taskOnScreen == task.taskId) {
             return
         }
-        val notification = NotificationCompat.Builder(this, CHANNEL_ALERT)
+        // [impl->dsn~android-claude-restart~1]
+        val update = if (updatePending) " · update pending: Restart Claude" else ""
+        val builder = NotificationCompat.Builder(this, CHANNEL_ALERT)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(alert.title)
-            // [impl->dsn~android-claude-restart~1]
-            .setContentText(if (updatePending) "${task.title} · update pending: Restart Claude" else task.title)
+            .setContentText(task.title + update)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setAutoCancel(true)
             .setContentIntent(openTask(this, task.taskId))
-            .build()
-        post(task.taskId, ALERT_ID, notification)
+        if (alert == Alert.FINISHED) {
+            asMessage(builder, task, window, alert.title + update, sessionId)
+        }
+        post(task.taskId, ALERT_ID, builder.build())
+    }
+
+    /// Turns the finished alert into a message from the task: Claude's last
+    /// answer as the text, which Android Auto reads out, with the reply and
+    /// mark-as-read actions it asks of a messaging notification. Both are
+    /// invisible on the phone, so a reply is always a spoken one. Only for a
+    /// finished turn — a reply typed into a permission prompt would pick an option.
+    // [impl->dsn~android-auto-reply~1]
+    private fun asMessage(builder: NotificationCompat.Builder, task: Watched, window: String, header: String, sessionId: String?) {
+        val answer = if (task.claudeCwd == null || sessionId == null) null
+            else runCatching { ClaudeTranscript(ssh).lastAnswer(task.remote, task.claudeCwd, sessionId) }.getOrNull()
+        fun action(action: String, flags: Int) = PendingIntent.getService(this, task.taskId.hashCode(),
+            Intent(this, TaskWatchService::class.java).setAction(action)
+                .putExtra(EXTRA_TASK_ID, task.taskId).putExtra(EXTRA_REMOTE, task.remote).putExtra(EXTRA_WINDOW, window),
+            flags or PendingIntent.FLAG_UPDATE_CURRENT)
+        builder
+            .setSubText(header)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            // ponytail: the answer as written, Markdown included, cut at one TTS utterance; strip the marks if the car reads them out.
+            .setStyle(NotificationCompat.MessagingStyle(Person.Builder().setName("You").build())
+                .addMessage((answer ?: "Claude finished.").take(MAX_SPOKEN_CHARS), System.currentTimeMillis(),
+                    Person.Builder().setName(task.title).build()))
+            // Mutable: Android Auto writes the dictated text into the intent.
+            .addInvisibleAction(NotificationCompat.Action.Builder(0, "Reply", action(ACTION_REPLY, PendingIntent.FLAG_MUTABLE))
+                .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
+                .setShowsUserInterface(false)
+                .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel("Reply").build())
+                .build())
+            .addInvisibleAction(NotificationCompat.Action.Builder(0, "Mark as read", action(ACTION_READ, PendingIntent.FLAG_IMMUTABLE))
+                .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
+                .setShowsUserInterface(false)
+                .build())
+    }
+
+    /// The alert's reply or mark-as-read action: the alert goes, and a reply
+    /// is sent into the task's window behind the spoken-answer hint — Claude
+    /// is idle, the alert said so. A reply that cannot be sent joins the
+    /// phone's enqueued messages. Synchronized with the poll: one ssh runner.
+    // [impl->dsn~android-auto-reply~1]
+    @Synchronized
+    internal fun handleReply(intent: Intent) {
+        val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return
+        NotificationManagerCompat.from(this).cancel(taskId, ALERT_ID)
+        val text = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(KEY_REPLY)?.toString()
+        if (intent.action != ACTION_REPLY || text.isNullOrBlank()) {
+            return
+        }
+        val message = VoiceTour.spokenReply(text)
+        val error = runCatching {
+            messageSender(this, ssh).send(intent.getStringExtra(EXTRA_REMOTE)!!, intent.getStringExtra(EXTRA_WINDOW)!!, message)
+        }.getOrElse { it.message ?: it.toString() } ?: return
+        runCatching { enqueuedStore(this).add(taskId, message) }
+        post(taskId, ALERT_ID, NotificationCompat.Builder(this, CHANNEL_ALERT)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle("Reply not sent, kept on the phone")
+            .setContentText(error)
+            .setAutoCancel(true)
+            .setContentIntent(openTask(this, taskId))
+            .build())
     }
 
     companion object {
@@ -200,10 +280,17 @@ class TaskWatchService : Service() {
         internal const val ONGOING_ID = 1
         internal const val ALERT_ID = 2
         private const val ACTION_STOP = "com.contextswitcher.android.watch.STOP"
+        private const val ACTION_REPLY = "com.contextswitcher.android.watch.REPLY"
+        private const val ACTION_READ = "com.contextswitcher.android.watch.READ"
+        internal const val KEY_REPLY = "reply"
+        /// What one text-to-speech utterance takes (`TextToSpeech.getMaxSpeechInputLength`).
+        private const val MAX_SPOKEN_CHARS = 4000
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_REMOTE = "remote"
         private const val EXTRA_SESSION = "session"
         private const val EXTRA_WINDOW = "window"
+        private const val EXTRA_CWD = "claudeCwd"
+        private const val EXTRA_SESSION_ID = "claudeSessionId"
         private const val POLL_SECONDS = 10L
 
         /// How long a `working` window may stay silent before it counts as
@@ -250,6 +337,8 @@ class TaskWatchService : Service() {
                 .putExtra(EXTRA_REMOTE, remote)
                 .putExtra(EXTRA_SESSION, tmux.session())
                 .putExtra(EXTRA_WINDOW, tmux.window())
+                .putExtra(EXTRA_CWD, task.claude()?.cwd())
+                .putExtra(EXTRA_SESSION_ID, task.claude()?.sessionId())
         }
 
         private fun watchedOf(intent: Intent): Watched? {
@@ -257,7 +346,8 @@ class TaskWatchService : Service() {
             val remote = intent.getStringExtra(EXTRA_REMOTE) ?: return null
             val session = intent.getStringExtra(EXTRA_SESSION) ?: return null
             return Watched(id, intent.getStringExtra(EXTRA_TITLE) ?: id, remote,
-                Task.TmuxConfig(session, intent.getStringExtra(EXTRA_WINDOW)))
+                Task.TmuxConfig(session, intent.getStringExtra(EXTRA_WINDOW)),
+                intent.getStringExtra(EXTRA_CWD), intent.getStringExtra(EXTRA_SESSION_ID))
         }
 
         private fun openTask(context: Context, taskId: String): PendingIntent =

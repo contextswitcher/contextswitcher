@@ -345,7 +345,7 @@ The user can delete a task from the task list's right-click menu.
 Deletion removes the task's Markdown file and requires an explicit confirmation, because it cannot be undone.
 A task whose live context still exists gets the suspend teardown first — deleting the file must not orphan a running tmux window or open browser tabs that nothing references anymore.
 
-Tags: windows, linux
+Tags: windows, linux, android
 
 Covers:
 - feat~tasks-as-markdown-files~1
@@ -1652,6 +1652,20 @@ Covers:
 
 Needs: impl, utest
 
+### The prompt is only sent while the agent runs
+`dsn~claude-start-check~1`
+
+Claude can quit right after its start (an error, a refused dialog); the model/effort commands and the prompt would then land in the shell.
+So `ClaudeWindowLauncher.launch` reads the pane's `#{pane_current_command}` after the start and again before the prompt and each re-paste, and stops — logging, keeping the window — when it is not the agent's CLI (`Agent.runsIn`).
+A probe that gets no answer counts as running.
+
+Tags: windows, linux
+
+Covers:
+- req~task-from-pr~1
+
+Needs: impl, utest
+
 ### Add task via unified title/PR dialog
 `dsn~task-create-ui~15`
 
@@ -1960,6 +1974,7 @@ Needs: impl, utest
 Each lists that agent's models and efforts (`Agent.models()`/`efforts()`): Claude Code's aliases, Vibe's catalog ids with no effort box (Vibe's thinking level cannot be set from outside), Codex's guessed ids with `minimal` … `xhigh`.
 Claude Code gets the picks as `/model`/`/effort` after the start (`dsn~claude-mode-select~3`); Vibe and Codex only take them on the start line — `VIBE_ACTIVE_MODEL=<id>`, `-m <id> -c model_reasoning_effort=<e>` — since their `/model` only opens a picker; a value not in the agent's list is dropped.
 An agent other than the category's is carried in `ClaudeMode.agent` and, for a live task with a working directory, written as `claude.agent` into the new file; a PR task has no `claude:` section yet, so there the pick holds for the first start only.
+The *Add remote*/*Add local* buttons and their hints name the picked agent (`Agent.displayName()`); local sessions start Claude only, so *Add local* is disabled for any other agent.
 
 Tags: windows, linux
 
@@ -2641,7 +2656,7 @@ Needs: impl, utest
 
 The "Labels" item of the task-list toolbar's group menu (`dsn~task-list-toolbar~3`; persisted as `MainWindow.Grouping` under the `grouping` preference, the old `groupByLabels` boolean read once as its default) switches `MainWindow.rebuildRows` from folder buckets to label buckets: each loaded task files under every tag of `effectiveTags(task)` (`dsn~task-tag-filter~2`) — a task with several tags appears once per tag — while untagged tasks and error rows stay in the top ungrouped block and the Done section keeps gathering completed work.
 A label bucket renders as a `TaskListCell.LabelHeader(name, expanded, count)` row: the tag's palette-colored chip plus a task count; clicking anywhere on it toggles collapse (reusing `collapsedGroups`, so a label shares collapse state with a same-named folder — acceptable, the two views never show together), and selecting it clears the preview lanes like a folder header.
-While the label view is on, each task row leads its second line (before the tag chips and the config subtitle) with its category name in muted small text plus a `·` separator — the folder is invisible through the label headers, so the row itself answers where the task lives; a root-level task shows nothing extra, and in folder view nothing changes.
+While the label view is on, each task row leads its title (after the pin, directly before the title text) with its category name in muted text — the folder is invisible through the label headers, so the row itself answers where the task lives; a root-level task shows nothing extra, and in folder view nothing changes.
 The cell reads "not folder view" through a `BooleanSupplier` passed by `MainWindow` (so the PR-status view of `dsn~pr-status-grouping~1` shows the category too), and the menu's `rebuildRows` re-renders every row, so the category appears and disappears with the view.
 A label header is deliberately not a drop target and has no context menu: there is no folder or config file behind it, and dropping a task cannot mean "add this tag" while drops elsewhere mean "move to".
 Folder-only affordances — empty-folder headers and the "Add task…" row — are skipped in label view: a label exists only through the tasks carrying it.

@@ -79,6 +79,8 @@ import com.contextswitcher.android.ui.EXPANDED_WIDTH
 import com.contextswitcher.android.ui.TaskDetailScreen
 import com.contextswitcher.android.ui.TaskGroupUi
 import com.contextswitcher.android.ui.TaskListBody
+import com.contextswitcher.ssh.SshCommandRunner
+import com.contextswitcher.terminal.TmuxMirrorCommands
 import com.contextswitcher.android.ui.filterTaskList
 import com.contextswitcher.android.ui.StatusFilter
 import com.contextswitcher.android.ui.filterByStatus
@@ -517,6 +519,48 @@ internal fun TaskListScreen(
         }
     }
 
+    /// Esc into the task's session, stopping Claude's turn; null on success
+    /// or when the task has no remote window to send it to.
+    // [impl->dsn~android-task-cancel~1]
+    fun interruptClaude(task: Task): String? {
+        val remote = task.remote() ?: return null
+        val tmux = task.tmux() ?: return null
+        val runner = ssh ?: return null
+        val result = runner.run(remote, TmuxMirrorCommands.keyCommand(SshCommandRunner.quote(tmux.target()), "Escape"))
+        return if (result.ok()) null else result.stderr().ifBlank { "exit ${result.exitCode()}" }
+    }
+
+    // [impl->dsn~android-task-cancel~1]
+    fun cancelTask(task: Task) {
+        scope.launch {
+            val error = withContext(Dispatchers.IO) { interruptClaude(task) }
+            snackbarHostState.showSnackbar(error?.let { "Cannot cancel: $it" } ?: "Claude cancelled")
+        }
+    }
+
+    /// Cancels Claude first (a failure does not stop the delete), then
+    /// removes the file.
+    // [impl->dsn~android-task-delete~2]
+    fun deleteTask(task: Task) {
+        val settings = settingsStore.load() ?: return
+        scope.launch {
+            val cancelError = withContext(Dispatchers.IO) { interruptClaude(task) }
+            val error = withContext(Dispatchers.IO) {
+                TaskRepoSync().deleteTask(repoDir, settings.username, settings.token, task.id())
+            }
+            try {
+                groups = withContext(Dispatchers.IO) { buildTaskListModel(repoDir.toPath()) }
+            } catch (e: IOException) {
+                lastError = "Cannot read tasks: ${e.message}"
+            }
+            snackbarHostState.showSnackbar(when {
+                error != null -> "Cannot delete the task: $error"
+                cancelError != null -> "Task deleted, but cannot cancel Claude: $cancelError"
+                else -> "Task deleted"
+            })
+        }
+    }
+
     // [impl->dsn~android-task-create~2]
     fun addTask(category: String, title: String, notes: String) {
         val settings = settingsStore.load() ?: return
@@ -669,7 +713,9 @@ internal fun TaskListScreen(
         } else if (shownGroups.isEmpty()) {
             Text("No task matches", modifier = Modifier.padding(padding).padding(16.dp))
         } else {
-            TaskListBody(shownGroups, modifier = Modifier.padding(padding), onTaskClick = onOpenTask, listState = listState, statuses = statuses)
+            TaskListBody(shownGroups, modifier = Modifier.padding(padding), onTaskClick = onOpenTask, listState = listState, statuses = statuses, onDeleteTask = ::deleteTask,
+                onCancelTask = if (ssh != null) ::cancelTask else null,
+                recentCategories = settingsStore.loadRecentCategories(), onPickCategory = settingsStore::rememberCategory)
         }
     }
 

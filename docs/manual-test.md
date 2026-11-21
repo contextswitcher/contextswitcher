@@ -1164,7 +1164,7 @@ Needs an imported plain-shell task — a tmux window that carried no Claude when
 - [ ] Suspended tasks stay below active ones and error rows stay on top in every mode.
 - [ ] Restart the app → the chosen sort mode is still active (button label shows it).
 - [ ] Group menu → **Labels** → the list groups under colored tag chips (task count per label); a task with two tags appears under both; untagged tasks stay in the top ungrouped block; the Done section is unchanged.
-- [ ] With **Labels** grouping on, a grouped task's second line leads with its muted category name (`jabref ·`) before the chips; a root-level task shows none; back to **Folder** → the category vanishes from the rows again.
+- [ ] With **Labels** grouping on, a grouped task's title is led by its muted category name (`jabref Fix the NPE`); a root-level task shows none; back to **Folder** → the category vanishes from the rows again.
 - [ ] Click a label header → it collapses/expands; no context menu, and dropping a task row onto it does nothing.
 - [ ] Back to **Folder** → folder grouping returns, including empty folders with their "Add task…" row.
 - [ ] Group menu → **PR status** (`dsn~pr-status-grouping~1`) → JabRef tasks group under `status: …` labels, tasks of repos without such labels under draft / changes requested / ready; merge queue, merged, closed are their own groups, in workflow order; tasks without a PR stay on top.
@@ -1419,6 +1419,17 @@ Needs the debug APK on a phone, an *Update token* (or a *Token*) with read acces
 - [ ] Publish again and update on Android 12 or later → it installs without a confirmation.
 - [ ] Leave *Update token* blank with a *Token* that reads both repositories → **Update** still appears.
 - [ ] Use a token without access to the ContextSwitcher repository → a Snackbar says the token cannot read it, once per start; the task list works as before.
+
+## Spoken reply to the finished alert in the car (`dsn~android-auto-reply~1`)
+
+Needs the debug APK on a phone connected to Android Auto with *Unknown sources* enabled in its developer settings, and a task whose Claude session records `claude.sessionId`.
+
+- [ ] Open the task on the phone, send a prompt that takes a minute, turn the screen off → when Claude stops, the car announces a message from the task's title.
+- [ ] Let it be read → Claude's last answer is spoken, not "Claude finished".
+- [ ] Reply by voice → the sentence arrives in the session behind the voice-mode hint; the notification is gone on the phone.
+- [ ] When that turn ends, the car announces the next answer; it is a few spoken sentences.
+- [ ] Without network, reply → the phone shows *Reply not sent, kept on the phone* and the text is in the task's enqueued list.
+- [ ] On the phone alone: the alert shows the task's title, the answer as text and *Claude finished* in its header line; tapping it opens the task.
 
 ## Android finish notification (`dsn~android-finish-notification~1`)
 
