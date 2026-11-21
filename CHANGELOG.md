@@ -11,6 +11,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Fixed
 
 - Windows: the packaged app shows the ContextSwitcher icon in the taskbar, Alt+Tab and Task Manager instead of the Java icon; `just loop` is short for `just run-loop`.
+- Android: a long task title takes at most two lines in the task list too (was three), leaving more room for the rest.
 
 ## [2026-11-21] - 2026-11-21
 
@@ -447,6 +448,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-21...main
 [2026-11-21]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-20...v2026-11-21
 [2026-11-20]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-19...v2026-11-20
 [2026-11-19]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-18...v2026-11-19
