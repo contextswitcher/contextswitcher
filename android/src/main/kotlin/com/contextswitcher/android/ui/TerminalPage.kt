@@ -127,7 +127,6 @@ fun TerminalPage(
         loadingEarlier = true
         try {
             val maxBefore = scrollState.maxValue
-            val valueBefore = scrollState.value
             val linesBefore = text.text.lines().size
             history += HISTORY_STEP
             refresh()
@@ -138,7 +137,14 @@ fun TerminalPage(
             val max = withTimeoutOrNull(2_000) {
                 snapshotFlow { scrollState.maxValue }.first { it != maxBefore && it != Int.MAX_VALUE }
             } ?: return
-            scrollState.scrollTo(if (jumpToLoaded) 0 else valueBefore + (max - maxBefore))
+            if (jumpToLoaded) {
+                scrollState.scrollTo(0)
+            } else {
+                // Shifted by what was prepended, outside the scroll mutex: a
+                // scrollTo loses against a finger still dragging at the top and
+                // leaves the page at the start of the loaded block.
+                scrollState.dispatchRawDelta((max - maxBefore).toFloat())
+            }
         } finally {
             loadingEarlier = false
         }

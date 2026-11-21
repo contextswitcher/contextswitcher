@@ -21,6 +21,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- Android: scrolling up in the terminal past the loaded output keeps the line you are reading in place when older output loads, instead of jumping to the start of the loaded block.
 - A Vibe task no longer gets its first prompt pasted several times: Vibe shows a long paste only as `[Pasted … characters]`, which the app now accepts as delivered.
 - When Claude quits right after a new task's start, the task description is no longer typed into the shell; the window stays open with the shell.
 - Android: a very long task title no longer fills the whole task screen; it shows two lines, and a tap on it expands it into a scrollable area.
