@@ -31,6 +31,8 @@ class LiveTaskStarterTest {
                 unreachable != null -> SshResult(-1, "", unreachable)
                 "new-window" in remoteCommand -> SshResult(0, "@77\n", "")
                 "capture-pane" in remoteCommand -> SshResult(0, pasted.joinToString("\n"), "")
+                // The launcher pastes only while the agent's CLI runs in the pane.
+                line.contains("pane_current_command") -> SshResult(0, "claude\n", "")
                 else -> SshResult(0, "", "")
             }
         }

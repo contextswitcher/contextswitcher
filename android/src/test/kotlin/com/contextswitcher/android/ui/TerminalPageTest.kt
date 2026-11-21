@@ -15,6 +15,7 @@ import com.contextswitcher.ssh.SshCommandRunner
 import com.contextswitcher.ssh.SshCommandRunner.SshResult
 import com.contextswitcher.tasks.Task
 import com.contextswitcher.tasks.TaskStatus
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Rule
@@ -69,7 +70,7 @@ class TerminalPageTest {
     private fun show(screen: Screen, scroll: ScrollState) {
         composeRule.setContent {
             TerminalPage(task, Task.TmuxConfig("0", "@1"), "koppor@example.org", screen, SnackbarHostState(),
-                scrollState = scroll)
+                scrollState = scroll, io = Dispatchers.Unconfined)
         }
         composeRule.waitUntil(5_000) { screen.captures >= 1 && scroll.maxValue in 1 until Int.MAX_VALUE }
         composeRule.waitForIdle()
