@@ -897,7 +897,7 @@ Needs: impl, utest
 ### Sync-groups button, window and task menu
 `dsn~task-sync-groups-ui~1`
 
-The main toolbar's sync-groups button (`ACCOUNT_SYNC`) carries the update button's badge style with the count of shared tasks not ignored and waiting to be sorted in; a click opens `SyncGroupsWindow`, a non-modal window owned by the main stage.
+The title bar's sync-groups button (`ACCOUNT_SYNC`) carries the update button's badge style with the count of shared tasks not ignored and waiting to be sorted in; a click opens `SyncGroupsWindow`, a non-modal window owned by the main stage.
 The window lists the configured groups (add with name and repository URL, remove after confirmation — local tasks keep their `sync:` and simply stop syncing) and the waiting shared tasks, ignored ones on "Show ignored"; a task's right-click menu offers "Move to category" (the root plus every category) and "Ignore until it changes".
 Moving creates `<category>/<syncId>.md` from the shared content with `status: suspended` and the group joined, or — when a local file still carries the `syncId` after leaving — joins that file again and moves it there.
 A task row's right-click menu gains a "Sync groups" submenu, one check item per configured group, joining or leaving; the delete confirmation warns that a task in a configured group is deleted for every member.

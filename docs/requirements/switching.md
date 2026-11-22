@@ -570,14 +570,17 @@ Covers:
 Needs: impl, utest
 
 ### Gather windows onto one screen
-`dsn~environment-profile-gather-windows~1`
+`dsn~environment-profile-gather-windows~2`
 
 A profile's `gatherWindows: <screen>` takes a selector like `screens:` (EDID name or product code, `primary`, `internal`, `external`; `off` switches a lower layer's gathering off) and layers per key like the other keys.
 `WindowsEnvironment.apply` hands the effective value to `WindowGather`, which keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside to resolve the selector) for it: same selector — nothing happens; another — restart; none — stop; `Main.stop` stops it, and the watcher exits on its own once the app's process is gone.
-Every 500 ms the watcher enumerates the top-level windows (visible, not minimized, not cloaked — other virtual desktops —, titled, not tool or owned windows, not the shell's taskbars, desktop or Start) and pulls one that sits on another screen over to the target's work area, keeping its offset and clamping its size; a maximized window is restored without activation, moved and maximized again.
-It does so only within 4 s of first seeing the window — the watcher's start, a new window, one restored or arriving from another desktop — and again after the set of screens changes, so a window the lecturer drags onto the projector stays there.
-A window covering its whole screen (the slide show, a PDF in presentation mode) is never moved; with one screen, or none matching the selector, nothing moves.
-Moves are logged (`Window gather: moved notepad++ from \\.\DISPLAY2 to \\.\DISPLAY1`); the chip reports starting and stopping.
+Every 500 ms the watcher enumerates the top-level windows (visible, not minimized, titled, not cloaked except by the shell for another virtual desktop, not tool or owned windows, not the shell's taskbars, desktop or Start) and pulls one that sits on another screen over to the target's work area, keeping its offset and clamping its size; a maximized window is restored without activation, moved and maximized again.
+Windows on other virtual desktops are gathered while unseen, so docking moves every desktop's windows at once.
+It does so only within 4 s of first seeing the window — the watcher's start, a new window, one restored from minimized — and again after the set of screens changes, so a window the lecturer drags onto the projector stays there.
+A window covering its whole screen without being maximized with a title bar (`WS_MAXIMIZE` and `WS_CAPTION`) — the slide show, a PDF in presentation mode, a browser in F11 — is never moved.
+A maximized window covers its screen too where no taskbar takes room, and is moved: the laptop's maximized Firefox was taken for a slide show and stayed (field report 2026-11-22).
+A window still on its old screen after 3 moves within one grace (an elevated Task Manager refuses them) is logged once as `did not stay` and left alone; with one screen, or none matching the selector, nothing moves.
+Moves are logged with the window handle (`Window gather: moved notepad++ 0x1A2B from \\.\DISPLAY2 to \\.\DISPLAY1`); the chip reports starting and stopping.
 
 Tags: windows
 
@@ -603,10 +606,12 @@ Covers:
 Needs: impl, utest
 
 ### Environment profile override
-`dsn~environment-profile-override~1`
+`dsn~environment-profile-override~2`
 
 The bottom bar carries a flat `MenuButton` (MDI `monitor-share`) right of the switch chips, shown once `Main` wires it (`MainWindow.installProfileOverride`).
-Opening it lists "Category profile" (no override) and every profile name from `settings.yaml`, read at that moment, as radio items; the button shows the active override's name, so a forgotten `screenshare` stays in sight.
+Opening it lists "Automatic" (no override) and every profile name from `settings.yaml`, read at that moment, as radio items; the button shows the active override's name, so a forgotten `screenshare` stays in sight.
+"Automatic" names the profiles chosen without an override, screen-chosen then category, in parentheses — `Automatic (desk + lecture)`; bare `Automatic` when only `default` applies — and so does the button while no override is active.
+`EnvironmentProfileAction.onAutomatic` reports those layers on every apply, and `MainWindow.showAutomaticProfile` shows them.
 A choice is kept in `Main.profileOverride` (session-only: a restart starts without override), is laid over every later switch, and takes effect right away through `EnvironmentProfileAction.reapply` — the profile of the category last switched to — with the outcome as a status-bar message.
 The button starts hidden from its construction on (`hiddenUntilInstalled`), not where the bottom bar is assembled: `Main` wires the override before `show` builds that bar, and hiding it there hid it for good.
 `ProfileOverrideUiTest` boots the real `Main` and checks the button is visible and lists the profiles; it opens the menu with `MenuButton.show`, since the robot's click did not open it in the test window.
@@ -628,8 +633,7 @@ A selector matches a `ConnectedScreen` as a profile's `screens:` key does: EDID 
 `ScreenWatch` keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside like `WindowGather`'s) that polls the active screens every 500 ms and prints a set only after it stayed unchanged for 3 s, never an empty one (standby); it exits once the app's process is gone, and `Main.stop` stops it.
 `Main.screensChanged` picks the profile for each reported set; when it differs from the one in effect, `EnvironmentProfileAction.reapply` applies the effective profile for the category last switched to, with the outcome as a status-bar message.
 The first set after the start applies only when a rule matches, so starting the app does not reset the machine to `default` unasked.
-`MainWindow.showScreenProfile` puts `<name> (screens)` on the override button while no override is chosen.
-With `gatherWindows:` in the screen-chosen profile, docking gathers windows onto the main screen: the gather watcher (`dsn~environment-profile-gather-windows~1`) starts with the profile and pulls every window over.
+With `gatherWindows:` in the screen-chosen profile, docking gathers windows onto the main screen: the gather watcher (`dsn~environment-profile-gather-windows~2`) starts with the profile and pulls every window over.
 Off Windows `ScreenWatch` starts nothing.
 
 Tags: windows

@@ -30,7 +30,7 @@ if [ "$(uname -s)" = Linux ] && ! have_lib libgtk-3.so.0; then
     echo "run-loop: libgtk-3.so.0 is neither on LD_LIBRARY_PATH nor in the system library paths." >&2
     echo "          JavaFX needs it — the app would fail with 'UnsatisfiedLinkError: no glassgtk3'." >&2
     echo "          On NixOS, run this inside the project shell:" >&2
-    echo "              nix-shell --run 'just run-loop'" >&2
+    echo "              nix-shell --run 'just loop'" >&2
     echo "          or run 'direnv allow' once in the repo: .envrc then enters shell.nix on cd." >&2
     exit 1
 fi

@@ -413,12 +413,14 @@ Covers:
 Needs: impl, utest
 
 ### Jump to bottom
-`dsn~terminal-jump-to-bottom~1`
+`dsn~terminal-jump-to-bottom~2`
 
 A "Jump to bottom" button sits in a bar below the terminal and returns the mirror to the live output after the user scrolled up.
-Scrolling the mirror means tmux copy-mode (`dsn~terminal-mouse-scroll~9`), not a local scrollbar, so the button sends `tmux send-keys -t cs-mirror-<session> -X cancel` over the same plain ssh side channel the window switch uses, then puts the keyboard back into the terminal.
+Scrolling the mirror means tmux copy-mode (`dsn~terminal-mouse-scroll~9`), not a local scrollbar, so the button sends `tmux copy-mode -q` (silent outside copy-mode) over the same plain ssh side channel the window switch uses, then puts the keyboard back into the terminal.
+Claude Code also scrolls inside its own screen, which only its `Ctrl+End` undoes: the same tmux invocation goes on with `if-shell -F '#{==:#{pane_current_command},claude}' 'send-keys C-End'`, so a shell, which would echo the unbound key's escape sequence, never gets it.
 The command targets the mirror **session**, not a window: the mirror's current window is what the pane shows, and a task may pin no window at all.
-The button is a no-op while nothing is connected (a placeholder is showing); outside copy-mode tmux merely reports an error on the side channel's stderr, which never reaches the terminal.
+For an app-owned local session (`OwnedSession`) the button scrolls the terminal widget to its end and writes `Ctrl+End` (`ESC [1;5F`) into the pty.
+The button is a no-op while nothing is connected (a placeholder is showing).
 
 Tags: windows, linux
 
@@ -560,7 +562,7 @@ Needs: impl, utest
 
 All tasks of one base session share a single mirror client, so the mirror's current window is the only thing that says which task is on screen (`dsn~terminal-pane~14`).
 Every guard there is one-way — it refuses to *uncover* a window it could not confirm — and none of them lets the user ask the question the other way round: "the list says A, the terminal reads like B — which is it?"
-The context menu of the Terminal pane's toolbar (right-click its title or anywhere on the band, `dsn~shell-layout~2`) answers it with **Select the mirrored task**: one `tmux display-message -p -t cs-mirror-<session> '#{window_id}'` over the ssh side channel (`TmuxMirrorCommands.currentWindowCommand`, the select's confirming half on its own), and `Main.selectWindowTask` moves the list to the task owning that window — resolved by remote + window id over the repository entries, the same match `dsn~terminal-diff-window~2` uses.
+The context menu of the Terminal pane's toolbar (right-click its title or anywhere on the band, `dsn~shell-layout~3`) answers it with **Select the mirrored task**: one `tmux display-message -p -t cs-mirror-<session> '#{window_id}'` over the ssh side channel (`TmuxMirrorCommands.currentWindowCommand`, the select's confirming half on its own), and `Main.selectWindowTask` moves the list to the task owning that window — resolved by remote + window id over the repository entries, the same match `dsn~terminal-diff-window~2` uses.
 Landing on the task that was already selected *is* the answer "the terminal is not lying"; landing on another row names the task whose session is really on screen and repairs the disagreement in the same click, since the selection re-targets the mirror.
 
 The window must come from the remote, never from what the pane was asked to show: that request is precisely the claim under suspicion, and repeating it would confirm the mismatch being checked.
@@ -779,7 +781,7 @@ Nothing is inferred: a window publishing neither option gets no entry, and a lin
 
 The terminal pane looks the window it currently shows up in the map itself (`TmuxStatusPoller.key`) — the poll callback has no notion of the selection, and the pane already tracks its own.
 
-`TerminalPane.showSessionModes` puts the mirrored window's `<model> · <effort>` as a muted label left of the `Jump to bottom` button (`dsn~terminal-jump-to-bottom~1`), where it answers "what is *this* chat running" at a glance; the label blanks the moment the mirror switches windows or shows a placeholder, so it never labels one task's terminal with another's model.
+`TerminalPane.showSessionModes` puts the mirrored window's `<model> · <effort>` as a muted label left of the `Jump to bottom` button (`dsn~terminal-jump-to-bottom~2`), where it answers "what is *this* chat running" at a glance; the label blanks the moment the mirror switches windows or shows a placeholder, so it never labels one task's terminal with another's model.
 
 The options are a display hint only — everything works without them, and the label then stays empty.
 

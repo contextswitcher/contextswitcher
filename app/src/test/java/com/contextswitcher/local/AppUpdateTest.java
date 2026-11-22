@@ -96,7 +96,7 @@ class AppUpdateTest {
 
         assertThat(AppUpdate.actionLabel(true)).isEqualTo("Restart to update");
         assertThat(AppUpdate.actionLabel(false)).isEqualTo("Exit to update");
-        assertThat(AppUpdate.actionHint(false)).contains("does not come back", "just run-loop");
+        assertThat(AppUpdate.actionHint(false)).contains("does not come back", "just loop");
     }
 
     @Test

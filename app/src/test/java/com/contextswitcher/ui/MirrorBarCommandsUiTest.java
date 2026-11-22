@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// Drives [TerminalPane] directly; needs a display: `gradlew :app:uiTest` on a
 /// desktop, `just uitest` headless.
 // [utest->dsn~terminal-clear-input~3]
-// [utest->dsn~terminal-jump-to-bottom~1]
+// [utest->dsn~terminal-jump-to-bottom~2]
 // [utest->dsn~terminal-interrupt~1]
 @Tag("ui")
 @TestFxApplication(MirrorBarCommandsUiTest.TestApp.class)
@@ -82,7 +82,7 @@ class MirrorBarCommandsUiTest {
 
         assertThat(ssh.sent()).containsExactly(
                 new Sent(REMOTE, TmuxMirrorCommands.clearInputCommand(TMUX)),
-                new Sent(REMOTE, TmuxMirrorCommands.cancelCopyModeCommand(TMUX)),
+                new Sent(REMOTE, TmuxMirrorCommands.jumpToBottomCommand(TMUX)),
                 new Sent(REMOTE, TmuxMirrorCommands.acceptSuggestionCommand(TMUX)),
                 new Sent(REMOTE, TmuxMirrorCommands.interruptCommand(TMUX)));
     }

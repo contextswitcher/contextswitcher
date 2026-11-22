@@ -38,7 +38,7 @@ import tools.maran.svg.materialdesign.MDITechnology;
 import tools.maran.svgnode.SvgNode;
 
 /// The main window's **Configuration** and **Switch actions** panes
-/// (`dsn~shell-layout~2`): the open task or category file's frontmatter as the
+/// (`dsn~shell-layout~3`): the open task or category file's frontmatter as the
 /// catalog form ([ConfigForm]) — each pane the part of the catalog it `shows` —
 /// with the raw YAML editor one toggle away. It works on the editor buffer:
 /// when the focus leaves the pane, the changed keys are patched in and saved;

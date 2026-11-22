@@ -334,7 +334,7 @@ public class Main extends Application {
     private @Nullable RefactoringMinerView refactoringView;
     private @Nullable ExtensionServer extensionServer;
     /// The `gatherWindows` watcher of the environment profile in effect;
-    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~1]
+    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~2]
     private final WindowGather windowGather = new WindowGather();
     /// Reports the connected screens; stopped on exit. [impl->dsn~screen-chosen-profile~1]
     private final ScreenWatch screenWatch = new ScreenWatch();
@@ -345,7 +345,7 @@ public class Main extends Application {
     /// The status bar's environment-profile override (null: none), laid over
     /// the category's profile on every switch. Session-only on purpose: a
     /// restart starts in the plain category look.
-    // [impl->dsn~environment-profile-override~1]
+    // [impl->dsn~environment-profile-override~2]
     private volatile @Nullable String profileOverride;
     /// What ContextSwitcher last told koppter, or took from it: the project of
     /// the category switched to and the context of the profile in effect.
@@ -1082,7 +1082,8 @@ public class Main extends Application {
         // started breaks that start. [impl->dsn~busy-while-creating~2]
         terminalPane.disableBarWhile(creationsInFlight.greaterThan(0));
         window.disableRestartWhile(creationsInFlight.greaterThan(0));
-        // [impl->dsn~environment-profile-override~1]
+        // [impl->dsn~environment-profile-override~2]
+        environmentProfile.onAutomatic(layers -> Platform.runLater(() -> window.showAutomaticProfile(layers)));
         window.installProfileOverride(
                 () -> EnvironmentProfiles.parse(readSettingsFile(configDir())).names(),
                 choice -> {
@@ -1090,7 +1091,7 @@ public class Main extends Application {
                     // [impl->dsn~koppter-sync~1]
                     contextChanged(window);
                     window.statusBar().message("Applying "
-                            + (choice == null ? "the category profile" : "profile " + choice) + " …");
+                            + (choice == null ? "the automatic profile" : "profile " + choice) + " …");
                     actionExecutor.execute(() -> {
                         ActionResult result = environmentProfile.reapply();
                         Platform.runLater(() -> window.statusBar().message(
@@ -2247,7 +2248,6 @@ public class Main extends Application {
         }
         String before = screenProfile;
         screenProfile = chosen;
-        Platform.runLater(() -> window.showScreenProfile(chosen));
         // [impl->dsn~koppter-sync~1]
         contextChanged(window);
         if (first ? chosen == null : Objects.equals(before, chosen)) {
@@ -2489,7 +2489,7 @@ public class Main extends Application {
     }
 
     /// Raw `settings.yaml` text for the settings editor (empty when absent).
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     private static String readSettingsFile(Path configDir) {
         Path file = configDir.resolve("settings.yaml");
         try {
@@ -2500,7 +2500,7 @@ public class Main extends Application {
     }
 
     /// Writes `settings.yaml`; returns null on success, else the error.
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     private static @Nullable String writeSettingsFile(Path configDir, String content) {
         try {
             Files.createDirectories(configDir);

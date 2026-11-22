@@ -32,6 +32,7 @@ import com.techsenger.shellfx.material.theme.Theme;
 import com.techsenger.shellfx.material.theme.ThemePalette;
 import com.techsenger.shellfx.material.theme.ThemePalette16;
 import com.techsenger.shellfx.material.theme.ThemePalette32;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javafx.application.Application;
@@ -40,15 +41,18 @@ import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.ToolBar;
+import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.HeaderBar;
+import javafx.scene.layout.HeaderDragType;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
+import javafx.stage.WindowEvent;
 import org.jspecify.annotations.Nullable;
 import org.tinylog.Logger;
 
@@ -58,7 +62,7 @@ import org.tinylog.Logger;
 /// panes stay the nodes `MainWindow` builds, with all their behavior; only the
 /// container is ShellFX's. The lanes themselves are [DockLanes]; a [ConfigFormPane]
 /// (Switch actions, Configuration) can additionally pop out of its tab into a window of its own ([PaneDetacher]).
-// [impl->dsn~shell-layout~2]
+// [impl->dsn~shell-layout~3]
 public final class ShellFxHost {
 
     /// What [#host] built: the scene ShellFX created on the stage, and how to put
@@ -70,7 +74,7 @@ public final class ShellFxHost {
     }
 
     /// What [#host] puts in the shell: the panes `MainWindow` builds, the status
-    /// bar below the docks and the app-wide controls for the main toolbar.
+    /// bar below the docks and the app-wide controls for the title bar.
     /// Named rather than positional — six nodes in a row are easy to swap.
     record Panes(Node tasks, Node terminal, Node notes, ConfigFormPane switchActions,
             ConfigFormPane configuration, Node queue, Node statusBar, List<Node> appControls) {
@@ -86,7 +90,7 @@ public final class ShellFxHost {
     /// The style class every dock carries: `main.css` hides its tabs' × under
     /// it — one click beside a tab title closed a pane by accident, and the tab
     /// context menu still closes one.
-    // [impl->dsn~shell-layout~2]
+    // [impl->dsn~shell-layout~3]
     private static final String DOCK_STYLE = "pane-dock";
 
     private ShellFxHost() {
@@ -217,18 +221,6 @@ public final class ShellFxHost {
         // the title itself (category + live counts), and the shell's header shows
         // the menu bar, not the title — so the stage title goes back to us.
         stage.titleProperty().unbind();
-        // ShellFX builds every TOP_LEVEL window as an EXTENDED stage with its own
-        // HeaderBar title pane (menu bar, its own window buttons). The main window
-        // keeps the standard OS frame instead: the style may be set again until the
-        // stage is first shown, and the title pane — which only held our empty menu
-        // bar — is dropped.
-        stage.initStyle(StageStyle.DECORATED);
-        Node titlePane = stage.getScene().getRoot().lookup(".title-pane");
-        if (titlePane != null) {
-            titlePane.setVisible(false);
-            titlePane.setManaged(false);
-        }
-
         // The side bars keep their default policy: they appear only while a dock
         // is minimized into them — which, with minimize off (see tidyDocks), is never.
         var dockHost = new DockHostFxView<>();
@@ -292,11 +284,13 @@ public final class ShellFxHost {
         dockHost.getNode().addEventFilter(MouseEvent.MOUSE_RELEASED,
                 event -> Platform.runLater(() -> tidyDocks(dockHost)));
         DividerFit.install(dockHost.getNode());
-        ToolBar mainToolBar = lanes.toolBar();
         // The app-wide controls MainWindow hands over (energy saver, browser
-        // status, update, settings): right-aligned, left of the panes button.
-        mainToolBar.getItems().addAll(mainToolBar.getItems().size() - 1, panes.appControls());
-        shellView.addAboveWorkspace(mainToolBar);
+        // status, sync groups, update, settings) and the panes button share the title bar
+        // with the window buttons — a toolbar row of their own cost a line of
+        // height for six icons.
+        List<Node> titleBarControls = new ArrayList<>(panes.appControls());
+        titleBarControls.add(lanes.panesButton());
+        shellView.fillTitleBar(titleBarControls);
         shellView.addBelowWorkspace(panes.statusBar());
         shellView.upgradeMenuBar();
 
@@ -400,8 +394,8 @@ public final class ShellFxHost {
     }
 
     /// The shell's window view: ShellFX's default, with a component-tree walk
-    /// that ends at the shell and room above and below the workspace for the
-    /// main toolbar and the status bar.
+    /// that ends at the shell, a title bar that takes the app's controls and
+    /// room below the workspace for the status bar.
     private static final class AppShellView extends DefaultShellFxView<DefaultShellPresenter<?>> {
 
         AppShellView(Application application, Stage stage) {
@@ -425,8 +419,26 @@ public final class ShellFxHost {
             return new Composer();
         }
 
-        void addAboveWorkspace(Node node) {
-            getContentBox().getChildren().add(0, node);
+        /// Fills ShellFX's title bar — a JavaFX `HeaderBar`, the window being an
+        /// `EXTENDED` stage: the stage's title at the left, where the OS frame
+        /// showed it, and `controls` at the right, before the window buttons.
+        void fillTitleBar(List<Node> controls) {
+            Stage stage = getStage();
+            var title = new Label();
+            title.textProperty().bind(stage.titleProperty());
+            title.setMinWidth(0);
+            getLeftBox().getChildren().add(title);
+            // A header bar drags the window by its own area only, not by its
+            // children: the title text has to be grabbable like the bar.
+            HeaderBar.setDragType(getLeftBox(), HeaderDragType.DRAGGABLE_SUBTREE);
+            List<Node> right = getRightBox().getChildren();
+            right.add(0, new Separator(Orientation.VERTICAL));
+            right.addAll(0, controls);
+            // ShellFX's close button closes the stage directly; a close request
+            // instead, as the OS frame's × sent one, so that CloseConfirmation's
+            // filter is asked first. ShellFX's own onCloseRequest then closes.
+            getCloseButton().setOnAction(event ->
+                    stage.fireEvent(new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST)));
         }
 
         void addBelowWorkspace(Node node) {

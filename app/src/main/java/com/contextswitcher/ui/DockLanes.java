@@ -19,11 +19,8 @@ import javafx.scene.Node;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import org.jspecify.annotations.Nullable;
 import tools.maran.svg.materialdesign.MDIInterface;
@@ -32,7 +29,7 @@ import tools.maran.svgnode.SvgNode;
 /// The main window's panes in the dock host — one [Lane] each — and the toolbar
 /// menu that shows or hides them. Closing a tab (any of the tab context menu's
 /// close entries) hides its lane; checking its menu entry shows it again.
-// [impl->dsn~shell-layout~2]
+// [impl->dsn~shell-layout~3]
 final class DockLanes {
 
     /// One pane of the main window and where it currently lives. The content
@@ -103,17 +100,14 @@ final class DockLanes {
 
     /// A flat icon-only menu button (the task toolbar's filter button shape)
     /// with one checkable entry per lane, in a toolbar above the dock host.
-    ToolBar toolBar() {
+    Node panesButton() {
         MenuButton button = new MenuButton(null, new SvgNode(MDIInterface.VIEW_DASHBOARD_OUTLINE.path(), 16));
         button.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
         button.setTooltip(new Tooltip("Show or hide panes"));
         for (Lane lane : all) {
             button.getItems().add(lane.item);
         }
-        // Right-aligned: the left of the main toolbar is where app-wide actions go.
-        var spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        return new ToolBar(spacer, button);
+        return button;
     }
 
     void open(Lane lane, TabDockFxView<?> dock) {

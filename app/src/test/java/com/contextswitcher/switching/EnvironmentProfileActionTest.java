@@ -136,18 +136,32 @@ class EnvironmentProfileActionTest {
                     return ActionResult.success("");
                 },
                 hidden -> ActionResult.success(""));
+        List<@Nullable String> automatic = new ArrayList<>();
+        action.onAutomatic(automatic::add);
 
         assertThat(action.reapply().detail()).startsWith("desk (screens): ");
+        assertThat(automatic.getLast()).isEqualTo("desk");
         assertThat(machine.getLast().gatherTarget()).isEqualTo("DELL U3223QE");
         assertThat(machine.getLast().taskbar()).isEqualTo(EnvironmentProfile.Taskbar.AUTOHIDE);
 
         assertThat(action.run(task("teaching/slides")).detail()).startsWith("desk (screens) + lecture: ");
+        assertThat(automatic.getLast()).isEqualTo("desk + lecture");
         assertThat(machine.getLast().gatherTarget()).isEqualTo("DELL U3223QE");
         assertThat(machine.getLast().taskbar()).isEqualTo(EnvironmentProfile.Taskbar.VISIBLE);
 
         screens.set(null);
         assertThat(action.reapply().detail()).startsWith("lecture: ");
+        assertThat(automatic.getLast()).isEqualTo("lecture");
         assertThat(machine.getLast().gatherTarget()).isNull();
+    }
+
+    // [utest->dsn~environment-profile-override~2]
+    @Test
+    void automaticNamesTheLayersWithoutOverride() {
+        assertThat(EnvironmentProfileAction.automatic(null, null)).isNull();
+        assertThat(EnvironmentProfileAction.automatic("desk", null)).isEqualTo("desk");
+        assertThat(EnvironmentProfileAction.automatic(null, "lecture")).isEqualTo("lecture");
+        assertThat(EnvironmentProfileAction.automatic("desk", "lecture")).isEqualTo("desk + lecture");
     }
 
     @Test

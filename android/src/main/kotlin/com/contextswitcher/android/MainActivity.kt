@@ -165,7 +165,7 @@ class MainActivity : ComponentActivity() {
         val ssh = SshjCommandRunner({ settingsStore.loadSshPrivateKey() }, knownHosts, jumpHosts = { settingsStore.loadJumpHosts() })
         val messageSender = MessageSender(ssh, File(filesDir, "attachments").toPath())
         PhoneProvenance.install(this, messageSender, ssh)
-        val updates = AppUpdates({ settingsStore.load()?.effectiveUpdateToken.orEmpty() }, BuildConfig.GIT_COMMIT)
+        val updates = AppUpdates(BuildConfig.GIT_COMMIT)
         setContent {
             MaterialTheme {
                 Surface {
@@ -337,7 +337,6 @@ internal fun SettingsScreen(
     var url by rememberSaveable { mutableStateOf(initial.url) }
     var username by rememberSaveable { mutableStateOf(initial.username) }
     var token by rememberSaveable { mutableStateOf(initial.token) }
-    var updateToken by rememberSaveable { mutableStateOf(initial.updateToken) }
     var sshKey by rememberSaveable { mutableStateOf(initialSshKey) }
     var jumpHosts by rememberSaveable { mutableStateOf(initialJumpHosts) }
     var checking by remember { mutableStateOf(false) }
@@ -361,12 +360,6 @@ internal fun SettingsScreen(
             value = token,
             onValueChange = { token = it },
             label = { Text("Token") },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        )
-        OutlinedTextField(
-            value = updateToken,
-            onValueChange = { updateToken = it },
-            label = { Text("Update token (reads ContextSwitcher; blank: Token)") },
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         )
         Text(text = "SSH settings", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 24.dp))
@@ -406,7 +399,7 @@ internal fun SettingsScreen(
             checkResult.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
         Row(modifier = Modifier.padding(top = 16.dp)) {
-            Button(onClick = { onJumpHostsSaved(jumpHosts); onSaved(RepoSettings(url, username, token, updateToken), sshKey) }) {
+            Button(onClick = { onJumpHostsSaved(jumpHosts); onSaved(RepoSettings(url, username, token), sshKey) }) {
                 Text("Save + Sync now")
             }
             TextButton(onClick = onClearKnownHosts, modifier = Modifier.padding(start = 8.dp)) {
@@ -475,9 +468,9 @@ internal fun TaskListScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // [impl->dsn~android-update-hint~3]
+    // [impl->dsn~android-update-hint~4]
     fun checkForUpdate() {
-        if (updates == null || settingsStore.load()?.effectiveUpdateToken.isNullOrBlank()) {
+        if (updates == null) {
             return
         }
         scope.launch {

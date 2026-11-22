@@ -220,7 +220,7 @@ public final class TmuxMirrorCommands {
     /// it — a `^U` scrolls instead of reaching the application; then `C-u`
     /// (kill line) [#CLEAR_INPUT_KILLS] times. One tmux invocation, so the
     /// cancel is ordered before the kills. Addressed by session, like
-    /// [#cancelCopyModeCommand].
+    /// [#jumpToBottomCommand].
     public static List<String> clearInputCommand(Task.TmuxConfig tmux) {
         List<String> command = new ArrayList<>(List.of("tmux",
                 "copy-mode", "-q", "-t", mirrorName(tmux.session()),
@@ -270,15 +270,20 @@ public final class TmuxMirrorCommands {
                 "\\;", "send-keys", "-t", target, "Enter");
     }
 
-    /// The remote argv leaving copy-mode in the mirror's current pane — the
-    /// "jump to bottom" button. Scrolling the mirror means tmux copy-mode
-    /// (see [#attachCommand]), so returning to the live output is `cancel`,
-    /// not a scrollbar move. Outside copy-mode tmux just reports an error on
-    /// the side channel's stderr; nothing reaches the terminal.
-    public static List<String> cancelCopyModeCommand(Task.TmuxConfig tmux) {
+    /// The remote argv behind the "jump to bottom" button. Scrolling the
+    /// mirror means tmux copy-mode (see [#attachCommand]), so the way back is
+    /// leaving it (`copy-mode -q`, silent outside it), not a scrollbar move.
+    /// Claude Code also scrolls inside its own screen, where only its
+    /// `Ctrl+End` returns to the bottom — sent only when the pane runs
+    /// `claude`, since a shell would echo the unbound key's escape sequence.
+    // [impl->dsn~terminal-jump-to-bottom~2]
+    public static List<String> jumpToBottomCommand(Task.TmuxConfig tmux) {
         // Addressed by session, not window: the mirror's *current* window is
         // what the pane shows, and `tmux.window()` may be unset.
-        return List.of("tmux", "send-keys", "-t", mirrorName(tmux.session()), "-X", "cancel");
+        String target = mirrorName(tmux.session());
+        return List.of("tmux", "copy-mode", "-q", "-t", target,
+                "\\;", "if-shell", "-F", "-t", target, "'#{==:#{pane_current_command},claude}'",
+                "'send-keys -t " + target + " C-End'");
     }
 
     /// Window addressed inside the mirror session — never the base session,

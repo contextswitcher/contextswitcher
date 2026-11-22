@@ -34,7 +34,7 @@ gradlew :app:run
 ```
 
 With [`just`](https://just.systems) installed, the `justfile` wraps the common commands (Windows and Unix variants each):
-`just run-debug` (Gradle run, fast, for development), `just run` (build the packaged app image and launch the bundled exe), `just pull-run` (`git pull` first, then `just run`), `just run-loop` (run it until you really quit — the toolbar's update button restarts the app into the newly pulled and rebuilt version), `just register` (build the image and register the `contextswitcher://` handler), `just jpackage` (just the image), `just uitest` (the TestFX UI tests, headless on every OS).
+`just run-debug` (Gradle run, fast, for development), `just run` (build the packaged app image and launch the bundled exe), `just pull-run` (`git pull` first, then `just run`), `just loop` (run it until you really quit — the toolbar's update button restarts the app into the newly pulled and rebuilt version), `just register` (build the image and register the `contextswitcher://` handler), `just jpackage` (just the image), `just uitest` (the TestFX UI tests, headless on every OS).
 `just` on its own lists them.
 
 Installing `just`: `cargo binstall just` — which needs [`cargo-binstall`](https://github.com/cargo-bins/cargo-binstall) (`cargo install cargo-binstall`), which needs Rust ([rustup.rs](https://rustup.rs), or `winget install Rustlang.Rustup`).
@@ -49,7 +49,7 @@ A fresh install names the tools it misses in the status bar rather than failing 
 JavaFX comes from plain Maven jars, so its native libraries are prebuilt `.so` files that expect the GTK/X11 stack in the usual system paths; on NixOS there is none, and the app dies at startup with `UnsatisfiedLinkError: no glassgtk3 in java.library.path`.
 `shell.nix` supplies those libraries via `LD_LIBRARY_PATH`, plus the JDK, `just`, `jbang` (the changelog check) and `xvfb-run` (the `just uitest-xvfb` fallback).
 With [direnv](https://direnv.net) installed, `direnv allow` once in the repo is enough — the checked-in `.envrc` then enters that shell on `cd`, and the commands above need no prefix.
-Forgetting the shell is cheap for `just run-loop`: it looks for the GTK library before it pulls and builds, and names the shell instead of failing in the launcher after a full jpackage build.
+Forgetting the shell is cheap for `just loop`: it looks for the GTK library before it pulls and builds, and names the shell instead of failing in the launcher after a full jpackage build.
 
 **Without a JDK:** every green [Build run](https://github.com/contextswitcher/contextswitcher/actions/workflows/build.yml) uploads two artifacts (MADR 0012):
 `ContextSwitcher-windows` — unzip, run `ContextSwitcher\ContextSwitcher.exe` (bundled JRE, nothing to install; `gradlew :app:packageApp` builds the same image for your own OS) —
@@ -59,7 +59,7 @@ and the browser extensions — `contextswitcher-firefox-xpi` (unsigned, [install
 From a source checkout, `gradlew :app:registerUrlHandler` (or `just register`) builds an image and registers against it in one step.
 
 **Staying current:** the app checks its own checkout against its upstream every half hour and shows an update button in the toolbar when a newer commit exists.
-Clicking it quits the app with exit code 55, which `just run-loop` takes as "pull, rebuild, start again" ([`dsn~restart-to-update~12`](docs/requirements/ui.md)).
+Clicking it quits the app with exit code 55, which `just loop` takes as "pull, rebuild, start again" ([`dsn~restart-to-update~12`](docs/requirements/ui.md)).
 
 ## First steps
 
@@ -314,7 +314,7 @@ While Claude works, draft the follow-ups instead of waiting: the pane below the 
 ## Finding, filtering, sorting
 
 * **Find** (`Ctrl+F`, the always-visible field) narrows the list by free text over everything you would search by: title, id, remote, note, configuration, the Markdown body, the task's URLs (paste a PR link, or just `16245`), and the text of its queued and sent messages.
-* **Jump to category** (`Ctrl+J`) — a popup narrows the category names as you type, the current virtual desktop's categories first; Enter selects the category in the list.
+* **Jump to category** (`Ctrl+J` or the airplane in the list toolbar) — a popup narrows the category names as you type, the five last jumped-to on top, then the current virtual desktop's categories; Enter or *Jump* switches to the category's desktop, selects the category in the list and switches to it.
   While a query is typed, the tag / awaits-input / running-tasks filters step aside so a hit is never hidden; the active-desktop filter stays on and the bar reports the hits it does not show as "· N on other desktops".
 * **Filter menu** (toolbar) — **Awaits input** (waiting, asking, or hit the usage limit; the item carries the count even when off), **Active desktop**, **Running tasks**, **Projects and contexts** (the categories' todo.txt `project:` and `contexts:`, shared with koppter — see [below](#sharing-project-and-context-with-koppter)), and the **tag** submenu (several tags combine with AND; a filtered row shows only the selected tags, so a shared screen reveals nothing else). The button carries a badge while anything narrows the list, and the whole selection is restored on the next launch.
 * **Sort menu** — **Last update** (default; a new task shows up on top), **Alphabetical**, or **Action needed** (usage limit, then attention, then waiting, then working). Error rows stay first, active before suspended, pinned tasks head their block.
@@ -382,7 +382,7 @@ screenProfiles:                         # first rule whose screen is connected w
 ```
 
 The layers stack per key: `default`, then the screen-chosen profile, then the category's, then the status bar's override.
-The profile is re-applied once the set of screens has stayed the same for 3 s, and the override button shows it as `desk (screens)`.
+The profile is re-applied once the set of screens has stayed the same for 3 s, and the override button shows it as `Automatic (desk)`.
 Windows only.
 
 ### Sharing project and context with koppter
@@ -574,14 +574,9 @@ Build it with `gradlew :android:assembleDebug`; the module is only included when
 Connected to a car, the same APK shows on the Android Auto head unit — the tasks with a Claude session, those waiting for you first, and per task a dictated or canned message; being sideloaded, it needs *Unknown sources* enabled in Android Auto's developer settings (tap the version there ten times).
 When Claude finishes in the task opened last, the car also announces it like an incoming message: it reads Claude's answer aloud and takes a spoken reply into the session.
 
-**GitHub tokens.** The settings screen's *Username* is your GitHub login; the two token fields are personal access tokens:
+**GitHub token.** The settings screen's *Username* is your GitHub login; *Token* is a personal access token for your task backup repository, **Contents: Read and write** (sync, and pushing a task created on the phone).
 
-* *Token* — your task backup repository, **Contents: Read and write** (sync, and pushing a task created on the phone);
-* *Update token* — `contextswitcher/contextswitcher`, **Contents: Read** (the update hint reads the `android-dev` tag and downloads the APK from that pre-release).
-
-A fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens) has a single resource owner, so a task repository outside the `contextswitcher` organization needs two tokens: one with your account as owner, one with `contextswitcher`.
-Left blank, *Update token* falls back to *Token* — enough for a classic token with the `repo` scope.
-A token that cannot read ContextSwitcher shows "Update check failed: the token cannot read contextswitcher/contextswitcher (GitHub answered 404)".
+**Updates.** After each sync, the app compares its build with the `android-dev` pre-release of this public repository and shows *Update* in the top bar when there is a newer APK; a tap downloads and installs it — no token needed.
 The desktop app needs no token: its update check is a `git fetch` in its own checkout with whatever credentials that clone already uses.
 
 ## Recovery and troubleshooting

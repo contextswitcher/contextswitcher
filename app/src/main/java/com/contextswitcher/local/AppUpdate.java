@@ -178,8 +178,8 @@ public final class AppUpdate {
     // [impl->dsn~restart-label-by-launch~1]
     public static String actionHint(boolean looped) {
         return looped
-                ? "The app quits, and `just run-loop` pulls, rebuilds and starts it again."
-                : "The app quits and does not come back by itself — use `just run-loop`,"
+                ? "The app quits, and `just loop` pulls, rebuilds and starts it again."
+                : "The app quits and does not come back by itself — use `just loop`,"
                         + " which pulls, rebuilds and starts it again.";
     }
 

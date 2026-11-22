@@ -31,7 +31,7 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.jspecify.annotations.Nullable;
 
-/// The main toolbar's update button and what hangs off it: the pending-change
+/// The title bar's update button and what hangs off it: the pending-change
 /// badge, the tooltip listing the news, and the "What's new" window its click
 /// opens — with the fetch behind "Checking remote …" and *Restart to update*.
 /// `Main` owns the git calls and feeds the answers in; `MainWindow` only places
@@ -108,7 +108,7 @@ final class UpdateNews {
         refreshTooltip();
     }
 
-    /// The update button, for the main toolbar. Always there — a button that
+    /// The update button, for the title bar. Always there — a button that
     /// appears on an update check shifts every icon beside it; the glyph
     /// turning blue says the same thing without the toolbar hopping.
     Button button() {

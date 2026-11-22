@@ -151,7 +151,7 @@ private fun TaskRow(entry: TaskEntry, statuses: Map<String, String>, onTaskClick
                     Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                         RunningDot(sessionStatus(task, statuses))
                         // The title takes what the status leaves, so a long one wraps instead of squeezing it; a whole prompt is cut at three lines.
-                        Text(text = task.title(), color = textColor, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        Text(text = task.title(), color = textColor, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                         Text(text = task.status().yaml(), color = textColor, modifier = Modifier.padding(start = 8.dp))
                     }
                     if (task.tags().isNotEmpty()) {

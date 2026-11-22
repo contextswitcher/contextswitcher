@@ -479,13 +479,14 @@ final class TmuxSession implements TerminalSession {
         view.focusTerminal();
     }
 
-    /// Cancels copy-mode over the ssh side channel (same route as the
-    /// window switch) and puts the keyboard back into the terminal.
-    // [impl->dsn~terminal-jump-to-bottom~1]
+    /// Leaves copy-mode and, in Claude, presses `Ctrl+End` over the ssh side
+    /// channel (same route as the window switch), then puts the keyboard back
+    /// into the terminal ([TmuxMirrorCommands#jumpToBottomCommand]).
+    // [impl->dsn~terminal-jump-to-bottom~2]
     @Override
     public void jumpToBottom() {
         Task.TmuxConfig target = tmux;
-        executor.execute(() -> ssh.run(remote, TmuxMirrorCommands.cancelCopyModeCommand(target)));
+        executor.execute(() -> ssh.run(remote, TmuxMirrorCommands.jumpToBottomCommand(target)));
         view.focusTerminal();
     }
 

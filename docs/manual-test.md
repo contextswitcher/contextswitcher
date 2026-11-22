@@ -388,7 +388,7 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
       thing and the popup stays open. Open a category `CONTEXTSWITCHER.md` and press
       F1 → the popup shows the group-config fields (`remote`, `workspacesRoot`,
       `workdir`, `repo`, `tags`, `note`) instead. The type label's tooltip mentions F1.
-- [x] **Settings field help (F1)** (`dsn~settings-editor~4`): open `Edit settings…`
+- [x] **Settings field help (F1)** (`dsn~settings-editor~5`): open `Edit settings…`
       (header mentions F1), press **F1** in the text area → a non-modal popup shows
       the commented settings.yaml reference (`tasksDir`, `wsPort`, `wsToken`, `hints`,
       `claudeAuto`, `remotes`, `tags`); **Copy all** works and the popup stays open
@@ -1022,7 +1022,7 @@ whether it works.
 - [ ] Mouse-wheel scrollback still works (buttons are local now, the wheel is not).
 - [ ] Wheel **up** over the terminal scrolls the tmux scrollback towards **older** output, wheel down towards newest — not inverted (Windows mouse).
 - [ ] In a **Claude Code** window (mouse reporting on), the wheel scrolls the tmux scrollback, *not* Claude's own message history — anywhere in the pane, input box included; wheel down at the newest line leaves copy-mode without paging Claude.
-- [ ] **Jump to bottom** (`dsn~terminal-jump-to-bottom~1`): scroll up with the wheel (mirror enters copy-mode), click the button below the terminal — the view returns to the live output and the keyboard is back in the terminal. Clicking it while already at the bottom, and while a placeholder shows instead of a terminal, does nothing visible.
+- [ ] **Jump to bottom** (`dsn~terminal-jump-to-bottom~2`): scroll up with the wheel (mirror enters copy-mode), click the button below the terminal — the view returns to the live output and the keyboard is back in the terminal. Scroll up inside Claude Code itself (it shows "Jump to bottom (ctrl+End)"), click the button — Claude's view returns to the bottom too. In a plain shell window the button leaves no `;5F` or similar on the prompt. Clicking it while already at the bottom, and while a placeholder shows instead of a terminal, does nothing visible.
 - [ ] **Accept suggestion** (`dsn~terminal-accept-suggestion~1`): wait for Claude Code to show a greyed-out suggestion in its input box, click the button — the suggestion is sent as the next prompt, and typing continues in the terminal.
 - [ ] **Clear input** (`dsn~terminal-clear-input~3`): type a half-finished line in a shell and in Claude Code's input box, click the button — the line is gone in both, and typing continues in the terminal. Nothing happens while a placeholder shows instead of a terminal.
 - [ ] **Clear input after scrolling**: type a draft in Claude Code's input box, scroll up with the wheel (mirror enters copy-mode), click **Clear input** — the view returns to the live output and the draft is gone (in copy-mode a `^U` used to scroll instead of clearing).
@@ -1409,16 +1409,16 @@ Needs the debug APK on a phone with synced tasks of a category whose tasks recor
 - [ ] *Call (Android Auto)* with the phone connected to the car → the car shows an ongoing call; the overview and the card come through the car's speakers; saying "next" steps, a sentence is sent as the reply, and the finished turn is read out; the car's hang-up (or *Hang up* on the phone) ends it.
 - [ ] Head unit: *Tour* in the header → category list → the same card as a message screen with *Dictate* and *Next*; *Previous* and *Repeat* in the header. Dictation from the tour sends with the voice-mode hint.
 
-## Android update hint (`dsn~android-update-hint~3`)
+## Android update hint (`dsn~android-update-hint~4`)
 
-Needs the debug APK on a phone, an *Update token* (or a *Token*) with read access to the ContextSwitcher repository, and a finished run of *Publish Android dev build* (`gh workflow run android-dev.yml`) for a newer commit.
+Needs the debug APK on a phone and a finished run of *Publish Android dev build* (`gh workflow run android-dev.yml`) for a newer commit.
 
 - [ ] Open the app on a build older than `android-dev` → after the sync, **Update** is in the top bar.
 - [ ] Tap it → it reads *Updating…*; the first time, Android asks to allow ContextSwitcher to install apps and to confirm; the app restarts on the new build and **Update** is gone.
 - [ ] Push to main without starting the workflow → the `android-dev` release and tag do not change, and the app offers no update.
 - [ ] Publish again and update on Android 12 or later → it installs without a confirmation.
-- [ ] Leave *Update token* blank with a *Token* that reads both repositories → **Update** still appears.
-- [ ] Use a token without access to the ContextSwitcher repository → a Snackbar says the token cannot read it, once per start; the task list works as before.
+- [ ] Settings with an empty *Token* → **Update** still appears.
+- [ ] Without network → a Snackbar says the update check failed, once per start; the task list works as before.
 
 ## Spoken reply to the finished alert in the car (`dsn~android-auto-reply~1`)
 
@@ -1488,7 +1488,7 @@ Needs the debug APK on a phone, a synced task with a reachable `remote` and `tmu
 
 Needs a checkout whose upstream has a commit the local branch does not (push one from another clone, or reset the branch one commit back).
 
-- [ ] Start with `just run-loop` (`scripts/run-loop.cmd` on Windows) → the app pulls, builds and comes up; the update button is in the toolbar in the same gray as its neighbours.
+- [ ] Start with `just loop` (`scripts/run-loop.cmd` on Windows) → the app pulls, builds and comes up; the update button is in the toolbar in the same gray as its neighbours.
 - [ ] Wait for the check (or reset the branch back before starting) → the update glyph turns blue, the status bar says a new version is available, and — when the new commits add changelog bullets — a red badge at its lower right counts those pending changes (no icon beside it moves); the tooltip names the commit count.
 - [ ] Click it → the "What's new" window opens with a bar and "Checking remote …" in its button row and **Restart to update** already live; seconds later the bar is gone, and the title's count matches the badge (`N pending changes since you last looked — now at <sha> …`); the badge is gone, the glyph stays blue.
 - [ ] Push another commit from the other clone between the tick and this click → the window lists that bullet too: the click fetched, it did not reuse the five-minute-old answer.
@@ -1575,6 +1575,16 @@ Needs a real remote with a task whose Claude session id is recorded (`claude.ses
 - [ ] Switch to the new task's terminal → Claude greets as a fork of the source task's conversation, checks the source's workspace, then works on the typed instruction with the picked model.
 - [ ] The new task's `# Notes` names the source task ("Forked from &lt;title&gt; (`&lt;id&gt;`)").
 - [ ] Three plain Enters or three Ctrl+Enters in the dialog's field fire **Fork** like clicking it (`req~compose-key-conventions~5`).
+
+## Title bar holds the app controls (`dsn~shell-layout~3`)
+
+Needs a real desktop: the window frame is the window manager's business.
+
+- [ ] The title bar shows the window title at the left and the app icons (energy saver … panes) left of minimize, maximize and close; no toolbar row below it.
+- [ ] Dragging the title bar — by the title text or the free area — moves the window; on Windows, dragging it to the top or a side of the screen snaps it.
+- [ ] Double-clicking the free area maximizes and restores; the window's edges resize it.
+- [ ] Every icon in the title bar reacts to a click, and their tooltips show.
+- [ ] With an app-owned session running, × asks before closing, and so does Alt+F4.
 
 ## Results log
 

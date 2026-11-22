@@ -797,6 +797,9 @@ public class MainWindow {
     // [impl->dsn~task-history-navigation~2]
     private static final long TRANSIENT_VISIT_NANOS = 1_000_000_000L;
     private static final String LAST_IMPORT_HOST = "lastImportHost";
+    /// The jump popup's recent categories, newest first, one per line.
+    // [impl->dsn~category-jump~3]
+    private static final String RECENT_JUMPS = "recentJumpCategories";
     private static final String LAST_MODEL = "lastClaudeModel";
     private static final String LAST_EFFORT = "lastClaudeEffort";
     /// Delete-dialog cleanup checkboxes, pre-filled from the last run
@@ -969,7 +972,7 @@ public class MainWindow {
 
     /// What [#show] built in the ShellFX shell; null until then — there is no
     /// pane to bring forward before there is a shell.
-    // [impl->dsn~shell-layout~2]
+    // [impl->dsn~shell-layout~3]
     private ShellFxHost.@Nullable Hosted shell;
 
     /// The ⋮ menu's refresh item, disabled while a refresh runs.
@@ -1132,13 +1135,14 @@ public class MainWindow {
     private final SwitchStatusBar statusBar = new SwitchStatusBar();
     /// The environment-profile override (screen share, …) next to the chips;
     /// hidden until [#installProfileOverride] wires it.
-    // [impl->dsn~environment-profile-override~1]
+    // [impl->dsn~environment-profile-override~2]
     private final MenuButton profileOverride = hiddenUntilInstalled(iconMenuButton(MDITechnology.MONITOR_SHARE,
             "Environment profile override — laid over the category's profile until switched back"));
     /// The override chosen in [#profileOverride]'s menu; null: none.
     private @Nullable String overrideChoice;
-    /// The profile the connected screens chose; null: none ([#showScreenProfile]).
-    private @Nullable String screenChoice;
+    /// The profiles chosen without an override (screens, category);
+    /// null: only `default` ([#showAutomaticProfile]).
+    private @Nullable String automaticChoice;
     /// The commit the running app was built from, in the status bar's right
     /// corner — empty until [#showCommit] fills it (git is asked off the FX
     /// thread), and empty forever when the app runs out of a zip.
@@ -1195,18 +1199,18 @@ public class MainWindow {
     }
 
     /// Wires the status bar's environment-profile override: its menu offers
-    /// "Category profile" (no override) and every profile `names` returns —
+    /// "Automatic (…)" (no override) and every profile `names` returns —
     /// read when the menu opens, so a profile added to `settings.yaml` shows
     /// without a restart — and hands the choice (null: none) to `onChoose`.
     /// The button shows the active override's name, so a forgotten
     /// "screenshare" stays in sight.
-    // [impl->dsn~environment-profile-override~1]
+    // [impl->dsn~environment-profile-override~2]
     public void installProfileOverride(Supplier<List<String>> names, Consumer<@Nullable String> onChoose) {
         profileOverride.setVisible(true);
         profileOverride.setOnShowing(event -> {
             String active = overrideChoice;
             ToggleGroup group = new ToggleGroup();
-            RadioMenuItem none = new RadioMenuItem("Category profile");
+            RadioMenuItem none = new RadioMenuItem(automaticLabel(automaticChoice));
             none.setToggleGroup(group);
             none.setSelected(active == null || active.isEmpty());
             none.setOnAction(e -> {
@@ -1238,18 +1242,24 @@ public class MainWindow {
         profileOverride.getItems().setAll(new MenuItem());
     }
 
-    /// Names the profile the connected screens chose (null: none) on the
-    /// override button while no override is active — `desk (screens)` — so
-    /// the look the machine is in has a visible reason. FX thread.
-    // [impl->dsn~screen-chosen-profile~1]
-    public void showScreenProfile(@Nullable String name) {
-        screenChoice = name;
+    /// Names the profiles chosen without an override — the connected
+    /// screens' and the category's, `desk + lecture`; null: only `default` —
+    /// on the menu's first item and, while no override is active, on the
+    /// button, so the look the machine is in has a visible reason. FX thread.
+    // [impl->dsn~environment-profile-override~2]
+    public void showAutomaticProfile(@Nullable String layers) {
+        automaticChoice = layers;
         updateProfileText();
+    }
+
+    /// `Automatic (desk + lecture)`, or `Automatic` when only `default` applies.
+    static String automaticLabel(@Nullable String layers) {
+        return layers == null ? "Automatic" : "Automatic (" + layers + ")";
     }
 
     private void updateProfileText() {
         profileOverride.setText(overrideChoice != null ? overrideChoice
-                : screenChoice != null ? screenChoice + " (screens)" : null);
+                : automaticChoice != null ? automaticLabel(automaticChoice) : null);
     }
 
     /// Whether to leave the app — closing it or restarting it for an update —
@@ -1408,7 +1418,7 @@ public class MainWindow {
         });
         // The window's buttons at the right end of the Terminal pane's toolbar
         // band, the PR rows below it.
-        // [impl->dsn~shell-layout~2]
+        // [impl->dsn~shell-layout~3]
         // [impl->dsn~pr-header-line~4]
         terminal.addToolbarControls(claudeButton, ideaButton);
         terminal.setSubHeader(prHeader);
@@ -1416,10 +1426,10 @@ public class MainWindow {
         selectOnClick.accept(editorNode);
         selectOnClick.accept(queueNode);
 
-        // The settings gear lives in the main toolbar (with the other app-wide
+        // The settings gear lives in the title bar (with the other app-wide
         // actions), not down here — a lone gear in the status bar read as the
         // sync-tmux cog's twin and was easy to miss.
-        // [impl->dsn~settings-editor~4]
+        // [impl->dsn~settings-editor~5]
         HBox.setHgrow(statusBar, Priority.ALWAYS);
         // The log button sits where the failures are read: a status-bar line
         // can only name the reason, the log has the context around it.
@@ -1451,7 +1461,7 @@ public class MainWindow {
         bottomBar.setPadding(new Insets(0, 6, 0, 0));
         // The panes as ShellFX dock tabs (MADR 0032). The raw frontmatter editor
         // is the Configuration pane's Raw YAML view.
-        // [impl->dsn~shell-layout~2]
+        // [impl->dsn~shell-layout~3]
         // Two panes over one catalog: the switch actions apart, the rest in
         // Configuration. They share the one raw editor.
         // [impl->dsn~task-field-form~6]
@@ -1495,7 +1505,7 @@ public class MainWindow {
         KeyCombination addTaskKeys = new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN);
         // Ctrl+J opens the jump-to-category popup; capture-phase like the
         // others (the terminal loses ^J, which Enter sends anyway).
-        // [impl->dsn~category-jump~1]
+        // [impl->dsn~category-jump~3]
         KeyCombination jumpKeys = new KeyCodeCombination(KeyCode.J, KeyCombination.SHORTCUT_DOWN);
         scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (find.match(event)) {
@@ -1755,7 +1765,7 @@ public class MainWindow {
     /// (expanding it, lifting a scope to another category); Escape closes.
     /// The active desktop is read afresh in the background — `activeDesktop`
     /// is only kept current while a desktop watch runs — and regroups the rows.
-    // [impl->dsn~category-jump~1]
+    // [impl->dsn~category-jump~3]
     private void openCategoryJump() {
         ListView<Object> list = taskList;
         if (list == null || list.getScene() == null) {
@@ -1780,7 +1790,16 @@ public class MainWindow {
                 }
             }
         });
-        VBox box = new VBox(4, field, choices);
+        Button jump = new Button("Jump");
+        jump.getStyleClass().addAll(Styles.SMALL, Styles.ACCENT);
+        jump.setId("category-jump-button");
+        jump.disableProperty().bind(choices.getSelectionModel().selectedItemProperty().isNull());
+        Button cancel = new Button("Cancel");
+        cancel.getStyleClass().add(Styles.SMALL);
+        Region gap = new Region();
+        HBox.setHgrow(gap, Priority.ALWAYS);
+        HBox buttons = new HBox(6, gap, jump, cancel);
+        VBox box = new VBox(4, field, choices, buttons);
         box.getStyleClass().add("category-jump");
         box.setPadding(new Insets(6));
         box.setPrefWidth(Math.max(280, list.getWidth() - 16));
@@ -1792,7 +1811,7 @@ public class MainWindow {
         Runnable refill = () -> {
             CategoryJump.Row picked = choices.getSelectionModel().getSelectedItem();
             List<CategoryJump.Row> rows =
-                    CategoryJump.rows(folders, this::groupDesktop, activeDesktop, field.getText());
+                    CategoryJump.rows(folders, recentJumps(), this::groupDesktop, activeDesktop, field.getText());
             choices.getItems().setAll(rows);
             int index = picked == null ? -1 : rows.indexOf(picked);
             selectJumpRow(choices, index < 0 ? 0 : index, 1);
@@ -1811,7 +1830,14 @@ public class MainWindow {
             }
             event.consume();
         });
-        choices.setOnMouseClicked(event -> jumpToCategory(popup, choices.getSelectionModel().getSelectedItem()));
+        // A single click only picks; Jump (or a double click) goes there.
+        choices.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                jumpToCategory(popup, choices.getSelectionModel().getSelectedItem());
+            }
+        });
+        jump.setOnAction(event -> jumpToCategory(popup, choices.getSelectionModel().getSelectedItem()));
+        cancel.setOnAction(event -> popup.hide());
         refill.run();
 
         Bounds bounds = list.localToScreen(list.getBoundsInLocal());
@@ -1829,9 +1855,15 @@ public class MainWindow {
                 }));
     }
 
+    /// The jump popup's recent categories, newest first.
+    // [impl->dsn~category-jump~3]
+    private static List<String> recentJumps() {
+        return PREFERENCES.get(RECENT_JUMPS, "").lines().filter(line -> !line.isBlank()).toList();
+    }
+
     /// Selects the first category row from `index` on in direction `step`,
     /// skipping headings; stays put when there is none.
-    // [impl->dsn~category-jump~1]
+    // [impl->dsn~category-jump~3]
     private static void selectJumpRow(ListView<CategoryJump.Row> choices, int index, int step) {
         List<CategoryJump.Row> rows = choices.getItems();
         for (int i = index; i >= 0 && i < rows.size(); i += step) {
@@ -1843,27 +1875,57 @@ public class MainWindow {
         }
     }
 
-    /// Closes the popup and selects the picked category's header in the list.
-    // [impl->dsn~category-jump~1]
+    /// Closes the popup, remembers the pick as recent, switches to the
+    /// category's virtual desktop, selects its header in the list and then
+    /// switches to the category, as the header's switch button does.
+    // [impl->dsn~category-jump~3]
     private void jumpToCategory(Popup popup, CategoryJump.@Nullable Row row) {
         if (row == null || row.header()) {
             return;
         }
         popup.hide();
         String group = row.text();
+        PREFERENCES.put(RECENT_JUMPS, String.join("\n", CategoryJump.remember(recentJumps(), group)));
         if (scopeCategory != null && !scopeCategory.equals(group)) {
             scopeToCategory(null);
         }
-        // After the scope's deferred rebuild.
-        Platform.runLater(() -> {
-            if (selectCategory(group)) {
-                if (taskList != null) {
-                    taskList.requestFocus();
-                }
-            } else {
-                statusBar.message("Category " + group + " is hidden by a list filter.");
+        saveEditorIfDirty();
+        // Like the header's switch button: the category's own switch actions.
+        // [impl->dsn~category-switch~1]
+        Task task = Task.forCategory(group, groupDefaults(group).remote());
+        String desktop = groupDesktop(group);
+        if (desktop == null) {
+            // After the scope's deferred rebuild.
+            Platform.runLater(() -> {
+                selectJumpedCategory(group);
+                onSwitch.accept(task);
+            });
+            return;
+        }
+        // Read the new desktop before selecting: the poller reporting it later
+        // would otherwise re-select that desktop's last task over the category
+        // (`dsn~desktop-last-task-selection~6`).
+        onFocusDesktop.accept(desktop, () -> CompletableFuture
+                .supplyAsync(() -> new WindowsVirtualDesktopFocus(new LocalCommandRunner()).current())
+                .thenAccept(active -> Platform.runLater(() -> {
+                    if (active.read()) {
+                        updateActiveDesktop(active.name());
+                    }
+                    selectJumpedCategory(group);
+                    onSwitch.accept(task);
+                })));
+    }
+
+    /// Selects the jumped-to category's header and gives the list the keyboard.
+    // [impl->dsn~category-jump~3]
+    private void selectJumpedCategory(String group) {
+        if (selectCategory(group)) {
+            if (taskList != null) {
+                taskList.requestFocus();
             }
-        });
+        } else {
+            statusBar.message("Category " + group + " is hidden by a list filter.");
+        }
     }
 
     /// A press on a category header's name: scopes the find field to that
@@ -6964,7 +7026,7 @@ public class MainWindow {
 
     /// Brings Configuration forward — reopened if closed, its window raised if
     /// popped out. Nothing before [#show] has built the shell.
-    // [impl->dsn~shell-layout~2]
+    // [impl->dsn~shell-layout~3]
     private void showConfigurationPane() {
         ShellFxHost.Hosted hosted = shell;
         if (hosted != null) {
@@ -7072,9 +7134,9 @@ public class MainWindow {
     }
 
     /// The task list's toolbar, and the app-wide controls built with it that
-    /// belong in the shell's main toolbar instead (energy saver, browser
-    /// status, update, settings).
-    // [impl->dsn~shell-layout~2]
+    /// belong in the shell's title bar instead (energy saver, browser
+    /// status, sync groups, update, settings).
+    // [impl->dsn~shell-layout~3]
     private record ListToolbar(ToolBar bar, List<Node> appControls) {
     }
 
@@ -7102,6 +7164,10 @@ public class MainWindow {
         Button forward = iconButton(MDIInterface.ARROW_RIGHT,
                 "Forward again (Alt+\u2192)");
         forward.setOnAction(event -> navigateHistory(1));
+        // [impl->dsn~category-jump~3]
+        Button jump = iconButton(MDIWorld.AIRPLANE, "Jump to category (Ctrl+J)");
+        jump.setId("category-jump-open");
+        jump.setOnAction(event -> openCategoryJump());
         this.backButton = back;
         this.forwardButton = forward;
         updateHistoryButtons();
@@ -7170,12 +7236,12 @@ public class MainWindow {
         // controls in constant use. [impl->dsn~task-list-toolbar~3]
         Region moreSpacer = new Region();
         HBox.setHgrow(moreSpacer, Priority.ALWAYS);
-        ToolBar bar = new ToolBar(back, forward, add, filter, sort, groupBy, moreSpacer, more);
+        ToolBar bar = new ToolBar(back, forward, jump, add, filter, sort, groupBy, moreSpacer, more);
         // Shares one fixed height (main.css) with every pane toolbar, so the
         // bands line up across the panes.
         bar.getStyleClass().add("list-toolbar");
-        // The app-wide controls go to the shell's main toolbar; the list toolbar
-        // keeps what acts on the task list. [impl->dsn~shell-layout~2]
+        // The app-wide controls go to the shell's title bar; the list toolbar
+        // keeps what acts on the task list. [impl->dsn~shell-layout~3]
         return new ListToolbar(bar, List.of(energySaver, browser, syncGroupsButton(), update, settingsButton()));
     }
 
@@ -7431,7 +7497,7 @@ public class MainWindow {
     /// The settings control: the gear icon at the right end of the list
     /// toolbar (COG — the one place a plain cog appears, now that Sync tmux
     /// uses SYNC).
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     private Button settingsButton() {
         Button editSettings = iconButton(MDIInterface.COG, "Settings");
         editSettings.setOnAction(event -> settingsDialog.show());
@@ -8166,7 +8232,7 @@ public class MainWindow {
     /// `button`, invisible and taking no room until made visible. Hidden here,
     /// at construction, rather than where the bottom bar is assembled: `Main`
     /// wires (and reveals) the override before [#show] builds that bar.
-    // [impl->dsn~environment-profile-override~1]
+    // [impl->dsn~environment-profile-override~2]
     private static MenuButton hiddenUntilInstalled(MenuButton button) {
         button.setId("profile-override");
         button.setVisible(false);

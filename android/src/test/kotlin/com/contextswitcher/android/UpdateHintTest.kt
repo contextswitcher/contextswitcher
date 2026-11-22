@@ -21,7 +21,7 @@ import org.robolectric.annotation.Config
 
 /// The task list offers *Update* exactly when the `android-dev` tag names a
 /// commit other than the running build's.
-// [utest->dsn~android-update-hint~3]
+// [utest->dsn~android-update-hint~4]
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class UpdateHintTest {
@@ -49,9 +49,9 @@ class UpdateHintTest {
 
     private fun showTaskList(runningCommit: String) {
         val settings = SettingsStore(ApplicationProvider.getApplicationContext())
-        // No reachable repo: the sync fails at once, and the update check follows it.
-        settings.save(RepoSettings("file:///nonexistent/repo.git", "me", "secret"))
-        val updates = AppUpdates({ "secret" }, runningCommit, "http://127.0.0.1:${server.address.port}", "o/r")
+        // No reachable repo and no token: the sync fails at once, and the update check follows it anyway.
+        settings.save(RepoSettings("file:///nonexistent/repo.git", "me", ""))
+        val updates = "http://127.0.0.1:${server.address.port}".let { AppUpdates(runningCommit, it, it, "o/r") }
         composeRule.setContent {
             MaterialTheme {
                 TaskListScreen(settings, File(tmpFolder.root, "taskrepo"), onOpenSettings = {}, onOpenTask = {}, updates = updates)

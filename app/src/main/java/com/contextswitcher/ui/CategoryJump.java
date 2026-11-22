@@ -11,9 +11,10 @@ import org.jspecify.annotations.Nullable;
 
 /// The rows of the `Ctrl+J` jump-to-category popup — and of the Add-task
 /// dialog's category combo: the categories whose name contains the query,
-/// those on the active virtual desktop first, then the rest. Kept out of
+/// the recently jumped-to ones on top (popup only), then those on the active
+/// virtual desktop, then the rest. Kept out of
 /// [MainWindow] so the grouping is unit-testable.
-// [impl->dsn~category-jump~1]
+// [impl->dsn~category-jump~3]
 // [impl->dsn~task-create-category-pick~1]
 final class CategoryJump {
 
@@ -27,13 +28,55 @@ final class CategoryJump {
     record Row(String text, boolean header) {
     }
 
+    /// How many recent categories the popup lists on top.
+    static final int RECENT_LIMIT = 5;
+
     private CategoryJump() {
+    }
+
+    /// The recent list after jumping to `picked`: it moves to the front,
+    /// the oldest falls off beyond [#RECENT_LIMIT].
+    // [impl->dsn~category-jump~3]
+    static List<String> remember(List<String> recent, String picked) {
+        List<String> next = new ArrayList<>(List.of(picked));
+        recent.stream().filter(name -> !name.equals(picked)).forEach(next::add);
+        return List.copyOf(next.subList(0, Math.min(RECENT_LIMIT, next.size())));
     }
 
     /// `desktopOf` maps a category to its desktop name (fallback included);
     /// `active` is the active desktop's name, null when unknown — then there
     /// is nothing to group by and the matches come without headings.
     static List<Row> rows(Collection<String> categories, Function<String, @Nullable String> desktopOf,
+            @Nullable String active, String query) {
+        return rows(categories, List.of(), desktopOf, active, query);
+    }
+
+    /// Like the other `rows`, with the matching `recent` categories (newest
+    /// first, gone ones left out) under a "Recent" heading on top; they stay
+    /// at their usual place below as well.
+    // [impl->dsn~category-jump~3]
+    static List<Row> rows(Collection<String> categories, List<String> recent,
+            Function<String, @Nullable String> desktopOf, @Nullable String active, String query) {
+        List<Row> top = new ArrayList<>();
+        String lower = query.strip().toLowerCase(Locale.ROOT);
+        recent.stream()
+                .filter(name -> categories.contains(name) && name.toLowerCase(Locale.ROOT).contains(lower))
+                .forEach(name -> top.add(new Row(name, false)));
+        List<Row> rest = groupedRows(categories, desktopOf, active, query);
+        if (top.isEmpty()) {
+            return rest;
+        }
+        List<Row> rows = new ArrayList<>();
+        rows.add(new Row("Recent", true));
+        rows.addAll(top);
+        if (!rest.isEmpty() && !rest.getFirst().header()) {
+            rows.add(new Row("All categories", true));
+        }
+        rows.addAll(rest);
+        return rows;
+    }
+
+    private static List<Row> groupedRows(Collection<String> categories, Function<String, @Nullable String> desktopOf,
             @Nullable String active, String query) {
         String needle = query.strip().toLowerCase(Locale.ROOT);
         List<String> matches = categories.stream()

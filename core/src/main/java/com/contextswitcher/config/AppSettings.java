@@ -280,7 +280,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
     /// Parses settings from a raw YAML string — the same field reading
     /// [#loadOrCreate(Path)] does, factored out so the in-app settings editor
     /// can round-trip its form to and from the file text without touching disk.
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     public static AppSettings parse(String yaml) throws IOException {
         Yaml parser = new Yaml(new SafeConstructor(new LoaderOptions()));
         Object loaded = parser.load(yaml);
@@ -405,7 +405,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
     /// Renders these settings as the `settings.yaml` text — the exact bytes
     /// [#store(Path)] writes. Used by the in-app editor to turn its form back
     /// into file text (raw view and Save).
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     public String dump() {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("tasksDir", tasksDir.toString());
@@ -447,7 +447,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
     /// The dump-ready value of a single settings `key` (as [#dump()] would emit
     /// it) — the in-app editor patches one key at a time into the raw YAML text,
     /// so it renders just that key's value rather than the whole file.
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     public Object yamlValue(String key) {
         return switch (key) {
             case "tasksDir" -> tasksDir.toString();
@@ -476,7 +476,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
     /// F1 help — every key [#loadOrCreate(Path)] reads, with placeholders.
     /// Lives next to the parser so the help cannot drift far from what is
     /// actually read (guarded by a keys-match unit test).
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     public static String settingsReference() {
         return """
                 tasksDir: C:\\Users\\you\\.contextswitcher\\tasks   # where the task .md files live

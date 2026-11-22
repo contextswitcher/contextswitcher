@@ -45,11 +45,11 @@ whats-new *ARGS:
 # Run the app in a loop: the "Restart to update" button (exit code 55) pulls,
 # rebuilds and starts it again; a normal quit ends the loop.
 [unix]
-run-loop:
+loop:
     scripts/run-loop.sh
 
 [windows]
-run-loop:
+loop:
     scripts\run-loop.cmd
 
 pull-run-debug: && run-debug

@@ -1,5 +1,7 @@
 package com.contextswitcher.terminal;
 
+import java.util.List;
+
 import com.contextswitcher.ssh.ProcessSshRunner;
 import com.contextswitcher.ssh.SshCommandRunner;
 import com.contextswitcher.tasks.Task;
@@ -9,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 // [utest->dsn~terminal-pane~14]
 // [utest->dsn~terminal-mouse-scroll~9]
-// [utest->dsn~terminal-jump-to-bottom~1]
+// [utest->dsn~terminal-jump-to-bottom~2]
 // [utest->dsn~terminal-clear-input~3]
 // [utest->dsn~ssh-command-runner~8]
 // [utest->dsn~terminal-local-mirror~2]
@@ -144,11 +146,12 @@ class TmuxMirrorCommandsTest {
     /// Targets the mirror *session* — its current window is what the pane
     /// shows, and a task may pin no window at all.
     @Test
-    void cancelCopyModeTargetsTheMirrorSessionsCurrentWindow() {
-        assertThat(TmuxMirrorCommands.cancelCopyModeCommand(TMUX))
-                .containsExactly("tmux", "send-keys", "-t", "cs-mirror-0", "-X", "cancel");
-        assertThat(TmuxMirrorCommands.cancelCopyModeCommand(new Task.TmuxConfig("0", null)))
-                .containsExactly("tmux", "send-keys", "-t", "cs-mirror-0", "-X", "cancel");
+    void jumpToBottomLeavesCopyModeThenPressesCtrlEndInClaude() {
+        List<String> expected = List.of("tmux", "copy-mode", "-q", "-t", "cs-mirror-0",
+                "\\;", "if-shell", "-F", "-t", "cs-mirror-0", "'#{==:#{pane_current_command},claude}'",
+                "'send-keys -t cs-mirror-0 C-End'");
+        assertThat(TmuxMirrorCommands.jumpToBottomCommand(TMUX)).isEqualTo(expected);
+        assertThat(TmuxMirrorCommands.jumpToBottomCommand(new Task.TmuxConfig("0", null))).isEqualTo(expected);
     }
 
     /// Leaves copy-mode (`-q`: silent no-op outside it) in the **same** tmux

@@ -37,6 +37,7 @@ import com.contextswitcher.discovery.ClaudeUpdateRestart
 import com.contextswitcher.discovery.TmuxStatusPoller
 import com.contextswitcher.terminal.PaneSnapshots
 import com.contextswitcher.terminal.TmuxMirrorCommands
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -80,6 +81,9 @@ fun TerminalPage(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
     scrollState: ScrollState = rememberScrollState(),
+    // Tests pass Dispatchers.Unconfined: the Compose test environment resumes
+    // after an IO hop on the IO thread, whose state writes race the composition.
+    io: CoroutineDispatcher = Dispatchers.IO,
 ) {
     var text by remember(task.id()) { mutableStateOf(AnnotatedString("")) }
     var followEnd by remember(task.id()) { mutableStateOf(true) }
@@ -101,7 +105,7 @@ fun TerminalPage(
         refreshing = true
         try {
             val lines = history
-            val result = withContext(Dispatchers.IO) { ssh.run(remote, PaneSnapshots.captureCommand(tmux, lines)) }
+            val result = withContext(io) { ssh.run(remote, PaneSnapshots.captureCommand(tmux, lines)) }
             if (result.ok()) {
                 // A pane taller than its content captures blank lines below
                 // it; without them the end of the page is the last output.
@@ -152,7 +156,8 @@ fun TerminalPage(
 
     // While the page is visible, poll every 5s — but not while the user reads
     // further up; the effect (and its loop) cancels when the composable
-    // leaves composition (page swiped away).
+    // leaves composition (task closed; the pager keeps it composed while the
+    // queue is shown, so it polls there too).
     LaunchedEffect(task.id()) {
         while (true) {
             if (followEnd && !loadingEarlier) {
@@ -162,11 +167,12 @@ fun TerminalPage(
         }
     }
 
-    // Reaching the top of what is loaded fetches earlier output.
+    // Reaching the top of what is loaded fetches earlier output — once a poll
+    // still in flight there is done, too (`loadEarlier` skips during one).
     LaunchedEffect(scrollState) {
         snapshotFlow {
             scrollState.value == 0 && scrollState.maxValue in (FOLLOW_SLACK_PX + 1) until Int.MAX_VALUE &&
-                !followEnd && !loadingEarlier
+                !followEnd && !loadingEarlier && !refreshing
         }.collect { atTop -> if (atTop) loadEarlier(jumpToLoaded = false) }
     }
 
@@ -225,7 +231,7 @@ fun TerminalPage(
                     onClick = {
                         restarting = true
                         scope.launch {
-                            val outcome = withContext(Dispatchers.IO) {
+                            val outcome = withContext(io) {
                                 ClaudeUpdateRestart.restart(ssh, remote, tmux.target()) { Thread.sleep(it) }
                             }
                             restarting = false
@@ -246,7 +252,7 @@ fun TerminalPage(
                     onClick = {
                         sendingKey = true
                         scope.launch {
-                            val result = withContext(Dispatchers.IO) {
+                            val result = withContext(io) {
                                 ssh.run(remote, TmuxMirrorCommands.keyCommand(SshCommandRunner.quote(tmux.target()), key))
                             }
                             sendingKey = false

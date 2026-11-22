@@ -102,11 +102,11 @@ Covers:
 Needs: dsn
 
 ### Offer the newest build of the app
-`req~android-update-hint~3`
+`req~android-update-hint~4`
 
 The `android-dev` pre-release holds a debug APK of main, replaced only when Oliver asks for a new one — not on every push.
 The app's task list offers *Update* when that APK was built from a different commit than the running app, and installs it on a tap; a check that cannot reach or read the release says why once per start.
-The settings take a separate update token for that, since a fine-grained GitHub token cannot span two owners; left blank, the task repo token is used and needs read access to the ContextSwitcher repository too.
+The repository is public, so the check needs no token: an APK installed from the release offers its updates without any GitHub setup for them.
 
 Tags: android
 
@@ -352,6 +352,7 @@ The page follows the end: whenever the scroll range changes, it scrolls to the n
 Scrollback is fetched on demand, so the 5 s poll stays a screenful: `loadEarlier` raises the capture's history by 500 lines (`PaneSnapshots.captureCommand(tmux, historyLines)`, `-S -<n>`, at most 20000) when the reader reaches the top while not following the end — keeping the line they read in place once the longer text is measured — or on *Earlier*, which shows the start of what was loaded.
 A capture that does not grow marks the history exhausted and disables *Earlier*.
 The poll skips while the reader is scrolled up, and the first capture back at the end drops the history again.
+The pager keeps one page beyond the viewport composed (`beyondViewportPageCount = 1`), so swiping to the Queue page and back returns to the same reading position with the loaded output.
 
 Tags: android
 
@@ -554,19 +555,19 @@ Covers:
 Needs: impl, utest
 
 ### Update hint
-`dsn~android-update-hint~3`
+`dsn~android-update-hint~4`
 
 The `android-dev.yml` workflow, started by hand only (`workflow_dispatch`), builds the debug APK, uploads it to the `android-dev` pre-release with `--clobber` and then moves the `android-dev` tag to `$GITHUB_SHA`; `build.yml`'s `android` job only builds on a push, and day tags still get their own pre-release.
 `android/build.gradle.kts` bakes `git rev-parse HEAD` into `BuildConfig.GIT_COMMIT` (`unknown` outside a checkout).
-`com.contextswitcher.android.update.AppUpdates.check()` reads the tag's commit (`GET /repos/{repo}/git/ref/tags/android-dev`) with `RepoSettings.effectiveUpdateToken` (the *Update token* field, or *Token* when blank) and answers `UpToDate`, `Available(commit)` or `Failed(message)` — a 401/403/404 names the token as unable to read the repository, and an `unknown` build never offers an update.
-`download` finds the `android-debug.apk` asset of the release, requests it as `application/octet-stream` without following redirects, and fetches the storage redirect's `Location` without the token.
-`TaskListScreen` checks after every sync (a blank effective update token skips it), shows *Update* in the top bar for `Available` — disabled while downloading — and reports the first failure of a start in a Snackbar.
+`com.contextswitcher.android.update.AppUpdates.check()` reads the tag's commit (`GET /repos/{repo}/git/ref/tags/android-dev`) without a token and answers `UpToDate`, `Available(commit)` or `Failed(message)` — any status but 200 is named in the message, and an `unknown` build never offers an update.
+`download` fetches `https://github.com/{repo}/releases/download/android-dev/android-debug.apk`, following the redirect to storage.
+`TaskListScreen` checks after every sync, also when the sync failed, shows *Update* in the top bar for `Available` — disabled while downloading — and reports the first failure of a start in a Snackbar.
 `com.contextswitcher.android.update.ApkInstaller` writes the APK into a `PackageInstaller` session with `USER_ACTION_NOT_REQUIRED` (Android 12+); `InstallResultReceiver` starts the installer's confirmation intent when user action is pending and toasts a failure.
 
 Tags: android
 
 Covers:
-- req~android-update-hint~3
+- req~android-update-hint~4
 
 Needs: impl, utest
 

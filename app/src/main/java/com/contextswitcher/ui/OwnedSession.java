@@ -140,12 +140,17 @@ final class OwnedSession implements TerminalSession {
     }
 
     /// No tmux copy-mode: the widget scrolled its own history, so the way back
-    /// is local.
+    /// is local — plus `Ctrl+End` into the pty for Claude Code's own scrolling.
+    // [impl->dsn~terminal-jump-to-bottom~2]
     @Override
     public void jumpToBottom() {
         widget.getTerminalPanel().scrollToShowAllOutput();
+        widget.getTerminalStarter().sendString(CTRL_END, true);
         view.focusTerminal();
     }
+
+    /// The xterm sequence for `Ctrl+End`, Claude Code's "jump to bottom".
+    static final String CTRL_END = "\u001b[1;5F";
 
     /// The task id goes to the wired opener — there is no remote or tmux
     /// config to find the task by.

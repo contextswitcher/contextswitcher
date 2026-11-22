@@ -13,44 +13,22 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.stage.Screen;
 
 /// The shared look of the app's generated option forms — the settings dialog
-/// (`dsn~settings-editor~4`) and the task/category configuration form
+/// (`dsn~settings-editor~5`) and the task/category configuration form
 /// (`dsn~task-field-form~6`), which are the same form over two different
 /// catalogs: a bold section header, then one row per option with its label on
 /// the line above a full-width control, highlighting on hover and carrying the
 /// option's help as its tooltip.
-// [impl->dsn~settings-editor~4]
+// [impl->dsn~settings-editor~5]
 // [impl->dsn~task-field-form~6]
 final class FieldForm {
 
     private FieldForm() {
     }
 
-    /// The share of the screen height a form dialog may take, window and all.
+    /// The share of the screen height a form dialog's window may take.
     static final double MAX_SCREEN_SHARE = 0.75;
-
-    /// What a form dialog needs besides the form: header, button bar, window chrome.
-    static final double DIALOG_CHROME = 260;
-
-    /// The least viewport a form gets, so a tiny screen still shows some of it.
-    static final double MIN_VIEWPORT = 120;
-
-    /// The viewport height for a scrolling form on the primary screen — see
-    /// [#viewportHeightOn(double)].
-    static double viewportHeight() {
-        return viewportHeightOn(Screen.getPrimary().getVisualBounds().getHeight());
-    }
-
-    /// The viewport height for a scrolling form on a screen `screenHeight`
-    /// tall: the dialog, chrome included, stays within [#MAX_SCREEN_SHARE] of
-    /// it. Taking the whole height let a long form open taller than the
-    /// screen (field report 2026-09-13), and a per-dialog minimum would break
-    /// the cap again on a small screen — only [#MIN_VIEWPORT] is kept.
-    static double viewportHeightOn(double screenHeight) {
-        return Math.max(MIN_VIEWPORT, screenHeight * MAX_SCREEN_SHARE - DIALOG_CHROME);
-    }
 
     /// A form section header. `first` (the top of the form) drops the leading
     /// margin that separates it from the section above.
