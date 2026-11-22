@@ -382,7 +382,7 @@ screenProfiles:                         # first rule whose screen is connected w
 ```
 
 The layers stack per key: `default`, then the screen-chosen profile, then the category's, then the status bar's override.
-The profile is re-applied once the set of screens has stayed the same for 3 s, and the override button shows it as `desk (screens)`.
+The profile is re-applied once the set of screens has stayed the same for 3 s, and the override button shows it as `Automatic (desk)`.
 Windows only.
 
 ### Sharing project and context with koppter

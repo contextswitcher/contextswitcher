@@ -1,5 +1,7 @@
 package com.contextswitcher.ui;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -21,7 +23,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 /// — `Main` wires it before the window builds its bottom bar, which once hid
 /// it again — and offers the profiles `settings.yaml` defines at the moment
 /// the menu opens.
-// [utest->dsn~environment-profile-override~1]
+// [utest->dsn~environment-profile-override~2]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class ProfileOverrideUiTest {
@@ -44,6 +46,7 @@ class ProfileOverrideUiTest {
         awaitPresent(() -> button.getItems().stream().map(MenuItem::getText)
                 .anyMatch("screenshare"::equals) ? Optional.of(true) : Optional.empty(),
                 "the screenshare profile in the override menu");
+        assertThat(button.getItems().getFirst().getText()).startsWith("Automatic");
         FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
     }
 }

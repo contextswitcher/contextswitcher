@@ -2,6 +2,7 @@ package com.contextswitcher.switching;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -45,6 +46,8 @@ public class EnvironmentProfileAction implements SwitchAction {
     private @Nullable String lastGroup;
     /// The bookmarks-bar state last put into effect; null when unknown.
     private EnvironmentProfile.@Nullable BookmarksBar appliedBookmarksBar;
+    /// Told the automatic layers ([#automatic]) on every apply.
+    private Consumer<@Nullable String> onAutomatic = layers -> { };
 
     public EnvironmentProfileAction(Supplier<EnvironmentProfiles> profiles,
             Function<String, @Nullable String> groupProfile, Supplier<@Nullable String> override,
@@ -64,6 +67,14 @@ public class EnvironmentProfileAction implements SwitchAction {
         this.override = override;
         this.machine = machine;
         this.bookmarksBar = bookmarksBar;
+    }
+
+    /// Reports the automatic layers ([#automatic]) of every apply — what
+    /// the override menu's "Automatic (…)" item shows. Called on the
+    /// applying thread.
+    // [impl->dsn~environment-profile-override~2]
+    public void onAutomatic(Consumer<@Nullable String> listener) {
+        onAutomatic = listener;
     }
 
     @Override
@@ -105,6 +116,7 @@ public class EnvironmentProfileAction implements SwitchAction {
             return ActionResult.failure(e.getMessage());
         }
         String label = label(screens, categoryProfile, manual);
+        onAutomatic.accept(automatic(screens, categoryProfile));
         List<String> changes = new ArrayList<>();
         List<String> failures = new ArrayList<>();
         ActionResult machineResult = machine.apply(effective);
@@ -126,6 +138,20 @@ public class EnvironmentProfileAction implements SwitchAction {
         }
         return ActionResult.success(label + ": "
                 + (changes.isEmpty() ? "already in place" : String.join(", ", changes)));
+    }
+
+    /// The layers chosen without an override, bottom up: `desk + lecture`;
+    /// null when only `default` applies.
+    // [impl->dsn~environment-profile-override~2]
+    static @Nullable String automatic(@Nullable String screens, @Nullable String category) {
+        List<String> layers = new ArrayList<>();
+        if (screens != null) {
+            layers.add(screens);
+        }
+        if (category != null) {
+            layers.add(category);
+        }
+        return layers.isEmpty() ? null : String.join(" + ", layers);
     }
 
     /// The layers in effect, bottom up: `desk (screens) + lecture + screenshare`;

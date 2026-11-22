@@ -1135,13 +1135,14 @@ public class MainWindow {
     private final SwitchStatusBar statusBar = new SwitchStatusBar();
     /// The environment-profile override (screen share, …) next to the chips;
     /// hidden until [#installProfileOverride] wires it.
-    // [impl->dsn~environment-profile-override~1]
+    // [impl->dsn~environment-profile-override~2]
     private final MenuButton profileOverride = hiddenUntilInstalled(iconMenuButton(MDITechnology.MONITOR_SHARE,
             "Environment profile override — laid over the category's profile until switched back"));
     /// The override chosen in [#profileOverride]'s menu; null: none.
     private @Nullable String overrideChoice;
-    /// The profile the connected screens chose; null: none ([#showScreenProfile]).
-    private @Nullable String screenChoice;
+    /// The profiles chosen without an override (screens, category);
+    /// null: only `default` ([#showAutomaticProfile]).
+    private @Nullable String automaticChoice;
     /// The commit the running app was built from, in the status bar's right
     /// corner — empty until [#showCommit] fills it (git is asked off the FX
     /// thread), and empty forever when the app runs out of a zip.
@@ -1198,18 +1199,18 @@ public class MainWindow {
     }
 
     /// Wires the status bar's environment-profile override: its menu offers
-    /// "Category profile" (no override) and every profile `names` returns —
+    /// "Automatic (…)" (no override) and every profile `names` returns —
     /// read when the menu opens, so a profile added to `settings.yaml` shows
     /// without a restart — and hands the choice (null: none) to `onChoose`.
     /// The button shows the active override's name, so a forgotten
     /// "screenshare" stays in sight.
-    // [impl->dsn~environment-profile-override~1]
+    // [impl->dsn~environment-profile-override~2]
     public void installProfileOverride(Supplier<List<String>> names, Consumer<@Nullable String> onChoose) {
         profileOverride.setVisible(true);
         profileOverride.setOnShowing(event -> {
             String active = overrideChoice;
             ToggleGroup group = new ToggleGroup();
-            RadioMenuItem none = new RadioMenuItem("Category profile");
+            RadioMenuItem none = new RadioMenuItem(automaticLabel(automaticChoice));
             none.setToggleGroup(group);
             none.setSelected(active == null || active.isEmpty());
             none.setOnAction(e -> {
@@ -1241,18 +1242,24 @@ public class MainWindow {
         profileOverride.getItems().setAll(new MenuItem());
     }
 
-    /// Names the profile the connected screens chose (null: none) on the
-    /// override button while no override is active — `desk (screens)` — so
-    /// the look the machine is in has a visible reason. FX thread.
-    // [impl->dsn~screen-chosen-profile~1]
-    public void showScreenProfile(@Nullable String name) {
-        screenChoice = name;
+    /// Names the profiles chosen without an override — the connected
+    /// screens' and the category's, `desk + lecture`; null: only `default` —
+    /// on the menu's first item and, while no override is active, on the
+    /// button, so the look the machine is in has a visible reason. FX thread.
+    // [impl->dsn~environment-profile-override~2]
+    public void showAutomaticProfile(@Nullable String layers) {
+        automaticChoice = layers;
         updateProfileText();
+    }
+
+    /// `Automatic (desk + lecture)`, or `Automatic` when only `default` applies.
+    static String automaticLabel(@Nullable String layers) {
+        return layers == null ? "Automatic" : "Automatic (" + layers + ")";
     }
 
     private void updateProfileText() {
         profileOverride.setText(overrideChoice != null ? overrideChoice
-                : screenChoice != null ? screenChoice + " (screens)" : null);
+                : automaticChoice != null ? automaticLabel(automaticChoice) : null);
     }
 
     /// Whether to leave the app — closing it or restarting it for an update —
@@ -8225,7 +8232,7 @@ public class MainWindow {
     /// `button`, invisible and taking no room until made visible. Hidden here,
     /// at construction, rather than where the bottom bar is assembled: `Main`
     /// wires (and reveals) the override before [#show] builds that bar.
-    // [impl->dsn~environment-profile-override~1]
+    // [impl->dsn~environment-profile-override~2]
     private static MenuButton hiddenUntilInstalled(MenuButton button) {
         button.setId("profile-override");
         button.setVisible(false);

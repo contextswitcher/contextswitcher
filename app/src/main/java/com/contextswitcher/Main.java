@@ -345,7 +345,7 @@ public class Main extends Application {
     /// The status bar's environment-profile override (null: none), laid over
     /// the category's profile on every switch. Session-only on purpose: a
     /// restart starts in the plain category look.
-    // [impl->dsn~environment-profile-override~1]
+    // [impl->dsn~environment-profile-override~2]
     private volatile @Nullable String profileOverride;
     /// What ContextSwitcher last told koppter, or took from it: the project of
     /// the category switched to and the context of the profile in effect.
@@ -1082,7 +1082,8 @@ public class Main extends Application {
         // started breaks that start. [impl->dsn~busy-while-creating~2]
         terminalPane.disableBarWhile(creationsInFlight.greaterThan(0));
         window.disableRestartWhile(creationsInFlight.greaterThan(0));
-        // [impl->dsn~environment-profile-override~1]
+        // [impl->dsn~environment-profile-override~2]
+        environmentProfile.onAutomatic(layers -> Platform.runLater(() -> window.showAutomaticProfile(layers)));
         window.installProfileOverride(
                 () -> EnvironmentProfiles.parse(readSettingsFile(configDir())).names(),
                 choice -> {
@@ -1090,7 +1091,7 @@ public class Main extends Application {
                     // [impl->dsn~koppter-sync~1]
                     contextChanged(window);
                     window.statusBar().message("Applying "
-                            + (choice == null ? "the category profile" : "profile " + choice) + " …");
+                            + (choice == null ? "the automatic profile" : "profile " + choice) + " …");
                     actionExecutor.execute(() -> {
                         ActionResult result = environmentProfile.reapply();
                         Platform.runLater(() -> window.statusBar().message(
@@ -2247,7 +2248,6 @@ public class Main extends Application {
         }
         String before = screenProfile;
         screenProfile = chosen;
-        Platform.runLater(() -> window.showScreenProfile(chosen));
         // [impl->dsn~koppter-sync~1]
         contextChanged(window);
         if (first ? chosen == null : Objects.equals(before, chosen)) {

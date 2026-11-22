@@ -603,10 +603,12 @@ Covers:
 Needs: impl, utest
 
 ### Environment profile override
-`dsn~environment-profile-override~1`
+`dsn~environment-profile-override~2`
 
 The bottom bar carries a flat `MenuButton` (MDI `monitor-share`) right of the switch chips, shown once `Main` wires it (`MainWindow.installProfileOverride`).
-Opening it lists "Category profile" (no override) and every profile name from `settings.yaml`, read at that moment, as radio items; the button shows the active override's name, so a forgotten `screenshare` stays in sight.
+Opening it lists "Automatic" (no override) and every profile name from `settings.yaml`, read at that moment, as radio items; the button shows the active override's name, so a forgotten `screenshare` stays in sight.
+"Automatic" names the profiles chosen without an override, screen-chosen then category, in parentheses — `Automatic (desk + lecture)`; bare `Automatic` when only `default` applies — and so does the button while no override is active.
+`EnvironmentProfileAction.onAutomatic` reports those layers on every apply, and `MainWindow.showAutomaticProfile` shows them.
 A choice is kept in `Main.profileOverride` (session-only: a restart starts without override), is laid over every later switch, and takes effect right away through `EnvironmentProfileAction.reapply` — the profile of the category last switched to — with the outcome as a status-bar message.
 The button starts hidden from its construction on (`hiddenUntilInstalled`), not where the bottom bar is assembled: `Main` wires the override before `show` builds that bar, and hiding it there hid it for good.
 `ProfileOverrideUiTest` boots the real `Main` and checks the button is visible and lists the profiles; it opens the menu with `MenuButton.show`, since the robot's click did not open it in the test window.
@@ -628,7 +630,6 @@ A selector matches a `ConnectedScreen` as a profile's `screens:` key does: EDID 
 `ScreenWatch` keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside like `WindowGather`'s) that polls the active screens every 500 ms and prints a set only after it stayed unchanged for 3 s, never an empty one (standby); it exits once the app's process is gone, and `Main.stop` stops it.
 `Main.screensChanged` picks the profile for each reported set; when it differs from the one in effect, `EnvironmentProfileAction.reapply` applies the effective profile for the category last switched to, with the outcome as a status-bar message.
 The first set after the start applies only when a rule matches, so starting the app does not reset the machine to `default` unasked.
-`MainWindow.showScreenProfile` puts `<name> (screens)` on the override button while no override is chosen.
 With `gatherWindows:` in the screen-chosen profile, docking gathers windows onto the main screen: the gather watcher (`dsn~environment-profile-gather-windows~1`) starts with the profile and pulls every window over.
 Off Windows `ScreenWatch` starts nothing.
 
