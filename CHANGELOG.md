@@ -22,6 +22,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- `gatherWindows:` moves maximized windows too (on a screen without a taskbar they were taken for a slide show and left on the laptop), gathers the windows of every virtual desktop at once, and stops retrying a window that will not move (an elevated Task Manager) instead of logging it every half second.
 - Windows: the packaged app shows the ContextSwitcher icon in the taskbar, Alt+Tab and Task Manager instead of the Java icon; `just run-loop` is now `just loop`.
 - Android: swiping from the terminal to the queue and back keeps the terminal at the line you were reading instead of jumping back to the end.
 - Android: a long task title takes at most two lines in the task list too (was three), leaving more room for the rest.

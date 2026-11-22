@@ -334,7 +334,7 @@ public class Main extends Application {
     private @Nullable RefactoringMinerView refactoringView;
     private @Nullable ExtensionServer extensionServer;
     /// The `gatherWindows` watcher of the environment profile in effect;
-    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~1]
+    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~2]
     private final WindowGather windowGather = new WindowGather();
     /// Reports the connected screens; stopped on exit. [impl->dsn~screen-chosen-profile~1]
     private final ScreenWatch screenWatch = new ScreenWatch();

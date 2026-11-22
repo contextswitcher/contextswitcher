@@ -23,23 +23,34 @@ import org.tinylog.Logger;
 /// screens changes (a projector plugged in moves windows around). A window
 /// the lecturer drags onto the projector afterwards stays there.
 ///
-/// Left alone: full-screen windows (covering their whole screen — the
-/// PowerPoint slide show, a PDF in presentation mode), minimized and
-/// cloaked ones (other virtual desktops), tool windows, owned windows
-/// (dialogs follow their owner), untitled ones, and the shell's own
-/// (taskbars, desktop, Start). A maximized window is maximized again on the
-/// target screen. The target is picked with [WindowsEnvironment]'s screen
+/// Windows on other virtual desktops (cloaked by the shell) are gathered
+/// too, while unseen: docking moves every desktop's windows at once.
+///
+/// Left alone: full-screen windows (covering their whole screen without
+/// being maximized with a title bar — the PowerPoint slide show, a PDF in
+/// presentation mode, a browser in F11), minimized ones, windows cloaked
+/// for other reasons, tool windows, owned windows (dialogs follow their
+/// owner), untitled ones, and the shell's own (taskbars, desktop, Start). A
+/// maximized window is maximized again on the target screen; it covers its
+/// screen too where no taskbar takes room — the laptop's maximized Firefox
+/// was taken for a slide show and never moved (field report 2026-11-22) —
+/// which is why "maximized" is told apart from "full screen". A window that
+/// is back on its old screen after [#MAX_TRIES] moves (an elevated Task
+/// Manager refuses them) is reported once and left alone. The target is picked with [WindowsEnvironment]'s screen
 /// selectors (EDID name or product code, `primary`, `internal`,
 /// `external`); with a single screen, or no screen matching, nothing moves.
 ///
 /// One watcher at a time: [#gather] with the running selector is a no-op,
 /// another selector restarts it, null stops it. The watcher also exits when
 /// the app's process is gone, so a crash leaves no orphan behind.
-// [impl->dsn~environment-profile-gather-windows~1]
+// [impl->dsn~environment-profile-gather-windows~2]
 public class WindowGather implements AutoCloseable {
 
     /// How long after first sight a window on the wrong screen is pulled over.
     static final int GRACE_MS = 4000;
+
+    /// Moves of one window, per grace, before it is reported and left alone.
+    static final int MAX_TRIES = 3;
 
     private static final String SCRIPT = """
             Add-Type -TypeDefinition @"
@@ -111,7 +122,8 @@ public class WindowGather implements AutoCloseable {
                 if ((ex & 0x80) != 0 && !app) { return false; }  // WS_EX_TOOLWINDOW
                 if (GetWindow(h, 4) != IntPtr.Zero && !app) { return false; }  // GW_OWNER
                 int cloaked;
-                if (DwmGetWindowAttribute(h, 14, out cloaked, 4) == 0 && cloaked != 0) { return false; }
+                // 2 = DWM_CLOAKED_SHELL: on another virtual desktop, gathered too
+                if (DwmGetWindowAttribute(h, 14, out cloaked, 4) == 0 && cloaked != 0 && cloaked != 2) { return false; }
                 var cls = new StringBuilder(256); GetClassName(h, cls, cls.Capacity);
                 return !Shell.Contains(cls.ToString());
               }
@@ -126,14 +138,27 @@ public class WindowGather implements AutoCloseable {
                 int y = to.Work.T + Math.Max(0, Math.Min(r.T - from.Work.T, (to.Work.B - to.Work.T) - ht));
                 SetWindowPos(h, IntPtr.Zero, x, y, w, ht, 0x4 | 0x10);  // SWP_NOZORDER | SWP_NOACTIVATE
                 if (max) { ShowWindow(h, 3); }
-                Console.WriteLine("moved " + Label(h) + " from " + from.Device + " to " + to.Device);
+                Console.WriteLine("moved " + Name(h) + " from " + from.Device + " to " + to.Device);
               }
 
-              public static void Run(string selector, int parentPid, int graceMs) {
+              static string Name(IntPtr h) {
+                return Label(h) + " 0x" + h.ToInt64().ToString("X");
+              }
+
+              // Covers its whole screen without being an ordinary maximized
+              // window (WS_MAXIMIZE with WS_CAPTION): the slide show, F11.
+              static bool FullScreen(IntPtr h, RECT r, Mon m) {
+                bool covers = r.L <= m.Full.L && r.T <= m.Full.T && r.R >= m.Full.R && r.B >= m.Full.B;
+                bool maximized = IsZoomed(h) && (GetWindowLong(h, -16) & 0x00C00000) == 0x00C00000;
+                return covers && !maximized;
+              }
+
+              public static void Run(string selector, int parentPid, int graceMs, int maxTries) {
                 SetThreadDpiAwarenessContext((IntPtr) (-4));  // per-monitor v2: physical pixels everywhere
                 Process parent = null;
                 try { parent = Process.GetProcessById(parentPid); } catch { return; }
                 var firstSeen = new Dictionary<IntPtr, long>();
+                var tries = new Dictionary<IntPtr, int>();
                 string layout = null;
                 string target = null;
                 var clock = Stopwatch.StartNew();
@@ -144,6 +169,7 @@ public class WindowGather implements AutoCloseable {
                   if (now != layout) {
                     layout = now;
                     firstSeen.Clear();  // a changed screen set: every window gets its grace again
+                    tries.Clear();
                     target = null;
                     foreach (var s in CsScreens.Active()) {
                       if (CsScreens.Pick(s, new[] { selector }) == 0) { target = s.Gdi; break; }
@@ -166,14 +192,21 @@ public class WindowGather implements AutoCloseable {
                       if (from == null) { return true; }
                       RECT r; GetWindowRect(h, out r);
                       // full screen: the slide show stays on the projector
-                      if (r.L <= from.Full.L && r.T <= from.Full.T && r.R >= from.Full.R && r.B >= from.Full.B) { return true; }
+                      if (FullScreen(h, r, from)) { return true; }
+                      int n; tries.TryGetValue(h, out n);
+                      if (n >= maxTries) {
+                        if (n == maxTries) { Console.WriteLine("did not stay: " + Name(h) + " is back on " + from.Device + " after " + n + " moves; left alone"); }
+                        tries[h] = maxTries + 1;
+                        return true;
+                      }
+                      tries[h] = n + 1;
                       try { Move(h, from, to); } catch (Exception e) { Console.WriteLine("move failed: " + e.Message); }
                       return true;
                     }, IntPtr.Zero);
                     // minimized, hidden or closed windows get a fresh grace when they show again
                     var gone = new List<IntPtr>();
                     foreach (var h in firstSeen.Keys) { if (!seen.Contains(h)) { gone.Add(h); } }
-                    foreach (var h in gone) { firstSeen.Remove(h); }
+                    foreach (var h in gone) { firstSeen.Remove(h); tries.Remove(h); }
                   }
                   Thread.Sleep(500);
                 }
@@ -210,7 +243,7 @@ public class WindowGather implements AutoCloseable {
     static String script(String selector, long parentPid) {
         return "$ErrorActionPreference = 'Stop'\n"
                 + SCRIPT.replace("__SCREENS__", WindowsEnvironment.screenTypes())
-                + "[CsGather]::Run('%s', %d, %d)\n".formatted(selector.replace("'", "''"), parentPid, GRACE_MS);
+                + "[CsGather]::Run('%s', %d, %d, %d)\n".formatted(selector.replace("'", "''"), parentPid, GRACE_MS, MAX_TRIES);
     }
 
     static List<String> command(String selector, long parentPid) {
