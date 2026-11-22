@@ -353,7 +353,7 @@ public class TerminalPane {
     /// The bar below the terminal with the "Jump to bottom" button: leaves
     /// tmux copy-mode in the mirror, so the view returns to the live output
     /// after the user scrolled up. A no-op while nothing is connected.
-    // [impl->dsn~terminal-jump-to-bottom~1]
+    // [impl->dsn~terminal-jump-to-bottom~2]
     private Node jumpToBottomBar() {
         Button clear = new Button("Clear input");
         clear.getStyleClass().add(Styles.SMALL);

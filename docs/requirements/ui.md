@@ -3533,7 +3533,7 @@ Needs: impl, utest
 ### Nothing that breaks a start while a task is being created
 `dsn~busy-while-creating~2`
 
-While any task creation of `dsn~task-create-progress~6` runs (`Main`'s in-flight count above zero), the bar below the terminal (`dsn~terminal-jump-to-bottom~1`) and *Restart to update* in the What's new window (`dsn~restart-to-update~12`) are disabled.
+While any task creation of `dsn~task-create-progress~6` runs (`Main`'s in-flight count above zero), the bar below the terminal (`dsn~terminal-jump-to-bottom~2`) and *Restart to update* in the What's new window (`dsn~restart-to-update~12`) are disabled.
 The terminal shows the fresh session while the launcher still starts Claude and pastes the prompt: *Clear input* or *Accept suggestion* typed into it then corrupts the prompt, and a restart kills the launch halfway.
 Both bind their `disable` to the count, so they come back the moment the last creation finishes, success or failure; the restart no longer waits for "Checking remote …" as well (`~1`→`~2`, `dsn~restart-to-update~12`).
 The whole bar is disabled rather than each button, whose own disabling (placeholder, local session, round-trip) stays untouched — including for a task other than the one being created, a deliberate simplification.

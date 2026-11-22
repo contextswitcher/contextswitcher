@@ -14,6 +14,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Changed
 
+- *Jump to bottom* below the terminal also brings Claude Code's own view back to the bottom (it sends Claude's `Ctrl+End`), not only the terminal's scrollback.
 - The environment-profile menu's first item reads "Automatic (desk + lecture)" instead of "Category profile": it names the profiles the connected screens and the category chose, and the status-bar button shows the same while no profile is picked by hand.
 - The settings dialog shows one tab per group instead of one long scrolling page; the general settings are split into General, Claude and Interface.
 - The app-wide buttons (energy saver, browser, sync groups, update, settings, panes) sit in the window's title bar, next to minimize, maximize and close, instead of in a toolbar row of their own below it; the window draws its own title bar for that.
