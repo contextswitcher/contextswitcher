@@ -11,14 +11,14 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
-/// Against a local stand-in for the GitHub API: the tag lookup, the asset
-/// lookup, and the storage redirect that must not receive the token.
-// [utest->dsn~android-update-hint~3]
+/// Against a local stand-in for GitHub: the tag lookup, and the release
+/// download with its redirect to storage.
+// [utest->dsn~android-update-hint~4]
 class AppUpdatesTest {
 
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).also { it.start() }
     private val base = "http://127.0.0.1:${server.address.port}"
-    private val authOnStorage = mutableListOf<String?>()
+    private val updates = { running: String -> AppUpdates(running, base, base, "o/r") }
 
     @AfterEach
     fun stop() = server.stop(0)
@@ -34,14 +34,8 @@ class AppUpdatesTest {
     }
 
     private fun tagAt(commit: String) = respond("/repos/o/r/git/ref/tags/android-dev") {
-        if (it.requestHeaders.getFirst("Authorization") == "Bearer secret") {
-            it.send(200, """{"ref":"refs/tags/android-dev","object":{"sha":"$commit","type":"commit"}}""")
-        } else {
-            it.send(404, """{"message":"Not Found"}""")
-        }
+        it.send(200, """{"ref":"refs/tags/android-dev","object":{"sha":"$commit","type":"commit"}}""")
     }
-
-    private fun updates(running: String, token: String = "secret") = AppUpdates({ token }, running, base, "o/r")
 
     @Test
     fun `the same commit is up to date, another one is an update`() {
@@ -52,13 +46,13 @@ class AppUpdatesTest {
     }
 
     @Test
-    fun `a token that cannot read the private repo says so`() {
-        tagAt("bbb")
+    fun `a failing lookup names the status`() {
+        respond("/repos/o/r/git/ref/tags/android-dev") { it.send(403) }
 
-        val check = updates("aaa", token = "other").check()
+        val check = updates("aaa").check()
 
         assertThat(check).isInstanceOf(AppUpdates.Check.Failed::class.java)
-        assertThat((check as AppUpdates.Check.Failed).message).contains("token cannot read o/r")
+        assertThat((check as AppUpdates.Check.Failed).message).contains("GitHub answered 403")
     }
 
     @Test
@@ -69,33 +63,23 @@ class AppUpdatesTest {
     }
 
     @Test
-    fun `download follows the storage redirect without the token`() {
-        respond("/repos/o/r/releases/tags/android-dev") {
-            it.send(200, """{"assets":[{"id":7,"name":"notes.txt"},{"id":42,"name":"android-debug.apk"}]}""")
-        }
-        respond("/repos/o/r/releases/assets/42") {
-            assertThat(it.requestHeaders.getFirst("Accept")).isEqualTo("application/octet-stream")
+    fun `download follows the redirect to storage`() {
+        respond("/o/r/releases/download/android-dev/android-debug.apk") {
             it.responseHeaders.add("Location", "$base/storage/apk")
             it.send(302)
         }
-        respond("/storage/apk") {
-            authOnStorage.add(it.requestHeaders.getFirst("Authorization"))
-            it.send(200, "APK BYTES")
-        }
+        respond("/storage/apk") { it.send(200, "APK BYTES") }
         val target = File(createTempDirectory("update").toFile(), "update.apk")
 
         updates("aaa").download(target)
 
         assertThat(target.readText()).isEqualTo("APK BYTES")
-        assertThat(authOnStorage).containsExactly(null)
     }
 
     @Test
     fun `a release without the APK fails the download`() {
-        respond("/repos/o/r/releases/tags/android-dev") { it.send(200, """{"assets":[]}""") }
-
         assertThatThrownBy { updates("aaa").download(File(createTempDirectory("update").toFile(), "x.apk")) }
             .isInstanceOf(IOException::class.java)
-            .hasMessageContaining("no android-debug.apk")
+            .hasMessageContaining("GitHub answered 404")
     }
 }

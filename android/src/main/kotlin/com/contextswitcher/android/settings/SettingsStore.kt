@@ -7,7 +7,6 @@ private const val PREFS_NAME = "contextswitcher_settings"
 private const val KEY_URL = "repo_url"
 private const val KEY_USERNAME = "username"
 private const val KEY_TOKEN = "token"
-private const val KEY_UPDATE_TOKEN = "update_token"
 private const val KEY_SSH_PRIVATE_KEY = "ssh_private_key"
 private const val KEY_SKIP_PERMISSIONS = "skip_permissions"
 private const val KEY_JUMP_HOSTS = "jump_hosts"
@@ -16,13 +15,8 @@ private const val KEY_RECENT_CATEGORIES = "recent_categories"
 
 /// The task backup repo's clone URL plus HTTPS credentials
 /// (`UsernamePasswordCredentialsProvider`; any value works for username with
-/// a GitHub PAT as the token). [updateToken] reads the ContextSwitcher
-/// repository for the update hint; blank falls back to [token] — a
-/// fine-grained PAT has a single owner, so a task repo under another owner
-/// needs a second one.
-data class RepoSettings(val url: String, val username: String, val token: String, val updateToken: String = "") {
-    val effectiveUpdateToken: String get() = updateToken.ifBlank { token }
-}
+/// a GitHub PAT as the token).
+data class RepoSettings(val url: String, val username: String, val token: String)
 
 /// App-private `SharedPreferences` for the repo settings.
 // ponytail: the token sits in plain SharedPreferences (app-private storage,
@@ -43,7 +37,6 @@ class SettingsStore(context: Context) {
             url,
             prefs.getString(KEY_USERNAME, "") ?: "",
             prefs.getString(KEY_TOKEN, "") ?: "",
-            prefs.getString(KEY_UPDATE_TOKEN, "") ?: "",
         )
     }
 
@@ -52,7 +45,6 @@ class SettingsStore(context: Context) {
             .putString(KEY_URL, settings.url)
             .putString(KEY_USERNAME, settings.username)
             .putString(KEY_TOKEN, settings.token)
-            .putString(KEY_UPDATE_TOKEN, settings.updateToken)
             .apply()
     }
 

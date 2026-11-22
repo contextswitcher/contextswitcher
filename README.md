@@ -574,14 +574,9 @@ Build it with `gradlew :android:assembleDebug`; the module is only included when
 Connected to a car, the same APK shows on the Android Auto head unit — the tasks with a Claude session, those waiting for you first, and per task a dictated or canned message; being sideloaded, it needs *Unknown sources* enabled in Android Auto's developer settings (tap the version there ten times).
 When Claude finishes in the task opened last, the car also announces it like an incoming message: it reads Claude's answer aloud and takes a spoken reply into the session.
 
-**GitHub tokens.** The settings screen's *Username* is your GitHub login; the two token fields are personal access tokens:
+**GitHub token.** The settings screen's *Username* is your GitHub login; *Token* is a personal access token for your task backup repository, **Contents: Read and write** (sync, and pushing a task created on the phone).
 
-* *Token* — your task backup repository, **Contents: Read and write** (sync, and pushing a task created on the phone);
-* *Update token* — `contextswitcher/contextswitcher`, **Contents: Read** (the update hint reads the `android-dev` tag and downloads the APK from that pre-release).
-
-A fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens) has a single resource owner, so a task repository outside the `contextswitcher` organization needs two tokens: one with your account as owner, one with `contextswitcher`.
-Left blank, *Update token* falls back to *Token* — enough for a classic token with the `repo` scope.
-A token that cannot read ContextSwitcher shows "Update check failed: the token cannot read contextswitcher/contextswitcher (GitHub answered 404)".
+**Updates.** After each sync, the app compares its build with the `android-dev` pre-release of this public repository and shows *Update* in the top bar when there is a newer APK; a tap downloads and installs it — no token needed.
 The desktop app needs no token: its update check is a `git fetch` in its own checkout with whatever credentials that clone already uses.
 
 ## Recovery and troubleshooting

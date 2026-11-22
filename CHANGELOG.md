@@ -15,6 +15,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Changed
 
 - The app-wide buttons (energy saver, browser, sync groups, update, settings, panes) sit in the window's title bar, next to minimize, maximize and close, instead of in a toolbar row of their own below it; the window draws its own title bar for that.
+- The Android app offers *Update* from the `android-dev` pre-release without a GitHub token; the *Update token* setting is gone.
 
 ### Fixed
 

@@ -1,6 +1,5 @@
 package com.contextswitcher.android.update
 
-import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.io.File
 import java.io.IOException
@@ -8,16 +7,15 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /// Whether a newer debug APK than the running one is on the `android-dev`
-/// pre-release, and fetching it. CI replaces that release's APK on every push
-/// to main and moves its tag to the built commit; the running app knows its
-/// own commit from the build, so "the tag names another commit" means an
-/// update. The repo is private: the API calls carry the settings token, which
-/// needs read access to this repository's contents.
-// [impl->dsn~android-update-hint~3]
+/// pre-release, and fetching it. The `android-dev.yml` workflow replaces that
+/// release's APK and moves its tag to the built commit; the running app knows
+/// its own commit from the build, so "the tag names another commit" means an
+/// update. The repository is public: neither call needs a token.
+// [impl->dsn~android-update-hint~4]
 class AppUpdates(
-    private val token: () -> String,
     private val runningCommit: String,
     private val apiBase: String = "https://api.github.com",
+    private val webBase: String = "https://github.com",
     private val repo: String = "contextswitcher/contextswitcher",
 ) {
     sealed interface Check {
@@ -31,7 +29,8 @@ class AppUpdates(
             return Check.Failed("this build does not know its commit")
         }
         return try {
-            val commit = getJson("$apiBase/repos/$repo/git/ref/tags/$TAG").path("object").path("sha").asText()
+            val connection = open("$apiBase/repos/$repo/git/ref/tags/$TAG", "Accept" to "application/vnd.github+json")
+            val commit = connection.inputStream.use { ObjectMapper().readTree(it) }.path("object").path("sha").asText()
             when {
                 commit.isEmpty() -> Check.Failed("the $TAG tag names no commit")
                 commit == runningCommit -> Check.UpToDate
@@ -42,52 +41,23 @@ class AppUpdates(
         }
     }
 
-    /// Downloads the release's APK to `target`.
+    /// Downloads the release's APK to `target`, following GitHub's redirect to its storage.
     fun download(target: File) {
-        val asset = getJson("$apiBase/repos/$repo/releases/tags/$TAG").path("assets")
-            .firstOrNull { it.path("name").asText() == ASSET }
-            ?: throw IOException("the $TAG release has no $ASSET")
-        val connection = open("$apiBase/repos/$repo/releases/assets/${asset.path("id").asText()}", "application/octet-stream")
-        connection.instanceFollowRedirects = false
-        // GitHub answers with a redirect to a pre-signed storage URL, which
-        // rejects a second credential — follow it without the token.
-        val download = when (connection.responseCode) {
-            HttpURLConnection.HTTP_OK -> connection
-            in 300..399 -> (URL(connection.getHeaderField("Location")).openConnection() as HttpURLConnection).also {
-                connection.disconnect()
-                if (it.responseCode != HttpURLConnection.HTTP_OK) {
-                    throw IOException("APK download answered ${it.responseCode}")
-                }
-            }
-            else -> throw IOException(failure(connection))
-        }
-        download.inputStream.use { input -> target.outputStream().use { input.copyTo(it) } }
+        open("$webBase/$repo/releases/download/$TAG/$ASSET").inputStream.use { input -> target.outputStream().use { input.copyTo(it) } }
     }
 
-    private fun getJson(url: String): JsonNode {
-        val connection = open(url, "application/vnd.github+json")
-        if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-            throw IOException(failure(connection))
-        }
-        return connection.inputStream.use { ObjectMapper().readTree(it) }
-    }
-
-    private fun open(url: String, accept: String): HttpURLConnection =
+    /// An answer other than 200 throws, naming its status.
+    private fun open(url: String, vararg headers: Pair<String, String>): HttpURLConnection =
         (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = 10_000
             readTimeout = 30_000
-            setRequestProperty("Accept", accept)
             setRequestProperty("User-Agent", "ContextSwitcher-Android")
-            setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-            token().takeIf { it.isNotBlank() }?.let { setRequestProperty("Authorization", "Bearer $it") }
+            headers.forEach { (name, value) -> setRequestProperty(name, value) }
+        }.also {
+            if (it.responseCode != HttpURLConnection.HTTP_OK) {
+                throw IOException("GitHub answered ${it.responseCode} for $url")
+            }
         }
-
-    /// A private repo answers 404, not 403, to a token that cannot read it.
-    private fun failure(connection: HttpURLConnection): String = when (connection.responseCode) {
-        HttpURLConnection.HTTP_NOT_FOUND, HttpURLConnection.HTTP_UNAUTHORIZED, HttpURLConnection.HTTP_FORBIDDEN ->
-            "the token cannot read $repo (GitHub answered ${connection.responseCode})"
-        else -> "GitHub answered ${connection.responseCode}"
-    }
 
     private companion object {
         const val TAG = "android-dev"
