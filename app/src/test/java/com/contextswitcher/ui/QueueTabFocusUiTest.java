@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 
 /// Clicking the Queue tab's header puts the caret in the "Queue a message" add
-/// box (`dsn~shell-layout~2`).
+/// box (`dsn~shell-layout~3`).
 @Tag("ui")
 @TestFxApplication(QueueTabFocusUiTest.ShellFxApp.class)
 class QueueTabFocusUiTest {

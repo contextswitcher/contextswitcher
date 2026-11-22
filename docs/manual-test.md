@@ -1576,6 +1576,16 @@ Needs a real remote with a task whose Claude session id is recorded (`claude.ses
 - [ ] The new task's `# Notes` names the source task ("Forked from &lt;title&gt; (`&lt;id&gt;`)").
 - [ ] Three plain Enters or three Ctrl+Enters in the dialog's field fire **Fork** like clicking it (`req~compose-key-conventions~5`).
 
+## Title bar holds the app controls (`dsn~shell-layout~3`)
+
+Needs a real desktop: the window frame is the window manager's business.
+
+- [ ] The title bar shows the window title at the left and the app icons (energy saver … panes) left of minimize, maximize and close; no toolbar row below it.
+- [ ] Dragging the title bar — by the title text or the free area — moves the window; on Windows, dragging it to the top or a side of the screen snaps it.
+- [ ] Double-clicking the free area maximizes and restores; the window's edges resize it.
+- [ ] Every icon in the title bar reacts to a click, and their tooltips show.
+- [ ] With an app-owned session running, × asks before closing, and so does Alt+F4.
+
 ## Results log
 
 | Date | Host | Scope | Result / deviations |

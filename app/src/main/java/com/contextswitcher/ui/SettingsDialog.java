@@ -47,7 +47,7 @@ import org.jspecify.annotations.Nullable;
 import tools.maran.svg.materialdesign.MDIInterface;
 import tools.maran.svgnode.SvgNode;
 
-/// The settings dialog behind the main toolbar's gear: the generated form over
+/// The settings dialog behind the title bar's gear: the generated form over
 /// `settings.yaml`, its raw view, and the raw-only fallback for a file too
 /// malformed to parse. `MainWindow` hands in what it owns — loading and saving
 /// the file, the dialog owner, the field-reference popup the editor shares,

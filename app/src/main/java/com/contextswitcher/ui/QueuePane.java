@@ -365,7 +365,7 @@ public class QueuePane {
         topBar.setAlignment(Pos.CENTER_RIGHT);
         topBar.setPadding(new Insets(4, 6, 4, 6));
         // The Queue pane's toolbar: the height and band of every pane toolbar
-        // (main.css). [impl->dsn~shell-layout~2]
+        // (main.css). [impl->dsn~shell-layout~3]
         topBar.getStyleClass().add("panel-header");
 
         // [impl->dsn~last-sent-message~5]

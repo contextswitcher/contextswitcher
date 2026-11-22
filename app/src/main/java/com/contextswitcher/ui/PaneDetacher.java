@@ -36,7 +36,7 @@ import org.tinylog.Logger;
 /// gesture that never leaves the window it started in. So both directions
 /// are ours — **Pop out** in the pane, and in the window **Dock back**,
 /// closing it, or dragging its title and releasing it over the main window.
-// [impl->dsn~shell-layout~2]
+// [impl->dsn~shell-layout~3]
 final class PaneDetacher {
 
     /// How far the pointer must travel before a press on the title counts as a drag.

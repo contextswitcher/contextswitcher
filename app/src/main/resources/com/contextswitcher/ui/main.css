@@ -139,7 +139,7 @@
    pane's band, the Queue's top bar) shares the tasks-pane toolbar's background —
    the exact same two-layer paint as `.tool-bar` (a muted bottom border over a
    subtle fill) — so every pane toolbar reads as one band.
-   [impl->dsn~shell-layout~2] */
+   [impl->dsn~shell-layout~3] */
 .panel-header {
     -fx-background-color: -color-border-muted, -color-bg-subtle;
     -fx-background-insets: 0, 0 0 1px 0;
@@ -161,7 +161,7 @@
    Transparent and zero-wide, not only invisible: TabPanePro's skin sets the
    button visible from code while a selected tab is hovered, which outranks a
    CSS `visibility` until the next restyle (field report 2026-09-13).
-   [impl->dsn~shell-layout~2] */
+   [impl->dsn~shell-layout~3] */
 .pane-dock .tab-close-button {
     visibility: hidden;
     -fx-opacity: 0;

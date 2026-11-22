@@ -8,6 +8,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Changed
+
+- The app-wide buttons (energy saver, browser, sync groups, update, settings, panes) sit in the window's title bar, next to minimize, maximize and close, instead of in a toolbar row of their own below it; the window draws its own title bar for that.
+
 ### Fixed
 
 - Windows: the packaged app shows the ContextSwitcher icon in the taskbar, Alt+Tab and Task Manager instead of the Java icon; `just loop` is short for `just run-loop`.

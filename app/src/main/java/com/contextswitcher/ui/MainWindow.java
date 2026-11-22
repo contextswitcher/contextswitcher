@@ -969,7 +969,7 @@ public class MainWindow {
 
     /// What [#show] built in the ShellFX shell; null until then — there is no
     /// pane to bring forward before there is a shell.
-    // [impl->dsn~shell-layout~2]
+    // [impl->dsn~shell-layout~3]
     private ShellFxHost.@Nullable Hosted shell;
 
     /// The ⋮ menu's refresh item, disabled while a refresh runs.
@@ -1408,7 +1408,7 @@ public class MainWindow {
         });
         // The window's buttons at the right end of the Terminal pane's toolbar
         // band, the PR rows below it.
-        // [impl->dsn~shell-layout~2]
+        // [impl->dsn~shell-layout~3]
         // [impl->dsn~pr-header-line~4]
         terminal.addToolbarControls(claudeButton, ideaButton);
         terminal.setSubHeader(prHeader);
@@ -1416,7 +1416,7 @@ public class MainWindow {
         selectOnClick.accept(editorNode);
         selectOnClick.accept(queueNode);
 
-        // The settings gear lives in the main toolbar (with the other app-wide
+        // The settings gear lives in the title bar (with the other app-wide
         // actions), not down here — a lone gear in the status bar read as the
         // sync-tmux cog's twin and was easy to miss.
         // [impl->dsn~settings-editor~4]
@@ -1451,7 +1451,7 @@ public class MainWindow {
         bottomBar.setPadding(new Insets(0, 6, 0, 0));
         // The panes as ShellFX dock tabs (MADR 0032). The raw frontmatter editor
         // is the Configuration pane's Raw YAML view.
-        // [impl->dsn~shell-layout~2]
+        // [impl->dsn~shell-layout~3]
         // Two panes over one catalog: the switch actions apart, the rest in
         // Configuration. They share the one raw editor.
         // [impl->dsn~task-field-form~6]
@@ -6964,7 +6964,7 @@ public class MainWindow {
 
     /// Brings Configuration forward — reopened if closed, its window raised if
     /// popped out. Nothing before [#show] has built the shell.
-    // [impl->dsn~shell-layout~2]
+    // [impl->dsn~shell-layout~3]
     private void showConfigurationPane() {
         ShellFxHost.Hosted hosted = shell;
         if (hosted != null) {
@@ -7072,9 +7072,9 @@ public class MainWindow {
     }
 
     /// The task list's toolbar, and the app-wide controls built with it that
-    /// belong in the shell's main toolbar instead (energy saver, browser
-    /// status, update, settings).
-    // [impl->dsn~shell-layout~2]
+    /// belong in the shell's title bar instead (energy saver, browser
+    /// status, sync groups, update, settings).
+    // [impl->dsn~shell-layout~3]
     private record ListToolbar(ToolBar bar, List<Node> appControls) {
     }
 
@@ -7174,8 +7174,8 @@ public class MainWindow {
         // Shares one fixed height (main.css) with every pane toolbar, so the
         // bands line up across the panes.
         bar.getStyleClass().add("list-toolbar");
-        // The app-wide controls go to the shell's main toolbar; the list toolbar
-        // keeps what acts on the task list. [impl->dsn~shell-layout~2]
+        // The app-wide controls go to the shell's title bar; the list toolbar
+        // keeps what acts on the task list. [impl->dsn~shell-layout~3]
         return new ListToolbar(bar, List.of(energySaver, browser, syncGroupsButton(), update, settingsButton()));
     }
 

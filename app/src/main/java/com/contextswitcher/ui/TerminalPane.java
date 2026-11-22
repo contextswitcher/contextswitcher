@@ -205,7 +205,7 @@ public class TerminalPane {
     /// The pane's one toolbar band — the mirrored pane's title, then whatever
     /// the window adds at the right end ([#addToolbarControls]) — in the
     /// height and look of every pane toolbar (`.panel-header`).
-    // [impl->dsn~shell-layout~2]
+    // [impl->dsn~shell-layout~3]
     private final HBox toolbar = new HBox(8);
     /// The band, plus the row the window puts below it ([#setSubHeader]).
     private final VBox header = new VBox(toolbar);
@@ -339,7 +339,7 @@ public class TerminalPane {
 
     /// Adds `controls` at the right end of the toolbar band — the main
     /// window's Claude and IntelliJ buttons.
-    // [impl->dsn~shell-layout~2]
+    // [impl->dsn~shell-layout~3]
     public void addToolbarControls(Node... controls) {
         toolbar.getChildren().addAll(controls);
     }
