@@ -4,6 +4,7 @@ import java.util.Map;
 
 import com.contextswitcher.config.EnvironmentProfile.BookmarksBar;
 import com.contextswitcher.config.EnvironmentProfile.Displays;
+import com.contextswitcher.config.EnvironmentProfile.GatherWhen;
 import com.contextswitcher.config.EnvironmentProfile.Resolution;
 import com.contextswitcher.config.EnvironmentProfile.Screen;
 import com.contextswitcher.config.EnvironmentProfile.Taskbar;
@@ -87,6 +88,23 @@ class EnvironmentProfilesTest {
         assertThat(profiles.byName().get("desk").gatherWindows()).isEqualTo(EnvironmentProfile.GATHER_OFF);
         assertThat(profiles.byName().get("lecture").isEmpty()).isFalse();
         assertThat(profiles.byName().get("weird").isEmpty()).isTrue();
+    }
+
+    @Test
+    void gatherWhenDefaultsToAlwaysAndLayersPerKey() {
+        EnvironmentProfiles profiles = EnvironmentProfiles.parse("""
+                profiles:
+                  lecture: {gatherWindows: internal}
+                  desk: {gatherWindows: DELL U3223QE, gatherWhen: docking}
+                  typo: {gatherWindows: internal, gatherWhen: sometimes}
+                """);
+
+        assertThat(profiles.effective("lecture", null).gatherMode()).isEqualTo(GatherWhen.ALWAYS);
+        assertThat(profiles.effective("desk", null).gatherMode()).isEqualTo(GatherWhen.DOCKING);
+        // The override sets the target only; the category's `docking` stays.
+        assertThat(profiles.effective("desk", "lecture").gatherTarget()).isEqualTo("internal");
+        assertThat(profiles.effective("desk", "lecture").gatherMode()).isEqualTo(GatherWhen.DOCKING);
+        assertThat(profiles.effective("typo", null).gatherMode()).isEqualTo(GatherWhen.ALWAYS);
     }
 
     @Test

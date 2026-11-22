@@ -40,10 +40,19 @@ import org.tinylog.Logger;
 /// selectors (EDID name or product code, `primary`, `internal`,
 /// `external`); with a single screen, or no screen matching, nothing moves.
 ///
+/// With `gatherWhen: docking` the watcher does not look at new windows at
+/// all: it sweeps every window over for [#DOCK_SWEEP_MS] after the screens
+/// changed — reported by [#screensChanged], or seen by the running watcher —
+/// and leaves everything alone otherwise. At the desk a window opened on the
+/// laptop or the second monitor stays there (field report 2026-11-22: a new
+/// SumatraPDF on the 27" was pulled onto the 32" and back three times). A
+/// watcher started without a recent screen change (the app starting while
+/// docked, a task switch) does not sweep.
+///
 /// One watcher at a time: [#gather] with the running selector is a no-op,
 /// another selector restarts it, null stops it. The watcher also exits when
 /// the app's process is gone, so a crash leaves no orphan behind.
-// [impl->dsn~environment-profile-gather-windows~2]
+// [impl->dsn~environment-profile-gather-windows~3]
 public class WindowGather implements AutoCloseable {
 
     /// How long after first sight a window on the wrong screen is pulled over.
@@ -51,6 +60,16 @@ public class WindowGather implements AutoCloseable {
 
     /// Moves of one window, per grace, before it is reported and left alone.
     static final int MAX_TRIES = 3;
+
+    /// With `gatherWhen: docking`: how long after a screen change windows
+    /// are swept over — long enough for Windows' own restoring of window
+    /// positions on redocking to be undone.
+    static final int DOCK_SWEEP_MS = 10_000;
+
+    /// A screen change this recent makes a newly started docking watcher
+    /// sweep: the screen watch reports a set once it has been stable for a
+    /// few seconds, and the profile is applied after that.
+    static final long RECENT_CHANGE_MS = 20_000;
 
     private static final String SCRIPT = """
             Add-Type -TypeDefinition @"
@@ -153,7 +172,8 @@ public class WindowGather implements AutoCloseable {
                 return covers && !maximized;
               }
 
-              public static void Run(string selector, int parentPid, int graceMs, int maxTries) {
+              public static void Run(string selector, int parentPid, int graceMs, int maxTries,
+                  bool dockingOnly, bool sweepNow, int sweepMs) {
                 SetThreadDpiAwarenessContext((IntPtr) (-4));  // per-monitor v2: physical pixels everywhere
                 Process parent = null;
                 try { parent = Process.GetProcessById(parentPid); } catch { return; }
@@ -162,12 +182,19 @@ public class WindowGather implements AutoCloseable {
                 string layout = null;
                 string target = null;
                 var clock = Stopwatch.StartNew();
-                Console.WriteLine("watching for " + selector);
+                long sweepFrom = long.MinValue / 2;
+                Console.WriteLine("watching for " + selector + (dockingOnly ? " (on docking only)" : ""));
                 while (!parent.HasExited) {
+                  long tick = clock.ElapsedMilliseconds;
                   var mons = Monitors();
                   string now = Layout(mons);
                   if (now != layout) {
+                    bool first = layout == null;
                     layout = now;
+                    if (dockingOnly) {
+                      if (!first || sweepNow) { sweepFrom = tick; Console.WriteLine("sweeping windows over for " + sweepMs + " ms"); }
+                      else { Console.WriteLine("no recent docking: windows stay where they are"); }
+                    }
                     firstSeen.Clear();  // a changed screen set: every window gets its grace again
                     tries.Clear();
                     target = null;
@@ -177,15 +204,17 @@ public class WindowGather implements AutoCloseable {
                     Console.WriteLine("screens " + now + "; target " + (target ?? "none"));
                   }
                   Mon to = mons.Find(m => string.Equals(m.Device, target, StringComparison.OrdinalIgnoreCase));
-                  long tick = clock.ElapsedMilliseconds;
-                  if (to != null && mons.Count > 1) {
+                  bool sweeping = tick - sweepFrom <= sweepMs;
+                  if (to != null && mons.Count > 1 && (!dockingOnly || sweeping)) {
                     var seen = new HashSet<IntPtr>();
                     EnumWindows((h, l) => {
                       if (!Candidate(h)) { return true; }
                       seen.Add(h);
-                      long since;
-                      if (!firstSeen.TryGetValue(h, out since)) { since = tick; firstSeen[h] = tick; }
-                      if (tick - since > graceMs) { return true; }
+                      if (!dockingOnly) {
+                        long since;
+                        if (!firstSeen.TryGetValue(h, out since)) { since = tick; firstSeen[h] = tick; }
+                        if (tick - since > graceMs) { return true; }
+                      }
                       IntPtr hm = MonitorFromWindow(h, 2);  // MONITOR_DEFAULTTONEAREST
                       if (hm == to.H) { return true; }
                       Mon from = mons.Find(m => m.H == hm);
@@ -203,10 +232,14 @@ public class WindowGather implements AutoCloseable {
                       try { Move(h, from, to); } catch (Exception e) { Console.WriteLine("move failed: " + e.Message); }
                       return true;
                     }, IntPtr.Zero);
-                    // minimized, hidden or closed windows get a fresh grace when they show again
+                    // minimized, hidden or closed windows get a fresh grace when they show again;
+                    // a window that would not stay is forgotten only once it is closed
                     var gone = new List<IntPtr>();
                     foreach (var h in firstSeen.Keys) { if (!seen.Contains(h)) { gone.Add(h); } }
-                    foreach (var h in gone) { firstSeen.Remove(h); tries.Remove(h); }
+                    foreach (var h in gone) { firstSeen.Remove(h); }
+                    var closed = new List<IntPtr>();
+                    foreach (var h in tries.Keys) { if (!seen.Contains(h) && !IsWindow(h)) { closed.Add(h); } }
+                    foreach (var h in closed) { tries.Remove(h); }
                   }
                   Thread.Sleep(500);
                 }
@@ -226,6 +259,9 @@ public class WindowGather implements AutoCloseable {
     private final boolean windows;
     private @Nullable Process process;
     private @Nullable String selector;
+    private boolean dockingOnly;
+    private volatile long screensChangedAt;
+    private volatile boolean screensChangedSeen;
 
     public WindowGather() {
         this(command -> new ProcessBuilder(command).redirectErrorStream(true).start(),
@@ -241,22 +277,47 @@ public class WindowGather implements AutoCloseable {
     /// exits. The selector reaches the script as a single-quoted literal
     /// with `'` doubled.
     static String script(String selector, long parentPid) {
+        return script(selector, parentPid, false, true);
+    }
+
+    /// The watcher script; with `dockingOnly` it sweeps only after a screen
+    /// change, and at its start only when `sweepNow`.
+    static String script(String selector, long parentPid, boolean dockingOnly, boolean sweepNow) {
         return "$ErrorActionPreference = 'Stop'\n"
                 + SCRIPT.replace("__SCREENS__", WindowsEnvironment.screenTypes())
-                + "[CsGather]::Run('%s', %d, %d, %d)\n".formatted(selector.replace("'", "''"), parentPid, GRACE_MS, MAX_TRIES);
+                + "[CsGather]::Run('%s', %d, %d, %d, $%b, $%b, %d)\n".formatted(selector.replace("'", "''"),
+                        parentPid, GRACE_MS, MAX_TRIES, dockingOnly, sweepNow, DOCK_SWEEP_MS);
     }
 
     static List<String> command(String selector, long parentPid) {
         return PowerShellCommand.of(script(selector, parentPid));
     }
 
-    /// Gathers windows onto `target` from now on (a screen selector), or
-    /// stops gathering (null). Returns the change for the status chip —
-    /// empty when nothing changed.
-    public synchronized WindowsEnvironment.ApplyResult gather(@Nullable String target) {
+    /// The set of connected screens changed (docking, undocking): a
+    /// `gatherWhen: docking` watcher started soon after sweeps.
+    public void screensChanged() {
+        screensChangedAt = System.nanoTime();
+        screensChangedSeen = true;
+    }
+
+    private boolean recentScreenChange() {
+        return screensChangedSeen && System.nanoTime() - screensChangedAt < RECENT_CHANGE_MS * 1_000_000;
+    }
+
+    /// Gathers every window that shows up elsewhere onto `target` from now
+    /// on (`gatherWhen: always`); see [#gather(String, boolean)].
+    public WindowsEnvironment.ApplyResult gather(@Nullable String target) {
+        return gather(target, false);
+    }
+
+    /// Gathers windows onto `target` from now on (a screen selector) — with
+    /// `dockingOnly` just right after screen changes — or stops gathering
+    /// (null). Returns the change for the status chip — empty when nothing
+    /// changed.
+    public synchronized WindowsEnvironment.ApplyResult gather(@Nullable String target, boolean dockingOnly) {
         Process running = process;
         boolean alive = running != null && running.isAlive();
-        if (alive && Objects.equals(target, selector)) {
+        if (alive && Objects.equals(target, selector) && dockingOnly == this.dockingOnly) {
             return new WindowsEnvironment.ApplyResult(true, "");
         }
         stopWatcher();
@@ -267,13 +328,16 @@ public class WindowGather implements AutoCloseable {
             return new WindowsEnvironment.ApplyResult(true, "gatherWindows: Windows only");
         }
         try {
-            Process started = launcher.start(command(target, ProcessHandle.current().pid()));
+            Process started = launcher.start(PowerShellCommand.of(
+                    script(target, ProcessHandle.current().pid(), dockingOnly, !dockingOnly || recentScreenChange())));
             process = started;
             selector = target;
+            this.dockingOnly = dockingOnly;
             Thread reader = new Thread(() -> log(started), "window-gather");
             reader.setDaemon(true);
             reader.start();
-            return new WindowsEnvironment.ApplyResult(true, "windows gathered onto " + target);
+            return new WindowsEnvironment.ApplyResult(true,
+                    "windows gathered onto " + target + (dockingOnly ? " on docking" : ""));
         } catch (IOException e) {
             return new WindowsEnvironment.ApplyResult(false, "gatherWindows: " + e.getMessage());
         }

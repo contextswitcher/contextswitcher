@@ -375,7 +375,9 @@ Fix it on the remote by giving Claude Code a matching theme: copy the two files 
 ```yaml
 profiles:
   default: {gatherWindows: off}
-  desk: {gatherWindows: DELL U3223QE}   # EDID name or product code, primary, internal, external
+  desk:
+    gatherWindows: DELL U3223QE          # EDID name or product code, primary, internal, external
+    gatherWhen: docking                  # only right after docking; windows opened later stay put (default: always)
 screenProfiles:                         # first rule whose screen is connected wins; none = no screen layer
   - screen: DELL U3223QE
     profile: desk

@@ -570,7 +570,7 @@ Covers:
 Needs: impl, utest
 
 ### Gather windows onto one screen
-`dsn~environment-profile-gather-windows~2`
+`dsn~environment-profile-gather-windows~3`
 
 A profile's `gatherWindows: <screen>` takes a selector like `screens:` (EDID name or product code, `primary`, `internal`, `external`; `off` switches a lower layer's gathering off) and layers per key like the other keys.
 `WindowsEnvironment.apply` hands the effective value to `WindowGather`, which keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside to resolve the selector) for it: same selector — nothing happens; another — restart; none — stop; `Main.stop` stops it, and the watcher exits on its own once the app's process is gone.
@@ -579,7 +579,9 @@ Windows on other virtual desktops are gathered while unseen, so docking moves ev
 It does so only within 4 s of first seeing the window — the watcher's start, a new window, one restored from minimized — and again after the set of screens changes, so a window the lecturer drags onto the projector stays there.
 A window covering its whole screen without being maximized with a title bar (`WS_MAXIMIZE` and `WS_CAPTION`) — the slide show, a PDF in presentation mode, a browser in F11 — is never moved.
 A maximized window covers its screen too where no taskbar takes room, and is moved: the laptop's maximized Firefox was taken for a slide show and stayed (field report 2026-11-22).
-A window still on its old screen after 3 moves within one grace (an elevated Task Manager refuses them) is logged once as `did not stay` and left alone; with one screen, or none matching the selector, nothing moves.
+A window still on its old screen after 3 moves within one grace (an elevated Task Manager refuses them) is logged once as `did not stay` and left alone until it is closed; with one screen, or none matching the selector, nothing moves.
+`gatherWhen: docking` (default `always`, layered per key) leaves new windows alone: the watcher sweeps every window over only for 10 s after a screen change — one it sees itself, or one `Main.screensChanged` reported to `WindowGather.screensChanged` within the last 20 s before the watcher started — so docking brings the laptop's windows to the big screen, and a window opened later on the laptop or a second monitor stays there (field report 2026-11-22: a new SumatraPDF on the 27" was pulled onto the 32").
+A docking watcher started without such a change (the app starting while docked, a task switch to a profile with the key) does not sweep; switching between `always` and `docking` restarts the watcher.
 Moves are logged with the window handle (`Window gather: moved notepad++ 0x1A2B from \\.\DISPLAY2 to \\.\DISPLAY1`); the chip reports starting and stopping.
 
 Tags: windows
@@ -633,7 +635,7 @@ A selector matches a `ConnectedScreen` as a profile's `screens:` key does: EDID 
 `ScreenWatch` keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside like `WindowGather`'s) that polls the active screens every 500 ms and prints a set only after it stayed unchanged for 3 s, never an empty one (standby); it exits once the app's process is gone, and `Main.stop` stops it.
 `Main.screensChanged` picks the profile for each reported set; when it differs from the one in effect, `EnvironmentProfileAction.reapply` applies the effective profile for the category last switched to, with the outcome as a status-bar message.
 The first set after the start applies only when a rule matches, so starting the app does not reset the machine to `default` unasked.
-With `gatherWindows:` in the screen-chosen profile, docking gathers windows onto the main screen: the gather watcher (`dsn~environment-profile-gather-windows~2`) starts with the profile and pulls every window over.
+With `gatherWindows:` in the screen-chosen profile, docking gathers windows onto the main screen: the gather watcher (`dsn~environment-profile-gather-windows~3`) starts with the profile and pulls every window over; with `gatherWhen: docking` only right after docking.
 Off Windows `ScreenWatch` starts nothing.
 
 Tags: windows

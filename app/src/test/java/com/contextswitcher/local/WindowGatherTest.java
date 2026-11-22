@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~environment-profile-gather-windows~2]
+// [utest->dsn~environment-profile-gather-windows~3]
 class WindowGatherTest {
 
     /// A process that runs until destroyed and prints nothing.
@@ -54,11 +54,51 @@ class WindowGatherTest {
     }
 
     private final List<FakeProcess> started = new ArrayList<>();
+    private final List<List<String>> commands = new ArrayList<>();
     private final WindowGather gather = new WindowGather(command -> {
         FakeProcess process = new FakeProcess();
         started.add(process);
+        commands.add(command);
         return process;
     }, true);
+
+    /// The script a launched command runs, inline or through the loader.
+    private static String scriptOf(List<String> command) throws java.io.IOException {
+        String last = command.getLast();
+        java.util.regex.Matcher file = java.util.regex.Pattern.compile("ReadAllText\\('([^']+)'").matcher(last);
+        if (command.contains("-EncodedCommand")) {
+            String decoded = new String(java.util.Base64.getDecoder().decode(last),
+                    java.nio.charset.StandardCharsets.UTF_16LE);
+            file = java.util.regex.Pattern.compile("ReadAllText\\('([^']+)'").matcher(decoded);
+            if (!file.find()) {
+                return decoded;
+            }
+        } else if (!file.find()) {
+            return last;
+        }
+        return java.nio.file.Files.readString(java.nio.file.Path.of(file.group(1).replace("''", "'")));
+    }
+
+    /// Field report 2026-11-22: at the desk a new window on the 27" was
+    /// pulled onto the 32". `gatherWhen: docking` sweeps only after a screen
+    /// change; a watcher started without one (app start, task switch) leaves
+    /// the windows where they are.
+    @Test
+    void dockingOnlySweepsOnlyRightAfterAScreenChange() throws Exception {
+        assertThat(gather.gather("DELL U3223QE", true).detail())
+                .isEqualTo("windows gathered onto DELL U3223QE on docking");
+        assertThat(scriptOf(commands.getLast())).contains(", $true, $false, " + WindowGather.DOCK_SWEEP_MS + ")");
+
+        gather.gather(null);
+        gather.screensChanged();
+        gather.gather("DELL U3223QE", true);
+        assertThat(scriptOf(commands.getLast())).contains(", $true, $true, " + WindowGather.DOCK_SWEEP_MS + ")");
+
+        // Switching the mode restarts the watcher; `always` always gathers.
+        gather.gather("DELL U3223QE", false);
+        assertThat(started).hasSize(3);
+        assertThat(scriptOf(commands.getLast())).contains(", $false, $true, " + WindowGather.DOCK_SWEEP_MS + ")");
+    }
 
     @Test
     void scriptCompilesTheScreenSelectorAlongsideAndEscapesTheSelector() {
@@ -69,7 +109,7 @@ class WindowGatherTest {
                 .contains("public class CsScreens {")
                 .contains("public static int Pick(Screen s, string[] keys)")
                 .endsWith("[CsGather]::Run('O''Brien Beamer', 4711, " + WindowGather.GRACE_MS + ", "
-                        + WindowGather.MAX_TRIES + ")\n");
+                        + WindowGather.MAX_TRIES + ", $false, $true, " + WindowGather.DOCK_SWEEP_MS + ")\n");
         // One Add-Type: CsGather refers to CsScreens, which a second
         // in-memory assembly would not see.
         assertThat(script.split("Add-Type", -1)).hasSize(2);
@@ -86,7 +126,9 @@ class WindowGatherTest {
                 .contains("bool maximized = IsZoomed(h) && (GetWindowLong(h, -16) & 0x00C00000) == 0x00C00000;")
                 .contains("return covers && !maximized;")
                 .contains("cloaked != 0 && cloaked != 2")
-                .contains("did not stay: ");
+                .contains("did not stay: ")
+                .contains("if (!seen.Contains(h) && !IsWindow(h))")
+                .contains("(!dockingOnly || sweeping)");
     }
 
     /// Compiles the watcher's C# for real: with a parent pid that does not

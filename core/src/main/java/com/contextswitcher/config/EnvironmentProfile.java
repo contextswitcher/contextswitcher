@@ -15,7 +15,8 @@ import org.jspecify.annotations.Nullable;
 /// `taskbar` auto-hides, whether the browser's `bookmarksBar` shows, and
 /// onto which screen `gatherWindows` pulls the windows that open elsewhere
 /// (a selector like `screens`', or [#GATHER_OFF] to switch a lower layer's
-/// gathering off).
+/// gathering off), and `gatherWhen` it does so ([GatherWhen]: every new
+/// window, or only on docking).
 /// Every key is optional; an absent one (null, an empty `screens` map) is
 /// "not this profile's business" and is filled from the layer below ([#over]).
 ///
@@ -30,7 +31,8 @@ public record EnvironmentProfile(
         @Nullable Displays displays,
         @Nullable Taskbar taskbar,
         @Nullable BookmarksBar bookmarksBar,
-        @Nullable String gatherWindows) {
+        @Nullable String gatherWindows,
+        @Nullable GatherWhen gatherWhen) {
 
     public static final EnvironmentProfile EMPTY = new EnvironmentProfile(Map.of(), null, null, null);
 
@@ -40,7 +42,17 @@ public record EnvironmentProfile(
 
     public EnvironmentProfile(Map<String, Screen> screens, @Nullable Displays displays,
             @Nullable Taskbar taskbar, @Nullable BookmarksBar bookmarksBar) {
-        this(screens, displays, taskbar, bookmarksBar, null);
+        this(screens, displays, taskbar, bookmarksBar, null, null);
+    }
+
+    public EnvironmentProfile(Map<String, Screen> screens, @Nullable Displays displays,
+            @Nullable Taskbar taskbar, @Nullable BookmarksBar bookmarksBar, @Nullable String gatherWindows) {
+        this(screens, displays, taskbar, bookmarksBar, gatherWindows, null);
+    }
+
+    /// When `gatherWindows` gathers; [GatherWhen#ALWAYS] when unset.
+    public GatherWhen gatherMode() {
+        return gatherWhen == null ? GatherWhen.ALWAYS : gatherWhen;
     }
 
     /// The screen selector windows are gathered onto; null when this
@@ -150,6 +162,19 @@ public record EnvironmentProfile(
         }
     }
 
+    /// `gatherWhen:` — `always` pulls over every window that shows up on
+    /// another screen (the projector: nothing may open there); `docking`
+    /// only sweeps the windows over right after the screens changed (at the
+    /// desk: docking brings the laptop's windows to the big screen, and a
+    /// window opened on the laptop later stays there).
+    public enum GatherWhen {
+        ALWAYS, DOCKING;
+
+        public String key() {
+            return name().toLowerCase(Locale.ROOT);
+        }
+    }
+
     public enum BookmarksBar {
         VISIBLE, HIDDEN;
 
@@ -167,7 +192,8 @@ public record EnvironmentProfile(
                 enumOf(Displays.class, map.get("displays")),
                 enumOf(Taskbar.class, map.get("taskbar")),
                 enumOf(BookmarksBar.class, map.get("bookmarksBar")),
-                gatherOf(map.get("gatherWindows")));
+                gatherOf(map.get("gatherWindows")),
+                enumOf(GatherWhen.class, map.get("gatherWhen")));
     }
 
     private static @Nullable String gatherOf(@Nullable Object value) {
@@ -209,11 +235,12 @@ public record EnvironmentProfile(
                 displays != null ? displays : base.displays,
                 taskbar != null ? taskbar : base.taskbar,
                 bookmarksBar != null ? bookmarksBar : base.bookmarksBar,
-                gatherWindows != null ? gatherWindows : base.gatherWindows);
+                gatherWindows != null ? gatherWindows : base.gatherWindows,
+                gatherWhen != null ? gatherWhen : base.gatherWhen);
     }
 
     public boolean isEmpty() {
         return screens.isEmpty() && displays == null && taskbar == null && bookmarksBar == null
-                && gatherWindows == null;
+                && gatherWindows == null && gatherWhen == null;
     }
 }

@@ -379,7 +379,8 @@ public class WindowsEnvironment {
         if (gather == null) {
             return machine;
         }
-        ApplyResult gathered = gather.gather(profile.gatherTarget());
+        ApplyResult gathered = gather.gather(profile.gatherTarget(),
+                profile.gatherMode() == EnvironmentProfile.GatherWhen.DOCKING);
         String detail = Stream.of(machine.detail(), gathered.detail())
                 .filter(part -> !part.isBlank())
                 .collect(Collectors.joining(", "));

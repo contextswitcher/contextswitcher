@@ -526,6 +526,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                     taskbar: autohide
                     bookmarksBar: hidden
                     gatherWindows: internal  # with the screen extended: windows opening on another screen move here; full-screen ones (the slide show) stay; off = don't
+                    gatherWhen: always       # always (every window opening elsewhere) or docking (only right after the screens changed; later windows stay put)
                     context: lecture         # todo.txt context shared with koppter while the screens or the override chose this profile; default: the profile's name (none for default), off = none
                 """;
     }

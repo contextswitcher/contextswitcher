@@ -334,7 +334,7 @@ public class Main extends Application {
     private @Nullable RefactoringMinerView refactoringView;
     private @Nullable ExtensionServer extensionServer;
     /// The `gatherWindows` watcher of the environment profile in effect;
-    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~2]
+    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~3]
     private final WindowGather windowGather = new WindowGather();
     /// Reports the connected screens; stopped on exit. [impl->dsn~screen-chosen-profile~1]
     private final ScreenWatch screenWatch = new ScreenWatch();
@@ -2245,6 +2245,10 @@ public class Main extends Application {
         synchronized (this) {
             first = !screensSeen;
             screensSeen = true;
+        }
+        if (!first) {
+            // docking or undocking: a `gatherWhen: docking` watcher sweeps
+            windowGather.screensChanged();
         }
         String before = screenProfile;
         screenProfile = chosen;
