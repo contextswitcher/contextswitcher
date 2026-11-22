@@ -797,6 +797,9 @@ public class MainWindow {
     // [impl->dsn~task-history-navigation~2]
     private static final long TRANSIENT_VISIT_NANOS = 1_000_000_000L;
     private static final String LAST_IMPORT_HOST = "lastImportHost";
+    /// The jump popup's recent categories, newest first, one per line.
+    // [impl->dsn~category-jump~2]
+    private static final String RECENT_JUMPS = "recentJumpCategories";
     private static final String LAST_MODEL = "lastClaudeModel";
     private static final String LAST_EFFORT = "lastClaudeEffort";
     /// Delete-dialog cleanup checkboxes, pre-filled from the last run
@@ -1495,7 +1498,7 @@ public class MainWindow {
         KeyCombination addTaskKeys = new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN);
         // Ctrl+J opens the jump-to-category popup; capture-phase like the
         // others (the terminal loses ^J, which Enter sends anyway).
-        // [impl->dsn~category-jump~1]
+        // [impl->dsn~category-jump~2]
         KeyCombination jumpKeys = new KeyCodeCombination(KeyCode.J, KeyCombination.SHORTCUT_DOWN);
         scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (find.match(event)) {
@@ -1755,7 +1758,7 @@ public class MainWindow {
     /// (expanding it, lifting a scope to another category); Escape closes.
     /// The active desktop is read afresh in the background — `activeDesktop`
     /// is only kept current while a desktop watch runs — and regroups the rows.
-    // [impl->dsn~category-jump~1]
+    // [impl->dsn~category-jump~2]
     private void openCategoryJump() {
         ListView<Object> list = taskList;
         if (list == null || list.getScene() == null) {
@@ -1780,7 +1783,16 @@ public class MainWindow {
                 }
             }
         });
-        VBox box = new VBox(4, field, choices);
+        Button jump = new Button("Jump");
+        jump.getStyleClass().addAll(Styles.SMALL, Styles.ACCENT);
+        jump.setId("category-jump-button");
+        jump.disableProperty().bind(choices.getSelectionModel().selectedItemProperty().isNull());
+        Button cancel = new Button("Cancel");
+        cancel.getStyleClass().add(Styles.SMALL);
+        Region gap = new Region();
+        HBox.setHgrow(gap, Priority.ALWAYS);
+        HBox buttons = new HBox(6, gap, jump, cancel);
+        VBox box = new VBox(4, field, choices, buttons);
         box.getStyleClass().add("category-jump");
         box.setPadding(new Insets(6));
         box.setPrefWidth(Math.max(280, list.getWidth() - 16));
@@ -1792,7 +1804,7 @@ public class MainWindow {
         Runnable refill = () -> {
             CategoryJump.Row picked = choices.getSelectionModel().getSelectedItem();
             List<CategoryJump.Row> rows =
-                    CategoryJump.rows(folders, this::groupDesktop, activeDesktop, field.getText());
+                    CategoryJump.rows(folders, recentJumps(), this::groupDesktop, activeDesktop, field.getText());
             choices.getItems().setAll(rows);
             int index = picked == null ? -1 : rows.indexOf(picked);
             selectJumpRow(choices, index < 0 ? 0 : index, 1);
@@ -1811,7 +1823,14 @@ public class MainWindow {
             }
             event.consume();
         });
-        choices.setOnMouseClicked(event -> jumpToCategory(popup, choices.getSelectionModel().getSelectedItem()));
+        // A single click only picks; Jump (or a double click) goes there.
+        choices.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                jumpToCategory(popup, choices.getSelectionModel().getSelectedItem());
+            }
+        });
+        jump.setOnAction(event -> jumpToCategory(popup, choices.getSelectionModel().getSelectedItem()));
+        cancel.setOnAction(event -> popup.hide());
         refill.run();
 
         Bounds bounds = list.localToScreen(list.getBoundsInLocal());
@@ -1829,9 +1848,15 @@ public class MainWindow {
                 }));
     }
 
+    /// The jump popup's recent categories, newest first.
+    // [impl->dsn~category-jump~2]
+    private static List<String> recentJumps() {
+        return PREFERENCES.get(RECENT_JUMPS, "").lines().filter(line -> !line.isBlank()).toList();
+    }
+
     /// Selects the first category row from `index` on in direction `step`,
     /// skipping headings; stays put when there is none.
-    // [impl->dsn~category-jump~1]
+    // [impl->dsn~category-jump~2]
     private static void selectJumpRow(ListView<CategoryJump.Row> choices, int index, int step) {
         List<CategoryJump.Row> rows = choices.getItems();
         for (int i = index; i >= 0 && i < rows.size(); i += step) {
@@ -1843,27 +1868,49 @@ public class MainWindow {
         }
     }
 
-    /// Closes the popup and selects the picked category's header in the list.
-    // [impl->dsn~category-jump~1]
+    /// Closes the popup, remembers the pick as recent, switches to the
+    /// category's virtual desktop and selects its header in the list.
+    // [impl->dsn~category-jump~2]
     private void jumpToCategory(Popup popup, CategoryJump.@Nullable Row row) {
         if (row == null || row.header()) {
             return;
         }
         popup.hide();
         String group = row.text();
+        PREFERENCES.put(RECENT_JUMPS, String.join("\n", CategoryJump.remember(recentJumps(), group)));
         if (scopeCategory != null && !scopeCategory.equals(group)) {
             scopeToCategory(null);
         }
-        // After the scope's deferred rebuild.
-        Platform.runLater(() -> {
-            if (selectCategory(group)) {
-                if (taskList != null) {
-                    taskList.requestFocus();
-                }
-            } else {
-                statusBar.message("Category " + group + " is hidden by a list filter.");
+        saveEditorIfDirty();
+        String desktop = groupDesktop(group);
+        if (desktop == null) {
+            // After the scope's deferred rebuild.
+            Platform.runLater(() -> selectJumpedCategory(group));
+            return;
+        }
+        // Read the new desktop before selecting: the poller reporting it later
+        // would otherwise re-select that desktop's last task over the category
+        // (`dsn~desktop-last-task-selection~6`).
+        onFocusDesktop.accept(desktop, () -> CompletableFuture
+                .supplyAsync(() -> new WindowsVirtualDesktopFocus(new LocalCommandRunner()).current())
+                .thenAccept(active -> Platform.runLater(() -> {
+                    if (active.read()) {
+                        updateActiveDesktop(active.name());
+                    }
+                    selectJumpedCategory(group);
+                })));
+    }
+
+    /// Selects the jumped-to category's header and gives the list the keyboard.
+    // [impl->dsn~category-jump~2]
+    private void selectJumpedCategory(String group) {
+        if (selectCategory(group)) {
+            if (taskList != null) {
+                taskList.requestFocus();
             }
-        });
+        } else {
+            statusBar.message("Category " + group + " is hidden by a list filter.");
+        }
     }
 
     /// A press on a category header's name: scopes the find field to that
@@ -7102,6 +7149,10 @@ public class MainWindow {
         Button forward = iconButton(MDIInterface.ARROW_RIGHT,
                 "Forward again (Alt+\u2192)");
         forward.setOnAction(event -> navigateHistory(1));
+        // [impl->dsn~category-jump~2]
+        Button jump = iconButton(MDIWorld.AIRPLANE, "Jump to category (Ctrl+J)");
+        jump.setId("category-jump-open");
+        jump.setOnAction(event -> openCategoryJump());
         this.backButton = back;
         this.forwardButton = forward;
         updateHistoryButtons();
@@ -7170,7 +7221,7 @@ public class MainWindow {
         // controls in constant use. [impl->dsn~task-list-toolbar~3]
         Region moreSpacer = new Region();
         HBox.setHgrow(moreSpacer, Priority.ALWAYS);
-        ToolBar bar = new ToolBar(back, forward, add, filter, sort, groupBy, moreSpacer, more);
+        ToolBar bar = new ToolBar(back, forward, jump, add, filter, sort, groupBy, moreSpacer, more);
         // Shares one fixed height (main.css) with every pane toolbar, so the
         // bands line up across the panes.
         bar.getStyleClass().add("list-toolbar");

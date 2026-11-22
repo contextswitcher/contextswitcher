@@ -4,6 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
+import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.application.Platform;
@@ -22,7 +23,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 
 /// Ctrl+J, a few letters of a category's name and Enter select that
 /// category's header in the task list.
-// [utest->dsn~category-jump~1]
+// [utest->dsn~category-jump~2]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class CategoryJumpUiTest {
@@ -55,5 +56,34 @@ class CategoryJumpUiTest {
         awaitPresent(() -> list.getSelectionModel().getSelectedItem() instanceof TaskListCell.GroupHeader header
                 && header.name().equals("delta") ? Optional.of(true) : Optional.empty(),
                 "the delta header to be selected");
+    }
+
+    @Test
+    void airplaneButtonAndJumpSelectTheCategory() throws Exception {
+        Path dir = UiTestSupport.tasksDir;
+        Files.createDirectories(dir.resolve("epsilon"));
+        Files.writeString(dir.resolve("epsilon").resolve("three.md"), "---\ntitle: three\nstatus: active\n---\n");
+
+        ListView<Object> list = awaitPresent(() -> FX_ROBOT.selectNodes(ListView.class).fromAll()
+                .<ListView<Object>>map(view -> (ListView<Object>) view).findFirst(), "the task ListView");
+        awaitPresent(() -> list.getItems().stream()
+                .anyMatch(row -> row instanceof TaskEntry.Loaded loaded && loaded.id().equals("epsilon/three"))
+                ? Optional.of(true) : Optional.empty(), "the tasks to load");
+
+        Button open = awaitPresent(() -> FX_ROBOT.selectNodes(Button.class).fromAll()
+                .filter(node -> "category-jump-open".equals(node.getId())).findFirst(), "the airplane button");
+        Platform.runLater(open::fire);
+        TextField field = awaitPresent(() -> FX_ROBOT.selectNodes(TextField.class).fromAll()
+                .filter(node -> "category-jump-field".equals(node.getId()) && node.isFocused())
+                .findFirst(), "the jump field to take the keyboard");
+        Platform.runLater(() -> field.setText("psil"));
+        Button jump = awaitPresent(() -> FX_ROBOT.selectNodes(Button.class).fromAll()
+                .filter(node -> "category-jump-button".equals(node.getId()) && !node.isDisabled())
+                .findFirst(), "the enabled Jump button");
+        Platform.runLater(jump::fire);
+
+        awaitPresent(() -> list.getSelectionModel().getSelectedItem() instanceof TaskListCell.GroupHeader header
+                && header.name().equals("epsilon") ? Optional.of(true) : Optional.empty(),
+                "the epsilon header to be selected");
     }
 }

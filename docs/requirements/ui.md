@@ -1707,7 +1707,7 @@ Needs: impl, utest
 `dsn~task-create-category-pick~1`
 
 With a few dozen categories the Add-task dialog's flat, alphabetical category combo (`dsn~task-create-ui~15`) makes the one wanted a scroll away, although it is almost always one of the active virtual desktop's (Oliver, 2026-10-22).
-The combo therefore lists its entries like the `Ctrl+J` popup does (`CategoryJump.rows`, `dsn~category-jump~1`): `(no category)` first, then the active desktop's categories under a `This desktop (<name>)` heading, then the rest under `Other desktops` — each group alphabetical; with the active desktop unknown (non-Windows, no desktop watch running) the list is flat.
+The combo therefore lists its entries like the `Ctrl+J` popup does (`CategoryJump.rows`, `dsn~category-jump~2`): `(no category)` first, then the active desktop's categories under a `This desktop (<name>)` heading, then the rest under `Other desktops` — each group alphabetical; with the active desktop unknown (non-Windows, no desktop watch running) the list is flat.
 A heading is a disabled, caption-styled cell; the arrow keys step over it in the direction they were going instead of landing on it.
 A host picker right of the combo (`add-task-host`) narrows the list: `(all hosts)` (the default), `local` for the local categories (a CS config with a directory and no `remote:`, `dsn~task-create-local~4`) and one entry per remote some category resolves to (`CategoryJump.hosts`/`onHost`; a category's host is what `Add remote Claude` would use — its own `remote:`, else the settings fallback).
 A pick that the filter removes falls back to the category the dialog was opened for, which is always listed.
@@ -2749,12 +2749,15 @@ Covers:
 Needs: impl, utest
 
 ### Jump to category
-`dsn~category-jump~1`
+`dsn~category-jump~2`
 
-`Ctrl+J` (a capture-phase scene filter like `Ctrl+T`'s, `dsn~task-create-ui~15`) opens a popup over the task list: a field and the category names containing its text, case-insensitive.
-The categories on the active virtual desktop (`desktop:`, or the fallback desktop, `dsn~fallback-desktop~2`) come first under "This desktop (<name>)", the rest under "Other desktops"; while the active desktop is unknown (non-Windows, unnamed) the names come without headings.
+`Ctrl+J` (a capture-phase scene filter like `Ctrl+T`'s, `dsn~task-create-ui~15`) or the list toolbar's airplane button opens a popup over the task list: a field, the category names containing its text, case-insensitive, and *Jump* / *Cancel*.
+The last five categories jumped to (newest first, kept across restarts in Java Preferences, gone ones left out) come first under "Recent", like Android's `dsn~android-recent-categories~2`; they stay at their usual place below as well.
+Then the categories on the active virtual desktop (`desktop:`, or the fallback desktop, `dsn~fallback-desktop~2`) under "This desktop (<name>)", the rest under "Other desktops"; while the active desktop is unknown (non-Windows, unnamed) those names come without headings ("All categories" below "Recent").
 The popup reads the active desktop afresh in the background and regroups when the read arrives, since the window only keeps it current while a desktop watch runs.
-Up/Down move over the names (headings are skipped), Enter or a click selects the category's header row, expanding it (`MainWindow.selectCategory`) and lifting a find scope to another category (`dsn~category-search~3`); Escape or a click outside closes it.
+Up/Down move over the names (headings are skipped); a click only picks a name. Enter, *Jump* or a double click jumps: the category's virtual desktop is focused (as the header's desktop button does, `dsn~category-desktop-focus~4`), the active desktop is read again, and only then the category's header row is selected, expanding it (`MainWindow.selectCategory`) and lifting a find scope to another category (`dsn~category-search~3`) — reading first keeps the desktop's last-task selection (`dsn~desktop-last-task-selection~6`) from taking the selection away afterwards.
+Escape, *Cancel* or a click outside closes it.
+`~1` had neither the button, the recent list nor the desktop switch (Oliver, 2026-11-20: "jump-to-category … evtl. ein Flieger … die top 5 oben … Jump und nicht Cancel … sprint man dann zu dem Desktop").
 A category a list filter hides is not selected; the status bar says so.
 
 Tags: windows, linux
