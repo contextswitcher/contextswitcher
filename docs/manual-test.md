@@ -388,7 +388,7 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
       thing and the popup stays open. Open a category `CONTEXTSWITCHER.md` and press
       F1 → the popup shows the group-config fields (`remote`, `workspacesRoot`,
       `workdir`, `repo`, `tags`, `note`) instead. The type label's tooltip mentions F1.
-- [x] **Settings field help (F1)** (`dsn~settings-editor~4`): open `Edit settings…`
+- [x] **Settings field help (F1)** (`dsn~settings-editor~5`): open `Edit settings…`
       (header mentions F1), press **F1** in the text area → a non-modal popup shows
       the commented settings.yaml reference (`tasksDir`, `wsPort`, `wsToken`, `hints`,
       `claudeAuto`, `remotes`, `tags`); **Copy all** works and the popup stays open

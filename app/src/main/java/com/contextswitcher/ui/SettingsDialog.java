@@ -31,6 +31,8 @@ import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
@@ -52,7 +54,7 @@ import tools.maran.svgnode.SvgNode;
 /// malformed to parse. `MainWindow` hands in what it owns — loading and saving
 /// the file, the dialog owner, the field-reference popup the editor shares,
 /// and what a save refreshes live (the tag palette, the terminal's theme).
-// [impl->dsn~settings-editor~4]
+// [impl->dsn~settings-editor~5]
 final class SettingsDialog {
 
     private final Supplier<String> loadSettings;
@@ -92,7 +94,7 @@ final class SettingsDialog {
     /// **View raw** toggle shows that same text; **F1** there opens the field
     /// reference. When the file on disk is too malformed to parse, the dialog
     /// opens straight in a raw-only fallback for repair.
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     void show() {
         String raw = loadSettings.get();
         AppSettings initial;
@@ -137,13 +139,12 @@ final class SettingsDialog {
         // A one-element holder lets the toggle/save handlers see the current set.
         @SuppressWarnings("unchecked")
         Map<String, Region>[] controlsHolder = new Map[]{buildControls(initial)};
-        ScrollPane formScroll = new ScrollPane(renderForm(controlsHolder[0]));
-        formScroll.setFitToWidth(true);
-        formScroll.setPrefViewportHeight(FieldForm.viewportHeight());
-        formScroll.setPrefViewportWidth(460);
+        TabPane formTabs = new TabPane();
+        formTabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        renderForm(formTabs, controlsHolder[0]);
 
         boolean[] rawMode = {false};
-        dialog.getDialogPane().setContent(formScroll);
+        dialog.getDialogPane().setContent(formTabs);
         Button rawButton = (Button) dialog.getDialogPane().lookupButton(rawToggle);
         rawButton.addEventFilter(ActionEvent.ACTION, event -> {
             event.consume();
@@ -160,8 +161,8 @@ final class SettingsDialog {
                 }
                 rawText[0] = rawArea.getText();
                 controlsHolder[0] = buildControls(parsed);
-                formScroll.setContent(renderForm(controlsHolder[0]));
-                dialog.getDialogPane().setContent(formScroll);
+                renderForm(formTabs, controlsHolder[0]);
+                dialog.getDialogPane().setContent(formTabs);
                 rawButton.setText("View raw");
                 rawMode[0] = false;
             } else {
@@ -225,7 +226,7 @@ final class SettingsDialog {
     /// its settings key. Text and integer options render as a `TextField`, the
     /// booleans as a `CheckBox`, the hosts as the [HostTable], and the tag
     /// palette as its own editor.
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     Map<String, Region> buildControls(AppSettings seed) {
         Map<String, Region> controls = new LinkedHashMap<>();
         for (SettingsCatalog.Option option : SettingsCatalog.OPTIONS) {
@@ -259,27 +260,32 @@ final class SettingsDialog {
         return controls;
     }
 
-    /// Lays the controls out as the settings form: a bold section header per
-    /// [SettingsCatalog.Option] group, then one row per option with the label on
+    /// Lays the controls out as the settings form: a tab per
+    /// [SettingsCatalog.Option] group (the selected tab survives a rebuild), each
+    /// a scrolling column of one row per option with the label on
     /// its own line above a full-width control, the whole row highlighting on
     /// hover and carrying the option's help as its tooltip.
-    // [impl->dsn~settings-editor~4]
-    private Node renderForm(Map<String, Region> controls) {
-        VBox root = new VBox(2);
-        root.setPadding(new Insets(6, 10, 6, 10));
-        String group = null;
+    // [impl->dsn~settings-editor~5]
+    void renderForm(TabPane tabs, Map<String, Region> controls) {
+        int selected = tabs.getSelectionModel().getSelectedIndex();
+        tabs.getTabs().clear();
+        Map<String, VBox> pages = new LinkedHashMap<>();
         for (SettingsCatalog.Option option : SettingsCatalog.OPTIONS) {
-            if (!option.group().equals(group)) {
-                group = option.group();
-                root.getChildren().add(FieldForm.section(group, root.getChildren().isEmpty()));
-            }
-            root.getChildren().add(fieldRow(option, controls));
+            pages.computeIfAbsent(option.group(), group -> {
+                VBox page = new VBox(2);
+                page.setPadding(new Insets(6, 10, 6, 10));
+                ScrollPane scroll = new ScrollPane(page);
+                scroll.setFitToWidth(true);
+                scroll.setPrefViewportWidth(460);
+                tabs.getTabs().add(new Tab(group, scroll));
+                return page;
+            }).getChildren().add(fieldRow(option, controls));
         }
-        return root;
+        tabs.getSelectionModel().select(Math.max(selected, 0));
     }
 
     /// One settings form row — the shared [FieldForm] row.
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     private Node fieldRow(SettingsCatalog.Option option, Map<String, Region> controls) {
         return FieldForm.row(option.label(), option.help(), controls.get(option.key()));
     }
@@ -288,7 +294,7 @@ final class SettingsDialog {
     /// untouched keys, comments, and unknown keys exactly as they were — the raw
     /// text stays the source of truth. Returns null (after an alert) when the
     /// form is invalid (blank tasks dir, non-numeric port).
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     @Nullable String mergeFormIntoRaw(String raw, Map<String, Region> controls) {
         AppSettings edited = readForm(controls);
         if (edited == null) {
@@ -319,7 +325,7 @@ final class SettingsDialog {
     /// Reads the form controls into an [AppSettings], or null (after an alert)
     /// when a field is invalid — a blank tasks directory or a non-numeric port.
     /// The list fields split one entry per line.
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     private @Nullable AppSettings readForm(Map<String, Region> controls) {
         String tasksDir = ((TextField) controls.get("tasksDir")).getText();
         if (tasksDir.isBlank()) {
@@ -400,7 +406,7 @@ final class SettingsDialog {
     /// picker (a tag is always a name + color), plus an "Add tag" button and a
     /// per-row remove. This is the one setting whose value is not a flat scalar
     /// or line list, so it gets a purpose-built control instead of a text box.
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     // [impl->dsn~task-tag-model~2]
     private static final class TagListEditor extends VBox {
 
@@ -472,7 +478,7 @@ final class SettingsDialog {
     /// The raw-only fallback editor: a monospace `settings.yaml` `TextArea`
     /// (F1 = field reference), used when the file on disk is too malformed to
     /// populate the form. Save writes the text straight back.
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     private void editSettingsRaw(String raw) {
         Dialog<String> dialog = new Dialog<>();
         dialog.initOwner(owner.get());
@@ -511,12 +517,18 @@ final class SettingsDialog {
         });
     }
 
-    /// JavaFX centers a dialog on its owner, and this one is taller than the
-    /// main window — its height follows the screen — so it can start above the
-    /// screen with its title bar out of reach. Checked once shown: the height
-    /// is not known before.
+    /// JavaFX centers a dialog on its owner, and this one can be taller than the
+    /// main window, so it can start above the screen with its title bar out of
+    /// reach. A long form or small screen is first capped to
+    /// [FieldForm#MAX_SCREEN_SHARE] of the screen (field report 2026-09-13), the
+    /// form's scroll pane taking the rest. Checked once shown: the height is not
+    /// known before.
     private static void keepTitleBarOnScreen(Dialog<?> dialog) {
         dialog.setOnShown(event -> {
+            double max = Screen.getPrimary().getVisualBounds().getHeight() * FieldForm.MAX_SCREEN_SHARE;
+            if (dialog.getHeight() > max) {
+                dialog.setHeight(max);
+            }
             double top = Screen.getScreensForRectangle(dialog.getX(), dialog.getY(),
                     dialog.getWidth(), dialog.getHeight()).stream().findFirst()
                     .orElse(Screen.getPrimary()).getVisualBounds().getMinY();

@@ -1422,7 +1422,7 @@ public class MainWindow {
         // The settings gear lives in the title bar (with the other app-wide
         // actions), not down here — a lone gear in the status bar read as the
         // sync-tmux cog's twin and was easy to miss.
-        // [impl->dsn~settings-editor~4]
+        // [impl->dsn~settings-editor~5]
         HBox.setHgrow(statusBar, Priority.ALWAYS);
         // The log button sits where the failures are read: a status-bar line
         // can only name the reason, the log has the context around it.
@@ -7490,7 +7490,7 @@ public class MainWindow {
     /// The settings control: the gear icon at the right end of the list
     /// toolbar (COG — the one place a plain cog appears, now that Sync tmux
     /// uses SYNC).
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     private Button settingsButton() {
         Button editSettings = iconButton(MDIInterface.COG, "Settings");
         editSettings.setOnAction(event -> settingsDialog.show());

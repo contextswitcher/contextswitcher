@@ -263,7 +263,7 @@ class AppSettingsTest {
     // The F1 reference must name every key the app actually stores/reads —
     // keys are taken from a real stored file, so a newly added setting
     // without a reference line fails here.
-    // [utest->dsn~settings-editor~4]
+    // [utest->dsn~settings-editor~5]
     @Test
     void settingsReferenceNamesEveryStoredKey(@TempDir Path configDir) throws Exception {
         AppSettings.loadOrCreate(configDir);

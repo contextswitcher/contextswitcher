@@ -2489,7 +2489,7 @@ public class Main extends Application {
     }
 
     /// Raw `settings.yaml` text for the settings editor (empty when absent).
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     private static String readSettingsFile(Path configDir) {
         Path file = configDir.resolve("settings.yaml");
         try {
@@ -2500,7 +2500,7 @@ public class Main extends Application {
     }
 
     /// Writes `settings.yaml`; returns null on success, else the error.
-    // [impl->dsn~settings-editor~4]
+    // [impl->dsn~settings-editor~5]
     private static @Nullable String writeSettingsFile(Path configDir, String content) {
         try {
             Files.createDirectories(configDir);

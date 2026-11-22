@@ -18,7 +18,7 @@ import org.yaml.snakeyaml.Yaml;
 /// value is rendered by SnakeYAML exactly as [AppSettings#dump()] would emit it
 /// (scalars, list blocks, list-of-maps for tags), so the patched document parses
 /// identically to a freshly stored one.
-// [impl->dsn~settings-editor~4]
+// [impl->dsn~settings-editor~5]
 public final class YamlPatch {
 
     /// A line that starts a new top-level key (`key:` at column 0). Terminates

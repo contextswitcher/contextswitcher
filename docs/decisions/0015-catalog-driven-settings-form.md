@@ -8,7 +8,7 @@ decision-makers: Oliver Kopp
 
 ## Context and Problem Statement
 
-The settings editor started as a single raw `settings.yaml` `TextArea` (`dsn~settings-editor~4`).
+The settings editor started as a single raw `settings.yaml` `TextArea` (`dsn~settings-editor~5`).
 Editing YAML by hand is error-prone for non-power users, and the field set will keep growing.
 We want high-level controls (checkboxes, typed fields, a proper tag editor, per-section grouping) generated from a catalog rather than hand-laid per setting, without losing the raw view — and without the form silently discarding comments or keys the app does not yet understand.
 
