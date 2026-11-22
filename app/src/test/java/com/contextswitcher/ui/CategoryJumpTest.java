@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// The jump-to-category popup lists the active desktop's categories first;
 /// the Add-task dialog's host picker narrows them to one host.
-// [utest->dsn~category-jump~2]
+// [utest->dsn~category-jump~3]
 // [utest->dsn~task-create-category-pick~1]
 class CategoryJumpTest {
 

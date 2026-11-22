@@ -23,7 +23,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 
 /// Ctrl+J, a few letters of a category's name and Enter select that
 /// category's header in the task list.
-// [utest->dsn~category-jump~2]
+// [utest->dsn~category-jump~3]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class CategoryJumpUiTest {

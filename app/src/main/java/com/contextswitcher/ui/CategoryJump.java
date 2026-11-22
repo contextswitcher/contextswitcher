@@ -14,7 +14,7 @@ import org.jspecify.annotations.Nullable;
 /// the recently jumped-to ones on top (popup only), then those on the active
 /// virtual desktop, then the rest. Kept out of
 /// [MainWindow] so the grouping is unit-testable.
-// [impl->dsn~category-jump~2]
+// [impl->dsn~category-jump~3]
 // [impl->dsn~task-create-category-pick~1]
 final class CategoryJump {
 
@@ -36,7 +36,7 @@ final class CategoryJump {
 
     /// The recent list after jumping to `picked`: it moves to the front,
     /// the oldest falls off beyond [#RECENT_LIMIT].
-    // [impl->dsn~category-jump~2]
+    // [impl->dsn~category-jump~3]
     static List<String> remember(List<String> recent, String picked) {
         List<String> next = new ArrayList<>(List.of(picked));
         recent.stream().filter(name -> !name.equals(picked)).forEach(next::add);
@@ -54,7 +54,7 @@ final class CategoryJump {
     /// Like the other `rows`, with the matching `recent` categories (newest
     /// first, gone ones left out) under a "Recent" heading on top; they stay
     /// at their usual place below as well.
-    // [impl->dsn~category-jump~2]
+    // [impl->dsn~category-jump~3]
     static List<Row> rows(Collection<String> categories, List<String> recent,
             Function<String, @Nullable String> desktopOf, @Nullable String active, String query) {
         List<Row> top = new ArrayList<>();

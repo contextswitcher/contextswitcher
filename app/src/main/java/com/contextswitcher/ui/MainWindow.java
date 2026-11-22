@@ -798,7 +798,7 @@ public class MainWindow {
     private static final long TRANSIENT_VISIT_NANOS = 1_000_000_000L;
     private static final String LAST_IMPORT_HOST = "lastImportHost";
     /// The jump popup's recent categories, newest first, one per line.
-    // [impl->dsn~category-jump~2]
+    // [impl->dsn~category-jump~3]
     private static final String RECENT_JUMPS = "recentJumpCategories";
     private static final String LAST_MODEL = "lastClaudeModel";
     private static final String LAST_EFFORT = "lastClaudeEffort";
@@ -1498,7 +1498,7 @@ public class MainWindow {
         KeyCombination addTaskKeys = new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN);
         // Ctrl+J opens the jump-to-category popup; capture-phase like the
         // others (the terminal loses ^J, which Enter sends anyway).
-        // [impl->dsn~category-jump~2]
+        // [impl->dsn~category-jump~3]
         KeyCombination jumpKeys = new KeyCodeCombination(KeyCode.J, KeyCombination.SHORTCUT_DOWN);
         scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (find.match(event)) {
@@ -1758,7 +1758,7 @@ public class MainWindow {
     /// (expanding it, lifting a scope to another category); Escape closes.
     /// The active desktop is read afresh in the background — `activeDesktop`
     /// is only kept current while a desktop watch runs — and regroups the rows.
-    // [impl->dsn~category-jump~2]
+    // [impl->dsn~category-jump~3]
     private void openCategoryJump() {
         ListView<Object> list = taskList;
         if (list == null || list.getScene() == null) {
@@ -1849,14 +1849,14 @@ public class MainWindow {
     }
 
     /// The jump popup's recent categories, newest first.
-    // [impl->dsn~category-jump~2]
+    // [impl->dsn~category-jump~3]
     private static List<String> recentJumps() {
         return PREFERENCES.get(RECENT_JUMPS, "").lines().filter(line -> !line.isBlank()).toList();
     }
 
     /// Selects the first category row from `index` on in direction `step`,
     /// skipping headings; stays put when there is none.
-    // [impl->dsn~category-jump~2]
+    // [impl->dsn~category-jump~3]
     private static void selectJumpRow(ListView<CategoryJump.Row> choices, int index, int step) {
         List<CategoryJump.Row> rows = choices.getItems();
         for (int i = index; i >= 0 && i < rows.size(); i += step) {
@@ -1869,8 +1869,9 @@ public class MainWindow {
     }
 
     /// Closes the popup, remembers the pick as recent, switches to the
-    /// category's virtual desktop and selects its header in the list.
-    // [impl->dsn~category-jump~2]
+    /// category's virtual desktop, selects its header in the list and then
+    /// switches to the category, as the header's switch button does.
+    // [impl->dsn~category-jump~3]
     private void jumpToCategory(Popup popup, CategoryJump.@Nullable Row row) {
         if (row == null || row.header()) {
             return;
@@ -1882,10 +1883,16 @@ public class MainWindow {
             scopeToCategory(null);
         }
         saveEditorIfDirty();
+        // Like the header's switch button: the category's own switch actions.
+        // [impl->dsn~category-switch~1]
+        Task task = Task.forCategory(group, groupDefaults(group).remote());
         String desktop = groupDesktop(group);
         if (desktop == null) {
             // After the scope's deferred rebuild.
-            Platform.runLater(() -> selectJumpedCategory(group));
+            Platform.runLater(() -> {
+                selectJumpedCategory(group);
+                onSwitch.accept(task);
+            });
             return;
         }
         // Read the new desktop before selecting: the poller reporting it later
@@ -1898,11 +1905,12 @@ public class MainWindow {
                         updateActiveDesktop(active.name());
                     }
                     selectJumpedCategory(group);
+                    onSwitch.accept(task);
                 })));
     }
 
     /// Selects the jumped-to category's header and gives the list the keyboard.
-    // [impl->dsn~category-jump~2]
+    // [impl->dsn~category-jump~3]
     private void selectJumpedCategory(String group) {
         if (selectCategory(group)) {
             if (taskList != null) {
@@ -7149,7 +7157,7 @@ public class MainWindow {
         Button forward = iconButton(MDIInterface.ARROW_RIGHT,
                 "Forward again (Alt+\u2192)");
         forward.setOnAction(event -> navigateHistory(1));
-        // [impl->dsn~category-jump~2]
+        // [impl->dsn~category-jump~3]
         Button jump = iconButton(MDIWorld.AIRPLANE, "Jump to category (Ctrl+J)");
         jump.setId("category-jump-open");
         jump.setOnAction(event -> openCategoryJump());

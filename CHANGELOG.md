@@ -10,7 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Added
 
-- *Jump to category* has an airplane button in the task-list toolbar, lists the five categories jumped to last on top, has *Jump* and *Cancel* buttons, and switches to the category's virtual desktop before selecting it.
+- *Jump to category* has an airplane button in the task-list toolbar, lists the five categories jumped to last on top, has *Jump* and *Cancel* buttons, and switches to the category's virtual desktop and then to the category itself.
 
 ### Changed
 
