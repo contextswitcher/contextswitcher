@@ -4,8 +4,6 @@
 # the built launcher path). Windows recipes run under cmd.
 set windows-shell := ["cmd.exe", "/c"]
 
-alias loop := run-loop
-
 # Show the recipe list when run without a recipe.
 default:
     @just --list
@@ -47,11 +45,11 @@ whats-new *ARGS:
 # Run the app in a loop: the "Restart to update" button (exit code 55) pulls,
 # rebuilds and starts it again; a normal quit ends the loop.
 [unix]
-run-loop:
+loop:
     scripts/run-loop.sh
 
 [windows]
-run-loop:
+loop:
     scripts\run-loop.cmd
 
 pull-run-debug: && run-debug

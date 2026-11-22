@@ -169,7 +169,7 @@ application {
 }
 
 // `gradlew run` is the from-source development launch, and it cannot restart the
-// app the way `just run-loop` does — but it should at least say so. The
+// app the way `just loop` does — but it should at least say so. The
 // "Restart to update" button exits with 55 (`AppUpdate.RESTART_EXIT_CODE`), which
 // JavaExec otherwise reports as `finished with non-zero exit value 55` on top of a
 // red BUILD FAILED, giving no hint that the app did exactly what it was told
@@ -183,7 +183,7 @@ tasks.named<JavaExec>("run") {
             logger.lifecycle("")
             // Same words as `AppUpdate.actionHint(false)`, the update window's line.
             logger.lifecycle("The app quit for an update (exit 55) and does not come back by itself —")
-            logger.lifecycle("use `just run-loop`, which pulls, rebuilds and starts it again.")
+            logger.lifecycle("use `just loop`, which pulls, rebuilds and starts it again.")
         } else if (code != 0) {
             throw GradleException("The app exited with $code")
         }

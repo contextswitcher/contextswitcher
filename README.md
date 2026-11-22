@@ -34,7 +34,7 @@ gradlew :app:run
 ```
 
 With [`just`](https://just.systems) installed, the `justfile` wraps the common commands (Windows and Unix variants each):
-`just run-debug` (Gradle run, fast, for development), `just run` (build the packaged app image and launch the bundled exe), `just pull-run` (`git pull` first, then `just run`), `just run-loop` (run it until you really quit — the toolbar's update button restarts the app into the newly pulled and rebuilt version), `just register` (build the image and register the `contextswitcher://` handler), `just jpackage` (just the image), `just uitest` (the TestFX UI tests, headless on every OS).
+`just run-debug` (Gradle run, fast, for development), `just run` (build the packaged app image and launch the bundled exe), `just pull-run` (`git pull` first, then `just run`), `just loop` (run it until you really quit — the toolbar's update button restarts the app into the newly pulled and rebuilt version), `just register` (build the image and register the `contextswitcher://` handler), `just jpackage` (just the image), `just uitest` (the TestFX UI tests, headless on every OS).
 `just` on its own lists them.
 
 Installing `just`: `cargo binstall just` — which needs [`cargo-binstall`](https://github.com/cargo-bins/cargo-binstall) (`cargo install cargo-binstall`), which needs Rust ([rustup.rs](https://rustup.rs), or `winget install Rustlang.Rustup`).
@@ -49,7 +49,7 @@ A fresh install names the tools it misses in the status bar rather than failing 
 JavaFX comes from plain Maven jars, so its native libraries are prebuilt `.so` files that expect the GTK/X11 stack in the usual system paths; on NixOS there is none, and the app dies at startup with `UnsatisfiedLinkError: no glassgtk3 in java.library.path`.
 `shell.nix` supplies those libraries via `LD_LIBRARY_PATH`, plus the JDK, `just`, `jbang` (the changelog check) and `xvfb-run` (the `just uitest-xvfb` fallback).
 With [direnv](https://direnv.net) installed, `direnv allow` once in the repo is enough — the checked-in `.envrc` then enters that shell on `cd`, and the commands above need no prefix.
-Forgetting the shell is cheap for `just run-loop`: it looks for the GTK library before it pulls and builds, and names the shell instead of failing in the launcher after a full jpackage build.
+Forgetting the shell is cheap for `just loop`: it looks for the GTK library before it pulls and builds, and names the shell instead of failing in the launcher after a full jpackage build.
 
 **Without a JDK:** every green [Build run](https://github.com/contextswitcher/contextswitcher/actions/workflows/build.yml) uploads two artifacts (MADR 0012):
 `ContextSwitcher-windows` — unzip, run `ContextSwitcher\ContextSwitcher.exe` (bundled JRE, nothing to install; `gradlew :app:packageApp` builds the same image for your own OS) —
@@ -59,7 +59,7 @@ and the browser extensions — `contextswitcher-firefox-xpi` (unsigned, [install
 From a source checkout, `gradlew :app:registerUrlHandler` (or `just register`) builds an image and registers against it in one step.
 
 **Staying current:** the app checks its own checkout against its upstream every half hour and shows an update button in the toolbar when a newer commit exists.
-Clicking it quits the app with exit code 55, which `just run-loop` takes as "pull, rebuild, start again" ([`dsn~restart-to-update~12`](docs/requirements/ui.md)).
+Clicking it quits the app with exit code 55, which `just loop` takes as "pull, rebuild, start again" ([`dsn~restart-to-update~12`](docs/requirements/ui.md)).
 
 ## First steps
 

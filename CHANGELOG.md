@@ -18,7 +18,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
-- Windows: the packaged app shows the ContextSwitcher icon in the taskbar, Alt+Tab and Task Manager instead of the Java icon; `just loop` is short for `just run-loop`.
+- Windows: the packaged app shows the ContextSwitcher icon in the taskbar, Alt+Tab and Task Manager instead of the Java icon; `just run-loop` is now `just loop`.
 - Android: swiping from the terminal to the queue and back keeps the terminal at the line you were reading instead of jumping back to the end.
 - Android: a long task title takes at most two lines in the task list too (was three), leaving more room for the rest.
 
