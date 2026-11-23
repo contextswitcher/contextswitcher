@@ -66,12 +66,12 @@ final class HostTable extends VBox {
         CheckBoxTableColumn<Row> active = new CheckBoxTableColumn<>("Active");
         active.setReadFunction(row -> row.active);
         active.setWriteFunction((row, on) -> row.active = Boolean.TRUE.equals(on));
-        active.setPrefWidth(60);
+        active.setPrefWidth(90);
 
         StringTableColumn<Row> workspaces = new StringTableColumn<>("Workspaces");
         workspaces.setReadFunction(row -> row.workspaces);
         workspaces.setWriteFunction((row, text) -> row.workspaces = text);
-        workspaces.setPrefWidth(190);
+        workspaces.setPrefWidth(220);
 
         StringTableColumn<Row> refactoringMiner = new StringTableColumn<>("RefactoringMiner");
         refactoringMiner.setReadFunction(row -> row.refactoringMiner);

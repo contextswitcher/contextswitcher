@@ -115,6 +115,7 @@ final class SettingsDialog {
                 + "fields you change, keeping comments and unknown keys. Restart to apply "
                 + "(the tag palette, theme, browser and the auto-suspend threshold update live).");
         dialog.setResizable(true);
+        dialog.getDialogPane().getStyleClass().add("uncapped");
         ButtonType saveButton = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
         ButtonType rawToggle = new ButtonType("View raw", ButtonBar.ButtonData.LEFT);
         dialog.getDialogPane().getButtonTypes().addAll(rawToggle, saveButton, ButtonType.CANCEL);
@@ -276,7 +277,9 @@ final class SettingsDialog {
                 page.setPadding(new Insets(6, 10, 6, 10));
                 ScrollPane scroll = new ScrollPane(page);
                 scroll.setFitToWidth(true);
-                scroll.setPrefViewportWidth(460);
+                // The host table's columns (700 px) plus its scrollbar and the
+                // page padding — narrower clipped the Active header and the paths.
+                scroll.setPrefViewportWidth(750);
                 tabs.getTabs().add(new Tab(group, scroll));
                 return page;
             }).getChildren().add(fieldRow(option, controls));
