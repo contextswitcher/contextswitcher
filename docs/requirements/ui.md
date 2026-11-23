@@ -2532,6 +2532,7 @@ It reads the list's `VirtualFlow` and does nothing when the row lies strictly be
 Clicking into an editor or queue input therefore leaves the list exactly where it was, rather than jerking the already-visible row to an edge.
 A row that does have to be revealed is scrolled so it lands about a third of a viewport down (`scrollToTop(index - visibleRows / 3)`) — clear of the pinned header, and with rows above and below it, so the user can scroll in both directions from where they landed instead of being parked against an edge.
 Before the first layout there is no flow (or no cells) to measure, and the plain `ListView.scrollTo` is used.
+Right after a rebuild (a desktop switch replaces every row, `dsn~desktop-last-task-selection~6`) the flow still holds the previous rows' cells, whose indices say nothing about the new rows: the list is laid out first, and a flow still out of step with the items falls back to `ListView.scrollTo` too.
 
 Tags: windows, linux
 

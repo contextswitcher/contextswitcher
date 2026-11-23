@@ -6137,9 +6137,15 @@ public class MainWindow {
             return;
         }
         if (list.lookup(".virtual-flow") instanceof VirtualFlow<?> flow) {
+            // Right after a rebuild (a desktop switch replaces every row) the
+            // flow still holds the previous rows' cells until the next pulse,
+            // so their indices say nothing about the new rows: lay out first.
+            if (flow.getCellCount() != list.getItems().size()) {
+                list.layout();
+            }
             IndexedCell<?> first = flow.getFirstVisibleCell();
             IndexedCell<?> last = flow.getLastVisibleCell();
-            if (first != null && last != null) {
+            if (first != null && last != null && flow.getCellCount() == list.getItems().size()) {
                 // Strictly between the edge cells: those two may be clipped by
                 // the viewport, and the topmost one also sits under the pinned
                 // section header, so neither counts as "on screen".
@@ -6151,7 +6157,8 @@ public class MainWindow {
                 return;
             }
         }
-        // Before the first layout there is no flow (or no cells) to measure.
+        // Before the first layout there is no flow (or no cells) to measure,
+        // and a flow the layout above could not bring up to date neither.
         list.scrollTo(index);
     }
 

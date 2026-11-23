@@ -15,6 +15,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Fixed
 
 - `gatherWindows:` no longer pulls a window that would not stay (moved back three times) over again after it was minimized or its virtual desktop switched.
+- Switching virtual desktops scrolls the task list to that desktop's selected task when it is out of view.
 
 ## [2026-11-22] - 2026-11-22
 
