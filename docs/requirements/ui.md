@@ -502,7 +502,7 @@ Needs: dsn
 ### Select the UI theme
 `req~theme-select~1`
 
-The user can choose the application's color theme from the settings dialog — light, dark, or system (follow the operating system's light/dark preference), each in the Everforest recolouring or the plain palette — and the choice takes effect immediately, without a restart.
+The user can choose the application's color theme from the settings dialog — light, dark, or system (follow the operating system's light/dark preference), each in the Everforest recolouring or the plain palette, or one of the fixed tuxedo palettes — and the choice takes effect immediately, without a restart.
 The choice is stored in `settings.yaml` (`theme:`); an absent or unrecognized value means the default theme, Everforest following the operating system.
 
 Tags: windows, linux
@@ -2090,6 +2090,24 @@ The `base` stays the Nord theme of the matching mode, so a variable the override
 It builds AtlantaFX's ramp shape (index 0 lightest, 5 the seed, 9 darkest) from Everforest's own named steps for the neutrals and from four seeds for accent/success/warning/danger: **green** as the accent (Everforest's signature hue), aqua for success so it never reads as the accent, yellow, and red.
 The light variant travels further down its ramps than Nord does (slope 0.75 against 0.55) and reads its `fg`/`emphasis` two steps deeper: Everforest's light hues are bright enough that Nord's indices produced a green fill too pale to carry the cream `fg-emphasis` text.
 The generator therefore ends in a WCAG check — `fg-default` on the ground, `fg-emphasis` on each emphasis fill, and each `X-fg` on the ground, all at AA 4.5:1 — and fails rather than writing a palette that would ship a contrast regression.
+
+Tags: windows, linux
+
+Covers:
+- req~theme-select~1
+
+Needs: impl, utest
+
+### Tuxedo palettes
+`dsn~tuxedo-themes~1`
+
+The `theme` values `muted-slate`, `dawn` and `matrix` draw the UI in the built-in themes of the same names of the [tuxedo](https://github.com/webstonehq/tuxedo#themes) todo app (MIT; colours from its `src/theme.rs`).
+Each has one lightness — `muted-slate` and `matrix` are dark, `dawn` is light — and does not follow the operating system.
+Tuxedo's fourth palette, *Nord*, is the existing `dark`, and its *Terminal* theme (the terminal emulator's own colours) has no counterpart in a desktop window.
+
+They use the mechanism of `dsn~everforest-theme~2`: `Themes.recoloured(base, variant)` appends `<variant>.css` to the Nord theme of the matching lightness, and `scripts/everforest-atlantafx.py` generates the three stylesheets under the same WCAG check.
+Tuxedo names seven neutrals (`bg`, `panel`, `statusbar`, `border`, `dim`, `status_fg`, `fg`) where AtlantaFX wants a ramp of ten, so the generator interpolates the gaps; `accent` is the accent seed, and the priority colours A (red), B (yellow) and C (green) seed danger, warning and success.
+The terminal mirror stays on its plain black or white ground under these themes (`dsn~terminal-theme~2`).
 
 Tags: windows, linux
 

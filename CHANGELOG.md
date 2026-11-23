@@ -11,6 +11,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Added
 
 - An environment profile can set `gatherWhen: docking`: `gatherWindows` then only sweeps the windows over right after docking, and a window opened later on the laptop or a second monitor stays there.
+- Three more values for `theme`: `muted-slate`, `dawn` and `matrix`, the palettes of the tuxedo todo app.
 
 ### Fixed
 

@@ -97,10 +97,12 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
 
     /// The valid `theme` values: the Nord palette or its Everforest
     /// recolouring (`dsn~everforest-theme~2`), each forced light or dark or —
-    /// as the bare name — following the operating system's setting.
+    /// as the bare name — following the operating system's setting; plus the
+    /// tuxedo palettes (`dsn~tuxedo-themes~1`), each of one fixed lightness.
     // [impl->dsn~theme-select~9]
     public static final List<String> THEMES =
-            List.of("system", "light", "dark", "everforest", "everforest-light", "everforest-dark");
+            List.of("system", "light", "dark", "everforest", "everforest-light", "everforest-dark",
+                    "muted-slate", "dawn", "matrix");
     /// The default theme — Everforest, following the OS's light/dark setting.
     public static final String DEFAULT_THEME = "everforest";
 
@@ -485,7 +487,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                 wsToken: <generated>         # shared secret; keep the generated value
                 hints: true                  # onboarding hints in generated task files; false = compact (real keys only)
                 claudeAuto: false            # true = start/resume Claude with --dangerously-skip-permissions (trust your remotes)
-                theme: everforest            # UI color theme: system/light/dark (Nord) or everforest/everforest-light/everforest-dark; the bare names follow the OS
+                theme: everforest            # UI color theme: system/light/dark (Nord) or everforest/everforest-light/everforest-dark (the bare names follow the OS), or muted-slate/dawn/matrix
                 showOnAllDesktops: false     # true = pin the window to all Windows virtual desktops at startup (each desktop then remembers its own window position)
                 fallbackDesktop: misc        # virtual desktop for categories with no `desktop:` (or one that does not exist); empty = no fallback
                 readlineKeys: false          # true = bash cursor chords in text inputs (Ctrl+A/E/B/F/D/H/K/U/W, Alt+B/F/D); Ctrl+A is then line start, not select all

@@ -1,0 +1,125 @@
+/* Matrix (tuxedo) for AtlantaFX — GENERATED, do not edit. */
+/* Regenerate with: python3 scripts/everforest-atlantafx.py   (dsn~everforest-theme~1) */
+
+.root {
+
+  /* Base ramps: 0 lightest … 9 darkest. */
+  -color-base-0: #7fcc7f;
+  -color-base-1: #6caf6c;
+  -color-base-2: #558c55;
+  -color-base-3: #3f6a3f;
+  -color-base-4: #345734;
+  -color-base-5: #294429;
+  -color-base-6: #213721;
+  -color-base-7: #1a2a1a;
+  -color-base-8: #0f1a0f;
+  -color-base-9: #0a120a;
+
+  -color-accent-0: #84d484;
+  -color-accent-1: #89dc89;
+  -color-accent-2: #8fe58f;
+  -color-accent-3: #94ee94;
+  -color-accent-4: #9af69a;
+  -color-accent-5: #9fff9f;
+  -color-accent-6: #8ade8a;
+  -color-accent-7: #75bc75;
+  -color-accent-8: #609b60;
+  -color-accent-9: #4b7a4b;
+
+  -color-success-0: #84d484;
+  -color-success-1: #89dc89;
+  -color-success-2: #8fe58f;
+  -color-success-3: #94ee94;
+  -color-success-4: #9af69a;
+  -color-success-5: #9fff9f;
+  -color-success-6: #8ade8a;
+  -color-success-7: #75bc75;
+  -color-success-8: #609b60;
+  -color-success-9: #4b7a4b;
+
+  -color-warning-0: #92ce7c;
+  -color-warning-1: #a8cf7a;
+  -color-warning-2: #bed177;
+  -color-warning-3: #d3d374;
+  -color-warning-4: #e9d471;
+  -color-warning-5: #ffd66e;
+  -color-warning-6: #ddba60;
+  -color-warning-7: #bb9f52;
+  -color-warning-8: #998344;
+  -color-warning-9: #776735;
+
+  -color-danger-0: #92c281;
+  -color-danger-1: #a8b883;
+  -color-danger-2: #bead85;
+  -color-danger-3: #d3a288;
+  -color-danger-4: #e9978a;
+  -color-danger-5: #ff8c8c;
+  -color-danger-6: #dd7b7a;
+  -color-danger-7: #bb6967;
+  -color-danger-8: #995855;
+  -color-danger-9: #774643;
+
+  /* Semantic colours. */
+  -color-dark: #070d07;
+  -color-light: #7fcc7f;
+  -color-fg-default: #7fcc7f;
+  -color-fg-muted: #6caf6c;
+  -color-fg-subtle: #3f6a3f;
+  -color-fg-emphasis: #070d07;
+  -color-bg-default: #0a120a;
+  -color-bg-overlay: #0f1a0f;
+  -color-bg-subtle: #0f1a0f;
+  -color-bg-inset: #070d07;
+  -color-border-default: #294429;
+  -color-border-muted: #213721;
+  -color-border-subtle: #1a2a1a;
+  -color-shadow-default: #070d07;
+  -color-neutral-emphasis-plus: #294429;
+  -color-neutral-emphasis: #213721;
+  -color-neutral-muted: #172717;
+  -color-neutral-subtle: #0d180d;
+  -color-accent-fg: #8fe58f;
+  -color-accent-emphasis: #9fff9f;
+  -color-accent-muted: #5d975d;
+  -color-accent-subtle: #203620;
+  -color-success-fg: #8fe58f;
+  -color-success-emphasis: #9fff9f;
+  -color-success-muted: #5d975d;
+  -color-success-subtle: #203620;
+  -color-warning-fg: #bed177;
+  -color-warning-emphasis: #ffd66e;
+  -color-warning-muted: #938042;
+  -color-warning-subtle: #2f2f19;
+  -color-danger-fg: #bead85;
+  -color-danger-emphasis: #ff8c8c;
+  -color-danger-muted: #935653;
+  -color-danger-subtle: #2f241e;
+
+  /* Chart series. */
+  -color-chart-1: #9fff9f;
+  -color-chart-2: #7fd0ff;
+  -color-chart-3: #ff8c8c;
+  -color-chart-4: #ffd66e;
+  -color-chart-5: #cf9fff;
+  -color-chart-6: #9fff9f;
+  -color-chart-7: #ffb56e;
+  -color-chart-8: #3f6a3f;
+
+  -color-chart-1-alpha70: rgba(159, 255, 159, 0.7);
+  -color-chart-2-alpha70: rgba(127, 208, 255, 0.7);
+  -color-chart-3-alpha70: rgba(255, 140, 140, 0.7);
+  -color-chart-4-alpha70: rgba(255, 214, 110, 0.7);
+  -color-chart-5-alpha70: rgba(207, 159, 255, 0.7);
+  -color-chart-6-alpha70: rgba(159, 255, 159, 0.7);
+  -color-chart-7-alpha70: rgba(255, 181, 110, 0.7);
+  -color-chart-8-alpha70: rgba(63, 106, 63, 0.7);
+
+  -color-chart-1-alpha20: rgba(159, 255, 159, 0.2);
+  -color-chart-2-alpha20: rgba(127, 208, 255, 0.2);
+  -color-chart-3-alpha20: rgba(255, 140, 140, 0.2);
+  -color-chart-4-alpha20: rgba(255, 214, 110, 0.2);
+  -color-chart-5-alpha20: rgba(207, 159, 255, 0.2);
+  -color-chart-6-alpha20: rgba(159, 255, 159, 0.2);
+  -color-chart-7-alpha20: rgba(255, 181, 110, 0.2);
+  -color-chart-8-alpha20: rgba(63, 106, 63, 0.2);
+}

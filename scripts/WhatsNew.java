@@ -17,6 +17,9 @@
 //SOURCES ../core/src/main/java/com/contextswitcher/local/LocalCommandRunner.java
 //FILES com/contextswitcher/ui/everforest-dark.css=../app/src/main/resources/com/contextswitcher/ui/everforest-dark.css
 //FILES com/contextswitcher/ui/everforest-light.css=../app/src/main/resources/com/contextswitcher/ui/everforest-light.css
+//FILES com/contextswitcher/ui/muted-slate.css=../app/src/main/resources/com/contextswitcher/ui/muted-slate.css
+//FILES com/contextswitcher/ui/dawn.css=../app/src/main/resources/com/contextswitcher/ui/dawn.css
+//FILES com/contextswitcher/ui/matrix.css=../app/src/main/resources/com/contextswitcher/ui/matrix.css
 
 import atlantafx.base.theme.Styles;
 import javafx.application.Application;

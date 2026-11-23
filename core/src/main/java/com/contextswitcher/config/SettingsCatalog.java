@@ -84,7 +84,8 @@ public final class SettingsCatalog {
             new Option("theme", "Theme", "Interface", Type.ENUM,
                     "UI color theme. everforest (the default) and its light/dark variants "
                             + "recolour the Nord palette of system/light/dark "
-                            + "(the terminal follows either way).",
+                            + "(the terminal follows either way). muted-slate and matrix (dark) "
+                            + "and dawn (light) are the palettes of the tuxedo todo app.",
                     AppSettings.THEMES),
             new Option("showOnAllDesktops", "Show window on all desktops", "Interface", Type.BOOLEAN,
                     "Pins the window to every Windows virtual desktop at startup; "

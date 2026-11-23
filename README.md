@@ -330,7 +330,7 @@ Everything applies on Save.
 tasksDir: C:\Users\you\.contextswitcher\tasks   # where the task .md files live
 hints: true                  # onboarding hints in generated task files; false = compact
 claudeAuto: false            # true = start/resume Claude with --dangerously-skip-permissions
-theme: everforest            # everforest | everforest-light | everforest-dark | system | light | dark
+theme: everforest            # everforest | everforest-light | everforest-dark | system | light | dark | muted-slate | dawn | matrix
 showOnAllDesktops: false     # pin the window to every Windows virtual desktop at startup
 fallbackDesktop: misc        # desktop for a category naming none, or naming a missing one; empty = off
 readlineKeys: false          # bash cursor chords in every text field (Ctrl+A/E, Alt+B/F, Ctrl+K/U/W …)
@@ -362,7 +362,8 @@ Accept it once by running `claude --dangerously-skip-permissions` in any interac
 ### Theme
 
 `theme` defaults to `everforest`, which draws the UI in the [Everforest](https://github.com/sainnhe/everforest) palette and follows the OS's light/dark setting; `everforest-light` and `everforest-dark` force a variant, and `system`, `light` and `dark` give the plain AtlantaFX Nord palette instead.
-The change applies on Save, without a restart, and the embedded terminal follows: Everforest under the `everforest` themes, a plain black or white terminal under the Nord ones.
+`muted-slate`, `dawn` and `matrix` are the themes of the [tuxedo](https://github.com/webstonehq/tuxedo#themes) todo app: two dark ones and a light one (`dawn`), each of a fixed lightness; tuxedo's *Nord* is `dark` here.
+The change applies on Save, without a restart, and the embedded terminal follows: Everforest under the `everforest` themes, a plain black or white terminal under all others.
 
 The terminal's colours stop at ANSI 0–15, so a **remote** program that emits 24-bit colour keeps its own — a Claude Code session in a dark theme stays dark on a light mirror, and no local setting can change that.
 Fix it on the remote by giving Claude Code a matching theme: copy the two files from [koppor/everforest-configurations](https://github.com/koppor/everforest-configurations/tree/main/claude-code) into `~/.claude/themes/` there, restart it once (Claude Code only watches that folder if it existed at startup), and pick the theme with `/theme`.
