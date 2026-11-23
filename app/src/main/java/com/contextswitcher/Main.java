@@ -1222,7 +1222,7 @@ public class Main extends Application {
                 // already in the window. [impl->dsn~auto-suspend-idle~2]
                 idle -> Platform.runLater(() -> {
                     window.autoSuspendIdle(idle, autoSuspendMinutes * 60L);
-                    // [impl->dsn~idle-task-removal~2]
+                    // [impl->dsn~idle-task-removal~3]
                     window.autoRemoveIdle(idle);
                 }),
                 // The flag a restarted session has to be given back.
@@ -1246,7 +1246,7 @@ public class Main extends Application {
         // [impl->dsn~merged-task-cleanup~2]
         window.setOnMergedCleanup(task -> cleanupMerged(files, snapshots, taskBackup,
                 suspendOrchestrator, sessionCleanup, task, mergedCleanupDays));
-        // [impl->dsn~idle-task-removal~2]
+        // [impl->dsn~idle-task-removal~3]
         window.setOnIdleRemoval(task -> cleanupIdle(files, snapshots, taskBackup,
                 suspendOrchestrator, sessionCleanup, task));
         PrStatePoller prPoller = new PrStatePoller(new PrStateLookup(new LocalCommandRunner()),
@@ -3919,7 +3919,7 @@ public class Main extends Application {
                 + (hints ? "\nCreated on %s.\n".formatted(LocalDate.now()) : "");
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~2]
-        // [impl->dsn~idle-task-removal~2]
+        // [impl->dsn~idle-task-removal~3]
         String withPrs = TaskFileParser.withFlag(TaskFileParser.addUrlsFrom(content, title),
                 IdleRemoval.KEY, autoRemove);
         // Dated like the per-task worktrees; the description slug is
@@ -5667,7 +5667,7 @@ public class Main extends Application {
     /// [IdleRemoval] decides): the merged janitor's archive-and-remove without
     /// its screen judgment — the user asked for it when creating the task —
     /// and with the workdir removed only as a linked git worktree.
-    // [impl->dsn~idle-task-removal~2]
+    // [impl->dsn~idle-task-removal~3]
     private void cleanupIdle(MainWindow.TaskFileAccess files, PaneSnapshots snapshots,
             TaskGitBackup backup, SwitchOrchestrator orchestrator,
             ClaudeSessionCleanup cleanup, Task task) {

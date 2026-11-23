@@ -54,7 +54,7 @@ class ClaudeSessionCleanupTest {
                 ClaudeSessionCleanup.workdirCommand("/data/koppor/ws/2026-07-17-task"));
     }
 
-    // [utest->dsn~idle-task-removal~2]
+    // [utest->dsn~idle-task-removal~3]
     @Test
     void worktreeCommandLetsGitRefuseAFullCheckout() {
         assertEquals(List.of("git", "-C", "'/data/koppor/ws/2026-07-17-task'", "worktree", "remove",
@@ -62,7 +62,7 @@ class ClaudeSessionCleanupTest {
                 ClaudeSessionCleanup.worktreeCommand("/data/koppor/ws/2026-07-17-task"));
     }
 
-    // [utest->dsn~idle-task-removal~2]
+    // [utest->dsn~idle-task-removal~3]
     @Test
     void theWorktreesBranchIsDeletedInItsRepository() {
         assertEquals(List.of("git", "--git-dir='/data/koppor/ws/repo/.git'", "branch", "-D", "'fix-typo'"),

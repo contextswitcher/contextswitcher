@@ -1501,7 +1501,7 @@ public class TaskFileParser {
 
     /// Sets (or removes) a top-level boolean `key: true` line textually, as
     /// [#withPinned] describes — off removes the line.
-    // [impl->dsn~idle-task-removal~2]
+    // [impl->dsn~idle-task-removal~3]
     public static String withFlag(String content, String key, boolean on) {
         String normalized = content.replace("\r\n", "\n");
         String[] lines = normalized.split("\n", -1);
