@@ -298,6 +298,11 @@ private fun ContextSwitcherApp(
                                 TaskRepoSync().deleteQueuedMessage(repoDir, settings.username, settings.token, task.id(), message)
                             } ?: "No task repo configured"
                         },
+                        queueOnDesktop = { message ->
+                            settingsStore.load()?.let { settings ->
+                                TaskRepoSync().queueMessage(repoDir, settings.username, settings.token, task.id(), message)
+                            } ?: "No task repo configured"
+                        },
                     )
                 }
             }

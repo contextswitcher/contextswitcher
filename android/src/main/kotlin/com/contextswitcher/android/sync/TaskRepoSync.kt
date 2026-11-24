@@ -147,6 +147,19 @@ class TaskRepoSync(private val beforePush: () -> Unit = {}) {
             }
         }
 
+    /// Appends `message` to `taskId`'s desktop queue (`.queues/`) and pushes
+    /// that like [deleteQueuedMessage]: *Transfer* moves a message the phone
+    /// enqueued over to the desktop. Null on success, else the error to show.
+    // [impl->dsn~android-enqueue-transfer~1]
+    fun queueMessage(dir: File, username: String, token: String, taskId: String, message: String): String? =
+        pushChange(dir, username, token) { git ->
+            val queueFile = QueueFile.file(dir.toPath().resolve(".queues"), taskId)
+            QueueFile.save(queueFile, QueueFile.load(queueFile) + message)
+            git.add().addFilepattern(dir.toPath().relativize(queueFile).toString().replace(File.separatorChar, '/')).call()
+            commit(git, "Queue a message for $taskId from Android")
+            true
+        }
+
     /// Deletes `taskId`'s file and pushes that like [createTask]; a file
     /// already gone from the fetched clone needs no commit. Null on success,
     /// else the error to show.

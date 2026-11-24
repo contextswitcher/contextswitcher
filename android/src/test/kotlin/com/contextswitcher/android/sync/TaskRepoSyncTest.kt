@@ -140,6 +140,20 @@ class TaskRepoSyncTest {
         assertThat(File(check, queue)).doesNotExist()
     }
 
+    // [utest->dsn~android-enqueue-transfer~1]
+    @Test
+    fun `a transferred message is appended to the desktop queue, creating the file`(@TempDir tmp: File) {
+        val queue = ".queues/work__first.yaml"
+        val bare = pushFixture(tmp, "work/first.md" to taskFixture("First"))
+        val target = File(tmp, "clone")
+        TaskRepoSync().syncInto(target, bare.absolutePath, "user", "token")
+
+        assertThat(TaskRepoSync().queueMessage(target, "user", "token", "work/first", "one")).isNull()
+        assertThat(TaskRepoSync().queueMessage(target, "user", "token", "work/first", "two")).isNull()
+
+        assertThat(queueInRemote(tmp, bare, queue)).containsExactly("one", "two")
+    }
+
     // [utest->dsn~android-queue-delete~3]
     @Test
     fun `a message the desktop already removed needs no push`(@TempDir tmp: File) {

@@ -83,6 +83,7 @@ fun QueuePage(
     deleteQueued: (suspend (String) -> String?)? = null,
     attachments: AttachmentStore? = null,
     enqueuedStore: DraftStore? = null,
+    transferToDesktop: (suspend (String) -> String?)? = null,
 ) {
     var draft by remember(task.id()) { mutableStateOf(runCatching { draftStore.loadUnsent(task.id()) }.getOrDefault("")) }
     var drafts by remember(task.id()) { mutableStateOf(draftStore.load(task.id())) }
@@ -98,6 +99,7 @@ fun QueuePage(
     var hadFocus by remember(task.id()) { mutableStateOf(false) }
     var confirmDelete by remember(task.id()) { mutableStateOf<String?>(null) }
     var deleting by remember(task.id()) { mutableStateOf(false) }
+    var transferring by remember(task.id()) { mutableStateOf(false) }
     // The desktop-queued message the box's text, or a draft's, was edited from.
     var boxOrigin by remember(task.id()) { mutableStateOf<String?>(null) }
     var draftOrigins by remember(task.id()) { mutableStateOf(mapOf<String, String>()) }
@@ -202,6 +204,26 @@ fun QueuePage(
                     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                         Text(text = text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp))
                         Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                            // [impl->dsn~android-enqueue-transfer~1]
+                            if (transferToDesktop != null) {
+                                TextButton(
+                                    onClick = {
+                                        transferring = true
+                                        scope.launch {
+                                            val error = withContext(Dispatchers.IO) { transferToDesktop(text) }
+                                            transferring = false
+                                            if (error == null) {
+                                                enqueued = enqueuedStore.remove(task.id(), text)
+                                            } else {
+                                                snackbarHostState.showSnackbar("Cannot transfer: $error")
+                                            }
+                                        }
+                                    },
+                                    enabled = !transferring,
+                                ) {
+                                    Text(if (transferring) "Transferring…" else "Transfer")
+                                }
+                            }
                             TextButton(onClick = {
                                 enqueued = enqueuedStore.remove(task.id(), text)
                                 edit(text)

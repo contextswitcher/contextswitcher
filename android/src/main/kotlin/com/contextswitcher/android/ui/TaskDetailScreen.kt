@@ -86,6 +86,7 @@ fun TaskDetailScreen(
     messageSender: MessageSender,
     onBack: () -> Unit,
     deleteQueuedMessage: ((String) -> String?)? = null,
+    queueOnDesktop: ((String) -> String?)? = null,
     attachments: com.contextswitcher.android.queue.AttachmentStore? = null,
     previousTask: Task? = null,
     nextTask: Task? = null,
@@ -216,6 +217,13 @@ fun TaskDetailScreen(
                     { message ->
                         delete(message).also {
                             // Either way the clone now mirrors the remote's queue.
+                            queuedMessages = QueueFile.load(QueueFile.file(queuesDir, task.id()))
+                        }
+                    }
+                },
+                transferToDesktop = queueOnDesktop?.let { queue ->
+                    { message ->
+                        queue(message).also {
                             queuedMessages = QueueFile.load(QueueFile.file(queuesDir, task.id()))
                         }
                     }
