@@ -108,7 +108,7 @@ import tools.maran.svgnode.SvgNode;
 /// click copies that text into the add box ("Go" and whatever else one keeps
 /// retyping), ready to be extended before it is queued; `…` opens the editor that adds,
 /// edits and removes them, and a button's right-click menu removes it.
-// [impl->dsn~message-queue-ui~26]
+// [impl->dsn~message-queue-ui~27]
 // [impl->dsn~message-queue-store~2]
 public class QueuePane {
 
@@ -234,7 +234,7 @@ public class QueuePane {
     /// The id the shown task's file was just renamed to ([#taskRenamed]),
     /// consumed by the very next [#showTask] so the rename does not read as a
     /// task switch. Null whenever no rename is in flight.
-    // [impl->dsn~message-queue-ui~26]
+    // [impl->dsn~message-queue-ui~27]
     private @Nullable String renamedTo;
     /// Index 0 = oldest = top box = next to send.
     private List<String> messages = new ArrayList<>();
@@ -439,7 +439,7 @@ public class QueuePane {
     /// message for it — committed the half-typed add box to the **old** id and
     /// reloaded the new id's empty queue: the box went empty, no card
     /// appeared, and the message ended up in a queue file no task points at.
-    // [impl->dsn~message-queue-ui~26]
+    // [impl->dsn~message-queue-ui~27]
     public void taskRenamed(String fromId, String toId) {
         // The armed queue is keyed by id too: it follows, or it waits forever
         // for a task that no longer exists under the old id.
@@ -862,7 +862,7 @@ public class QueuePane {
     /// pulse — Tab then started from the toolbar (field report 2026-09-16) —
     /// while one taken out and put back within the same pulse keeps focus,
     /// caret, selection, height and a half-typed edit.
-    // [impl->dsn~message-queue-ui~26]
+    // [impl->dsn~message-queue-ui~27]
     private void rebuild() {
         spare.clear();
         spare.addAll(areas);
@@ -943,7 +943,7 @@ public class QueuePane {
     /// taller (and up shorter, never below one row), what a browser gives
     /// every `<textarea>`. Per box and not persisted — a taller box is for
     /// the message being written right now.
-    // [impl->dsn~message-queue-ui~26]
+    // [impl->dsn~message-queue-ui~27]
     private static Region resizeGrip(TextArea area) {
         Region grip = new Region();
         grip.setPrefHeight(5);
@@ -1388,7 +1388,7 @@ public class QueuePane {
     /// so an in-flight edit or reorder cannot drop the wrong one; false when
     /// it is no longer there (an edited message stays queued).
     // [impl->dsn~message-queue-delayed-send~4]
-    // [impl->dsn~message-queue-ui~26]
+    // [impl->dsn~message-queue-ui~27]
     private boolean dropFromQueue(Task sent, String text) {
         if (task != null && task.id().equals(sent.id())) {
             int at = messages.indexOf(text);
@@ -1606,7 +1606,7 @@ public class QueuePane {
     /// cannot drift apart between them (`req~compose-key-conventions~5`).
     /// A null `commit` leaves the triple-Enter half out — that is what a card
     /// edit box passes, where blank lines are content and must not submit.
-    // [impl->dsn~message-queue-ui~26]
+    // [impl->dsn~message-queue-ui~27]
     // [impl->dsn~task-create-ui~15]
     public static void installComposeKeys(
             TextArea area, @Nullable Runnable commit, Runnable chord) {
@@ -1882,11 +1882,14 @@ public class QueuePane {
 
     /// Ctrl+V with an image on the clipboard (a screenshot) stores it under
     /// the attachments dir and inserts its marker at the caret — text
-    /// pastes fall through to the TextArea's own handler.
+    /// pastes fall through to the TextArea's own handler. Text wins when the
+    /// clipboard carries both: OneNote puts a rendered picture next to the
+    /// text of whatever it copies, a bare link included, and that link is
+    /// what the message wants.
     private void installImagePaste(TextArea area) {
         KeyCombination paste = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
         area.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (!paste.match(event) || !Clipboard.getSystemClipboard().hasImage()) {
+            if (!paste.match(event) || !pastesAsImage(Clipboard.getSystemClipboard())) {
                 return;
             }
             try {
@@ -1898,6 +1901,16 @@ public class QueuePane {
             }
             event.consume();
         });
+    }
+
+    /// Whether a paste takes the clipboard's image: only when there is no
+    /// non-blank text beside it (`dsn~message-queue-ui~27`).
+    static boolean pastesAsImage(Clipboard clipboard) {
+        if (!clipboard.hasImage()) {
+            return false;
+        }
+        String text = clipboard.hasString() ? clipboard.getString() : null;
+        return text == null || text.isBlank();
     }
 
     /// Files dragged from the OS onto a text box are copied under the

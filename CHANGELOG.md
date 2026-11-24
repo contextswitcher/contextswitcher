@@ -20,6 +20,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - The settings dialog is wide enough for the host table: the *Active* column header and the paths are no longer cut off.
 - `gatherWindows:` no longer pulls a window that would not stay (moved back three times) over again after it was minimized or its virtual desktop switched.
 - Switching virtual desktops scrolls the task list to that desktop's selected task when it is out of view.
+- A link copied from OneNote pastes into the queue (and the Add-task description) as the link, not as a picture of it.
 
 ## [2026-11-22] - 2026-11-22
 
