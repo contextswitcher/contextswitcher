@@ -486,7 +486,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
-[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-22...HEAD
+[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-22...main
 [2026-11-22]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-21...v2026-11-22
 [2026-11-21]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-20...v2026-11-21
 [2026-11-20]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-19...v2026-11-20

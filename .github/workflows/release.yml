@@ -42,7 +42,7 @@ jobs:
           tag=
           if grep -q '^## \[Unreleased\]' CHANGELOG.md && ! git rev-parse -q --verify "refs/tags/v$d" >/dev/null; then
             sed -i -e "s/^## \[Unreleased\]\$/## [$d] - $d/" \
-                   -e "s|^\[Unreleased\]: \(.*/compare/v[0-9-]*\)\.\.\.main\$|[$d]: \1...v$d|" CHANGELOG.md
+                   -e "s|^\[Unreleased\]: \(.*/compare/v[0-9-]*\)\.\.\.[A-Za-z]*\$|[$d]: \1...v$d|" CHANGELOG.md
             jbang trust add https://github.com/nbbrd/
             jbang heylogs@nbbrd check CHANGELOG.md
             git commit -am "Release $d"
