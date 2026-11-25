@@ -480,6 +480,10 @@ public class MainWindow {
     /// The tag palette last read from settings.yaml (cached so hot paths — chip
     /// colors, the row menus — never touch disk); refreshed on a settings edit.
     private List<AppSettings.TagDef> palette = List.of();
+    /// The mode without Claude (`contextsOnly` in `settings.yaml`): no
+    /// terminal and queue lanes, no tmux or Claude actions. Read once, before
+    /// [#show]. [impl->dsn~contexts-only~1]
+    private boolean contextsOnly;
     /// [#selectableTagNames] memoized for one rebuild: every realized row's
     /// "Tags" submenu asks for it, and computing it scans every task's
     /// effective tags. Invalidated in [#rebuildRows], like [#groupConfigCache].
@@ -1279,6 +1283,12 @@ public class MainWindow {
         return CloseConfirmation.confirm(dialogOwner(), action, rows, this::selectTask);
     }
 
+    /// Switches the mode without Claude on or off; call before [#show].
+    // [impl->dsn~contexts-only~1]
+    public void setContextsOnly(boolean contextsOnly) {
+        this.contextsOnly = contextsOnly;
+    }
+
     public void show(Stage stage, Application application) {
         this.stage = stage;
         ListView<Object> list = new ListView<>(visibleRows);
@@ -1475,7 +1485,7 @@ public class MainWindow {
         formPanes = List.of(switchActions, pane);
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(
                 leftPane, terminalLane, editorNode, switchActions, pane, queueNode, bottomBar,
-                listToolbar.appControls()));
+                listToolbar.appControls(), contextsOnly));
         shell = hosted;
         Scene scene = hosted.scene();
         showCategoryInTitle("");
@@ -3687,7 +3697,8 @@ public class MainWindow {
                 return text;
             }
         });
-        HBox categoryRow = new HBox(6, new Label("Category:"), categoryBox, new Label("on"), hostBox);
+        Label onLabel = new Label("on");
+        HBox categoryRow = new HBox(6, new Label("Category:"), categoryBox, onLabel, hostBox);
         categoryRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         ButtonType plainType = new ButtonType("Add plain task", ButtonBar.ButtonData.OK_DONE);
         ButtonType remoteType = new ButtonType("Add remote Claude", ButtonBar.ButtonData.OTHER);
@@ -3776,7 +3787,8 @@ public class MainWindow {
         autoRemove.setMinHeight(Region.USE_PREF_SIZE);
         // The queue pane's quick messages, above the field like above the add box.
         // [impl->dsn~quick-message-buttons~7]
-        VBox content = new VBox(6, categoryRow, quickRow.apply(field), field, modeLabel, modeRow,
+        Node quickMessages = quickRow.apply(field);
+        VBox content = new VBox(6, categoryRow, quickMessages, field, modeLabel, modeRow,
                 autoRemove, keysHint, remoteHint, localHint);
         // Enlarging the dialog grows the description field, not the hints.
         VBox.setVgrow(field, Priority.ALWAYS);
@@ -3835,8 +3847,21 @@ public class MainWindow {
             remoteButton.setDefaultButton(defaultButton == remoteButton);
             localButton.setDefaultButton(defaultButton == localButton);
             plainButton.setDefaultButton(defaultButton == plainButton);
+            // Without Claude only the plain task is made. [impl->dsn~contexts-only~1]
+            if (contextsOnly) {
+                remoteButton.setDefaultButton(false);
+                localButton.setDefaultButton(false);
+                plainButton.setDefaultButton(true);
+            }
         };
         updateTarget.run();
+        if (contextsOnly) {
+            for (Node claudeOnly : List.of(remoteButton, localButton, onLabel, hostBox, quickMessages,
+                    modeRow, autoRemove, remoteHint, localHint)) {
+                claudeOnly.setVisible(false);
+                claudeOnly.setManaged(false);
+            }
+        }
         categoryBox.valueProperty().addListener((obs, old, value) -> updateTarget.run());
         agentBox.valueProperty().addListener((obs, old, value) -> updateTarget.run());
         Runnable fireDefault = () -> Stream.of(localButton, remoteButton, plainButton)
@@ -3876,7 +3901,9 @@ public class MainWindow {
         GroupConfig defaults = target.defaults();
         String remote = target.remote();
         String localWorkdir = target.localWorkdir();
-        if (PrTitleLookup.isPrOrMrUrl(input)) {
+        // A PR task is a Claude session on a remote; without Claude the URL is
+        // only a title. [impl->dsn~contexts-only~1]
+        if (!contextsOnly && PrTitleLookup.isPrOrMrUrl(input)) {
             createTaskFromPrUrl(input, group, mode);
         } else if (clicked == remoteType) {
             createLiveTask(input, group, remote, defaults, mode, autoRemove.isSelected());
@@ -7253,7 +7280,10 @@ public class MainWindow {
         showBrowserExtension(null);
 
         MenuButton more = iconMenuButton(MDIInterface.DOTS_VERTICAL, "More list actions");
-        more.getItems().addAll(openTasksDir, syncTmux, restartTmux, refreshNow);
+        // Without Claude there are no tmux windows to sync or restart.
+        // [impl->dsn~contexts-only~1]
+        more.getItems().addAll(contextsOnly ? List.of(openTasksDir, refreshNow)
+                : List.of(openTasksDir, syncTmux, restartTmux, refreshNow));
 
         // The ⋮ menu's occasional actions sit at the right end, apart from the
         // controls in constant use. [impl->dsn~task-list-toolbar~3]

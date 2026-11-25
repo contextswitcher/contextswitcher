@@ -74,6 +74,9 @@ Clicking it quits the app with exit code 55, which `just loop` takes as "pull, r
 4. Select a task: the Terminal pane mirrors its terminal live, Notes and Configuration edit its file, and the Queue drafts messages for its chat.
 5. Press play (or double-click) to switch: tmux window focused, IntelliJ project opened, browser tabs focused, note and chat opened, folders raised.
 
+**Without Claude.** Only managing TODOs — notes in OneNote, a few tabs and folders per task?
+Pick *Without Claude — only contexts* on the wizard's first page (or set `contextsOnly: true`): it skips the ssh and tool pages, the first category is a plain folder, and the window opens without terminal and queue, the Claude and tmux actions hidden; **Add task…** then only writes the file, and play switches note, browser tabs, folders and desktop ([`dsn~contexts-only~1`](docs/requirements/ui.md)).
+
 For the running-status dots, the reported working directory, model and effort — the things that make the list *live* — do the one-time remote setup under [Let Claude report its state](#let-claude-report-its-state-remote-setup).
 
 ## The window
@@ -339,6 +342,7 @@ mergedCleanupDays: 7         # remove a paused task whose PRs are all merged aft
 autoCopyReplies: false       # true = each finished reply of the mirrored Claude chat lands on the clipboard as Markdown
 claudeUpdateRestart: false   # true = quit (/exit) and resume an idle Claude session that shows "Restart to update"
 todoTxt: C:\Users\you\todo.txt   # todo.txt (e.g. koppter's) whose open lines tagged cs:<task id> show on that task's row; empty = off
+contextsOnly: false          # true = without Claude: no terminal and queue, no Claude/tmux actions (after a restart)
 browser: firefox             # browser to start when no extension is connected (a connected one wins): firefox or chrome
 wsPort: 17872                # loopback WebSocket port the browser extension connects to
 wsToken: <generated>         # shared secret; keep the generated value

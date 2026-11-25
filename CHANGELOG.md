@@ -10,6 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Added
 
+- A mode without Claude for managing TODOs: the setup wizard's *Without Claude — only contexts* (or `contextsOnly: true`) opens the window without terminal and queue and hides the Claude and tmux actions, so tasks only switch their notes, browser tabs, folders and desktop.
 - An environment profile can set `gatherWhen: docking`: `gatherWindows` then only sweeps the windows over right after docking, and a window opened later on the laptop or a second monitor stays there.
 - A Claude task's right-click menu has *Remove after 24 hours of inactivity*, the Add-task option to turn on (or off) later.
 - Three more values for `theme`: `muted-slate`, `dawn` and `matrix`, the palettes of the tuxedo todo app.

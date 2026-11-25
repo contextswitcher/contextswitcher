@@ -271,7 +271,13 @@ final class SettingsDialog {
         int selected = tabs.getSelectionModel().getSelectedIndex();
         tabs.getTabs().clear();
         Map<String, VBox> pages = new LinkedHashMap<>();
+        // Without Claude, its tab is left out; the controls stay, so a save
+        // keeps their values. [impl->dsn~contexts-only~1]
+        boolean contextsOnly = controls.get("contextsOnly") instanceof CheckBox only && only.isSelected();
         for (SettingsCatalog.Option option : SettingsCatalog.OPTIONS) {
+            if (contextsOnly && option.group().equals("Claude")) {
+                continue;
+            }
             pages.computeIfAbsent(option.group(), group -> {
                 VBox page = new VBox(2);
                 page.setPadding(new Insets(6, 10, 6, 10));
@@ -402,7 +408,9 @@ final class SettingsDialog {
                 fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies,
                 claudeUpdateRestart,
                 // [impl->dsn~todo-txt-line~1]
-                ((TextField) controls.get("todoTxt")).getText().trim());
+                ((TextField) controls.get("todoTxt")).getText().trim(),
+                // [impl->dsn~contexts-only~1]
+                ((CheckBox) controls.get("contextsOnly")).isSelected());
     }
 
     /// The tag-palette editor: a row per tag pairing a name field with a color

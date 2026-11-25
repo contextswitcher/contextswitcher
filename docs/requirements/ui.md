@@ -991,6 +991,36 @@ Covers:
 
 Needs: impl, utest
 
+### Without Claude — only contexts
+`req~contexts-only~1`
+
+Someone who only manages TODOs — notes in OneNote, a few browser tabs and folders per task — uses the app without any coding agent: nothing on screen asks for Claude, tmux or ssh, and a task's switch brings up its notes, tabs, folders and desktop.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
+### Contexts-only mode
+`dsn~contexts-only~1`
+
+`contextsOnly: true` in `settings.yaml` (default false; the *General* tab's *Without Claude — only contexts*) is the mode for `req~contexts-only~1`.
+The setup wizard's first page offers it as a fourth choice next to remote, WSL and this machine (`SetupWizard`, `Result.contextsOnly`): it counts as this machine, skips the remote and tools pages, and ends on the last page with *A local folder* selected, *From a repository* disabled, the session checkbox and *Finish and check up* hidden (`dsn~category-from-folder~3` without a session); `Main.applyWizardSettings` writes `contextsOnly: true`, and only a settings save turns it off again.
+Read once at startup (`MainWindow.setContextsOnly`, before `show`), so a change applies after a restart:
+- the shell opens without the Terminal and Queue lanes, the notes in the middle and switch actions and configuration on the right (`ShellFxHost.host`); the panes button still shows the hidden ones;
+- the ⋮ menu has no *Sync tmux windows…* and *Restart running tasks…*;
+- the Add-task dialog shows only *Add plain task* — no remote or local agent buttons, host, quick messages, agent/model/effort, auto-remove or the session hints — and a pasted PR URL becomes a plain task's title instead of a PR session;
+- the settings dialog leaves out its *Claude* tab (`SettingsDialog.renderForm`; the controls stay, so a save keeps their values).
+
+Tags: windows, linux
+
+Covers:
+- req~contexts-only~1
+
+Needs: impl, utest
+
 ### Import a local category's Claude sessions
 `dsn~local-category-session-import~1`
 

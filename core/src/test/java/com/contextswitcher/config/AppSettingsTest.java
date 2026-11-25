@@ -90,6 +90,15 @@ class AppSettingsTest {
         assertThat(AppSettings.loadOrCreate(configDir).autoCopyReplies()).isTrue();
     }
 
+    // [utest->dsn~contexts-only~1]
+    @Test
+    void contextsOnlyIsOptInAndRoundTrips() throws Exception {
+        assertThat(AppSettings.parse("tasksDir: t\nwsPort: 1\nwsToken: x\n").contextsOnly()).isFalse();
+        AppSettings parsed = AppSettings.parse("tasksDir: t\nwsPort: 1\nwsToken: x\ncontextsOnly: true\n");
+        assertThat(parsed.contextsOnly()).isTrue();
+        assertThat(AppSettings.parse(parsed.dump()).contextsOnly()).isTrue();
+    }
+
     @Test
     void settingsRoundTrip(@TempDir Path configDir) throws Exception {
         AppSettings written = new AppSettings(Path.of("C:\\somewhere\\tasks"), 4242, "secret-token",

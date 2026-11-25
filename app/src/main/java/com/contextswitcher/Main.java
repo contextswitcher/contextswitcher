@@ -1122,6 +1122,8 @@ public class Main extends Application {
         // [impl->dsn~task-repository-watching~7]
         repository.setOnGroupConfigChange(window::groupConfigChanged);
         // The shell needs the Application for its host services (MADR 0032).
+        // [impl->dsn~contexts-only~1]
+        window.setContextsOnly(settings.contextsOnly());
         window.show(stage, this);
         // Leaving ends the Claude sessions the app hosts on Windows, so the
         // window's close asks first while one runs.
@@ -3298,6 +3300,17 @@ public class Main extends Application {
         // The session host becomes (or updates) its row of the host table:
         // the workspaces directory asked on the remote page, and the
         // RefactoringMiner directory the tools page found or installed there.
+        // Only switched on here; a re-run without the choice leaves it, the
+        // settings dialog turns it off. [impl->dsn~contexts-only~1]
+        if (result.contextsOnly()) {
+            String error = writeSettingsFile(configDir(), com.contextswitcher.config.YamlPatch.set(
+                    readSettingsFile(configDir()), "contextsOnly", true));
+            if (error != null) {
+                Alerts.plain(null, Alert.AlertType.ERROR, "Cannot write contextsOnly to settings.yaml: "
+                        + error).showAndWait();
+            }
+            return AppSettings.loadOrCreate(configDir());
+        }
         String remote = result.remote();
         if (remote == null) {
             return settings;
