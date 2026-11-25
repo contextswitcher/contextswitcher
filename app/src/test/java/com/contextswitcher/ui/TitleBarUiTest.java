@@ -9,6 +9,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
@@ -21,7 +22,8 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /// The main window's title bar carries the window title, the app-wide controls
-/// and a close button that asks before it closes (`dsn~shell-layout~3`).
+/// and a close button that asks before it closes (`dsn~shell-layout~3`), and
+/// the app icon the OS frame drew before the stage became extended.
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class TitleBarUiTest {
@@ -46,6 +48,10 @@ class TitleBarUiTest {
                                 && stage.getTitle().equals(text.getText()))
                         .findFirst(),
                 "the window title in the title bar");
+        // [utest->dsn~app-icon~6]
+        assertTrue(titleBar.lookupAll("*").stream().anyMatch(node -> node instanceof ImageView image
+                        && image.getImage() != null),
+                "the app icon in the title bar");
 
         // What CloseConfirmation relies on: the close button sends a close
         // request, which a filter may consume to keep the window open.

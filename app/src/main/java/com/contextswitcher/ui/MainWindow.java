@@ -1550,7 +1550,7 @@ public class MainWindow {
             Themes.addToEveryWindow(sheet);
         }
         stage.setScene(scene);
-        // [impl->dsn~app-icon~5]
+        // [impl->dsn~app-icon~6]
         AppIcon.applyTo(stage);
         stage.show();
         // The shell's scene is on screen now, and JavaFX will not restyle it

@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -44,6 +45,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.HeaderBar;
@@ -435,14 +437,18 @@ public final class ShellFxHost {
         }
 
         /// Fills ShellFX's title bar — a JavaFX `HeaderBar`, the window being an
-        /// `EXTENDED` stage: the stage's title at the left, where the OS frame
-        /// showed it, and `controls` at the right, before the window buttons.
+        /// `EXTENDED` stage: the app icon and the stage's title at the left,
+        /// where the OS frame showed them, and `controls` at the right, before
+        /// the window buttons. The OS frame drew the icon; an extended stage
+        /// has none, so it is ours to draw. [impl->dsn~app-icon~6]
         void fillTitleBar(List<Node> controls) {
             Stage stage = getStage();
             var title = new Label();
             title.textProperty().bind(stage.titleProperty());
             title.setMinWidth(0);
-            getLeftBox().getChildren().add(title);
+            var icon = new ImageView(AppIcon.image(16));
+            HBox.setMargin(icon, new Insets(0, 8, 0, 8));
+            getLeftBox().getChildren().addAll(icon, title);
             // A header bar drags the window by its own area only, not by its
             // children: the title text has to be grabbable like the bar.
             HeaderBar.setDragType(getLeftBox(), HeaderDragType.DRAGGABLE_SUBTREE);
