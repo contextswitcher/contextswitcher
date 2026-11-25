@@ -232,7 +232,7 @@ Needs: dsn
 ### Extension server and protocol
 `dsn~extension-server-protocol~4`
 
-`ExtensionServer` runs a WebSocket server bound to `127.0.0.1` on the configured port. Messages are JSON: extension sends `{"type":"hello","token":…,"client":…}` after connecting; the app sends `{"type":"focus-url","id":<uuid>,"url":…,"openIfMissing":true}`, `{"type":"close-url","id":<uuid>,"url":…}`, `{"type":"list-tabs","id":<uuid>}`, `{"type":"active-tab","id":<uuid>}` (`dsn~browser-teardown-quiet-tabs~1`), or `{"type":"close-window","id":<uuid>,"windowId":…}` — `focus-url` optionally carries `"windowTitle":…`, the caption of the window the tab is to end up in — created there when the URL has no tab, moved there when it has one elsewhere (`dsn~pr-open-on-category-desktop~3`); the extension answers `{"type":"result","id":…,"ok":…,"detail":…}` — for `list-tabs` additionally carrying `windows`, an array of `{id, title, urls}` (one entry per normal browser window; `title` is the caption-forming active-tab title, `id` is valid for a following `close-window`). Requests correlate by `id` and time out after 5 seconds; no connected extension fails a request immediately.
+`ExtensionServer` runs a WebSocket server bound to `127.0.0.1` on the configured port. Messages are JSON: extension sends `{"type":"hello","token":…,"client":…}` after connecting; the app sends `{"type":"focus-url","id":<uuid>,"url":…,"openIfMissing":true}`, `{"type":"close-url","id":<uuid>,"url":…}`, `{"type":"list-tabs","id":<uuid>}`, `{"type":"active-tab","id":<uuid>}` (`dsn~browser-teardown-quiet-tabs~1`), or `{"type":"close-window","id":<uuid>,"windowId":…}` — `focus-url` optionally carries `"windowTitle":…`, the caption of the window the tab is to end up in — created there when the URL has no tab, moved there when it has one elsewhere (`dsn~pr-open-on-category-desktop~3`), and optionally `"hereTitles":[…]` and `"newWindow":true`, which place the tab on the desktop in view (`dsn~switch-tabs-to-current-desktop~1`); the extension answers `{"type":"result","id":…,"ok":…,"detail":…}` — for `list-tabs` additionally carrying `windows`, an array of `{id, title, urls}` (one entry per normal browser window; `title` is the caption-forming active-tab title, `id` is valid for a following `close-window`). Requests correlate by `id` and time out after 5 seconds; no connected extension fails a request immediately.
 The server doubles as the single-instance IPC for deep links (`dsn~deep-link-forward~1`): a second app instance sends one `{"type":"deeplink","token":…,"url":…}` message instead of `hello`; the server validates the token and acknowledges by closing the connection normally (1000).
 
 Tags: windows, linux
@@ -441,6 +441,27 @@ Tags: windows, linux
 Covers:
 - req~focus-browser-tab~2
 - req~complete-control-desktop~1
+
+Needs: impl, utest
+
+### Switch tabs come to the desktop in view
+`dsn~switch-tabs-to-current-desktop~1`
+
+`BrowserFocusAction` places the driven browser's tabs on the virtual desktop in view, because activating a tab in a window on another desktop makes Windows follow it there (field report 2026-11-25: the category ▶ on desktop `FOKUS`, which had no Firefox window, jumped to the desktop holding the category's pad tab).
+Before the first URL it asks `Main.browserWindowsHere` — `BrowserWindowFocus.captionsOnCurrentDesktop`, a PowerShell `EnumWindows` walk that keeps the driven browser's windows for which the documented `IsWindowOnCurrentVirtualDesktop` holds, topmost first, and raises nothing — and sends the answer as an `ExtensionProtocol.Target` with the `focus-url` request.
+`Target.here(captions)` puts every caption into `hereTitles` and the topmost into `windowTitle`; no window at all becomes `newWindow: true`; an unanswerable query (no `powershell`, no extension connected — the query is then skipped) is `Target.NONE`, which leaves the previous behaviour.
+The extension (`placeTab`) keeps a tab whose window is among `hereTitles` (or is `windowTitle`'s), so a task's tab in a second window on the same desktop is not pulled into the first; any other tab moves into the `windowTitle` window, or — with `newWindow` — into a new window (`windows.create({tabId})`), which Windows opens on the desktop in view.
+A missing URL opens into that window, or with `newWindow` as a new window of its own.
+Tab lookup prefers a tab in the named window, then one in another window here, then any.
+Grouping (`dsn~browser-tab-group~3`) runs after the placement and, whenever a target was given, only looks for the task's group in the window the tab landed in: a group belongs to one window, so joining a same-named group elsewhere would carry the tab straight back to the other desktop; a new group of that name is started here instead.
+The background URLs follow the first one: when the extension reports the title the first tab's window now carries, that title leads their `hereTitles`, so they join the window the user is looking at — a new window included; `newWindow` itself never carries over to them, since each background tab would otherwise open a window.
+Pinned entries (`dsn~browser-url-pinned-browser~1`) go to another browser, whose windows the query does not cover, and keep `Target.NONE`.
+Ceilings: windows are named by caption, so a window elsewhere with exactly the caption of one here counts as here; a tab that refuses to move (pinned, private) is focused where it is.
+
+Tags: windows
+
+Covers:
+- req~app-window-on-current-desktop~2
 
 Needs: impl, utest
 

@@ -3,6 +3,7 @@ package com.contextswitcher.switching;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import com.contextswitcher.extension.ExtensionProtocol;
 import com.contextswitcher.extension.TabCommands;
@@ -49,19 +50,34 @@ public class BrowserFocusAction implements SwitchAction {
     private final Function<Task, @Nullable String> completeControlDesktop;
     private final DesktopPreparer desktopPreparer;
     private final StoredTabsCleaner storedTabs;
+    private final Supplier<ExtensionProtocol.Target> here;
 
     /// Without stored-tab handling (tests, and any caller predating it).
     public BrowserFocusAction(TabCommands tabs) {
         this(tabs, task -> null, (desktop, url) -> tabs.focusUrl(url), task -> null);
     }
 
+    /// Without knowledge of the virtual desktop in view: every tab is focused
+    /// where it lives.
     public BrowserFocusAction(TabCommands tabs,
             Function<Task, @Nullable String> completeControlDesktop,
             DesktopPreparer desktopPreparer, StoredTabsCleaner storedTabs) {
+        this(tabs, completeControlDesktop, desktopPreparer, storedTabs, () -> ExtensionProtocol.Target.NONE);
+    }
+
+    /// `here` answers, at switch time, which browser windows sit on the
+    /// virtual desktop in view ([ExtensionProtocol.Target#here]; NONE when
+    /// that cannot be known).
+    // [impl->dsn~switch-tabs-to-current-desktop~1]
+    public BrowserFocusAction(TabCommands tabs,
+            Function<Task, @Nullable String> completeControlDesktop,
+            DesktopPreparer desktopPreparer, StoredTabsCleaner storedTabs,
+            Supplier<ExtensionProtocol.Target> here) {
         this.tabs = tabs;
         this.completeControlDesktop = completeControlDesktop;
         this.desktopPreparer = desktopPreparer;
         this.storedTabs = storedTabs;
+        this.here = here;
     }
 
     @Override
@@ -101,12 +117,27 @@ public class BrowserFocusAction implements SwitchAction {
     /// behind it.
     /// An entry pinned to a browser goes to that browser's extension.
     // [impl->dsn~browser-url-pinned-browser~1]
+    ///
+    /// The driven browser's tabs are placed on the virtual desktop in view
+    /// ([#here]): activating a tab in a window on another desktop makes
+    /// Windows follow it there, which pulled the user off their desktop
+    /// (field report 2026-11-25). The first URL takes the desktop's own
+    /// windows (or a new one when there is none); the background ones then
+    /// follow it into the window it landed in, named by the title the
+    /// extension reports. Pinned entries go to another browser, whose windows
+    /// the desktop query does not cover, and keep the browser's own choice.
+    // [impl->dsn~switch-tabs-to-current-desktop~1]
     private void openConfiguredUrls(List<Task.UrlEntry> urls, String group,
             List<String> failures, List<String> details) {
+        boolean anyDriven = urls.stream().anyMatch(entry -> entry.browser() == null);
+        ExtensionProtocol.Target here = anyDriven ? this.here.get() : ExtensionProtocol.Target.NONE;
         Task.UrlEntry head = urls.getFirst();
-        ExtensionProtocol.Result first = tabs.focusUrl(head.url(), true, null, group, false, head.browser());
+        ExtensionProtocol.Result first = tabs.focusUrlPlaced(head.url(), true,
+                head.browser() == null ? here : ExtensionProtocol.Target.NONE, group, false, head.browser());
+        ExtensionProtocol.Target behind = behindFirst(here, head, first);
         for (Task.UrlEntry entry : urls.subList(1, urls.size())) {
-            ExtensionProtocol.Result result = tabs.focusUrl(entry.url(), true, null, group, true, entry.browser());
+            ExtensionProtocol.Result result = tabs.focusUrlPlaced(entry.url(), true,
+                    entry.browser() == null ? behind : ExtensionProtocol.Target.NONE, group, true, entry.browser());
             if (!result.ok()) {
                 failures.add(result.detail() + " — " + entry.url());
             }
@@ -115,6 +146,25 @@ public class BrowserFocusAction implements SwitchAction {
                 ? first.detail()
                 : first.detail() + " (+" + (urls.size() - 1) + " more)";
         (first.ok() ? details : failures).add(detail);
+    }
+
+    /// Where the background URLs go: into the window the first (driven) URL
+    /// landed in when the extension named it — a new window included, which
+    /// is now the desktop's own — else to the desktop's windows as queried.
+    /// A new-window target never carries over: it is for the tab the user
+    /// lands on, and background tabs each opening a window would be worse
+    /// than the browser's own choice, which raises nothing.
+    private static ExtensionProtocol.Target behindFirst(ExtensionProtocol.Target here,
+            Task.UrlEntry head, ExtensionProtocol.Result first) {
+        String title = first.title();
+        if (head.browser() == null && first.ok() && title != null && !title.isBlank()
+                && (here.newWindow() || !here.hereTitles().isEmpty())) {
+            List<String> captions = new ArrayList<>();
+            captions.add(title);
+            here.hereTitles().stream().filter(caption -> !caption.equals(title)).forEach(captions::add);
+            return ExtensionProtocol.Target.here(captions);
+        }
+        return here.newWindow() ? ExtensionProtocol.Target.NONE : here;
     }
 
     /// Reopens the suspend's stored tabs. Overlap keeps: focus-or-open never

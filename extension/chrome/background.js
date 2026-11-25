@@ -214,7 +214,8 @@ function scheduleReconnect() {
 async function handleCommand(message) {
   if (message.type === "focus-url") {
     return resultOf(message.id, () => focusUrl(
-      message.url, message.openIfMissing, message.windowTitle, message.group, message.background));
+      message.url, message.openIfMissing, message.windowTitle, message.group, message.background,
+      message.hereTitles, message.newWindow));
   }
   if (message.type === "close-url") {
     return resultOf(message.id, () => closeUrl(message.url));
@@ -286,14 +287,19 @@ function isSameOrSubUrl(tabUrl, url) {
 // group carries that title yet) and moves it to the group's end. The app
 // sends a task's URLs in its own order, so appending each one reproduces
 // that order in the tab bar — for a tab that was already open elsewhere too.
+// `windowId` confines the group to that window: a tab just placed on the
+// desktop in view must not be pulled back into a same-named group in a window
+// elsewhere (a group belongs to one window), so it starts a group of its own
+// there instead. Undefined: any window's group, wherever that takes the tab.
 // [impl->dsn~browser-tab-group~3]
-async function groupTab(tabId, name) {
+// [impl->dsn~switch-tabs-to-current-desktop~1]
+async function groupTab(tabId, name, windowId) {
   if (!name || !browser.tabs.group || !browser.tabGroups) {
     return;
   }
   try {
     const groups = await browser.tabGroups.query({});
-    const existing = groups.find((g) => g.title === name);
+    const existing = groups.find((g) => g.title === name && (windowId === undefined || g.windowId === windowId));
     const tab = await browser.tabs.get(tabId);
     let groupId = existing ? existing.id : undefined;
     if (tab.groupId !== groupId) {
@@ -393,39 +399,33 @@ async function taskWindow(urls, group) {
   };
 }
 
-async function focusUrl(url, openIfMissing, windowTitleWanted, group, background) {
+// `hereTitles` (the OS captions of every browser window on the virtual desktop
+// in view) and `newWindow` (that desktop has none) place the tab where the
+// user is; see placeTab.
+async function focusUrl(url, openIfMissing, windowTitleWanted, group, background, hereTitles, newWindow) {
   const tabs = await browser.tabs.query({});
   // Prefer an exact tab; otherwise focus a tab under the same URL before
   // opening a duplicate — a GitHub PR is routinely open on a /files or
   // /commits sub-path, or carries a #discussion fragment.
-  // The window the app names (see below) is resolved first, so a page open
-  // there wins over a twin of it in another window.
+  // The window the app names (see below) is resolved first, then the other
+  // windows on the desktop in view, so a page open there wins over a twin of
+  // it in another window.
   const target = await windowIdFor(windowTitleWanted);
-  const pick = (matches) => tabs.find((tab) => tab.windowId === target && matches(tab)) || tabs.find(matches);
+  const here = await windowIdsFor(hereTitles);
+  const pick = (matches) => tabs.find((tab) => tab.windowId === target && matches(tab))
+    || tabs.find((tab) => here.has(tab.windowId) && matches(tab))
+    || tabs.find(matches);
   const exact = pick((tab) => tab.url === url);
   const tab = exact || pick((tab) => tab.url && isSameOrSubUrl(tab.url, url));
+  // Placed windows confine the grouping to the window the tab ended up in.
+  const placed = target !== undefined || here.size > 0 || (newWindow && !background);
   if (tab) {
+    const moved = await placeTab(tab, target, here, newWindow && !background);
+    let found = await browser.tabs.get(tab.id);
     // Grouping may move the tab into the group's window, so the window to
     // raise is read back afterwards.
-    await groupTab(tab.id, group);
-    let found = await browser.tabs.get(tab.id);
-    // A named window means the app has already switched to the task
-    // category's virtual desktop and raised the browser window living there.
-    // A tab sitting in some *other* window is moved into that one rather than
-    // raised where it is: raising it makes Windows follow it to its desktop,
-    // which dropped the user off their category's desktop.
-    let moved = false;
-    if (target !== undefined && target !== found.windowId) {
-      try {
-        await browser.tabs.move(found.id, { windowId: target, index: -1 });
-        found = await browser.tabs.get(tab.id);
-        moved = true;
-      } catch (e) {
-        // A tab that refuses to move (pinned, a private window) is still
-        // worth focusing where it is — never fail the click over the desktop.
-        console.warn("ContextSwitcher: could not move tab to the target window", e);
-      }
-    }
+    await groupTab(found.id, group, placed ? found.windowId : undefined);
+    found = await browser.tabs.get(tab.id);
     if (!background) {
       await browser.tabs.update(found.id, { active: true });
       await browser.windows.update(found.windowId, { focused: true });
@@ -442,9 +442,11 @@ async function focusUrl(url, openIfMissing, windowTitleWanted, group, background
   if (openIfMissing) {
     // The app names the window it just raised on the target desktop (its OS
     // caption); without one the browser picks its most recently focused one.
-    const windowId = target;
-    const created = await browser.tabs.create({ url, active: !background, windowId });
-    await groupTab(created.id, group);
+    // A desktop with no browser window gets a new one carrying the tab.
+    const created = newWindow && !background
+      ? await openInNewWindow(url)
+      : await browser.tabs.create({ url, active: !background, windowId: target });
+    await groupTab(created.id, group, placed ? created.windowId : undefined);
     if (background) {
       // Nothing to raise, and no title to wait for.
       return { ok: true, detail: "opened new tab" };
@@ -458,6 +460,59 @@ async function focusUrl(url, openIfMissing, windowTitleWanted, group, background
     return { ok: true, detail: "opened new tab", title };
   }
   return { ok: false, detail: "no tab with that URL" };
+}
+
+// Brings an existing tab to the user's virtual desktop before it is shown:
+// activating it in a window on another desktop makes Windows follow it there
+// (field reports 2026-09-10, 2026-11-25). A tab already in a window on the
+// desktop in view stays. Otherwise it moves into the named window, or — the
+// desktop having no browser window at all — into a new window, which Windows
+// opens on the desktop in view. True when the tab moved.
+// [impl->dsn~switch-tabs-to-current-desktop~1]
+async function placeTab(tab, target, here, newWindow) {
+  if (tab.windowId === target || here.has(tab.windowId)) {
+    return false;
+  }
+  try {
+    if (target !== undefined) {
+      await browser.tabs.move(tab.id, { windowId: target, index: -1 });
+      return true;
+    }
+    if (newWindow) {
+      await browser.windows.create({ tabId: tab.id });
+      return true;
+    }
+  } catch (e) {
+    // A tab that refuses to move (pinned, a private window) is still
+    // worth focusing where it is — never fail the click over the desktop.
+    console.warn("ContextSwitcher: could not move tab to this desktop", e);
+  }
+  return false;
+}
+
+// A new window showing `url`, which Windows opens on the desktop in view;
+// answers its tab.
+async function openInNewWindow(url) {
+  const created = await browser.windows.create({ url });
+  const tabs = created.tabs && created.tabs.length > 0
+    ? created.tabs
+    : await browser.tabs.query({ windowId: created.id });
+  return tabs[0];
+}
+
+// The ids of the normal windows whose titles match one of the OS captions
+// (matched like windowIdFor); empty when none is given.
+async function windowIdsFor(captions) {
+  if (!Array.isArray(captions) || captions.length === 0) {
+    return new Set();
+  }
+  const all = await browser.windows.getAll({ populate: true, windowTypes: ["normal"] });
+  return new Set(all
+    .filter((w) => {
+      const title = windowTitle(w);
+      return title && captions.some((caption) => caption.includes(title) || title.includes(caption));
+    })
+    .map((w) => w.id));
 }
 
 // The id of the normal window whose title matches the OS caption (both are

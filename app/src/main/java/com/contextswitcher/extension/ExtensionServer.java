@@ -201,8 +201,16 @@ public class ExtensionServer extends WebSocketServer implements TabCommands {
     @Override
     public ExtensionProtocol.Result focusUrl(String url, boolean openIfMissing, @Nullable String windowTitle,
             @Nullable String group, boolean background, @Nullable Browser browser) {
+        return focusUrlPlaced(url, openIfMissing, ExtensionProtocol.Target.window(windowTitle), group, background,
+                browser);
+    }
+
+    // [impl->dsn~switch-tabs-to-current-desktop~1]
+    @Override
+    public ExtensionProtocol.Result focusUrlPlaced(String url, boolean openIfMissing, ExtensionProtocol.Target target,
+            @Nullable String group, boolean background, @Nullable Browser browser) {
         String id = UUID.randomUUID().toString();
-        return request(id, ExtensionProtocol.encodeFocusUrl(id, url, openIfMissing, windowTitle, group, background),
+        return request(id, ExtensionProtocol.encodeFocusUrlPlaced(id, url, openIfMissing, target, group, background),
                 browser);
     }
 

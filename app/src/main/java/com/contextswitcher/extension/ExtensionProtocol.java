@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.jspecify.annotations.Nullable;
 
@@ -26,6 +27,37 @@ public final class ExtensionProtocol {
     public static final String NO_TAB = "no tab with that URL";
 
     private ExtensionProtocol() {
+    }
+
+    /// Where a `focus-url` puts its tab, in terms of the virtual desktop in
+    /// view — which the extension cannot see, so the app names it by window
+    /// captions.
+    /// `windowTitle`: the window a tab that must be opened or moved goes
+    /// into (null: the browser's own choice). `hereTitles`: the captions of
+    /// every browser window on the desktop in view — a tab already in one of
+    /// them stays where it is, a tab anywhere else is moved into
+    /// `windowTitle` (empty: no such knowledge, nothing moves).
+    /// `newWindow`: the desktop in view has no browser window at all, so the
+    /// tab goes into a new one, which Windows places on that desktop.
+    // [impl->dsn~switch-tabs-to-current-desktop~1]
+    public record Target(@Nullable String windowTitle, List<String> hereTitles, boolean newWindow) {
+        public static final Target NONE = new Target(null, List.of(), false);
+        public static final Target NEW_WINDOW = new Target(null, List.of(), true);
+
+        public Target {
+            hereTitles = List.copyOf(hereTitles);
+        }
+
+        /// The named window, with no knowledge of which windows are here.
+        public static Target window(@Nullable String windowTitle) {
+            return windowTitle == null ? NONE : new Target(windowTitle, List.of(), false);
+        }
+
+        /// The windows on the desktop in view, topmost first: the topmost
+        /// receives what has to move; none at all means a new window.
+        public static Target here(List<String> captions) {
+            return captions.isEmpty() ? NEW_WINDOW : new Target(captions.getFirst(), captions, false);
+        }
     }
 
     /// A message a client sends to the app.
@@ -116,13 +148,28 @@ public final class ExtensionProtocol {
     // [impl->dsn~browser-tab-group~3]
     public static String encodeFocusUrl(String id, String url, boolean openIfMissing,
             @Nullable String windowTitle, @Nullable String group, boolean background) {
+        return encodeFocusUrlPlaced(id, url, openIfMissing, Target.window(windowTitle), group, background);
+    }
+
+    /// `target` places the tab relative to the desktop in view
+    /// (`hereTitles`, `newWindow`; see [Target]).
+    // [impl->dsn~switch-tabs-to-current-desktop~1]
+    public static String encodeFocusUrlPlaced(String id, String url, boolean openIfMissing,
+            Target target, @Nullable String group, boolean background) {
         ObjectNode node = MAPPER.createObjectNode();
         node.put("type", "focus-url");
         node.put("id", id);
         node.put("url", url);
         node.put("openIfMissing", openIfMissing);
-        if (windowTitle != null) {
-            node.put("windowTitle", windowTitle);
+        if (target.windowTitle() != null) {
+            node.put("windowTitle", target.windowTitle());
+        }
+        if (!target.hereTitles().isEmpty()) {
+            ArrayNode here = node.putArray("hereTitles");
+            target.hereTitles().forEach(here::add);
+        }
+        if (target.newWindow()) {
+            node.put("newWindow", true);
         }
         if (group != null) {
             node.put("group", group);

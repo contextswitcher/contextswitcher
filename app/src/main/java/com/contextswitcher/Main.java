@@ -715,7 +715,8 @@ public class Main extends Application {
                                 task -> completeControlDesktop(files, task),
                                 (desktop, url) -> openOnDesktop(extensionServer, desktop, url),
                                 task -> rewriteTaskFile(files, task,
-                                        TaskFileParser::withoutStoredTabs)),
+                                        TaskFileParser::withoutStoredTabs),
+                                () -> browserWindowsHere(extensionServer)),
                         // [impl->dsn~window-move-here~2]
                         new NoteFocusAction(this::openUrl,
                                 group -> groupLink(files, group, TaskFileParser::groupNote),
@@ -4773,6 +4774,22 @@ public class Main extends Application {
                     "opened a window on desktop \"%s\"".formatted(desktop));
         }
         return extensionServer.focusUrl(url, true);
+    }
+
+    /// The driven browser's windows on the virtual desktop in view, as a
+    /// `focus-url` target: a switch's tabs land there instead of dragging the
+    /// user to the desktop their window sits on. Unknown (no extension to
+    /// act on it, or no `powershell`) is [ExtensionProtocol.Target#NONE],
+    /// the browser's own choice — the query costs a PowerShell start, which a
+    /// switch without a connected extension does not need to pay.
+    // [impl->dsn~switch-tabs-to-current-desktop~1]
+    private ExtensionProtocol.Target browserWindowsHere(ExtensionServer extensionServer) {
+        if (extensionServer.connectedBrowser() == null) {
+            return ExtensionProtocol.Target.NONE;
+        }
+        List<String> captions = new BrowserWindowFocus(new LocalCommandRunner(), drivenBrowser())
+                .captionsOnCurrentDesktop();
+        return captions == null ? ExtensionProtocol.Target.NONE : ExtensionProtocol.Target.here(captions);
     }
 
     /// The browser whose windows are raised, launched, and captured: the one

@@ -143,10 +143,11 @@ Covers:
 Needs: dsn
 
 ### App windows on the desktop in view
-`req~app-window-on-current-desktop~1`
+`req~app-window-on-current-desktop~2`
 
-Opening a task's note or folder must not drag the user to another virtual desktop.
+Opening a task's note, folder or browser pages must not drag the user to another virtual desktop.
 Single-instance apps (OneNote) and window-reusing ones (File Explorer) activate their existing window, wherever it sits; that window is brought to the desktop in view instead, so the project's desktop keeps the project's windows.
+A browser page already open in a window on another desktop comes to the desktop in view as a tab — into a browser window there, or into a new one when that desktop has none (revision `~2`, field report 2026-11-25: a category switch on a desktop without a Firefox window followed the category's pad tab to another desktop).
 
 Tags: windows
 
@@ -703,7 +704,7 @@ The C# types live once in `WindowsWindowMove.TYPES` and are embedded by every sc
 Tags: windows
 
 Covers:
-- req~app-window-on-current-desktop~1
+- req~app-window-on-current-desktop~2
 
 Needs: impl, utest
 

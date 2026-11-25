@@ -18,6 +18,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- Switching to a task or category no longer jumps to another virtual desktop because one of its pages is open in a browser window there: the tab comes to the desktop you are on, into a browser window there or into a new one when it has none. Needs the browser extension 0.9.2.
 - *Open note* opens the OneNote desktop app when the `note:` field holds both lines of OneNote's *Copy Link to Page* pasted together, instead of the web page.
 
 - The queue's add box grows with the message typed into it.
