@@ -6,6 +6,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-25] - 2026-11-25
+
+### Added
+
+- A mode without Claude for managing TODOs: the setup wizard's *Without Claude — only contexts* (or `contextsOnly: true`) opens the window without terminal and queue and hides the Claude and tmux actions, so tasks only switch their notes, browser tabs, folders and desktop.
+- An environment profile can set `gatherWhen: docking`: `gatherWindows` then only sweeps the windows over right after docking, and a window opened later on the laptop or a second monitor stays there.
+- A Claude task's right-click menu has *Remove after 24 hours of inactivity*, the Add-task option to turn on (or off) later.
+- Three more values for `theme`: `muted-slate`, `dawn` and `matrix`, the palettes of the tuxedo todo app.
+- Android: a message waiting under *Sent when Claude is idle* has *Transfer*, which moves it into the desktop's queue for the task.
+
+### Fixed
+
+- On Windows, the main window's title bar shows the app icon again, and the run loop's *What's new* window shows it in the taskbar instead of Java's.
+- Switching to a task or category no longer jumps to another virtual desktop because one of its pages is open in a browser window there: the tab comes to the desktop you are on, into a browser window there or into a new one when it has none. Needs the browser extension 0.9.2.
+- *Open note* opens the OneNote desktop app when the `note:` field holds both lines of OneNote's *Copy Link to Page* pasted together, instead of the web page.
+
+- The queue's add box grows with the message typed into it.
+- Switching to another window while typing a queue message and coming back keeps the caret in that message instead of an empty add box.
+- The settings dialog is wide enough for the host table: the *Active* column header and the paths are no longer cut off.
+- `gatherWindows:` no longer pulls a window that would not stay (moved back three times) over again after it was minimized or its virtual desktop switched.
+- Switching virtual desktops scrolls the task list to that desktop's selected task when it is out of view.
+- A link copied from OneNote pastes into the queue (and the Add-task description) as the link, not as a picture of it.
+
 ## [2026-11-22] - 2026-11-22
 
 ### Added
@@ -463,6 +486,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-25]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-22...v2026-11-25
 [2026-11-22]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-21...v2026-11-22
 [2026-11-21]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-20...v2026-11-21
 [2026-11-20]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-19...v2026-11-20

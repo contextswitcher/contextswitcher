@@ -34,7 +34,9 @@ class EverforestStylesheetTest {
             Pattern.compile("(-color-[a-z0-9-]+)\\s*:\\s*([^;]+);");
 
     @ParameterizedTest
-    @CsvSource({"everforest-light, false", "everforest-dark, true"})
+    // [utest->dsn~tuxedo-themes~1]
+    @CsvSource({"everforest-light, false", "everforest-dark, true",
+            "muted-slate, true", "dawn, false", "matrix, true"})
     void overridesEveryColorVariableOfTheBaseTheme(String variant, boolean dark)
             throws IOException {
         Map<String, String> base = rootBlock(read(baseTheme(dark).getUserAgentStylesheet()));
@@ -71,6 +73,25 @@ class EverforestStylesheetTest {
         assertThat(light.get("-color-bg-default")).isEqualTo("#fdf6e3");
         assertThat(dark.get("-color-bg-default")).isEqualTo("#2d353b");
         assertThat(light).hasSameSizeAs(dark);
+    }
+
+    /// A tuxedo palette goes through the same concatenation, and its ground
+    /// is the one tuxedo defines.
+    // [utest->dsn~tuxedo-themes~1]
+    @ParameterizedTest
+    @CsvSource({"muted-slate, true, 1a1d23", "dawn, false, faf6f0", "matrix, true, 0a120a"})
+    void aTuxedoStylesheetParsesWithItsOwnGround(String variant, boolean dark, String ground)
+            throws IOException {
+        String url = Themes.recoloured(baseTheme(dark), variant);
+        assertThat(url).startsWith("file:").endsWith(variant + ".css");
+
+        Stylesheet parsed = new CssParser().parse(URI.create(url).toURL());
+        List<String> grounds = parsed.getRules().stream()
+                .flatMap(rule -> rule.getDeclarations().stream())
+                .filter(declaration -> declaration.getProperty().equals("-color-bg-default"))
+                .map(declaration -> declaration.getParsedValue().getValue().toString())
+                .toList();
+        assertThat(grounds.get(grounds.size() - 1)).containsIgnoringCase(ground);
     }
 
     /// What the app actually hands JavaFX: the concatenation on disk, parsed

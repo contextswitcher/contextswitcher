@@ -205,6 +205,64 @@ class SelectTaskRevealsRowUiTest {
                 .isTrue();
     }
 
+    /// Field report 2026-11-23: switching desktops selected that desktop's
+    /// last task, but the list stayed where the other desktop's list had been
+    /// scrolled, leaving the selected row out of view.
+    // [utest->dsn~desktop-last-task-selection~6]
+    // [utest->dsn~task-list-scroll-into-view~1]
+    @Test
+    void aDesktopSwitchScrollsToThatDesktopsLastTask() throws Exception {
+        Path dir = UiTestSupport.tasksDir;
+        Files.createDirectories(dir.resolve("lambda"));
+        Files.createDirectories(dir.resolve("mu"));
+        Files.writeString(dir.resolve("lambda/CONTEXTSWITCHER.md"), "---\ndesktop: Lambda\n---\n");
+        Files.writeString(dir.resolve("mu/CONTEXTSWITCHER.md"), "---\ndesktop: Mu\n---\n");
+        // Mu has twice Lambda's rows: the flow keeps its position as a
+        // fraction of the row count, so the same index lands elsewhere.
+        for (int i = 0; i < 60; i++) {
+            Files.writeString(dir.resolve("lambda/row-%03d.md".formatted(i)), taskFile("row-%03d".formatted(i)));
+        }
+        for (int i = 0; i < 120; i++) {
+            Files.writeString(dir.resolve("mu/row-%03d.md".formatted(i)), taskFile("row-%03d".formatted(i)));
+        }
+
+        ListView<Object> list = awaitListView();
+        resetFilters();
+        awaitFx(() -> indexOfId(list, "lambda/row-059") >= 0 && indexOfId(list, "mu/row-119") >= 0,
+                "all rows to load");
+
+        runFx(() -> mainWindow().updateActiveDesktop("Lambda"));
+        runFx(() -> filterItem("Show active desktop only").setSelected(true));
+        awaitFx(() -> indexOfId(list, "mu/row-000") < 0, "the list to narrow to Lambda");
+        String bottom = callFxValue(() -> ((TaskEntry.Loaded) list.getItems().stream()
+                .filter(TaskEntry.Loaded.class::isInstance).reduce((a, b) -> b).orElseThrow()).id());
+        runFx(() -> mainWindow().selectTask(bottom));
+        awaitFx(() -> rowVisible(list, bottom), "Lambda's bottom row to be in view");
+
+        int bottomRow = callFxValue(() -> String.valueOf(indexOfId(list, bottom))).transform(Integer::parseInt);
+
+        // Mu's list shows Lambda's bottom index on screen — at a different
+        // fraction of its length.
+        runFx(() -> mainWindow().updateActiveDesktop("Mu"));
+        awaitFx(() -> indexOfId(list, "lambda/row-000") < 0, "the list to narrow to Mu");
+        runFx(() -> list.scrollTo(list.getItems().size() - 1));
+        UiTestSupport.sleep();
+
+        runFx(() -> mainWindow().updateActiveDesktop("Lambda"));
+        awaitFx(() -> selectedId(list).equals(bottom), "Lambda's last task to be selected again");
+        awaitFx(() -> rowVisible(list, bottom), "Lambda's last task to be scrolled into view");
+
+        runFx(() -> filterItem("Show active desktop only").setSelected(false));
+        // 180 rows would push the later tests' rows out of view.
+        for (String group : new String[] {"lambda", "mu"}) {
+            try (var files = Files.walk(dir.resolve(group))) {
+                files.sorted(java.util.Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
+            }
+        }
+        awaitFx(() -> indexOfId(list, "mu/row-000") < 0 && indexOfId(list, "lambda/row-000") < 0,
+                "the rows to be gone again");
+    }
+
     /// Field report 2026-09-12, twice: "the highlight the task on the left
     /// while creation still does not work — the terminal content is right
     /// though". Creating a task writes its file several times in a row (tmux

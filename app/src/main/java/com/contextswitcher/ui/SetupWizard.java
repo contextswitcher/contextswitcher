@@ -69,10 +69,14 @@ public final class SetupWizard {
     /// folder category is to be created without a Claude session writing its
     /// `CLAUDE.md` — for someone who does not use Claude there. `desktop` is
     /// the virtual desktop the category's config names, null for the fallback.
+    /// `contextsOnly` is page one's *Without Claude* choice
+    /// (`dsn~contexts-only~1`): no sessions anywhere, the category a plain
+    /// local folder.
     public record Result(@Nullable String remote, @Nullable String taskRepoUrl,
             @Nullable String repoUrl, @Nullable String workspacesRoot, RepoType repoType,
             @Nullable String refactoringMinerHome, boolean checkup, @Nullable String workspaces,
-            @Nullable String folderCategory, boolean setupSession, @Nullable String desktop) {
+            @Nullable String folderCategory, boolean setupSession, @Nullable String desktop,
+            boolean contextsOnly) {
 
         public boolean local() {
             return remote == null;
@@ -336,6 +340,13 @@ public final class SetupWizard {
         RadioButton wslChoice = new RadioButton("In WSL on this machine");
         wslChoice.setId("setup-wsl");
         wslChoice.setToggleGroup(where);
+        RadioButton contextsChoice = new RadioButton("Without Claude — only contexts");
+        contextsChoice.setId("setup-contexts-only");
+        contextsChoice.setToggleGroup(where);
+        // Without Claude, the sessions' host is this machine as for a local
+        // choice: no remote, a local folder. [impl->dsn~contexts-only~1]
+        javafx.beans.binding.BooleanBinding local =
+                localChoice.selectedProperty().or(contextsChoice.selectedProperty());
         // WSL is a Windows feature; elsewhere the choice would only confuse.
         // [impl->dsn~wsl-sessions~1]
         boolean offerWsl = onWindows;
@@ -399,6 +410,10 @@ public final class SetupWizard {
                 ? "Claude runs in the app's own terminal pane; closing the app ends it, resume brings it back."
                 : "Claude runs in a local tmux window, mirrored like a remote one."));
         page1Rows.add(localVerdict);
+        // [impl->dsn~contexts-only~1]
+        page1Rows.add(contextsChoice);
+        page1Rows.add(muted("No coding agent: tasks switch their notes (OneNote, say), browser "
+                + "tabs, folders and desktop. No terminal, no tmux, no ssh — for managing TODOs."));
         VBox page1 = page("Where do your Claude sessions run?", page1Rows.toArray(new Node[0]));
 
         // Page 2: the remote, checked.
@@ -442,7 +457,7 @@ public final class SetupWizard {
         // The host the answers are about: the pseudo-host for this machine, a
         // `wsl:<distro>` one for WSL, the typed ssh destination otherwise.
         // [impl->dsn~wsl-sessions~1]
-        Supplier<String> sessionHost = () -> localChoice.isSelected() ? TmuxHost.LOCAL
+        Supplier<String> sessionHost = () -> local.get() ? TmuxHost.LOCAL
                 : wslChoice.isSelected()
                         ? TmuxHost.wslHost(distro.getEditor().getText())
                         : host.getText().strip();
@@ -575,12 +590,12 @@ public final class SetupWizard {
         VBox toolRows = new VBox(6);
         @Nullable String[] rmHome = {null};
         Runnable probeTools = () -> {
-            boolean local = localChoice.isSelected();
+            boolean onThisMachine = local.get();
             String hostName = sessionHost.get();
-            String home = local ? localParent : remoteHome[0] == null ? "~" : remoteHome[0];
+            String home = onThisMachine ? localParent : remoteHome[0] == null ? "~" : remoteHome[0];
             toolRows.getChildren().clear();
             rmHome[0] = null;
-            for (RecommendedTools.Tool tool : local ? RecommendedTools.local()
+            for (RecommendedTools.Tool tool : onThisMachine ? RecommendedTools.local()
                     : RecommendedTools.remote(prefill.refactoringMinerHome())) {
                 Label status = new Label("Checking …");
                 status.setId("setup-tool-" + tool.key());
@@ -720,15 +735,15 @@ public final class SetupWizard {
         Runnable followUrl = () -> {
             String name = TaskFileParser.repoName(repoUrl.getText());
             if (!rootEdited[0]) {
-                String asked = localChoice.isSelected() ? null : blankToNull(workspaces.getText());
+                String asked = local.get() ? null : blankToNull(workspaces.getText());
                 String hostParent = asked != null ? asked
                         : prefill.workspacesParent().apply(sessionHost.get());
                 String parent = hostParent != null ? hostParent
-                        : localChoice.isSelected() ? localParent
+                        : local.get() ? localParent
                                 : remoteHome[0] == null ? "~" : remoteHome[0];
                 // Only a session on Windows itself has Windows paths; a WSL
                 // one lives on the Linux side of the boundary.
-                String separator = localChoice.isSelected() && onWindows ? "\\" : "/";
+                String separator = local.get() && onWindows ? "\\" : "/";
                 root.setText(name == null ? "" : parent + separator + name + "-workspaces");
             }
         };
@@ -784,7 +799,7 @@ public final class SetupWizard {
         // WSL folder would need a round-trip. [impl->dsn~category-from-folder~3]
         java.util.function.BooleanSupplier folderUnusable = () -> {
             String path = folder.getText().strip();
-            if (path.isEmpty() || !localChoice.isSelected()) {
+            if (path.isEmpty() || !local.get()) {
                 return false;
             }
             try {
@@ -798,7 +813,7 @@ public final class SetupWizard {
         folderMissing.setId("setup-folder-missing");
         folderMissing.getStyleClass().add(Styles.DANGER);
         folderMissing.visibleProperty().bind(Bindings.createBooleanBinding(
-                folderUnusable::getAsBoolean, folder.textProperty(), localChoice.selectedProperty()));
+                folderUnusable::getAsBoolean, folder.textProperty(), local));
         folderMissing.managedProperty().bind(folderMissing.visibleProperty());
         VBox folderRows = new VBox(8,
                 caption("Folder (on the machine the sessions run on)"), withButton(folder, browse),
@@ -828,7 +843,7 @@ public final class SetupWizard {
             folderRows.setManaged(plain);
             // Browsing shows this machine's folders, which only a local
             // session can use.
-            browse.setDisable(!localChoice.isSelected());
+            browse.setDisable(!local.get());
             javafx.scene.Scene scene = folder.getScene();
             if (scene != null && scene.getWindow() != null) {
                 scene.getWindow().sizeToScene();
@@ -870,8 +885,8 @@ public final class SetupWizard {
         boolean extensionSetUp = extension.connected().get() != null
                 || extension.installed().get() != null;
         java.util.function.IntPredicate skipped = index ->
-                index == 1 && localChoice.isSelected()
-                        || index == 2 && localChoice.isSelected() && onWindows
+                index == 1 && local.get()
+                        || index == 2 && (local.get() && onWindows || contextsChoice.isSelected())
                         || index == 3 && extensionSetUp
                         || index == 4 && !offerClone;
         int last = pages.size() - 1;
@@ -879,8 +894,8 @@ public final class SetupWizard {
             content.getChildren().setAll(pages.get(current[0]));
             backButton.setDisable(current[0] == 0);
             nextButton.setText(current[0] == last ? "Finish" : "Next");
-            checkupButton.setVisible(current[0] == last);
-            checkupButton.setManaged(current[0] == last);
+            checkupButton.setVisible(current[0] == last && !contextsChoice.isSelected());
+            checkupButton.setManaged(current[0] == last && !contextsChoice.isSelected());
             startNowButton.setVisible(current[0] == 4);
             startNowButton.setManaged(current[0] == 4);
             if (current[0] == 1) {
@@ -895,8 +910,18 @@ public final class SetupWizard {
             if (current[0] == last) {
                 followUrl.run();
                 showSource.run();
-                if (localChoice.isSelected() && !localOk[0]) {
+                if (local.get() && !localOk[0]) {
                     // Gone on without Claude here: no session by default.
+                    folderSession.setSelected(false);
+                }
+                // Without Claude the category can only be a plain folder,
+                // with no session to set it up. [impl->dsn~contexts-only~1]
+                boolean contexts = contextsChoice.isSelected();
+                fromRepo.setDisable(contexts);
+                folderSession.setVisible(!contexts);
+                folderSession.setManaged(!contexts);
+                if (contexts) {
+                    fromFolder.setSelected(true);
                     folderSession.setSelected(false);
                 }
             }
@@ -989,13 +1014,13 @@ public final class SetupWizard {
             @Nullable String category = button == startNow ? null : categoryName.get();
             boolean plain = category != null && fromFolder.isSelected();
             @Nullable String project = category == null || plain ? null : repoUrl.getText().strip();
-            return new Result(localChoice.isSelected() ? null : sessionHost.get(),
+            return new Result(local.get() ? null : sessionHost.get(),
                     blankToNull(cloneUrl.getText()), project,
                     category == null ? null : blankToNull((plain ? folder : root).getText()),
                     repoType.getValue(), rmHome[0], button == checkup,
-                    localChoice.isSelected() ? null : blankToNull(workspaces.getText()),
+                    local.get() ? null : blankToNull(workspaces.getText()),
                     plain ? category : null, !plain || folderSession.isSelected(),
-                    blankToNull(desktop.getText()));
+                    blankToNull(desktop.getText()), contextsChoice.isSelected());
         });
         // The first start shows the wizard before the main window, which is
         // what otherwise installs `main.css` and forces the theme to take.

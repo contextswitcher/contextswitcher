@@ -866,7 +866,7 @@ Precondition: a task with `remote` + `tmux` pointing at a live Claude window; th
 - [ ] Type into the top box, press Enter three times → card appears with the
       trailing blank lines stripped, caret back in the emptied add box;
       pressing Enter three times into an empty box does nothing.
-- [ ] **Ctrl+Enter three times sends** (`dsn~message-queue-ui~26`): type into the
+- [ ] **Ctrl+Enter three times sends** (`dsn~message-queue-ui~28`): type into the
       add box, press Ctrl+Enter three times in a row → the message stays in the
       box for the first two presses (light green, then a shade more), and the
       third queues **and** sends it — it lands in the Claude input, is submitted,
@@ -877,13 +877,13 @@ Precondition: a task with `remote` + `tmux` pointing at a live Claude window; th
       send to."; on a **suspended** task it arms the message instead and says
       the chat is being resumed.
       *(Automated up to the send: `QueueComposeKeysUiTest`, MADR 0014.)*
-- [ ] **The sending box is locked** (`dsn~message-queue-ui~26`): send a card to a
+- [ ] **The sending box is locked** (`dsn~message-queue-ui~28`): send a card to a
       slow remote → while "Sending…" stands, typing into that card does nothing
       and its send button is disabled; on success the card is gone, and after a
       failure the box takes edits again for a retry.
       *(Automated on the after-failure half: `QueueComposeKeysUiTest`, MADR 0014.)*
 - [ ] Edit a middle card, click elsewhere → reopen the task → the edit stuck.
-- [ ] **A send survives a task switch** (`dsn~message-queue-ui~26`): click a
+- [ ] **A send survives a task switch** (`dsn~message-queue-ui~28`): click a
       card's send button and immediately select another task in the list →
       once the send finishes, switch back → the message is gone from the queue
       and shows in the last-sent box (it used to stay queued forever).
@@ -1242,6 +1242,7 @@ The parsing and merging are unit-tested; what needs a real box is Explorer, Fire
 - [ ] Edit the category's `folders:` while the app runs and switch again → the change takes effect without a restart.
 - [ ] A task with two `folders:` → both Explorer windows are focused/opened; make one path bogus → the chip fails naming it, the other still opens.
 - [ ] Switch a task (or a category with `desktop:`) whose folder has no Explorer window yet, the mouse resting in ContextSwitcher → the new Explorer window opens behind ContextSwitcher, which stays in front with the keyboard; the same with the window already open, and with it open on another desktop (moved here, still behind). The header's folder icon instead leaves Explorer in front.
+- [ ] Extension 0.9.2 installed. Open a task's (or category's) `browser.urls` page in a Firefox window on desktop A, go to desktop B **without** a Firefox window and press the task's (or the category header's) ▶ → the view stays on B, a new Firefox window opens there holding that tab (gone from A), and the task's other pages join it. Repeat with a Firefox window already on B → the tab moves into it instead; a page already open in any window on B stays in that window.
 - [ ] Add `folders-windows:` and `folders-<the Linux host>:` next to a plain `folders:` in the same file, sync the tasks dir to the other machine → each machine opens its own list, neither sees the other's.
 - [ ] (`dsn~category-folders-button~1`) The category's header shows a folder icon right of the desktop button; its tooltip names the folder (or the count and the list). Clicking it opens exactly those Explorer windows, switches to no task, and reports `Folders: …` in the status bar.
       A category without `folders:` shows no such icon.

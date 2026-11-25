@@ -1,5 +1,7 @@
 package com.contextswitcher.extension;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -199,5 +201,21 @@ class ExtensionProtocolTest {
     void malformedMessagesRejected(String json) {
         assertThatThrownBy(() -> ExtensionProtocol.parse(json))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // [utest->dsn~switch-tabs-to-current-desktop~1]
+    @Test
+    void focusUrlCarriesTheWindowsHereAndTheNewWindowFlagOnlyWhenGiven() {
+        assertThat(ExtensionProtocol.encodeFocusUrlPlaced("abc-1", "https://example.org/", true,
+                ExtensionProtocol.Target.here(List.of("A", "B")), null, false))
+                .isEqualTo("{\"type\":\"focus-url\",\"id\":\"abc-1\",\"url\":\"https://example.org/\","
+                        + "\"openIfMissing\":true,\"windowTitle\":\"A\",\"hereTitles\":[\"A\",\"B\"]}");
+        assertThat(ExtensionProtocol.encodeFocusUrlPlaced("abc-1", "https://example.org/", true,
+                ExtensionProtocol.Target.here(List.of()), null, false))
+                .isEqualTo("{\"type\":\"focus-url\",\"id\":\"abc-1\",\"url\":\"https://example.org/\","
+                        + "\"openIfMissing\":true,\"newWindow\":true}");
+        assertThat(ExtensionProtocol.encodeFocusUrlPlaced("abc-1", "https://example.org/", true,
+                ExtensionProtocol.Target.NONE, null, false))
+                .doesNotContain("hereTitles").doesNotContain("newWindow").doesNotContain("windowTitle");
     }
 }

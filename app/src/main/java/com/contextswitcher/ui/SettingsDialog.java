@@ -109,12 +109,13 @@ final class SettingsDialog {
         dialog.initOwner(owner.get());
         dialog.setTitle("Settings");
         // The app mark next to the header text — the one place the icon is
-        // visible without hunting for a taskbar button. [impl->dsn~app-icon~5]
+        // visible without hunting for a taskbar button. [impl->dsn~app-icon~6]
         dialog.setGraphic(new ImageView(AppIcon.image(48)));
         dialog.setHeaderText("settings.yaml is the source of truth — the form patches only the "
                 + "fields you change, keeping comments and unknown keys. Restart to apply "
                 + "(the tag palette, theme, browser and the auto-suspend threshold update live).");
         dialog.setResizable(true);
+        dialog.getDialogPane().getStyleClass().add("uncapped");
         ButtonType saveButton = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
         ButtonType rawToggle = new ButtonType("View raw", ButtonBar.ButtonData.LEFT);
         dialog.getDialogPane().getButtonTypes().addAll(rawToggle, saveButton, ButtonType.CANCEL);
@@ -270,13 +271,21 @@ final class SettingsDialog {
         int selected = tabs.getSelectionModel().getSelectedIndex();
         tabs.getTabs().clear();
         Map<String, VBox> pages = new LinkedHashMap<>();
+        // Without Claude, its tab is left out; the controls stay, so a save
+        // keeps their values. [impl->dsn~contexts-only~1]
+        boolean contextsOnly = controls.get("contextsOnly") instanceof CheckBox only && only.isSelected();
         for (SettingsCatalog.Option option : SettingsCatalog.OPTIONS) {
+            if (contextsOnly && option.group().equals("Claude")) {
+                continue;
+            }
             pages.computeIfAbsent(option.group(), group -> {
                 VBox page = new VBox(2);
                 page.setPadding(new Insets(6, 10, 6, 10));
                 ScrollPane scroll = new ScrollPane(page);
                 scroll.setFitToWidth(true);
-                scroll.setPrefViewportWidth(460);
+                // The host table's columns (700 px) plus its scrollbar and the
+                // page padding — narrower clipped the Active header and the paths.
+                scroll.setPrefViewportWidth(750);
                 tabs.getTabs().add(new Tab(group, scroll));
                 return page;
             }).getChildren().add(fieldRow(option, controls));
@@ -399,7 +408,9 @@ final class SettingsDialog {
                 fallbackDesktop, autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies,
                 claudeUpdateRestart,
                 // [impl->dsn~todo-txt-line~1]
-                ((TextField) controls.get("todoTxt")).getText().trim());
+                ((TextField) controls.get("todoTxt")).getText().trim(),
+                // [impl->dsn~contexts-only~1]
+                ((CheckBox) controls.get("contextsOnly")).isSelected());
     }
 
     /// The tag-palette editor: a row per tag pairing a name field with a color

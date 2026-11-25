@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Generates the Everforest override stylesheets for AtlantaFX.
+"""Generates the palette override stylesheets for AtlantaFX: Everforest and
+the tuxedo themes (Muted Slate, Dawn, Matrix).
 
     python3 scripts/everforest-atlantafx.py
 
-Writes `everforest-light.css` and `everforest-dark.css` into
+Writes `everforest-light.css`, `everforest-dark.css`, `muted-slate.css`,
+`dawn.css` and `matrix.css` into
 `app/src/main/resources/com/contextswitcher/ui/`. Those files are derived
 data — edit this script, not them.
 
@@ -15,6 +17,8 @@ UI, dialogs included, without touching AtlantaFX's SASS sources. See
 
 Palette: https://github.com/sainnhe/everforest/blob/master/palette.md
 (Dark Medium and Light Medium).
+Tuxedo themes: github.com/webstonehq/tuxedo, `src/theme.rs` (MIT) — see
+`dsn~tuxedo-themes~1`.
 """
 
 from pathlib import Path
@@ -108,7 +112,41 @@ DARK = {
 }
 
 
-def build(p, dark):
+def tuxedo(dark, bg, panel, statusbar, border, dim, status_fg, fg,
+           accent, red, yellow, green, blue, other, project, context):
+    """A palette from a tuxedo theme's fields. Tuxedo names seven neutrals
+    where AtlantaFX wants ten, so the gaps are interpolated; the seeds are
+    its priority colours (A red, B yellow, C green)."""
+    if dark:
+        neutral = [fg, hex_of(mix(fg, dim, 0.3)), hex_of(mix(fg, dim, 0.65)), dim,
+                   hex_of(mix(dim, border, 0.3)), hex_of(mix(dim, border, 0.6)),
+                   hex_of(mix(dim, border, 0.8)), border, panel, bg]
+    else:
+        neutral = [bg, panel, statusbar, hex_of(mix(statusbar, border, 0.5)), border,
+                   hex_of(mix(border, dim, 0.3)), dim, hex_of(mix(dim, status_fg, 0.5)),
+                   status_fg, fg]
+    return {
+        "neutral": neutral,
+        "light_end": fg if dark else bg,
+        "dark_end": hex_of(mix(bg if dark else fg, "#000000", 0.3)),
+        "slope": 0.55 if dark else 0.75,
+        "accent": accent, "success": green, "warning": yellow, "danger": red,
+        "chart": [accent, blue, red, yellow, other, project, context, dim],
+    }
+
+
+MUTED_SLATE = tuxedo(True, "#1a1d23", "#1f232b", "#252a33", "#2a2f38", "#6b7280",
+                     "#a8b0bc", "#c8ccd4", "#8aa9c9", "#e07a7a", "#d4b06a", "#7aa67a",
+                     "#7a9ec9", "#9a8fc4", "#7fb3a8", "#c89a6e")
+DAWN = tuxedo(False, "#faf6f0", "#f3ede2", "#ede2cc", "#e0d6c4", "#8a7e6a",
+              "#5a4f3d", "#3d3528", "#a35d3a", "#b8483a", "#a3722a", "#5a7a3a",
+              "#3a6a8a", "#7a4a8a", "#3a7a6a", "#a35d3a")
+MATRIX = tuxedo(True, "#0a120a", "#0f1a0f", "#0f1a0f", "#1a2a1a", "#3f6a3f",
+                "#7fcc7f", "#7fcc7f", "#9fff9f", "#ff8c8c", "#ffd66e", "#9fff9f",
+                "#7fd0ff", "#cf9fff", "#9fff9f", "#ffb56e")
+
+
+def build(p, dark, title):
     n = p["neutral"]
     ramps = {name: ramp(p[name], p["light_end"], p["dark_end"], p["slope"])
              for name in ("accent", "success", "warning", "danger")}
@@ -195,8 +233,7 @@ def build(p, dark):
         raise SystemExit("contrast below WCAG AA 4.5:1 — " + "; ".join(failed))
 
     lines = []
-    lines.append(f"/* Everforest {'Dark' if dark else 'Light'} Medium for AtlantaFX —"
-                 " GENERATED, do not edit. */")
+    lines.append(f"/* {title} for AtlantaFX — GENERATED, do not edit. */")
     lines.append("/* Regenerate with: python3 scripts/everforest-atlantafx.py"
                  "   (dsn~everforest-theme~1) */")
     lines.append("")
@@ -225,7 +262,12 @@ def build(p, dark):
     return "\n".join(lines) + "\n"
 
 
-for name, palette, is_dark in (("everforest-light.css", LIGHT, False),
-                               ("everforest-dark.css", DARK, True)):
-    (OUT / name).write_text(build(palette, is_dark), encoding="utf-8")
+for name, palette, is_dark, title in (
+        ("everforest-light.css", LIGHT, False, "Everforest Light Medium"),
+        ("everforest-dark.css", DARK, True, "Everforest Dark Medium"),
+        ("muted-slate.css", MUTED_SLATE, True, "Muted Slate (tuxedo)"),
+        ("dawn.css", DAWN, False, "Dawn (tuxedo)"),
+        ("matrix.css", MATRIX, True, "Matrix (tuxedo)")):
+    print(name)
+    (OUT / name).write_text(build(palette, is_dark, title), encoding="utf-8")
     print("wrote", OUT / name)

@@ -153,6 +153,32 @@ public class BrowserWindowFocus {
             [CsFf]::EnumWindows($cb, [IntPtr]::Zero) | Out-Null
             """ + RAISE;
 
+    /// Lists the captions of every browser window on the virtual desktop in
+    /// view, topmost first (`EnumWindows` walks in Z-order), one per line
+    /// after a `here:` header line — raising nothing. The header tells an
+    /// answer of "no window here" apart from a script that printed nothing.
+    /// UTF-8 output, so a caption with umlauts still matches the extension's
+    /// window title.
+    private static final String LIST_CURRENT_DESKTOP_SCRIPT = PREAMBLE + """
+            [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+            $captions = New-Object System.Collections.Generic.List[string]
+            $cb = {
+              param($h, $l)
+              if (-not (Test-CsBrowserWindow $h)) { return $true }
+              $sb = New-Object System.Text.StringBuilder 1024
+              [CsFf]::GetWindowText($h, $sb, 1024) | Out-Null
+              if ($sb.Length -eq 0) { return $true }
+              $onCurrent = $false
+              try { $onCurrent = [CsVdmHelper]::IsOnCurrentDesktop($h) } catch { return $true }
+              if ($onCurrent) { $captions.Add($sb.ToString()) }
+              return $true
+            }
+            [CsFf]::EnumWindows($cb, [IntPtr]::Zero) | Out-Null
+            Write-Output 'here:'
+            foreach ($c in $captions) { Write-Output $c }
+            exit 0
+            """;
+
     /// Opens a **new** browser window on the desktop in view. The new-window
     /// flag (`Browser#newWindowFlag`) is what makes it a window of its own: a
     /// plain `firefox <url>` is remoted into the running instance and would
@@ -225,6 +251,36 @@ public class BrowserWindowFocus {
         }
         String caption = result.stdout().strip();
         return caption.isEmpty() ? null : caption;
+    }
+
+    /// The argv listing the browser windows on the virtual desktop in view.
+    // [impl->dsn~switch-tabs-to-current-desktop~1]
+    List<String> listCurrentDesktopCommand() {
+        return encoded(forBrowser(LIST_CURRENT_DESKTOP_SCRIPT));
+    }
+
+    /// The captions of the browser windows on the virtual desktop in view,
+    /// topmost first — empty when that desktop has none — or null when the
+    /// mechanism is unavailable (no `powershell`, not Windows), in which case
+    /// nothing is known about where the user is.
+    // [impl->dsn~switch-tabs-to-current-desktop~1]
+    public @Nullable List<String> captionsOnCurrentDesktop() {
+        LocalCommandRunner.LocalResult result = runner.run(listCurrentDesktopCommand());
+        if (!report(result)) {
+            return null;
+        }
+        return parseCaptions(result.stdout());
+    }
+
+    /// The lines after the `here:` header; null when the header is missing
+    /// (the script did not get as far as answering).
+    static @Nullable List<String> parseCaptions(String stdout) {
+        List<String> lines = stdout.lines().map(String::strip).toList();
+        int header = lines.indexOf("here:");
+        if (header < 0) {
+            return null;
+        }
+        return lines.subList(header + 1, lines.size()).stream().filter(line -> !line.isEmpty()).toList();
     }
 
     /// Opens `url` in a new browser window, which Windows places on the desktop

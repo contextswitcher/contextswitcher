@@ -60,6 +60,12 @@ public final class SettingsCatalog {
             new Option("todoTxt", "todo.txt file", "General", Type.STRING,
                     "A todo.txt file, such as koppter's: each open line tagged cs:<task id> "
                             + "shows on that task's row. Empty turns this off."),
+            // [impl->dsn~contexts-only~1]
+            new Option("contextsOnly", "Without Claude — only contexts", "General", Type.BOOLEAN,
+                    "For managing tasks and their notes, browser tabs and folders without coding "
+                            + "agents: the window opens without terminal and queue, the Claude "
+                            + "actions and this dialog's Claude tab are hidden. Applies after a "
+                            + "restart of ContextSwitcher."),
             new Option("claudeAuto", "Start Claude with --dangerously-skip-permissions",
                     "Claude", Type.BOOLEAN,
                     "Skips permission prompts for launched Claude sessions — trust your remotes."),
@@ -84,7 +90,8 @@ public final class SettingsCatalog {
             new Option("theme", "Theme", "Interface", Type.ENUM,
                     "UI color theme. everforest (the default) and its light/dark variants "
                             + "recolour the Nord palette of system/light/dark "
-                            + "(the terminal follows either way).",
+                            + "(the terminal follows either way). muted-slate and matrix (dark) "
+                            + "and dawn (light) are the palettes of the tuxedo todo app.",
                     AppSettings.THEMES),
             new Option("showOnAllDesktops", "Show window on all desktops", "Interface", Type.BOOLEAN,
                     "Pins the window to every Windows virtual desktop at startup; "

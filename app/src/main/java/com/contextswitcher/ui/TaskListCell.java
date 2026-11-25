@@ -319,6 +319,11 @@ public class TaskListCell extends ListCell<Object> {
     /// Pins or unpins a task, from the row menu's "Pinned" checkmark.
     // [impl->dsn~pinned-tasks~2]
     private final Consumer<Task> onTogglePinned;
+    /// Whether a task's file carries `autoRemoveIdle: true`, and the toggle
+    /// for the row menu's "Remove after 24 hours of inactivity" checkmark.
+    // [impl->dsn~idle-task-removal~3]
+    private final java.util.function.Predicate<Task> autoRemoveIdle;
+    private final Consumer<Task> onToggleAutoRemoveIdle;
     /// A group's own tags (from its `CONTEXTSWITCHER.md`), for the group menu's
     /// "Tags" toggle checkmarks.
     private final Function<String, List<String>> groupTagsOf;
@@ -421,6 +426,7 @@ public class TaskListCell extends ListCell<Object> {
             Function<Task, List<String>> rowTags, Function<String, @Nullable String> tagColor,
             java.util.function.Supplier<List<String>> selectableTagNames,
             BiConsumer<Task, String> onToggleTag, Consumer<Task> onTogglePinned,
+            java.util.function.Predicate<Task> autoRemoveIdle, Consumer<Task> onToggleAutoRemoveIdle,
             Function<String, List<String>> groupTagsOf, BiConsumer<String, String> onToggleGroupTag,
             java.util.function.Predicate<String> groupPinned, Consumer<String> onToggleGroupPinned,
             Runnable onFocusTerminal, ToIntFunction<Task> queueCount,
@@ -480,6 +486,8 @@ public class TaskListCell extends ListCell<Object> {
         this.selectableTagNames = selectableTagNames;
         this.onToggleTag = onToggleTag;
         this.onTogglePinned = onTogglePinned;
+        this.autoRemoveIdle = autoRemoveIdle;
+        this.onToggleAutoRemoveIdle = onToggleAutoRemoveIdle;
         this.groupTagsOf = groupTagsOf;
         this.onToggleGroupTag = onToggleGroupTag;
         this.groupPinned = groupPinned;
@@ -729,6 +737,16 @@ public class TaskListCell extends ListCell<Object> {
         pinned.setSelected(task.pinned());
         pinned.setOnAction(event -> onTogglePinned.accept(task));
         menu.getItems().add(pinned);
+
+        // The Add-task checkbox, later: the flag lives in the file only, so it
+        // is read when the menu opens. [impl->dsn~idle-task-removal~3]
+        if (task.claude() != null) {
+            javafx.scene.control.CheckMenuItem autoRemove =
+                    new javafx.scene.control.CheckMenuItem("Remove after 24 hours of inactivity");
+            menu.setOnShowing(event -> autoRemove.setSelected(autoRemoveIdle.test(task)));
+            autoRemove.setOnAction(event -> onToggleAutoRemoveIdle.accept(task));
+            menu.getItems().add(autoRemove);
+        }
 
         // The task's deep link, for pasting into a note (OneNote, README).
         // [impl->dsn~task-link-copy~1]

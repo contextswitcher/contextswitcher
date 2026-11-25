@@ -545,6 +545,43 @@ class SetupWizardUiTest {
         clickButton("Cancel");
     }
 
+    /// *Without Claude* skips the remote and tools pages and ends on a plain
+    /// folder without a session or a checkup.
+    // [utest->dsn~contexts-only~1]
+    @Test
+    void withoutClaudeEndsOnAPlainFolder(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) {
+        String path = dir.toString();
+        AtomicReference<Optional<SetupWizard.Result>> result = new AtomicReference<>();
+        Platform.runLater(() -> result.set(SetupWizard.show(FAKE_SSH, LOCAL_OK, FAKE_TOOLS, "/home/local",
+                false, true, SetupWizard.Prefill.EMPTY, EXTENSION)));
+        RadioButton contexts = awaitPresent(() -> FX_ROBOT.selectNodes(RadioButton.class,
+                "#setup-contexts-only").fetchOptional(), "contexts-only choice");
+        FX_ROBOT.mouse().moveTo(contexts).click();
+        clickButton("Next");
+        field("#setup-ws-token");
+        clickButton("Next");
+        field("#setup-clone-url");
+        clickButton("Next");
+        RadioButton fromFolder = awaitPresent(() -> FX_ROBOT.selectNodes(RadioButton.class,
+                "#setup-from-folder").fetchOptional().filter(RadioButton::isSelected), "folder preselected");
+        assertThat(FX_ROBOT.selectNodes(RadioButton.class, "#setup-from-repo").fetchOptional())
+                .hasValueSatisfying(repo -> assertThat(repo.isDisabled()).isTrue());
+        assertThat(FX_ROBOT.selectNodes(javafx.scene.control.CheckBox.class, "#setup-folder-session")
+                .fetchOptional()).hasValueSatisfying(box -> assertThat(box.isVisible()).isFalse());
+        assertThat(FX_ROBOT.selectNodes(javafx.scene.control.Button.class, "#setup-checkup")
+                .fetchOptional()).hasValueSatisfying(button -> assertThat(button.isVisible()).isFalse());
+        assertThat(fromFolder.isSelected()).isTrue();
+        type(field("#setup-folder"), path);
+        clickButton("Finish");
+        awaitPresent(() -> Optional.ofNullable(result.get()), "wizard result");
+        assertThat(result.get()).hasValueSatisfying(r -> {
+            assertThat(r.contextsOnly()).isTrue();
+            assertThat(r.remote()).isNull();
+            assertThat(r.setupSession()).isFalse();
+            assertThat(r.workspacesRoot()).isEqualTo(path);
+        });
+    }
+
     private static void setClipboard(String text) {
         java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
         Platform.runLater(() -> {

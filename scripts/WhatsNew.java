@@ -12,11 +12,16 @@
 // grants ALL-UNNAMED instead. Without this every `just run` prints four WARNING
 // lines before the window (field report 2026-09-12: "OMG, what happens here?").
 //JAVA_OPTIONS --enable-native-access=javafx.graphics
+//SOURCES ../app/src/main/java/com/contextswitcher/ui/AppIcon.java
 //SOURCES ../app/src/main/java/com/contextswitcher/ui/Themes.java
 //SOURCES ../app/src/main/java/com/contextswitcher/ui/WhatsNew.java
 //SOURCES ../core/src/main/java/com/contextswitcher/local/LocalCommandRunner.java
+//FILES com/contextswitcher/ui/icon.png=../extension/chrome/icon-128.png
 //FILES com/contextswitcher/ui/everforest-dark.css=../app/src/main/resources/com/contextswitcher/ui/everforest-dark.css
 //FILES com/contextswitcher/ui/everforest-light.css=../app/src/main/resources/com/contextswitcher/ui/everforest-light.css
+//FILES com/contextswitcher/ui/muted-slate.css=../app/src/main/resources/com/contextswitcher/ui/muted-slate.css
+//FILES com/contextswitcher/ui/dawn.css=../app/src/main/resources/com/contextswitcher/ui/dawn.css
+//FILES com/contextswitcher/ui/matrix.css=../app/src/main/resources/com/contextswitcher/ui/matrix.css
 
 import atlantafx.base.theme.Styles;
 import javafx.application.Application;
@@ -162,6 +167,8 @@ public class WhatsNew {
             BorderPane root = new BorderPane(
                     com.contextswitcher.ui.WhatsNew.view(items, url -> getHostServices().showDocument(url)));
             root.setBottom(buttons);
+            // Its own JVM (java.exe), so without this the taskbar shows Java's icon.
+            com.contextswitcher.ui.AppIcon.applyTo(stage);
             stage.setTitle("What's new since " + since + " — now at " + now);
             stage.setScene(new Scene(root, 900, 650));
             // This window is a gate: the recipe waits for it before starting the

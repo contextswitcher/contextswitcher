@@ -479,6 +479,21 @@ Covers:
 
 Needs: impl, utest
 
+### Transfer an enqueued message to the desktop queue
+`dsn~android-enqueue-transfer~1`
+
+A message in the phone's enqueued store (*Enqueue*, a failed car send or notification reply, `dsn~android-enqueue~1`) waits for the watched task only; *Transfer*, left of *Edit* under *Sent when Claude is idle*, hands it to the desktop's queue instead.
+`TaskRepoSync.queueMessage(dir, username, token, taskId, message)` appends it to `.queues/<task>.yaml` and pushes that through the write-back of `dsn~android-queue-delete~3`; only on success does the message leave the phone's store, a failure shows *Cannot transfer* in the Snackbar.
+The button reads *Transferring…* during the round-trip, and the page reloads the desktop queue from the clone afterwards.
+Ceiling: should the watch service send the message during that round-trip, it is delivered twice.
+
+Tags: android
+
+Covers:
+- req~message-queue~2
+
+Needs: impl, utest
+
 ### Delete a desktop-queued message
 `dsn~android-queue-delete~3`
 

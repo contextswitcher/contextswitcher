@@ -6,6 +6,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 
@@ -92,5 +94,28 @@ class SettingsFormRoundTripUiTest {
         });
         assertThat(titles.get(10, TimeUnit.SECONDS)).containsExactly("General", "Claude", "Interface",
                 "Browser", "Hosts", "Tags", "selected 2");
+    }
+
+    @Test
+    void hostsTabShowsItsTableWithoutCutting() throws Exception {
+        SettingsDialog dialog = new SettingsDialog(() -> RAW, content -> null, () -> null,
+                (title, text) -> { }, () -> { }, () -> { }, (remotes, onDone) -> { });
+        CompletableFuture<TabPane> shown = new CompletableFuture<>();
+        Platform.runLater(() -> {
+            try {
+                TabPane tabs = new TabPane();
+                dialog.renderForm(tabs, dialog.buildControls(AppSettings.parse(RAW)));
+                tabs.getSelectionModel().select(4);
+                Stage stage = new Stage();
+                stage.setScene(new Scene(tabs));
+                stage.show();
+                shown.complete(tabs);
+            } catch (Throwable e) {
+                shown.completeExceptionally(e);
+            }
+        });
+        TabPane tabs = shown.get(10, TimeUnit.SECONDS);
+        assertThat(UiTestSupport.truncatedTexts(tabs)).isEmpty();
+        Platform.runLater(() -> tabs.getScene().getWindow().hide());
     }
 }

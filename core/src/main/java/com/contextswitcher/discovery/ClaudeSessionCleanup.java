@@ -137,7 +137,7 @@ public class ClaudeSessionCleanup {
     /// `git worktree remove --force` of the workdir: git itself refuses a main
     /// working tree (a full checkout) and anything that is no linked worktree,
     /// so an unattended removal never takes a clone with it.
-    // [impl->dsn~idle-task-removal~2]
+    // [impl->dsn~idle-task-removal~3]
     static List<String> worktreeCommand(String workdir) {
         String quoted = SshCommandRunner.quotePath(workdir);
         return List.of("git", "-C", quoted, "worktree", "remove", "--force", quoted);
@@ -153,7 +153,7 @@ public class ClaudeSessionCleanup {
     /// `git branch -D` of the removed worktree's branch, or null when there is
     /// none to delete: a detached HEAD, an unparsable answer, or a name the
     /// single quoting cannot carry.
-    // [impl->dsn~idle-task-removal~2]
+    // [impl->dsn~idle-task-removal~3]
     static @Nullable List<String> branchDeleteCommand(String revParseOutput) {
         List<String> lines = revParseOutput.strip().lines().map(String::strip).toList();
         if (lines.size() != 2 || lines.get(1).equals("HEAD") || lines.get(1).isEmpty()
@@ -167,7 +167,7 @@ public class ClaudeSessionCleanup {
     /// Removes the workdir on `remote` only if it is a linked git worktree,
     /// after [#rejectWorkdir], then deletes the worktree's branch (git refuses
     /// one still checked out elsewhere); null on success, else why it stayed.
-    // [impl->dsn~idle-task-removal~2]
+    // [impl->dsn~idle-task-removal~3]
     public @Nullable String removeWorktree(String remote, String workdir,
             Collection<String> protectedDirs) {
         String rejected = rejectWorkdir(workdir, protectedDirs);

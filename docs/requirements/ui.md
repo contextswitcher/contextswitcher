@@ -502,7 +502,7 @@ Needs: dsn
 ### Select the UI theme
 `req~theme-select~1`
 
-The user can choose the application's color theme from the settings dialog — light, dark, or system (follow the operating system's light/dark preference), each in the Everforest recolouring or the plain palette — and the choice takes effect immediately, without a restart.
+The user can choose the application's color theme from the settings dialog — light, dark, or system (follow the operating system's light/dark preference), each in the Everforest recolouring or the plain palette, or one of the fixed tuxedo palettes — and the choice takes effect immediately, without a restart.
 The choice is stored in `settings.yaml` (`theme:`); an absent or unrecognized value means the default theme, Everforest following the operating system.
 
 Tags: windows, linux
@@ -988,6 +988,36 @@ Tags: windows, linux
 
 Covers:
 - req~setup-wizard~1
+
+Needs: impl, utest
+
+### Without Claude — only contexts
+`req~contexts-only~1`
+
+Someone who only manages TODOs — notes in OneNote, a few browser tabs and folders per task — uses the app without any coding agent: nothing on screen asks for Claude, tmux or ssh, and a task's switch brings up its notes, tabs, folders and desktop.
+
+Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
+### Contexts-only mode
+`dsn~contexts-only~1`
+
+`contextsOnly: true` in `settings.yaml` (default false; the *General* tab's *Without Claude — only contexts*) is the mode for `req~contexts-only~1`.
+The setup wizard's first page offers it as a fourth choice next to remote, WSL and this machine (`SetupWizard`, `Result.contextsOnly`): it counts as this machine, skips the remote and tools pages, and ends on the last page with *A local folder* selected, *From a repository* disabled, the session checkbox and *Finish and check up* hidden (`dsn~category-from-folder~3` without a session); `Main.applyWizardSettings` writes `contextsOnly: true`, and only a settings save turns it off again.
+Read once at startup (`MainWindow.setContextsOnly`, before `show`), so a change applies after a restart:
+- the shell opens without the Terminal and Queue lanes, the notes in the middle and switch actions and configuration on the right (`ShellFxHost.host`); the panes button still shows the hidden ones;
+- the ⋮ menu has no *Sync tmux windows…* and *Restart running tasks…*;
+- the Add-task dialog shows only *Add plain task* — no remote or local agent buttons, host, quick messages, agent/model/effort, auto-remove or the session hints — and a pasted PR URL becomes a plain task's title instead of a PR session;
+- the settings dialog leaves out its *Claude* tab (`SettingsDialog.renderForm`; the controls stay, so a save keeps their values).
+
+Tags: windows, linux
+
+Covers:
+- req~contexts-only~1
 
 Needs: impl, utest
 
@@ -1672,8 +1702,8 @@ Needs: impl, utest
 The toolbar add menu's `Add task…` item (`dsn~task-list-toolbar~3`) — and a category's `Add task…` row, passing its group — open `MainWindow.addTask(group)`: one dialog with a single field whose content decides the mode, the label under it live-reflecting it (`Title` vs `from PR/MR URL`, `PrTitleLookup.isPrOrMrUrl`).
 The field is a small multi-line area, not a single-line `TextField`: a live task's input is a free-form multi-sentence description (`dsn~task-create-live~8`), and with a single-line field every plain Enter fired the dialog's default button — submitting a half-typed description mid-sentence.
 Enter therefore inserts a newline (the area consumes it before the default button sees it); three plain Enters in a row — or three Ctrl+Enters, which fired the button on the first press until `~11` — trigger the default button, and Shift+Enter inserts a newline too:
-the queue boxes' compose chords, installed by the shared `QueuePane.installComposeKeys` (`dsn~message-queue-ui~26`) so the dialog and the queue advance in sync per `req~compose-key-conventions~5`; a muted hint under the field names the keys.
-The field also takes the queue boxes' attachment affordances (`QueuePane.installAttachments`, `dsn~message-queue-ui~26`): files dragged from the OS and pasted clipboard images are stored under the local attachments dir and referenced as `[file: …]`/`[image: …]` markers in the description — the live-task prompt delivery uploads them and rewrites the markers to their remote paths like any queued message (`dsn~task-from-pr~6`), so Claude can read an attached spec right from the initial prompt; in the task file's title and Notes the markers keep pointing at the local copies.
+the queue boxes' compose chords, installed by the shared `QueuePane.installComposeKeys` (`dsn~message-queue-ui~28`) so the dialog and the queue advance in sync per `req~compose-key-conventions~5`; a muted hint under the field names the keys.
+The field also takes the queue boxes' attachment affordances (`QueuePane.installAttachments`, `dsn~message-queue-ui~28`): files dragged from the OS and pasted clipboard images are stored under the local attachments dir and referenced as `[file: …]`/`[image: …]` markers in the description — the live-task prompt delivery uploads them and rewrites the markers to their remote paths like any queued message (`dsn~task-from-pr~6`), so Claude can read an attached spec right from the initial prompt; in the task file's title and Notes the markers keep pointing at the local copies.
 `Ctrl+T` opens the same dialog from anywhere in the main window (a capture-phase scene filter like `Ctrl+F`'s, `dsn~task-find~9`, so the terminal pane does not swallow it as ^T).
 A **Category** combo box at the top of the dialog picks the group the task lands in, pre-selected with the group it was opened for; choosing another re-evaluates the hints, the enabled buttons and the default button below for that group.
 Its entries are grouped by desktop and narrowed by host (`dsn~task-create-category-pick~1`).
@@ -1722,7 +1752,7 @@ Needs: impl, utest
 ### URLs mentioned in free text become browser tabs
 `dsn~task-url-collect~2`
 
-Any http(s) URL mentioned anywhere in a task's description (the Add-task dialog's field, `dsn~task-create-ui~15`) or in a message queued for its chat (`dsn~message-queue-ui~26`) is appended to the task file's `browser.urls` — not only a GitHub PR link, so a pasted issue link, wiki page, or any other address shows up as a tab too, without a separate `Add link…` round.
+Any http(s) URL mentioned anywhere in a task's description (the Add-task dialog's field, `dsn~task-create-ui~15`) or in a message queued for its chat (`dsn~message-queue-ui~28`) is appended to the task file's `browser.urls` — not only a GitHub PR link, so a pasted issue link, wiki page, or any other address shows up as a tab too, without a separate `Add link…` round.
 `Task.urlsIn` scans free text for `https?://` up to whitespace or a character a URL cannot contain unescaped (`{}\<>"` and the backtick), so markup around a URL stays out of it: LaTeX's `\href{https://example.org/}{Example}` yields `https://example.org/`.
 It then strips the trailing sentence punctuation (`.,;:!?)]'`) a URL commonly sits in front of, e.g. "see https://example.org/x." keeps the period out of the link.
 `TaskFileParser.addUrlsFrom` runs the scan and appends every match through the existing `addBrowserUrl` (deduplicated, first occurrence wins, sorted-position insertion) — the same textual, comment-preserving rewrite the Add-link dialog and the PR-mention extraction already used.
@@ -1885,7 +1915,7 @@ Needs: impl, utest
 
 The terminal bar's "Fork…" button (`TerminalPane.jumpToBottomBar`, id `fork-task-button`) forks the previewed task, next to the pane's other buttons. `TerminalPane` does not own tasks — like `diffOpener` — so `MainWindow` decides the button's enabled-ness (`renderPrHeader`, since it already runs on every previewed-task change) and wires its click (`TerminalPane.setOnFork`/`setForkAvailability`). Enabled only when the task has a `remote`, a `tmux` window and a non-blank `claude.sessionId` — `claude --resume <id>` has nothing to resume without one — else disabled with a tooltip naming what is missing.
 
-The click opens `MainWindow.openForkDialog`: title "Fork &lt;source title&gt;", a `TextArea` ("What should the fork do?"), the model/effort `ComboBox`es built exactly as the Add-task dialog's (`QueuePane.modeBox`, pre-filled from `MainWindow.lastMode`), and **Back** (cancel, creates nothing) / **Fork** (default, disabled while the field is blank). The field holds a message for a Claude chat, so it gets the Add-task dialog's compose chords (`QueuePane.installComposeKeys`) — a shared behavior needing a UI test at each call site (`dsn~message-queue-ui~26`'s rationale). The dialog closes the instant Fork is clicked or the chord fires; creation runs in the background through `MainWindow.TaskForker` (implemented by `Main.forkTask`, next to `createLiveTask`), and the picked mode is remembered like the Add-task dialog's.
+The click opens `MainWindow.openForkDialog`: title "Fork &lt;source title&gt;", a `TextArea` ("What should the fork do?"), the model/effort `ComboBox`es built exactly as the Add-task dialog's (`QueuePane.modeBox`, pre-filled from `MainWindow.lastMode`), and **Back** (cancel, creates nothing) / **Fork** (default, disabled while the field is blank). The field holds a message for a Claude chat, so it gets the Add-task dialog's compose chords (`QueuePane.installComposeKeys`) — a shared behavior needing a UI test at each call site (`dsn~message-queue-ui~28`'s rationale). The dialog closes the instant Fork is clicked or the chord fires; creation runs in the background through `MainWindow.TaskForker` (implemented by `Main.forkTask`, next to `createLiveTask`), and the picked mode is remembered like the Add-task dialog's.
 
 `Main.forkTask` resolves the same category as the source task (its id's group folder) and that group's `repo`/`bootstrapWorktree` from its `CONTEXTSWITCHER.md`, like `startRemoteWindow`. It uses the source's own `remote`, `claude.cwd` as the new window's working directory (Claude stores sessions per directory, so `--resume <id>` must run where the source session ran) and the remote's usual tmux session (`usualSession`). The task file is written first, like `createLiveTask`: title/slug from the instruction, `remote`, `claude.cwd`, the instruction under `# Notes` plus a "Forked from &lt;source title&gt; (`&lt;source task id&gt;`)" line; the launcher's row progress steps (`dsn~task-create-progress~6`), the prompt recorded via `QueueFile.saveSent` and the post-create session-id sync (`dsn~tmux-sync~7`) all run as they do there. Unlike `createLiveTask`, the new row is **not** selected — the user stays on the source task, since a fork is meant to run unattended alongside it — and start/outcome are reported through the status bar ("Forking &lt;instruction's first line&gt; …" → "Forked …"/"Forking … failed.") instead of the terminal lane.
 
@@ -2019,6 +2049,7 @@ Needs: impl, utest
 
 A **cog icon button** at the right end of the list toolbar (`MainWindow.settingsButton`, a Material Design `COG` glyph via `SvgNode`, MADR 0010 — icon-only, `Styles.SMALL`/`BUTTON_ICON`/`FLAT`, tooltip "Settings"; the last item of the toolbar `dsn~task-list-toolbar~3`, after the add menu) opens a resizable dialog (`setResizable(true)` — JavaFX dialogs are fixed-size by default).
 The form is a `TabPane` with one non-closable tab per option group — General, Claude, Interface, Browser, Hosts (with the refactoring view port), Tags — each tab's rows in their own `ScrollPane`; the dialog takes the height of its tallest tab, and rebuilding the form (back from raw view) keeps the selected tab (`~4`→`~5`: all groups stacked in one scrolling column of 75 % of the screen height, which Oliver found far too long).
+The form is 750 px wide — the host table's columns side by side, the *Active* header uncut — so the dialog pane carries `uncapped` (AtlantaFX caps dialogs at 600 px); its UI test asserts nothing in the Hosts tab is truncated.
 A lone gear in the status bar had been easy to miss and read as a twin of the sync-tmux button, which used a cog glyph (`COG_SYNC`); `COG` is now the one plain cog in the app, and sync-tmux uses `SYNC`.
 The dialog is parented to the main window (`Dialog.initOwner`, `MainWindow.dialogOwner`): an ownerless JavaFX `Dialog` is application-modal — it grays the whole UI — but is its own top-level window, so with the main window pinned to every virtual desktop (`showOnAllDesktops`) the orphan opened on the primary desktop while the user was on another, leaving the app apparently frozen with no dialog in sight. The raw-fallback editor (`editSettingsRaw`) is parented the same way.
 The form is **generated from `SettingsCatalog`** (MADR 0015) — one control per known `settings.yaml` option (label, help, type), a tab per option group — by an own small renderer, not a third-party form framework (FormsFX was tried and dropped, MADR 0015): a `TextField` for the tasks directory, WebSocket port, and WebSocket token; `CheckBox`es for `hints`, `claudeAuto`, and `showOnAllDesktops`; a `ComboBox` for an `ENUM` option's fixed `choices` (the `theme`, `dsn~theme-select~9`); the `HostTable` for `hosts` (an editable ExtendedTable, `dsn~host-table~1`, MADR 0038 — the former `remotes`/switched-off-hosts text lists and the global RefactoringMiner field); and a purpose-built `TagListEditor` for the tag palette — a row per tag pairing a name `TextField` with a `ColorPicker`, plus "Add tag" and a per-row remove (a tag is always a name + color). Each row places the label on its own line above a full-width control (a checkbox sits at the right edge instead of stretching) and highlights on hover; the option's help is the row tooltip. The **raw `settings.yaml` text is the data source of truth**: the dialog reads it via `Main.readSettingsFile`, and the form never re-dumps the whole file. On Save (and when toggling to raw), only the keys whose values changed are patched back into the raw text by `YamlPatch.set` (which replaces a single top-level key's block in place, leaving comments, key order, and keys the app does not know about untouched); a cleared tasks directory or a non-numeric port blocks with an alert.
@@ -2089,6 +2120,24 @@ The `base` stays the Nord theme of the matching mode, so a variable the override
 It builds AtlantaFX's ramp shape (index 0 lightest, 5 the seed, 9 darkest) from Everforest's own named steps for the neutrals and from four seeds for accent/success/warning/danger: **green** as the accent (Everforest's signature hue), aqua for success so it never reads as the accent, yellow, and red.
 The light variant travels further down its ramps than Nord does (slope 0.75 against 0.55) and reads its `fg`/`emphasis` two steps deeper: Everforest's light hues are bright enough that Nord's indices produced a green fill too pale to carry the cream `fg-emphasis` text.
 The generator therefore ends in a WCAG check — `fg-default` on the ground, `fg-emphasis` on each emphasis fill, and each `X-fg` on the ground, all at AA 4.5:1 — and fails rather than writing a palette that would ship a contrast regression.
+
+Tags: windows, linux
+
+Covers:
+- req~theme-select~1
+
+Needs: impl, utest
+
+### Tuxedo palettes
+`dsn~tuxedo-themes~1`
+
+The `theme` values `muted-slate`, `dawn` and `matrix` draw the UI in the built-in themes of the same names of the [tuxedo](https://github.com/webstonehq/tuxedo#themes) todo app (MIT; colours from its `src/theme.rs`).
+Each has one lightness — `muted-slate` and `matrix` are dark, `dawn` is light — and does not follow the operating system.
+Tuxedo's fourth palette, *Nord*, is the existing `dark`, and its *Terminal* theme (the terminal emulator's own colours) has no counterpart in a desktop window.
+
+They use the mechanism of `dsn~everforest-theme~2`: `Themes.recoloured(base, variant)` appends `<variant>.css` to the Nord theme of the matching lightness, and `scripts/everforest-atlantafx.py` generates the three stylesheets under the same WCAG check.
+Tuxedo names seven neutrals (`bg`, `panel`, `statusbar`, `border`, `dim`, `status_fg`, `fg`) where AtlantaFX wants a ramp of ten, so the generator interpolates the gaps; `accent` is the accent seed, and the priority colours A (red), B (yellow) and C (green) seed danger, warning and success.
+The terminal mirror stays on its plain black or white ground under these themes (`dsn~terminal-theme~2`).
 
 Tags: windows, linux
 
@@ -2286,7 +2335,7 @@ A task file gets the `TASK` catalog, a category's `CONTEXTSWITCHER.md` the `CATE
 The catalog is split over two panes built the same way (`ConfigFormPane`): **Switch actions**, between *Notes* and *Configuration*, holds what a switch opens — `FrontmatterCatalog.SWITCH_ACTION_KEYS`: `intellij`, `intellij.projectPath`, `vscode`, `browser.urls`, `folders`, `chat`, `note` (labelled *OneNote*), `terminal.tabTitle` (a local Windows Terminal tab, e.g. a shell for `gradlew`), and for a category `desktop`, `completeControl` (local to this machine, like the rest) and `profile` (its environment profile, `dsn~environment-profiles~1`) — and **Configuration** every other field; a form of a single section goes without its section header, the tab names it.
 Each *Local folders* row has a browse button (`DirectoryChooser`, saved at once), and on Windows a pasted `/c/…`, `/cygdrive/c/…` or `/mnt/c/…` path is converted to `C:\…` (`ListFieldEditor.windowsPath`); only an insertion of more than one character counts as a paste, so typing a path by hand is left alone.
 A task's empty *Local folders* field shows the category's folders as its hint, since a switch opens those instead (`Task.withCategoryDefaults`).
-Text fields are strings, a checkbox is a flag, a drop-down the fixed sets (`status`), and a list (`tags`, `folders`, `browser.urls`) is a `ListFieldEditor`: a single-line field per entry plus an empty one at the end — typing into it adds the next empty one, Enter moves to the next field — and a trash can, shown while a row is hovered, removing that entry (the queue's delete-on-hover, `dsn~message-queue-ui~26`); `browser.urls` entries read as links (`dsn~browser-url-links~1`).
+Text fields are strings, a checkbox is a flag, a drop-down the fixed sets (`status`), and a list (`tags`, `folders`, `browser.urls`) is a `ListFieldEditor`: a single-line field per entry plus an empty one at the end — typing into it adds the next empty one, Enter moves to the next field — and a trash can, shown while a row is hovered, removing that entry (the queue's delete-on-hover, `dsn~message-queue-ui~28`); `browser.urls` entries read as links (`dsn~browser-url-links~1`).
 The `remote` field is labelled *Host* and is an **editable** drop-down offering the settings' host destinations (`dsn~host-table~1`) — any other destination typed in is kept, blank removes the key; the frontmatter key stays `remote:`, which every task file, the tmux sync and the Android app read.
 A category's *Virtual desktop* field suggests while typing (`Suggestions`): a popup under it lists the desktop names the app knows — this machine's named desktops as the desktop watcher last read them, those the categories name, the active desktop and the fallback desktop (`dsn~fallback-desktop~2`) — matching what is typed, names starting with it first; **Down** opens it on an empty field, picking an entry fills the field, and any other name typed in is kept.
 A refresh icon button beside the field reads the named desktops once more (`WindowsVirtualDesktopFocus.names`, a one-shot `powershell` read that works without the watcher), disabled for the round-trip with the status bar saying how it went, and opens the suggestions with the result — for a desktop created or renamed while the form is open.
@@ -2474,10 +2523,12 @@ Covers:
 Needs: impl, utest
 
 ### The app has an icon
-`dsn~app-icon~5`
+`dsn~app-icon~6`
 
 Every stage the app opens — the main window, the "What's new" window, the sync groups window, the diff viewer — carries the browser extension's target-rings mark at 16/32/64/128 px, so the title bar and the taskbar button show it, and the Settings dialog shows the same mark at 48 px beside its header text.
 A `Stage` does not inherit its owner's icons, so each one sets them itself; a stage without them showed the toolkit's default Duke in the taskbar (2026-10-25).
+The main window is an `EXTENDED` stage whose title bar the app draws itself (`dsn~shell-layout~3`), so the OS draws no icon there: the title bar shows the mark at 16 px left of the title.
+The pre-launch "What's new" gate of the run loop (`scripts/WhatsNew.java`) runs in its own `java` process, so it sets the mark too; without it the taskbar showed Java's icon (2026-11-25).
 `AppIcon` loads the extension's `icon-128.png`, which `processResources` copies into the app jar — one raster for the whole product, and no second drawing to keep in sync.
 Loading rather than drawing is what makes the window icon appear at all: `WindowStage.findBestImage` accepts only byte-based pixels (`BYTE_RGB`, `BYTE_BGRA_PRE`, `BYTE_GRAY`) and silently ignores the rest, so the `INT_ARGB_PRE` image a canvas snapshot produces was dropped and the window kept the toolkit's default icon — twice (2026-09-09, 2026-09-12).
 One mark for the app and its extension is what makes it recognizable as the same tool as the browser toolbar button.
@@ -2532,6 +2583,7 @@ It reads the list's `VirtualFlow` and does nothing when the row lies strictly be
 Clicking into an editor or queue input therefore leaves the list exactly where it was, rather than jerking the already-visible row to an edge.
 A row that does have to be revealed is scrolled so it lands about a third of a viewport down (`scrollToTop(index - visibleRows / 3)`) — clear of the pinned header, and with rows above and below it, so the user can scroll in both directions from where they landed instead of being parked against an edge.
 Before the first layout there is no flow (or no cells) to measure, and the plain `ListView.scrollTo` is used.
+Right after a rebuild (a desktop switch replaces every row, `dsn~desktop-last-task-selection~6`) the flow still holds the previous rows' cells, whose indices say nothing about the new rows: the list is laid out first, and a flow still out of step with the items falls back to `ListView.scrollTo` too.
 
 Tags: windows, linux
 
@@ -3032,7 +3084,7 @@ Covers:
 Needs: impl, utest
 
 ### Message queue below the editor
-`dsn~message-queue-ui~26`
+`dsn~message-queue-ui~28`
 
 `QueuePane` (the **Queue** pane, docked below Notes by default, `dsn~shell-layout~3`) shows the selected task's queued messages as a stack of wrapped `TextArea` cards, ordered top-down by how urgently each part wants the eye (changed in `~15`): the last sent message (`dsn~last-sent-message~5`), the status line, the queued messages oldest-first — so the **top** card is the next to send (changed in `~18`; the newest message ends up next to the add box that produced it) — and the always-empty **add** box directly under the last card — inside the scrolling stack, not pinned to the pane's bottom edge, where a short queue would leave it stranded at the far end of an empty pane (committed as a new message when focus leaves it non-blank, or via `Ctrl+Enter` which keeps the caret in the emptied add box).
 A committed add-box message is trimmed of surrounding whitespace (`String.strip()`) before it enters the queue, and any http(s) URL it mentions is also added to the task's `browser.urls` (`dsn~task-url-collect~2`).
@@ -3047,6 +3099,8 @@ The run counts key presses, not the box's text — a modifier's own key press is
 When the send button is disabled the chord says so in the status line ("Queued — this task has no tmux window to send to.", added in `~19`; "Saved — …" from a card edit box): the message is safe in the queue either way, but a green flash over a card that quietly stayed behind reads as a chord that does nothing but add a box.
 All rows share one skeleton (handle/send column, text, delete) with inapplicable elements kept invisible in the layout, so every text box starts at the same x.
 Every box (add box and cards alike) carries a resize grip along its bottom edge — a thin `Region` with an `S_RESIZE` cursor whose drag sets the box's `prefHeight` (screen-y deltas, since the grip moves with the drag; floored at one row) — so a long message gets the room a browser's `<textarea>` gives it.
+The add box also grows with its text, wrapped lines included, and drops back to two rows once emptied (`~28`), so a message being written never scrolls inside its own box.
+Switching to another window while typing in the add box still stores the message, but the caret moves along into the new card at the same position (`~28`; Oliver, 2026-11-25: coming back found the caret in a fresh empty add box): JavaFX takes `focused` from the box while it stays the scene's focus owner, which is how the window switch is told apart from a click elsewhere.
 The height is per box and not persisted: it belongs to the message being written, and a task switch starts from the default row counts again (a rebuild within the task keeps the areas, `~26`).
 Each card auto-saves edits on focus loss (editor-lane convention) or on its own triple `Ctrl+Enter` chord (which then sends it, changed in `~20`), shows a ✕ delete button while hovered, and is reordered by dragging its ≡ handle onto another card (string-payload drag'n'drop like the task-row move).
 The handle carries the card's **position in the delayed send order** as a negative-circled number (`CircledCount`, the glyphs of `dsn~message-queue-count-badge~1`), and only an **armed** card gets one (changed in `~22`): `➊` is the armed card that goes out first, and the tooltip spells the number out — a stack of look-alike cards otherwise leaves the order to be guessed, which matters most for the delayed send (`dsn~message-queue-delayed-send~4`), where nothing is pasted right away to confirm what went.
@@ -3056,6 +3110,7 @@ A failure keeps it and shows the error in the pane's status line.
 While the send is in flight that card's text box is read-only alongside its disabled send button (added in `~24`): the message is already on its way, and an edit landing during the paste would be lost silently — the chat would have the old text and the queue file the new one.
 A failure makes the box editable again, so the message can be fixed and retried; a success removes the card anyway.
 `Ctrl+V` with an image on the clipboard stores it as a PNG under `<configDir>/attachments/` (FX `PixelReader` → `BufferedImage` → `ImageIO`, no `javafx.swing` bridge) and inserts its `[image: <local path>]` marker at the caret; plain text pastes fall through to the `TextArea`.
+A clipboard that carries non-blank text **beside** the image pastes the text (`QueuePane.pastesAsImage`, changed in `~27`): OneNote puts a rendered picture of the selection next to its text even when only a link was copied, so a pasted link arrived as a screenshot of the link (field report 2026-11-24).
 An image whose alpha is 0 on every pixel — how the Windows clipboard hands over 32-bit screenshots — is stored opaque (`Attachments.opaqueIfFullyTransparent`); stored as-is it showed blank in every viewer and to Claude (field report 2026-09-15).
 Files dragged from the OS onto any text box (add box or card) are copied under `<configDir>/attachments/` — timestamp-prefixed, so equal names cannot collide locally or in the flat remote drop directory, and sanitized (everything outside `[A-Za-z0-9._-]` becomes `_`), because the remote path lands verbatim in the chat message text, where a space would split the path — and inserted as `[file: <local path>]` markers at the caret; the handlers are event **filters** accepting only file drags, so the card-reorder drag (string payload) and the `TextArea`'s own text-drag handling are unaffected, and directories are skipped.
 Re-showing the task already shown (a background task-list rebuild re-applying the selection, the preview refresh after a switch/suspend) never commits or rebuilds the boxes — it would turn a half-typed add box into a queued message and steal the keyboard focus mid-typing.
@@ -3109,9 +3164,9 @@ Needs: impl, utest
 ### Last sent message below the queue
 `dsn~last-sent-message~5`
 
-A successful queued send records the delivered text as the task's **last sent message** (`QueueFile.saveSent` — keyed by the task the send was for, so a selection change while the send is in flight still records the right task) and shows it in a read-only wrapped `TextArea` at the queue pane's **top**, above the status line and the queue (changed in `~3` — see `dsn~message-queue-ui~26`): a muted "Last sent" caption, a subtly different background (`.queue-last-sent .content` in `main.css` — AtlantaFX paints a text area's background on its `.content` child, so an inline style would not take), collapsed while the task has no recorded send.
+A successful queued send records the delivered text as the task's **last sent message** (`QueueFile.saveSent` — keyed by the task the send was for, so a selection change while the send is in flight still records the right task) and shows it in a read-only wrapped `TextArea` at the queue pane's **top**, above the status line and the queue (changed in `~3` — see `dsn~message-queue-ui~28`): a muted "Last sent" caption, a subtly different background (`.queue-last-sent .content` in `main.css` — AtlantaFX paints a text area's background on its `.content` child, so an inline style would not take), collapsed while the task has no recorded send.
 The box scrolls internally when the message exceeds its three rows.
-A grip under the area (the queue boxes' `resizeGrip`, `dsn~message-queue-ui~26`) drags the last-sent box taller, and with it the viewport over the history; the height is kept in the user preferences (`queueLastSentHeight`), for every task and across restarts.
+A grip under the area (the queue boxes' `resizeGrip`, `dsn~message-queue-ui~28`) drags the last-sent box taller, and with it the viewport over the history; the height is kept in the user preferences (`queueLastSentHeight`), for every task and across restarts.
 The earlier sent messages get an identical read-only box each, stacked **above** the last one inside a `ScrollPane` whose `prefViewportHeight` is bound to the last-sent box's height: the pane shows exactly the last send as before, and scrolling up inside it walks back through the history (oldest at the top).
 The caption says "Last sent (scroll up for older)" while there is history, so the hidden messages are discoverable; the older boxes carry the attachment-marker preview and the same Resend/Copy menu (changed in `~5`; before, only the last box had it).
 `QueuePane.showSent` refills the whole stack from disk after every send (the files are tiny and local, like the queue) and parks the viewport at the bottom via `Platform.runLater`.

@@ -43,7 +43,13 @@ public final class Themes {
     public static final String EVERFOREST_LIGHT = "everforest-light";
     public static final String EVERFOREST_DARK = "everforest-dark";
 
-    /// Stylesheet URL per built Everforest variant — the concatenation is done
+    /// The `theme` values that draw the UI in a palette of the tuxedo todo
+    /// app, each of one fixed lightness (`dsn~tuxedo-themes~1`).
+    public static final String MUTED_SLATE = "muted-slate";
+    public static final String DAWN = "dawn";
+    public static final String MATRIX = "matrix";
+
+    /// Stylesheet URL per built recolouring — the concatenation is done
     /// once, not on every live theme switch.
     private static final Map<String, String> GENERATED = new HashMap<>();
 
@@ -83,15 +89,17 @@ public final class Themes {
     public static void apply(@Nullable String pref) {
         String name = pref == null ? "system" : pref.trim().toLowerCase(Locale.ROOT);
         dark = switch (name) {
-            case "dark", EVERFOREST_DARK -> true;
-            case "light", EVERFOREST_LIGHT -> false;
+            case "dark", EVERFOREST_DARK, MUTED_SLATE, MATRIX -> true;
+            case "light", EVERFOREST_LIGHT, DAWN -> false;
             default -> systemPrefersDark();
         };
         everforest = name.startsWith(EVERFOREST);
         Theme base = dark ? new NordDark() : new NordLight();
-        String stylesheet = everforest
-                ? everforest(base, dark)
-                : base.getUserAgentStylesheet();
+        // [impl->dsn~tuxedo-themes~1]
+        String stylesheet = switch (name) {
+            case MUTED_SLATE, DAWN, MATRIX -> recoloured(base, name);
+            default -> everforest ? everforest(base, dark) : base.getUserAgentStylesheet();
+        };
         // What the whole UI is about to be drawn with. Logged because the one
         // failure mode here is silent: JavaFX falls back to its own Modena
         // when it cannot load the URL, and the app then comes up in a light
@@ -307,7 +315,14 @@ public final class Themes {
     /// must not cost the user their window.
     // [impl->dsn~everforest-theme~2]
     static String everforest(Theme base, boolean dark) {
-        String variant = dark ? EVERFOREST_DARK : EVERFOREST_LIGHT;
+        return recoloured(base, dark ? EVERFOREST_DARK : EVERFOREST_LIGHT);
+    }
+
+    /// `base` with the bundled `<variant>.css` palette appended — the
+    /// mechanism of [#everforest], for any of the recolourings.
+    // [impl->dsn~everforest-theme~2]
+    // [impl->dsn~tuxedo-themes~1]
+    static String recoloured(Theme base, String variant) {
         @Nullable String cached = GENERATED.get(variant);
         if (cached != null) {
             return cached;

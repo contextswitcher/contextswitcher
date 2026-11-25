@@ -126,4 +126,24 @@ class BrowserWindowFocusTest {
     void escapeDoublesSingleQuotes(String value, String expected) {
         assertThat(BrowserWindowFocus.escape(value)).isEqualTo(expected);
     }
+
+    // [utest->dsn~switch-tabs-to-current-desktop~1]
+    @Test
+    void listScriptRaisesNothingAndPrintsUtf8() {
+        String script = decoded(FIREFOX.listCurrentDesktopCommand());
+        assertThat(script)
+                .contains("IsWindowOnCurrentVirtualDesktop")
+                .contains("UTF8Encoding")
+                .contains("'here:'")
+                .doesNotContain("[CsMv]::Focus");
+    }
+
+    // [utest->dsn~switch-tabs-to-current-desktop~1]
+    @Test
+    void captionsAreTheLinesAfterTheHeader() {
+        assertThat(BrowserWindowFocus.parseCaptions("here:\r\nPad — Mozilla Firefox\r\nÜbersicht — Mozilla Firefox\r\n"))
+                .containsExactly("Pad — Mozilla Firefox", "Übersicht — Mozilla Firefox");
+        assertThat(BrowserWindowFocus.parseCaptions("here:\r\n")).isEmpty();
+        assertThat(BrowserWindowFocus.parseCaptions("")).isNull();
+    }
 }

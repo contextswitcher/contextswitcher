@@ -127,7 +127,7 @@ public class TaskFileParser {
                 parseIntellij(data),
                 parseBrowser(section(data, "browser")),
                 parseClaude(section(data, "claude")),
-                optionalString(data, "note", null),
+                OneNoteLink.preferDesktop(optionalString(data, "note", null)),
                 parseFolders(data),
                 TaskTags.parse(data.get("tags")),
                 parseStoredTabs(data),
@@ -990,7 +990,7 @@ public class TaskFileParser {
     /// the `onenote:…` link form, which opens the desktop app.
     // [impl->dsn~group-note-open~5]
     public static @Nullable String groupNote(String content) {
-        return groupString(content, "note");
+        return OneNoteLink.preferDesktop(groupString(content, "note"));
     }
 
     /// The `chat:` URL from a group's `CONTEXTSWITCHER.md` frontmatter — the
@@ -1501,7 +1501,7 @@ public class TaskFileParser {
 
     /// Sets (or removes) a top-level boolean `key: true` line textually, as
     /// [#withPinned] describes — off removes the line.
-    // [impl->dsn~idle-task-removal~2]
+    // [impl->dsn~idle-task-removal~3]
     public static String withFlag(String content, String key, boolean on) {
         String normalized = content.replace("\r\n", "\n");
         String[] lines = normalized.split("\n", -1);

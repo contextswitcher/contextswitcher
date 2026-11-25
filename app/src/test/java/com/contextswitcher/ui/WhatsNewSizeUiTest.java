@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// A long changelog opens the "What's new" window tall enough to show it —
 /// past the old fixed 650 pixels — yet no taller than the screen — and with
 /// the app's mark rather than the toolkit's default icon.
-// [utest->dsn~app-icon~5]
+// [utest->dsn~app-icon~6]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class WhatsNewSizeUiTest {

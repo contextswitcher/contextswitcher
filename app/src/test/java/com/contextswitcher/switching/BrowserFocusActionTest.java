@@ -51,6 +51,20 @@ class BrowserFocusActionTest {
             return focusUrl(url, openIfMissing, windowTitle, group, background);
         }
 
+        final List<ExtensionProtocol.Target> targets = new ArrayList<>();
+        /// The title the extension reports for a foreground focus.
+        @Nullable String title;
+
+        @Override
+        public ExtensionProtocol.Result focusUrlPlaced(String url, boolean openIfMissing, ExtensionProtocol.Target target,
+                @Nullable String group, boolean background, @Nullable Browser browser) {
+            targets.add(target);
+            ExtensionProtocol.Result result = focusUrl(url, openIfMissing, target.windowTitle(), group, background,
+                    browser);
+            return background ? result
+                    : new ExtensionProtocol.Result(result.id(), result.ok(), result.detail(), title);
+        }
+
         @Override
         public ExtensionProtocol.Result closeUrl(String url) {
             throw new AssertionError("focus action must not close tabs");
@@ -213,5 +227,72 @@ class BrowserFocusActionTest {
                 "https://example.org/a", "https://example.org/b")));
 
         assertThat(tabs.groups).containsExactly("l:t", "l:t");
+    }
+
+    private static BrowserFocusAction placing(FakeTabs tabs, ExtensionProtocol.Target here) {
+        return new BrowserFocusAction(tabs, t -> null, (desktop, url) -> tabs.focusUrl(url), t -> null,
+                () -> here);
+    }
+
+    // [utest->dsn~switch-tabs-to-current-desktop~1]
+    @Test
+    void aDesktopWithoutBrowserWindowGetsTheFirstTabInANewWindowAndTheRestFollowIt() {
+        FakeTabs tabs = new FakeTabs();
+        tabs.title = "Pad";
+        placing(tabs, ExtensionProtocol.Target.here(List.of()))
+                .run(task(Task.BrowserConfig.ofUrls("https://a.example/", "https://b.example/")));
+
+        assertThat(tabs.targets).containsExactly(
+                ExtensionProtocol.Target.NEW_WINDOW,
+                ExtensionProtocol.Target.here(List.of("Pad")));
+    }
+
+    // [utest->dsn~switch-tabs-to-current-desktop~1]
+    @Test
+    void theNewWindowIsNotRepeatedForBackgroundTabsWhenTheFirstReportsNoTitle() {
+        FakeTabs tabs = new FakeTabs();
+        placing(tabs, ExtensionProtocol.Target.NEW_WINDOW)
+                .run(task(Task.BrowserConfig.ofUrls("https://a.example/", "https://b.example/")));
+
+        assertThat(tabs.targets).containsExactly(
+                ExtensionProtocol.Target.NEW_WINDOW, ExtensionProtocol.Target.NONE);
+    }
+
+    // [utest->dsn~switch-tabs-to-current-desktop~1]
+    @Test
+    void theDesktopsWindowsAreNamedAndTheFirstTabsWindowLeadsForTheRest() {
+        FakeTabs tabs = new FakeTabs();
+        tabs.title = "B";
+        placing(tabs, ExtensionProtocol.Target.here(List.of("A — Mozilla Firefox", "B — Mozilla Firefox")))
+                .run(task(Task.BrowserConfig.ofUrls("https://a.example/", "https://b.example/")));
+
+        assertThat(tabs.targets.getFirst().windowTitle()).isEqualTo("A — Mozilla Firefox");
+        assertThat(tabs.targets.get(1).windowTitle()).isEqualTo("B");
+        assertThat(tabs.targets.get(1).hereTitles())
+                .containsExactly("B", "A — Mozilla Firefox", "B — Mozilla Firefox");
+    }
+
+    // [utest->dsn~switch-tabs-to-current-desktop~1]
+    @Test
+    void pinnedEntriesKeepTheirBrowsersOwnChoice() {
+        FakeTabs tabs = new FakeTabs();
+        placing(tabs, ExtensionProtocol.Target.NEW_WINDOW).run(task(new Task.BrowserConfig(List.of(
+                new Task.UrlEntry("https://a", null, Browser.CHROME),
+                new Task.UrlEntry("https://b", null)))));
+
+        assertThat(tabs.targets).containsExactly(
+                ExtensionProtocol.Target.NONE, ExtensionProtocol.Target.NONE);
+    }
+
+    // [utest->dsn~switch-tabs-to-current-desktop~1]
+    @Test
+    void onlyPinnedEntriesSkipTheDesktopQuery() {
+        FakeTabs tabs = new FakeTabs();
+        new BrowserFocusAction(tabs, t -> null, (desktop, url) -> tabs.focusUrl(url), t -> null,
+                () -> {
+                    throw new AssertionError("no desktop query for another browser's tabs");
+                }).run(task(new Task.BrowserConfig(List.of(new Task.UrlEntry("https://a", null, Browser.CHROME)))));
+
+        assertThat(tabs.focused).containsExactly("https://a");
     }
 }

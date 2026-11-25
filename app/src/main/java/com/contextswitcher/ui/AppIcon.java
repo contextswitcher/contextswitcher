@@ -17,7 +17,7 @@ import javafx.stage.Stage;
 ///
 /// The file is the Chrome extension's `icon-128.png`, copied into the jar by
 /// `processResources`, so there is still exactly one raster of the mark.
-// [impl->dsn~app-icon~5]
+// [impl->dsn~app-icon~6]
 public final class AppIcon {
 
     private AppIcon() {

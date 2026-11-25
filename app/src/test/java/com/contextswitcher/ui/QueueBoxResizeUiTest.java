@@ -28,11 +28,11 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// Dragging a queue box's bottom grip downwards makes that box taller
-/// (`dsn~message-queue-ui~26`) — the `<textarea>` gesture. Only a live scene
+/// (`dsn~message-queue-ui~28`) — the `<textarea>` gesture. Only a live scene
 /// has the grip's real height to grow from, hence a TestFX test rather than a
 /// unit test. Fired at the add box's grip; every card wires the identical
 /// handler through the shared row skeleton.
-// [utest->dsn~message-queue-ui~26]
+// [utest->dsn~message-queue-ui~28]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class QueueBoxResizeUiTest {

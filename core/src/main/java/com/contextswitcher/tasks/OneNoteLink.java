@@ -31,4 +31,15 @@ public final class OneNoteLink {
         String link = text.strip();
         return link.startsWith("onenote:") ? link : extract(link);
     }
+
+    /// The link a stored `note:` value opens: its `onenote:` link when it carries
+    /// one (both lines of the clipboard pasted into one field glue the web URL
+    /// and the `onenote:` link together), else the value itself.
+    public static @Nullable String preferDesktop(@Nullable String note) {
+        if (note == null) {
+            return null;
+        }
+        String link = noteLink(note);
+        return link == null ? note : link;
+    }
 }

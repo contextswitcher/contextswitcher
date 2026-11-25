@@ -240,7 +240,7 @@ public class MainWindow {
     /// a pane keyed by task id can re-key instead of reading the new id as a
     /// task switch — the queue pane and its half-typed add box
     /// ([QueuePane#taskRenamed]). No-op until [#setOnTaskRenamed] wires it.
-    // [impl->dsn~message-queue-ui~26]
+    // [impl->dsn~message-queue-ui~28]
     private BiConsumer<String, String> onTaskRenamed = (fromId, toId) -> { };
     private final ObservableSet<String> folders;
     private final Consumer<Task> onSwitch;
@@ -307,7 +307,7 @@ public class MainWindow {
     private final TerminalPane terminal;
     /// The message-queue pane's node (built by `Main`, [QueuePane]), shown
     /// below the editor in the right lane.
-    // [impl->dsn~message-queue-ui~26]
+    // [impl->dsn~message-queue-ui~28]
     private final Node queueNode;
     /// When a character was last typed anywhere in the queue pane
     /// (`System.nanoTime`); [#queueFieldFocused] only counts typing this recent.
@@ -480,6 +480,10 @@ public class MainWindow {
     /// The tag palette last read from settings.yaml (cached so hot paths — chip
     /// colors, the row menus — never touch disk); refreshed on a settings edit.
     private List<AppSettings.TagDef> palette = List.of();
+    /// The mode without Claude (`contextsOnly` in `settings.yaml`): no
+    /// terminal and queue lanes, no tmux or Claude actions. Read once, before
+    /// [#show]. [impl->dsn~contexts-only~1]
+    private boolean contextsOnly;
     /// [#selectableTagNames] memoized for one rebuild: every realized row's
     /// "Tags" submenu asks for it, and computing it scans every task's
     /// effective tags. Invalidated in [#rebuildRows], like [#groupConfigCache].
@@ -671,7 +675,7 @@ public class MainWindow {
     /// `Main`, a no-op until then. [impl->dsn~merged-task-cleanup~2]
     private Consumer<Task> onMergedCleanup = task -> { };
 
-    /// Removes one task the idle janitor nominated (`dsn~idle-task-removal~2`).
+    /// Removes one task the idle janitor nominated (`dsn~idle-task-removal~3`).
     private Consumer<Task> onIdleRemoval = task -> { };
 
     /// Ids already handed to [#onIdleRemoval], so the next poll tick — the
@@ -679,7 +683,7 @@ public class MainWindow {
     private final Set<String> idleRemovals = new HashSet<>();
 
     /// Installs the idle janitor (see [#autoRemoveIdle]).
-    // [impl->dsn~idle-task-removal~2]
+    // [impl->dsn~idle-task-removal~3]
     public void setOnIdleRemoval(Consumer<Task> handler) {
         this.onIdleRemoval = handler;
     }
@@ -1279,6 +1283,12 @@ public class MainWindow {
         return CloseConfirmation.confirm(dialogOwner(), action, rows, this::selectTask);
     }
 
+    /// Switches the mode without Claude on or off; call before [#show].
+    // [impl->dsn~contexts-only~1]
+    public void setContextsOnly(boolean contextsOnly) {
+        this.contextsOnly = contextsOnly;
+    }
+
     public void show(Stage stage, Application application) {
         this.stage = stage;
         ListView<Object> list = new ListView<>(visibleRows);
@@ -1305,6 +1315,7 @@ public class MainWindow {
                 task -> TaskTags.visible(effectiveTags(task), activeTags),
                 name -> tagColors.get(name.toLowerCase(Locale.ROOT)),
                 this::selectableTagNames, this::toggleTag, this::toggleTaskPinned,
+                this::autoRemoveIdleFlag, this::toggleAutoRemoveIdle,
                 this::groupTags, this::toggleGroupTag,
                 group -> groupDefaults(group).pinned(), this::toggleGroupPinned,
                 onFocusTerminal, this::queuedCountFor,
@@ -1374,7 +1385,7 @@ public class MainWindow {
         VBox.setVgrow(listStack, Priority.ALWAYS);
 
         // The notes editor; the task's message queue docks below it by default.
-        // [impl->dsn~message-queue-ui~26]
+        // [impl->dsn~message-queue-ui~28]
         Node editorNode = editorPane();
 
         // Clicking anywhere in a pane that belongs to the previewed task — the
@@ -1474,7 +1485,7 @@ public class MainWindow {
         formPanes = List.of(switchActions, pane);
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(
                 leftPane, terminalLane, editorNode, switchActions, pane, queueNode, bottomBar,
-                listToolbar.appControls()));
+                listToolbar.appControls(), contextsOnly));
         shell = hosted;
         Scene scene = hosted.scene();
         showCategoryInTitle("");
@@ -1539,7 +1550,7 @@ public class MainWindow {
             Themes.addToEveryWindow(sheet);
         }
         stage.setScene(scene);
-        // [impl->dsn~app-icon~5]
+        // [impl->dsn~app-icon~6]
         AppIcon.applyTo(stage);
         stage.show();
         // The shell's scene is on screen now, and JavaFX will not restyle it
@@ -3686,7 +3697,8 @@ public class MainWindow {
                 return text;
             }
         });
-        HBox categoryRow = new HBox(6, new Label("Category:"), categoryBox, new Label("on"), hostBox);
+        Label onLabel = new Label("on");
+        HBox categoryRow = new HBox(6, new Label("Category:"), categoryBox, onLabel, hostBox);
         categoryRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         ButtonType plainType = new ButtonType("Add plain task", ButtonBar.ButtonData.OK_DONE);
         ButtonType remoteType = new ButtonType("Add remote Claude", ButtonBar.ButtonData.OTHER);
@@ -3767,7 +3779,7 @@ public class MainWindow {
                 agentBox.setValue(groupDefaults(value).agentOrDefault()));
         HBox modeRow = new HBox(6, agentBox, modelBox, effortBox);
         // For a quick task: the app removes session and worktree once it has
-        // been quiet a day. [impl->dsn~idle-task-removal~2]
+        // been quiet a day. [impl->dsn~idle-task-removal~3]
         CheckBox autoRemove = new CheckBox(
                 "Remove session and worktree after 1 day of inactivity");
         autoRemove.setId("add-task-auto-remove");
@@ -3775,7 +3787,8 @@ public class MainWindow {
         autoRemove.setMinHeight(Region.USE_PREF_SIZE);
         // The queue pane's quick messages, above the field like above the add box.
         // [impl->dsn~quick-message-buttons~7]
-        VBox content = new VBox(6, categoryRow, quickRow.apply(field), field, modeLabel, modeRow,
+        Node quickMessages = quickRow.apply(field);
+        VBox content = new VBox(6, categoryRow, quickMessages, field, modeLabel, modeRow,
                 autoRemove, keysHint, remoteHint, localHint);
         // Enlarging the dialog grows the description field, not the hints.
         VBox.setVgrow(field, Priority.ALWAYS);
@@ -3834,8 +3847,21 @@ public class MainWindow {
             remoteButton.setDefaultButton(defaultButton == remoteButton);
             localButton.setDefaultButton(defaultButton == localButton);
             plainButton.setDefaultButton(defaultButton == plainButton);
+            // Without Claude only the plain task is made. [impl->dsn~contexts-only~1]
+            if (contextsOnly) {
+                remoteButton.setDefaultButton(false);
+                localButton.setDefaultButton(false);
+                plainButton.setDefaultButton(true);
+            }
         };
         updateTarget.run();
+        if (contextsOnly) {
+            for (Node claudeOnly : List.of(remoteButton, localButton, onLabel, hostBox, quickMessages,
+                    modeRow, autoRemove, remoteHint, localHint)) {
+                claudeOnly.setVisible(false);
+                claudeOnly.setManaged(false);
+            }
+        }
         categoryBox.valueProperty().addListener((obs, old, value) -> updateTarget.run());
         agentBox.valueProperty().addListener((obs, old, value) -> updateTarget.run());
         Runnable fireDefault = () -> Stream.of(localButton, remoteButton, plainButton)
@@ -3875,7 +3901,9 @@ public class MainWindow {
         GroupConfig defaults = target.defaults();
         String remote = target.remote();
         String localWorkdir = target.localWorkdir();
-        if (PrTitleLookup.isPrOrMrUrl(input)) {
+        // A PR task is a Claude session on a remote; without Claude the URL is
+        // only a title. [impl->dsn~contexts-only~1]
+        if (!contextsOnly && PrTitleLookup.isPrOrMrUrl(input)) {
             createTaskFromPrUrl(input, group, mode);
         } else if (clicked == remoteType) {
             createLiveTask(input, group, remote, defaults, mode, autoRemove.isSelected());
@@ -4117,7 +4145,7 @@ public class MainWindow {
         return createTitleTask(title, group, notes, false);
     }
 
-    /// As above; `autoRemove` writes the idle janitor's flag (`dsn~idle-task-removal~2`).
+    /// As above; `autoRemove` writes the idle janitor's flag (`dsn~idle-task-removal~3`).
     private @Nullable String createTitleTask(String title, String group, @Nullable String notes,
             boolean autoRemove) {
         String base = group.isEmpty() ? title : group + "/" + title;
@@ -4658,6 +4686,21 @@ public class MainWindow {
     private void toggleTaskPinned(Task staleTask) {
         Task task = freshTask(staleTask);
         rewriteFrontmatter(task, content -> TaskFileParser.withPinned(content, !task.pinned()));
+    }
+
+    /// Whether the task's file carries `autoRemoveIdle: true`.
+    // [impl->dsn~idle-task-removal~3]
+    private boolean autoRemoveIdleFlag(Task task) {
+        String content = files.read(task.id() + ".md");
+        return content != null && TaskFileParser.frontmatterFlag(content, IdleRemoval.KEY);
+    }
+
+    /// Flips `autoRemoveIdle` from the row menu, as the Add-task checkbox sets it.
+    // [impl->dsn~idle-task-removal~3]
+    private void toggleAutoRemoveIdle(Task staleTask) {
+        Task task = freshTask(staleTask);
+        boolean on = !autoRemoveIdleFlag(task);
+        rewriteFrontmatter(task, content -> TaskFileParser.withFlag(content, IdleRemoval.KEY, on));
     }
 
     /// The plain status write shared by the toggle/menu path and the
@@ -5795,7 +5838,7 @@ public class MainWindow {
     /// also runs right after the app started. Never the selected row; the
     /// flag is read from the file only for a task that is otherwise due.
     // ponytail: one task per tick, like the auto-suspend.
-    // [impl->dsn~idle-task-removal~2]
+    // [impl->dsn~idle-task-removal~3]
     public void autoRemoveIdle(Map<String, Long> idleByKey) {
         ListView<Object> list = taskList;
         String selectedId = list != null
@@ -6137,9 +6180,15 @@ public class MainWindow {
             return;
         }
         if (list.lookup(".virtual-flow") instanceof VirtualFlow<?> flow) {
+            // Right after a rebuild (a desktop switch replaces every row) the
+            // flow still holds the previous rows' cells until the next pulse,
+            // so their indices say nothing about the new rows: lay out first.
+            if (flow.getCellCount() != list.getItems().size()) {
+                list.layout();
+            }
             IndexedCell<?> first = flow.getFirstVisibleCell();
             IndexedCell<?> last = flow.getLastVisibleCell();
-            if (first != null && last != null) {
+            if (first != null && last != null && flow.getCellCount() == list.getItems().size()) {
                 // Strictly between the edge cells: those two may be clipped by
                 // the viewport, and the topmost one also sits under the pinned
                 // section header, so neither counts as "on screen".
@@ -6151,7 +6200,8 @@ public class MainWindow {
                 return;
             }
         }
-        // Before the first layout there is no flow (or no cells) to measure.
+        // Before the first layout there is no flow (or no cells) to measure,
+        // and a flow the layout above could not bring up to date neither.
         list.scrollTo(index);
     }
 
@@ -6204,7 +6254,7 @@ public class MainWindow {
     }
 
     /// Wires the panes that follow a rename (see [#onTaskRenamed]).
-    // [impl->dsn~message-queue-ui~26]
+    // [impl->dsn~message-queue-ui~28]
     public void setOnTaskRenamed(BiConsumer<String, String> listener) {
         this.onTaskRenamed = listener;
     }
@@ -6226,7 +6276,7 @@ public class MainWindow {
         taskRenamer.accept(fromId, toId);
         // Before the selection below: the panes have to know the switch they
         // are about to be handed is this rename, not another task.
-        // [impl->dsn~message-queue-ui~26]
+        // [impl->dsn~message-queue-ui~28]
         onTaskRenamed.accept(fromId, toId);
         // Also before the selection: selecting the renamed task opens it in the
         // editor, and openInEditor first commits the forms and flushes the
@@ -7230,7 +7280,10 @@ public class MainWindow {
         showBrowserExtension(null);
 
         MenuButton more = iconMenuButton(MDIInterface.DOTS_VERTICAL, "More list actions");
-        more.getItems().addAll(openTasksDir, syncTmux, restartTmux, refreshNow);
+        // Without Claude there are no tmux windows to sync or restart.
+        // [impl->dsn~contexts-only~1]
+        more.getItems().addAll(contextsOnly ? List.of(openTasksDir, refreshNow)
+                : List.of(openTasksDir, syncTmux, restartTmux, refreshNow));
 
         // The ⋮ menu's occasional actions sit at the right end, apart from the
         // controls in constant use. [impl->dsn~task-list-toolbar~3]

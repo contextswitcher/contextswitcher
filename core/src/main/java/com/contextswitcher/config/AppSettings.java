@@ -54,6 +54,9 @@ import com.contextswitcher.tasks.TextFiles;
 /// an idle Claude session that asks to "Restart to update" (`dsn~claude-update-restart~7`).
 /// `todoTxt` (default empty = off) is a todo.txt file whose open lines naming a
 /// task with `cs:<id>` show on that task's row (`dsn~todo-txt-line~1`).
+/// `contextsOnly` (default false) is the mode without Claude: the window
+/// opens without terminal and queue, and the Claude actions are hidden
+/// (`dsn~contexts-only~1`).
 /// Files written before `hosts` existed carry `remotes`, `inactiveRemotes` and
 /// one global `refactoringMinerHome` instead; [#parse(String)] reads them into
 /// hosts (the global directory for every one of them), and [#loadOrCreate(Path)]
@@ -72,11 +75,12 @@ import com.contextswitcher.tasks.TextFiles;
 // [impl->dsn~host-table~1]
 // [impl->dsn~claude-update-restart~7]
 // [impl->dsn~todo-txt-line~1]
+// [impl->dsn~contexts-only~1]
 public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSettings> hosts,
         List<TagDef> tags, boolean hints, boolean claudeAuto, String theme,
         boolean showOnAllDesktops, int refactoringMinerPort, boolean readlineKeys,
         String fallbackDesktop, int autoSuspendMinutes, Browser browser, int mergedCleanupDays,
-        boolean autoCopyReplies, boolean claudeUpdateRestart, String todoTxt) {
+        boolean autoCopyReplies, boolean claudeUpdateRestart, String todoTxt, boolean contextsOnly) {
 
     /// The settings keys `hosts` replaced — read from an older file, removed
     /// from it when the settings dialog writes `hosts`.
@@ -97,10 +101,12 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
 
     /// The valid `theme` values: the Nord palette or its Everforest
     /// recolouring (`dsn~everforest-theme~2`), each forced light or dark or —
-    /// as the bare name — following the operating system's setting.
+    /// as the bare name — following the operating system's setting; plus the
+    /// tuxedo palettes (`dsn~tuxedo-themes~1`), each of one fixed lightness.
     // [impl->dsn~theme-select~9]
     public static final List<String> THEMES =
-            List.of("system", "light", "dark", "everforest", "everforest-light", "everforest-dark");
+            List.of("system", "light", "dark", "everforest", "everforest-light", "everforest-dark",
+                    "muted-slate", "dawn", "matrix");
     /// The default theme — Everforest, following the OS's light/dark setting.
     public static final String DEFAULT_THEME = "everforest";
 
@@ -131,7 +137,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
         this(tasksDir, wsPort, wsToken, remotes.stream().map(HostSettings::of).toList(), tags,
                 true, false, DEFAULT_THEME, false, DEFAULT_REFACTORING_MINER_PORT, false,
                 DEFAULT_FALLBACK_DESKTOP, DEFAULT_AUTO_SUSPEND_MINUTES, Browser.DEFAULT,
-                DEFAULT_MERGED_CLEANUP_DAYS, false, false, "");
+                DEFAULT_MERGED_CLEANUP_DAYS, false, false, "", false);
     }
 
     public AppSettings {
@@ -187,7 +193,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
         return new AppSettings(tasksDir, wsPort, wsToken, replaced, tags, hints, claudeAuto, theme,
                 showOnAllDesktops, refactoringMinerPort, readlineKeys, fallbackDesktop,
                 autoSuspendMinutes, browser, mergedCleanupDays, autoCopyReplies, claudeUpdateRestart,
-                todoTxt);
+                todoTxt, contextsOnly);
     }
 
     /// `hosts` with `destination`'s entry passed through `change` — or, when
@@ -340,7 +346,9 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                 rmPort, readlineKeys,
                 fallbackDesktop == null ? DEFAULT_FALLBACK_DESKTOP : fallbackDesktop.toString(),
                 autoSuspend, browser, mergedCleanup, autoCopyReplies, claudeUpdateRestart,
-                map.get("todoTxt") == null ? "" : map.get("todoTxt").toString());
+                map.get("todoTxt") == null ? "" : map.get("todoTxt").toString(),
+                // Opt-in: only an explicit `true` counts. [impl->dsn~contexts-only~1]
+                map.get("contextsOnly") instanceof Boolean only && only);
     }
 
     /// The `hosts` list — or, in a file from before it, the hosts the legacy
@@ -422,6 +430,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
         data.put("autoCopyReplies", autoCopyReplies);
         data.put("claudeUpdateRestart", claudeUpdateRestart);
         data.put("todoTxt", todoTxt);
+        data.put("contextsOnly", contextsOnly);
         data.put("browser", browser.key());
         data.put("refactoringMinerPort", refactoringMinerPort);
         data.put("hosts", hostMaps());
@@ -464,6 +473,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
             case "autoCopyReplies" -> autoCopyReplies;
             case "claudeUpdateRestart" -> claudeUpdateRestart;
             case "todoTxt" -> todoTxt;
+            case "contextsOnly" -> contextsOnly;
             case "browser" -> browser.key();
             case "refactoringMinerPort" -> refactoringMinerPort;
             case "hosts" -> hostMaps();
@@ -485,7 +495,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                 wsToken: <generated>         # shared secret; keep the generated value
                 hints: true                  # onboarding hints in generated task files; false = compact (real keys only)
                 claudeAuto: false            # true = start/resume Claude with --dangerously-skip-permissions (trust your remotes)
-                theme: everforest            # UI color theme: system/light/dark (Nord) or everforest/everforest-light/everforest-dark; the bare names follow the OS
+                theme: everforest            # UI color theme: system/light/dark (Nord) or everforest/everforest-light/everforest-dark (the bare names follow the OS), or muted-slate/dawn/matrix
                 showOnAllDesktops: false     # true = pin the window to all Windows virtual desktops at startup (each desktop then remembers its own window position)
                 fallbackDesktop: misc        # virtual desktop for categories with no `desktop:` (or one that does not exist); empty = no fallback
                 readlineKeys: false          # true = bash cursor chords in text inputs (Ctrl+A/E/B/F/D/H/K/U/W, Alt+B/F/D); Ctrl+A is then line start, not select all
@@ -494,6 +504,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                 autoCopyReplies: false       # true = each finished reply of the mirrored Claude chat is put on the clipboard as Markdown
                 claudeUpdateRestart: false   # true = quit and resume an idle Claude session that shows "Restart to update" (sends /exit)
                 todoTxt: C:\\Users\\you\\todo.txt   # todo.txt whose open lines tagged cs:<task id> show on that task's row; empty = off
+                contextsOnly: false          # true = without Claude: no terminal and queue panes, no Claude actions; only the contexts (notes, browser, folders) are switched
                 koppterSync: false           # true = share the categories' project: and the profile's context with koppter's filter, both ways
                 refactoringMinerPort: 6789   # loopback port the refactoring web view is served and tunnelled on
                 hosts:                       # machines sessions run on; their destinations are what the tmux sync scans (none: it falls back to remotes of existing tasks)
@@ -526,6 +537,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                     taskbar: autohide
                     bookmarksBar: hidden
                     gatherWindows: internal  # with the screen extended: windows opening on another screen move here; full-screen ones (the slide show) stay; off = don't
+                    gatherWhen: always       # always (every window opening elsewhere) or docking (only right after the screens changed; later windows stay put)
                     context: lecture         # todo.txt context shared with koppter while the screens or the override chose this profile; default: the profile's name (none for default), off = none
                 """;
     }

@@ -334,7 +334,7 @@ public class Main extends Application {
     private @Nullable RefactoringMinerView refactoringView;
     private @Nullable ExtensionServer extensionServer;
     /// The `gatherWindows` watcher of the environment profile in effect;
-    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~2]
+    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~3]
     private final WindowGather windowGather = new WindowGather();
     /// Reports the connected screens; stopped on exit. [impl->dsn~screen-chosen-profile~1]
     private final ScreenWatch screenWatch = new ScreenWatch();
@@ -715,7 +715,8 @@ public class Main extends Application {
                                 task -> completeControlDesktop(files, task),
                                 (desktop, url) -> openOnDesktop(extensionServer, desktop, url),
                                 task -> rewriteTaskFile(files, task,
-                                        TaskFileParser::withoutStoredTabs)),
+                                        TaskFileParser::withoutStoredTabs),
+                                () -> browserWindowsHere(extensionServer)),
                         // [impl->dsn~window-move-here~2]
                         new NoteFocusAction(this::openUrl,
                                 group -> groupLink(files, group, TaskFileParser::groupNote),
@@ -1030,7 +1031,7 @@ public class Main extends Application {
         window.setTaskRenamer(repository::renamed);
         // …and the queue pane keeps the message being typed instead of filing
         // it under the id the task just left.
-        // [impl->dsn~message-queue-ui~26]
+        // [impl->dsn~message-queue-ui~28]
         window.setOnTaskRenamed(queuePane::taskRenamed);
         // [impl->dsn~start-claude-button~2]
         // [impl->dsn~setup-wizard~13]
@@ -1122,6 +1123,8 @@ public class Main extends Application {
         // [impl->dsn~task-repository-watching~7]
         repository.setOnGroupConfigChange(window::groupConfigChanged);
         // The shell needs the Application for its host services (MADR 0032).
+        // [impl->dsn~contexts-only~1]
+        window.setContextsOnly(settings.contextsOnly());
         window.show(stage, this);
         // Leaving ends the Claude sessions the app hosts on Windows, so the
         // window's close asks first while one runs.
@@ -1222,7 +1225,7 @@ public class Main extends Application {
                 // already in the window. [impl->dsn~auto-suspend-idle~2]
                 idle -> Platform.runLater(() -> {
                     window.autoSuspendIdle(idle, autoSuspendMinutes * 60L);
-                    // [impl->dsn~idle-task-removal~2]
+                    // [impl->dsn~idle-task-removal~3]
                     window.autoRemoveIdle(idle);
                 }),
                 // The flag a restarted session has to be given back.
@@ -1246,7 +1249,7 @@ public class Main extends Application {
         // [impl->dsn~merged-task-cleanup~2]
         window.setOnMergedCleanup(task -> cleanupMerged(files, snapshots, taskBackup,
                 suspendOrchestrator, sessionCleanup, task, mergedCleanupDays));
-        // [impl->dsn~idle-task-removal~2]
+        // [impl->dsn~idle-task-removal~3]
         window.setOnIdleRemoval(task -> cleanupIdle(files, snapshots, taskBackup,
                 suspendOrchestrator, sessionCleanup, task));
         PrStatePoller prPoller = new PrStatePoller(new PrStateLookup(new LocalCommandRunner()),
@@ -2245,6 +2248,10 @@ public class Main extends Application {
         synchronized (this) {
             first = !screensSeen;
             screensSeen = true;
+        }
+        if (!first) {
+            // docking or undocking: a `gatherWhen: docking` watcher sweeps
+            windowGather.screensChanged();
         }
         String before = screenProfile;
         screenProfile = chosen;
@@ -3294,6 +3301,17 @@ public class Main extends Application {
         // The session host becomes (or updates) its row of the host table:
         // the workspaces directory asked on the remote page, and the
         // RefactoringMiner directory the tools page found or installed there.
+        // Only switched on here; a re-run without the choice leaves it, the
+        // settings dialog turns it off. [impl->dsn~contexts-only~1]
+        if (result.contextsOnly()) {
+            String error = writeSettingsFile(configDir(), com.contextswitcher.config.YamlPatch.set(
+                    readSettingsFile(configDir()), "contextsOnly", true));
+            if (error != null) {
+                Alerts.plain(null, Alert.AlertType.ERROR, "Cannot write contextsOnly to settings.yaml: "
+                        + error).showAndWait();
+            }
+            return AppSettings.loadOrCreate(configDir());
+        }
         String remote = result.remote();
         if (remote == null) {
             return settings;
@@ -3915,7 +3933,7 @@ public class Main extends Application {
                 + (hints ? "\nCreated on %s.\n".formatted(LocalDate.now()) : "");
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~2]
-        // [impl->dsn~idle-task-removal~2]
+        // [impl->dsn~idle-task-removal~3]
         String withPrs = TaskFileParser.withFlag(TaskFileParser.addUrlsFrom(content, title),
                 IdleRemoval.KEY, autoRemove);
         // Dated like the per-task worktrees; the description slug is
@@ -4756,6 +4774,22 @@ public class Main extends Application {
                     "opened a window on desktop \"%s\"".formatted(desktop));
         }
         return extensionServer.focusUrl(url, true);
+    }
+
+    /// The driven browser's windows on the virtual desktop in view, as a
+    /// `focus-url` target: a switch's tabs land there instead of dragging the
+    /// user to the desktop their window sits on. Unknown (no extension to
+    /// act on it, or no `powershell`) is [ExtensionProtocol.Target#NONE],
+    /// the browser's own choice — the query costs a PowerShell start, which a
+    /// switch without a connected extension does not need to pay.
+    // [impl->dsn~switch-tabs-to-current-desktop~1]
+    private ExtensionProtocol.Target browserWindowsHere(ExtensionServer extensionServer) {
+        if (extensionServer.connectedBrowser() == null) {
+            return ExtensionProtocol.Target.NONE;
+        }
+        List<String> captions = new BrowserWindowFocus(new LocalCommandRunner(), drivenBrowser())
+                .captionsOnCurrentDesktop();
+        return captions == null ? ExtensionProtocol.Target.NONE : ExtensionProtocol.Target.here(captions);
     }
 
     /// The browser whose windows are raised, launched, and captured: the one
@@ -5663,7 +5697,7 @@ public class Main extends Application {
     /// [IdleRemoval] decides): the merged janitor's archive-and-remove without
     /// its screen judgment — the user asked for it when creating the task —
     /// and with the workdir removed only as a linked git worktree.
-    // [impl->dsn~idle-task-removal~2]
+    // [impl->dsn~idle-task-removal~3]
     private void cleanupIdle(MainWindow.TaskFileAccess files, PaneSnapshots snapshots,
             TaskGitBackup backup, SwitchOrchestrator orchestrator,
             ClaudeSessionCleanup cleanup, Task task) {

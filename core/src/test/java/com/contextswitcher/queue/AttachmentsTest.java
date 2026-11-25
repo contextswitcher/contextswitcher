@@ -12,7 +12,7 @@ class AttachmentsTest {
 
     private final Path attachments = Path.of("/home/user/.contextswitcher/attachments");
 
-    // [utest->dsn~message-queue-ui~26]
+    // [utest->dsn~message-queue-ui~28]
     @Test
     void makesAScreenshotWithZeroAlphaEverywhereOpaque() {
         int[] pixels = {0x00123456, 0x00FFFFFF, 0x00000000};
@@ -22,7 +22,7 @@ class AttachmentsTest {
         assertThat(pixels).containsExactly(0xFF123456, 0xFFFFFFFF, 0xFF000000);
     }
 
-    // [utest->dsn~message-queue-ui~26]
+    // [utest->dsn~message-queue-ui~28]
     @Test
     void leavesARealTranslucentImageAlone() {
         int[] pixels = {0x00123456, 0x80FFFFFF};

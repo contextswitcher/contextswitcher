@@ -74,6 +74,9 @@ Clicking it quits the app with exit code 55, which `just loop` takes as "pull, r
 4. Select a task: the Terminal pane mirrors its terminal live, Notes and Configuration edit its file, and the Queue drafts messages for its chat.
 5. Press play (or double-click) to switch: tmux window focused, IntelliJ project opened, browser tabs focused, note and chat opened, folders raised.
 
+**Without Claude.** Only managing TODOs — notes in OneNote, a few tabs and folders per task?
+Pick *Without Claude — only contexts* on the wizard's first page (or set `contextsOnly: true`): it skips the ssh and tool pages, the first category is a plain folder, and the window opens without terminal and queue, the Claude and tmux actions hidden; **Add task…** then only writes the file, and play switches note, browser tabs, folders and desktop ([`dsn~contexts-only~1`](docs/requirements/ui.md)).
+
 For the running-status dots, the reported working directory, model and effort — the things that make the list *live* — do the one-time remote setup under [Let Claude report its state](#let-claude-report-its-state-remote-setup).
 
 ## The window
@@ -330,7 +333,7 @@ Everything applies on Save.
 tasksDir: C:\Users\you\.contextswitcher\tasks   # where the task .md files live
 hints: true                  # onboarding hints in generated task files; false = compact
 claudeAuto: false            # true = start/resume Claude with --dangerously-skip-permissions
-theme: everforest            # everforest | everforest-light | everforest-dark | system | light | dark
+theme: everforest            # everforest | everforest-light | everforest-dark | system | light | dark | muted-slate | dawn | matrix
 showOnAllDesktops: false     # pin the window to every Windows virtual desktop at startup
 fallbackDesktop: misc        # desktop for a category naming none, or naming a missing one; empty = off
 readlineKeys: false          # bash cursor chords in every text field (Ctrl+A/E, Alt+B/F, Ctrl+K/U/W …)
@@ -339,6 +342,7 @@ mergedCleanupDays: 7         # remove a paused task whose PRs are all merged aft
 autoCopyReplies: false       # true = each finished reply of the mirrored Claude chat lands on the clipboard as Markdown
 claudeUpdateRestart: false   # true = quit (/exit) and resume an idle Claude session that shows "Restart to update"
 todoTxt: C:\Users\you\todo.txt   # todo.txt (e.g. koppter's) whose open lines tagged cs:<task id> show on that task's row; empty = off
+contextsOnly: false          # true = without Claude: no terminal and queue, no Claude/tmux actions (after a restart)
 browser: firefox             # browser to start when no extension is connected (a connected one wins): firefox or chrome
 wsPort: 17872                # loopback WebSocket port the browser extension connects to
 wsToken: <generated>         # shared secret; keep the generated value
@@ -362,7 +366,8 @@ Accept it once by running `claude --dangerously-skip-permissions` in any interac
 ### Theme
 
 `theme` defaults to `everforest`, which draws the UI in the [Everforest](https://github.com/sainnhe/everforest) palette and follows the OS's light/dark setting; `everforest-light` and `everforest-dark` force a variant, and `system`, `light` and `dark` give the plain AtlantaFX Nord palette instead.
-The change applies on Save, without a restart, and the embedded terminal follows: Everforest under the `everforest` themes, a plain black or white terminal under the Nord ones.
+`muted-slate`, `dawn` and `matrix` are the themes of the [tuxedo](https://github.com/webstonehq/tuxedo#themes) todo app: two dark ones and a light one (`dawn`), each of a fixed lightness; tuxedo's *Nord* is `dark` here.
+The change applies on Save, without a restart, and the embedded terminal follows: Everforest under the `everforest` themes, a plain black or white terminal under all others.
 
 The terminal's colours stop at ANSI 0–15, so a **remote** program that emits 24-bit colour keeps its own — a Claude Code session in a dark theme stays dark on a light mirror, and no local setting can change that.
 Fix it on the remote by giving Claude Code a matching theme: copy the two files from [koppor/everforest-configurations](https://github.com/koppor/everforest-configurations/tree/main/claude-code) into `~/.claude/themes/` there, restart it once (Claude Code only watches that folder if it existed at startup), and pick the theme with `/theme`.
@@ -375,7 +380,9 @@ Fix it on the remote by giving Claude Code a matching theme: copy the two files 
 ```yaml
 profiles:
   default: {gatherWindows: off}
-  desk: {gatherWindows: DELL U3223QE}   # EDID name or product code, primary, internal, external
+  desk:
+    gatherWindows: DELL U3223QE          # EDID name or product code, primary, internal, external
+    gatherWhen: docking                  # only right after docking; windows opened later stay put (default: always)
 screenProfiles:                         # first rule whose screen is connected wins; none = no screen layer
   - screen: DELL U3223QE
     profile: desk

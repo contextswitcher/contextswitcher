@@ -61,6 +61,15 @@ public interface TabCommands {
         return focusUrl(url, openIfMissing, windowTitle, group, background);
     }
 
+    /// Focus-or-open placed relative to the virtual desktop in view (see
+    /// [ExtensionProtocol.Target]). Commands without that notion (test fakes)
+    /// get the target's window title only.
+    // [impl->dsn~switch-tabs-to-current-desktop~1]
+    default ExtensionProtocol.Result focusUrlPlaced(String url, boolean openIfMissing, ExtensionProtocol.Target target,
+            @Nullable String group, boolean background, @Nullable Browser browser) {
+        return focusUrl(url, openIfMissing, target.windowTitle(), group, background, browser);
+    }
+
     /// [#closeUrl(String)] in the extension of `browser`; null is the driving one.
     // [impl->dsn~browser-url-pinned-browser~1]
     default ExtensionProtocol.Result closeUrl(String url, @Nullable Browser browser) {

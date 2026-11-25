@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -44,6 +45,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.HeaderBar;
@@ -77,7 +79,8 @@ public final class ShellFxHost {
     /// bar below the docks and the app-wide controls for the title bar.
     /// Named rather than positional — six nodes in a row are easy to swap.
     record Panes(Node tasks, Node terminal, Node notes, ConfigFormPane switchActions,
-            ConfigFormPane configuration, Node queue, Node statusBar, List<Node> appControls) {
+            ConfigFormPane configuration, Node queue, Node statusBar, List<Node> appControls,
+            boolean contextsOnly) {
 
         Panes {
             appControls = List.copyOf(appControls);
@@ -239,11 +242,20 @@ public final class ShellFxHost {
         Lane configuration = lanes.add("Configuration", panes.configuration().getRoot());
         Lane queueLane = lanes.add("Queue", panes.queue());
         lanes.open(tasks, left);
-        lanes.open(terminal, center);
-        lanes.open(notesLane, rightTop);
+        // Without Claude, terminal and queue start hidden (the panes button
+        // still shows them) and the notes take the middle.
+        // [impl->dsn~contexts-only~1]
+        if (panes.contextsOnly()) {
+            lanes.open(notesLane, center);
+        } else {
+            lanes.open(terminal, center);
+            lanes.open(notesLane, rightTop);
+        }
         lanes.open(switchActions, rightTop);
         lanes.open(configuration, rightTop);
-        lanes.open(queueLane, rightBottom);
+        if (!panes.contextsOnly()) {
+            lanes.open(queueLane, rightBottom);
+        }
         rightTop.selectTab(0);
         // Focusing the queue's tab — clicking its header — puts the caret in the
         // add box (QueuePane forwards its root's focus there), as if the user had
@@ -259,12 +271,17 @@ public final class ShellFxHost {
         // and its split collapses, so the tabs share whatever panes are left.
         // The proportions keep the three-lane layout the shell replaced (0.28 /
         // 0.64, notes 0.62 over the queue).
-        dockHost.getComposer().applyModel(ModelNodeBuilder.root(Orientation.HORIZONTAL, s -> s
-                .area(left, 0.28)
-                .area(center, 0.36)
-                .group(Orientation.VERTICAL, 0.36, g -> g
-                        .area(rightTop, 0.62)
-                        .area(rightBottom, 0.38))));
+        dockHost.getComposer().applyModel(panes.contextsOnly()
+                ? ModelNodeBuilder.root(Orientation.HORIZONTAL, s -> s
+                        .area(left, 0.34)
+                        .area(center, 0.36)
+                        .area(rightTop, 0.30))
+                : ModelNodeBuilder.root(Orientation.HORIZONTAL, s -> s
+                        .area(left, 0.28)
+                        .area(center, 0.36)
+                        .group(Orientation.VERTICAL, 0.36, g -> g
+                                .area(rightTop, 0.62)
+                                .area(rightBottom, 0.38))));
         shellView.getComposer().addWorkspace(dockHost);
         // The info center overlays the workspace: its pane takes the dock host's
         // place in the shell, so a notification slides in over the docks from
@@ -420,14 +437,18 @@ public final class ShellFxHost {
         }
 
         /// Fills ShellFX's title bar — a JavaFX `HeaderBar`, the window being an
-        /// `EXTENDED` stage: the stage's title at the left, where the OS frame
-        /// showed it, and `controls` at the right, before the window buttons.
+        /// `EXTENDED` stage: the app icon and the stage's title at the left,
+        /// where the OS frame showed them, and `controls` at the right, before
+        /// the window buttons. The OS frame drew the icon; an extended stage
+        /// has none, so it is ours to draw. [impl->dsn~app-icon~6]
         void fillTitleBar(List<Node> controls) {
             Stage stage = getStage();
             var title = new Label();
             title.textProperty().bind(stage.titleProperty());
             title.setMinWidth(0);
-            getLeftBox().getChildren().add(title);
+            var icon = new ImageView(AppIcon.image(16));
+            HBox.setMargin(icon, new Insets(0, 8, 0, 8));
+            getLeftBox().getChildren().addAll(icon, title);
             // A header bar drags the window by its own area only, not by its
             // children: the title text has to be grabbable like the bar.
             HeaderBar.setDragType(getLeftBox(), HeaderDragType.DRAGGABLE_SUBTREE);

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~idle-task-removal~2]
+// [utest->dsn~idle-task-removal~3]
 class IdleRemovalTest {
 
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 11, 18, 12, 0);
