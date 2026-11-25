@@ -39,4 +39,13 @@ class OneNoteLinkTest {
                 .isEqualTo("onenote:https://d.docs.live.net/abc/Doc.one#Sec&end");
         assertThat(OneNoteLink.noteLink("https://example.org/page")).isNull();
     }
+
+    @Test
+    void aGluedWebAndOnenoteLinkOpensTheDesktopApp() {
+        assertThat(OneNoteLink.preferDesktop("https://onedrive.live.com/view.aspx?resid=1&end"
+                + "onenote:https://d.docs.live.net/1/Notes.one#Page&page-id={2}&end"))
+                .isEqualTo("onenote:https://d.docs.live.net/1/Notes.one#Page&page-id={2}&end");
+        assertThat(OneNoteLink.preferDesktop("https://example.org/page")).isEqualTo("https://example.org/page");
+        assertThat(OneNoteLink.preferDesktop(null)).isNull();
+    }
 }

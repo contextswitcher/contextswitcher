@@ -18,6 +18,8 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- *Open note* opens the OneNote desktop app when the `note:` field holds both lines of OneNote's *Copy Link to Page* pasted together, instead of the web page.
+
 - The queue's add box grows with the message typed into it.
 - Switching to another window while typing a queue message and coming back keeps the caret in that message instead of an empty add box.
 - The settings dialog is wide enough for the host table: the *Active* column header and the paths are no longer cut off.
