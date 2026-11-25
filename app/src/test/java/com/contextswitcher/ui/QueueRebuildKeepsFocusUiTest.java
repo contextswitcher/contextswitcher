@@ -30,7 +30,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// A queue rebuild while typing in a **card** must keep the keyboard in that
-/// card (`dsn~message-queue-ui~26`): rebuilds used to create the cards' text
+/// card (`dsn~message-queue-ui~28`): rebuilds used to create the cards' text
 /// areas anew, so the one that had the focus left the scene for good and the
 /// next pulse cleared the focus — the next Tab then started from the toolbar.
 /// Field report 2026-09-16: "I was just in the queued message, then the
@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// The rebuild here is another card's clock toggle, fired programmatically
 /// (it is not focus-traversable, so nothing but the redraw touches the
 /// focus) — the same redraw a review-comment sync or a sent message does.
-// [utest->dsn~message-queue-ui~26]
+// [utest->dsn~message-queue-ui~28]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class QueueRebuildKeepsFocusUiTest {

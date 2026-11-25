@@ -27,7 +27,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// The send-order numbers on the queue cards' ≡ handles
-/// (`dsn~message-queue-ui~26`): only a card armed for the delayed send
+/// (`dsn~message-queue-ui~28`): only a card armed for the delayed send
 /// (`dsn~message-queue-delayed-send~4`) carries one, and it counts within the
 /// armed cards, not within the whole stack — an unarmed card is never sent on
 /// its own, so a number on it would promise a turn it never gets. Arming a
@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// The task needs a remote for the clock toggle to be enabled; it is bogus, so
 /// the status poll never reports the window idle and nothing is actually
 /// delivered while the test looks at the handles.
-// [utest->dsn~message-queue-ui~26]
+// [utest->dsn~message-queue-ui~28]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class QueueSendOrderNumbersUiTest {

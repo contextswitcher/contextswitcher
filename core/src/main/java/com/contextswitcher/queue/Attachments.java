@@ -47,7 +47,7 @@ public final class Attachments {
     /// throughout; stored as-is, such a PNG shows blank in every viewer and
     /// to Claude. An image with any visible pixel is really translucent and
     /// is left alone.
-    // [impl->dsn~message-queue-ui~26]
+    // [impl->dsn~message-queue-ui~28]
     public static void opaqueIfFullyTransparent(int[] argb) {
         for (int pixel : argb) {
             if (pixel >>> 24 != 0) {

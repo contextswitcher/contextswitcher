@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// items that need no remote host: plain Enter stays in the dialog as a
 /// newline, three Ctrl+Enters, three plain Enters, and Shift+Enter behave
 /// like in the queue boxes (`dsn~task-create-ui~15`,
-/// `dsn~message-queue-ui~26`), plus where the keyboard lands afterwards.
+/// `dsn~message-queue-ui~28`), plus where the keyboard lands afterwards.
 ///
 /// Boots the real `Main` (via [UiTestSupport.TestApp]) against a throwaway
 /// config dir (no remotes, free WebSocket port). Needs a display: run via
