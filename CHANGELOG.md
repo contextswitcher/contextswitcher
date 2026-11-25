@@ -17,6 +17,8 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- The queue's add box grows with the message typed into it.
+- Switching to another window while typing a queue message and coming back keeps the caret in that message instead of an empty add box.
 - The settings dialog is wide enough for the host table: the *Active* column header and the paths are no longer cut off.
 - `gatherWindows:` no longer pulls a window that would not stay (moved back three times) over again after it was minimized or its virtual desktop switched.
 - Switching virtual desktops scrolls the task list to that desktop's selected task when it is out of view.

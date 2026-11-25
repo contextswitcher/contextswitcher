@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The queue boxes' compose chords (`dsn~message-queue-ui~27`), driven on
+/// The queue boxes' compose chords (`dsn~message-queue-ui~28`), driven on
 /// the real app: three plain Enters queue the typed message, and the
 /// Ctrl+Enter chord queues on its third press, greening the box up a shade
 /// per press until then. The card edit boxes get the chord tested at their own
@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// The send the third Ctrl+Enter fires needs a real remote tmux window, so it
 /// stays a manual E2E item — the test task has none, its send button is
 /// disabled, and firing it does nothing.
-// [utest->dsn~message-queue-ui~27]
+// [utest->dsn~message-queue-ui~28]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class QueueComposeKeysUiTest {

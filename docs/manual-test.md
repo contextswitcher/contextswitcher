@@ -866,7 +866,7 @@ Precondition: a task with `remote` + `tmux` pointing at a live Claude window; th
 - [ ] Type into the top box, press Enter three times → card appears with the
       trailing blank lines stripped, caret back in the emptied add box;
       pressing Enter three times into an empty box does nothing.
-- [ ] **Ctrl+Enter three times sends** (`dsn~message-queue-ui~27`): type into the
+- [ ] **Ctrl+Enter three times sends** (`dsn~message-queue-ui~28`): type into the
       add box, press Ctrl+Enter three times in a row → the message stays in the
       box for the first two presses (light green, then a shade more), and the
       third queues **and** sends it — it lands in the Claude input, is submitted,
@@ -877,13 +877,13 @@ Precondition: a task with `remote` + `tmux` pointing at a live Claude window; th
       send to."; on a **suspended** task it arms the message instead and says
       the chat is being resumed.
       *(Automated up to the send: `QueueComposeKeysUiTest`, MADR 0014.)*
-- [ ] **The sending box is locked** (`dsn~message-queue-ui~27`): send a card to a
+- [ ] **The sending box is locked** (`dsn~message-queue-ui~28`): send a card to a
       slow remote → while "Sending…" stands, typing into that card does nothing
       and its send button is disabled; on success the card is gone, and after a
       failure the box takes edits again for a retry.
       *(Automated on the after-failure half: `QueueComposeKeysUiTest`, MADR 0014.)*
 - [ ] Edit a middle card, click elsewhere → reopen the task → the edit stuck.
-- [ ] **A send survives a task switch** (`dsn~message-queue-ui~27`): click a
+- [ ] **A send survives a task switch** (`dsn~message-queue-ui~28`): click a
       card's send button and immediately select another task in the list →
       once the send finishes, switch back → the message is gone from the queue
       and shows in the last-sent box (it used to stay queued forever).

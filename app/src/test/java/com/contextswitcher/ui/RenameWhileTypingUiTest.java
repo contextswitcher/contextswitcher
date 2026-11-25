@@ -25,7 +25,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// A task-file rename must not read as a task switch in the queue pane
-/// (`dsn~message-queue-ui~27`).
+/// (`dsn~message-queue-ui~28`).
 ///
 /// A live task adopts the short title its Claude session publishes seconds
 /// after it was created (`dsn~claude-title-sync~3`), which renames the file and
@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// empty, no card appeared (the old id has no row), and the message stayed in a
 /// queue file nothing points at. Field report 2026-09-13: "i just typed and
 /// then the box was empty, but no task switched".
-// [utest->dsn~message-queue-ui~27]
+// [utest->dsn~message-queue-ui~28]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class RenameWhileTypingUiTest {

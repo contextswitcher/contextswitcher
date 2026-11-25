@@ -18,11 +18,11 @@ import org.junit.jupiter.api.Test;
 import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// Ctrl+V into the queue's add box (`dsn~message-queue-ui~27`): a clipboard
+/// Ctrl+V into the queue's add box (`dsn~message-queue-ui~28`): a clipboard
 /// with only an image pastes an `[image: …]` marker, one with text beside the
 /// image pastes the text — OneNote copies a link as both, and the link was
 /// arriving as a picture of itself (field report 2026-11-24).
-// [utest->dsn~message-queue-ui~27]
+// [utest->dsn~message-queue-ui~28]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class QueuePasteUiTest {

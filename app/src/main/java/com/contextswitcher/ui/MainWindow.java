@@ -240,7 +240,7 @@ public class MainWindow {
     /// a pane keyed by task id can re-key instead of reading the new id as a
     /// task switch — the queue pane and its half-typed add box
     /// ([QueuePane#taskRenamed]). No-op until [#setOnTaskRenamed] wires it.
-    // [impl->dsn~message-queue-ui~27]
+    // [impl->dsn~message-queue-ui~28]
     private BiConsumer<String, String> onTaskRenamed = (fromId, toId) -> { };
     private final ObservableSet<String> folders;
     private final Consumer<Task> onSwitch;
@@ -307,7 +307,7 @@ public class MainWindow {
     private final TerminalPane terminal;
     /// The message-queue pane's node (built by `Main`, [QueuePane]), shown
     /// below the editor in the right lane.
-    // [impl->dsn~message-queue-ui~27]
+    // [impl->dsn~message-queue-ui~28]
     private final Node queueNode;
     /// When a character was last typed anywhere in the queue pane
     /// (`System.nanoTime`); [#queueFieldFocused] only counts typing this recent.
@@ -1375,7 +1375,7 @@ public class MainWindow {
         VBox.setVgrow(listStack, Priority.ALWAYS);
 
         // The notes editor; the task's message queue docks below it by default.
-        // [impl->dsn~message-queue-ui~27]
+        // [impl->dsn~message-queue-ui~28]
         Node editorNode = editorPane();
 
         // Clicking anywhere in a pane that belongs to the previewed task — the
@@ -6227,7 +6227,7 @@ public class MainWindow {
     }
 
     /// Wires the panes that follow a rename (see [#onTaskRenamed]).
-    // [impl->dsn~message-queue-ui~27]
+    // [impl->dsn~message-queue-ui~28]
     public void setOnTaskRenamed(BiConsumer<String, String> listener) {
         this.onTaskRenamed = listener;
     }
@@ -6249,7 +6249,7 @@ public class MainWindow {
         taskRenamer.accept(fromId, toId);
         // Before the selection below: the panes have to know the switch they
         // are about to be handed is this rename, not another task.
-        // [impl->dsn~message-queue-ui~27]
+        // [impl->dsn~message-queue-ui~28]
         onTaskRenamed.accept(fromId, toId);
         // Also before the selection: selecting the renamed task opens it in the
         // editor, and openInEditor first commits the forms and flushes the

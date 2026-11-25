@@ -108,7 +108,7 @@ import tools.maran.svgnode.SvgNode;
 /// click copies that text into the add box ("Go" and whatever else one keeps
 /// retyping), ready to be extended before it is queued; `…` opens the editor that adds,
 /// edits and removes them, and a button's right-click menu removes it.
-// [impl->dsn~message-queue-ui~27]
+// [impl->dsn~message-queue-ui~28]
 // [impl->dsn~message-queue-store~2]
 public class QueuePane {
 
@@ -234,7 +234,7 @@ public class QueuePane {
     /// The id the shown task's file was just renamed to ([#taskRenamed]),
     /// consumed by the very next [#showTask] so the rename does not read as a
     /// task switch. Null whenever no rename is in flight.
-    // [impl->dsn~message-queue-ui~27]
+    // [impl->dsn~message-queue-ui~28]
     private @Nullable String renamedTo;
     /// Index 0 = oldest = top box = next to send.
     private List<String> messages = new ArrayList<>();
@@ -319,9 +319,12 @@ public class QueuePane {
             if (focused) {
                 resumeIfSuspended();
             } else {
-                commitAddBox();
+                commitAddBoxKeepingCaret();
             }
         });
+        // The add box grows with what is typed into it, so a long message
+        // never hides behind its own scrollbar.
+        addBox.textProperty().addListener((obs, was, now) -> Platform.runLater(this::fitAddBox));
         // Three plain Enters in a row (message + two blank lines) store the
         // message and keep the caret in the emptied add box, ready for the
         // next one; three Ctrl+Enters store it and send it right away — the
@@ -439,7 +442,7 @@ public class QueuePane {
     /// message for it — committed the half-typed add box to the **old** id and
     /// reloaded the new id's empty queue: the box went empty, no card
     /// appeared, and the message ended up in a queue file no task points at.
-    // [impl->dsn~message-queue-ui~27]
+    // [impl->dsn~message-queue-ui~28]
     public void taskRenamed(String fromId, String toId) {
         // The armed queue is keyed by id too: it follows, or it waits forever
         // for a task that no longer exists under the old id.
@@ -862,7 +865,7 @@ public class QueuePane {
     /// pulse — Tab then started from the toolbar (field report 2026-09-16) —
     /// while one taken out and put back within the same pulse keeps focus,
     /// caret, selection, height and a half-typed edit.
-    // [impl->dsn~message-queue-ui~27]
+    // [impl->dsn~message-queue-ui~28]
     private void rebuild() {
         spare.clear();
         spare.addAll(areas);
@@ -943,7 +946,7 @@ public class QueuePane {
     /// taller (and up shorter, never below one row), what a browser gives
     /// every `<textarea>`. Per box and not persisted — a taller box is for
     /// the message being written right now.
-    // [impl->dsn~message-queue-ui~27]
+    // [impl->dsn~message-queue-ui~28]
     private static Region resizeGrip(TextArea area) {
         Region grip = new Region();
         grip.setPrefHeight(5);
@@ -1388,7 +1391,7 @@ public class QueuePane {
     /// so an in-flight edit or reorder cannot drop the wrong one; false when
     /// it is no longer there (an edited message stays queued).
     // [impl->dsn~message-queue-delayed-send~4]
-    // [impl->dsn~message-queue-ui~27]
+    // [impl->dsn~message-queue-ui~28]
     private boolean dropFromQueue(Task sent, String text) {
         if (task != null && task.id().equals(sent.id())) {
             int at = messages.indexOf(text);
@@ -1606,7 +1609,7 @@ public class QueuePane {
     /// cannot drift apart between them (`req~compose-key-conventions~5`).
     /// A null `commit` leaves the triple-Enter half out — that is what a card
     /// edit box passes, where blank lines are content and must not submit.
-    // [impl->dsn~message-queue-ui~27]
+    // [impl->dsn~message-queue-ui~28]
     // [impl->dsn~task-create-ui~15]
     public static void installComposeKeys(
             TextArea area, @Nullable Runnable commit, Runnable chord) {
@@ -1678,6 +1681,45 @@ public class QueuePane {
         return caret == text.length() && caret >= 2
                 && text.charAt(caret - 1) == '\n' && text.charAt(caret - 2) == '\n'
                 && !text.isBlank();
+    }
+
+    /// Commits the add box on focus loss. A switch to another window leaves
+    /// the box the scene's focus owner: the message is stored all the same,
+    /// but the caret moves along into its new card, so coming back to the
+    /// window continues that message instead of starting an empty add box.
+    // [impl->dsn~message-queue-ui~28]
+    private void commitAddBoxKeepingCaret() {
+        boolean windowLeft = addBox.getScene() != null && addBox.getScene().getFocusOwner() == addBox;
+        String text = addBox.getText();
+        int caret = addBox.getCaretPosition() - (text.length() - text.stripLeading().length());
+        int before = messages.size();
+        commitAddBox();
+        if (windowLeft && messages.size() > before && areas.size() == messages.size()) {
+            TextArea card = areas.getLast();
+            card.requestFocus();
+            card.positionCaret(Math.clamp(caret, 0, card.getLength()));
+        }
+    }
+
+    /// Makes the add box tall enough for its text (wrapped lines included):
+    /// grows it by what its inner scroll pane's content exceeds the viewport,
+    /// and drops back to the default two rows once the box is emptied.
+    // [impl->dsn~message-queue-ui~28]
+    private void fitAddBox() {
+        if (addBox.getText().isEmpty()) {
+            addBox.setPrefHeight(Region.USE_COMPUTED_SIZE);
+            return;
+        }
+        if (!(addBox.lookup(".scroll-pane") instanceof ScrollPane inner)
+                || !(inner.getContent() instanceof Region content)) {
+            return;
+        }
+        double viewport = inner.getViewportBounds().getHeight();
+        double wanted = content.prefHeight(inner.getViewportBounds().getWidth());
+        if (viewport > 0 && wanted > viewport + 0.5) {
+            addBox.setPrefHeight(addBox.getHeight() + wanted - viewport);
+            Platform.runLater(() -> scrollIntoView(addBox));
+        }
     }
 
     private void commitAddBox() {
@@ -1904,7 +1946,7 @@ public class QueuePane {
     }
 
     /// Whether a paste takes the clipboard's image: only when there is no
-    /// non-blank text beside it (`dsn~message-queue-ui~27`).
+    /// non-blank text beside it (`dsn~message-queue-ui~28`).
     static boolean pastesAsImage(Clipboard clipboard) {
         if (!clipboard.hasImage()) {
             return false;

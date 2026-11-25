@@ -1030,7 +1030,7 @@ public class Main extends Application {
         window.setTaskRenamer(repository::renamed);
         // …and the queue pane keeps the message being typed instead of filing
         // it under the id the task just left.
-        // [impl->dsn~message-queue-ui~27]
+        // [impl->dsn~message-queue-ui~28]
         window.setOnTaskRenamed(queuePane::taskRenamed);
         // [impl->dsn~start-claude-button~2]
         // [impl->dsn~setup-wizard~13]
