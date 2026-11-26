@@ -102,11 +102,11 @@ Covers:
 Needs: dsn
 
 ### Offer the newest build of the app
-`req~android-update-hint~4`
+`req~android-update-hint~5`
 
-The `android-dev` pre-release holds a debug APK of main, replaced only when Oliver asks for a new one — not on every push.
-The app's task list offers *Update* when that APK was built from a different commit than the running app, and installs it on a tap; a check that cannot reach or read the release says why once per start.
-The repository is public, so the check needs no token: an APK installed from the release offers its updates without any GitHub setup for them.
+Two builds can be newer than the running app: the newest day release, and the newest dev build, made only when Oliver asks for one — not on every push.
+The app's task list offers *Update* when either was committed after the running build, takes the newer of the two, and installs it on a tap; a check that cannot reach either source says why once per start.
+The repository is public, so the check needs no token: an APK installed from a release or a dev build offers its updates without any GitHub setup for them.
 
 Tags: android
 
@@ -570,19 +570,21 @@ Covers:
 Needs: impl, utest
 
 ### Update hint
-`dsn~android-update-hint~4`
+`dsn~android-update-hint~5`
 
-The `android-dev.yml` workflow, started by hand only (`workflow_dispatch`), builds the debug APK, uploads it to the `android-dev` pre-release with `--clobber` and then moves the `android-dev` tag to `$GITHUB_SHA`; `build.yml`'s `android` job only builds on a push, and day tags still get their own pre-release, whose APK is `contextswitcher-<date>.apk`.
-`android/build.gradle.kts` bakes `git rev-parse HEAD` into `BuildConfig.GIT_COMMIT` (`unknown` outside a checkout).
-`com.contextswitcher.android.update.AppUpdates.check()` reads the tag's commit (`GET /repos/{repo}/git/ref/tags/android-dev`) without a token and answers `UpToDate`, `Available(commit)` or `Failed(message)` — any status but 200 is named in the message, and an `unknown` build never offers an update.
-`download` fetches `https://github.com/{repo}/releases/download/android-dev/android-debug.apk`, following the redirect to storage.
+Day tags get their pre-release with the debug APK as `contextswitcher-<date>.apk` (`build.yml`).
+The `android-dev.yml` workflow, started by hand only (`workflow_dispatch`), uploads the debug APK as `contextswitcher-dev-<short sha>.apk` in the run's `contextswitcher-dev` artifact; no release, no tag.
+`android/build.gradle.kts` bakes `git rev-parse HEAD` into `BuildConfig.GIT_COMMIT` (`unknown` outside a checkout) and its commit time into `GIT_COMMIT_TIME`.
+`com.contextswitcher.android.update.AppUpdates.check()` reads, without a token, the newest `v*` release with an `.apk` asset (`GET /repos/{repo}/releases`, then `/commits/{tag}` for its commit and time) and the newest successful `android-dev.yml` run (`/actions/workflows/android-dev.yml/runs?status=success`, its `head_sha` and `head_commit.timestamp`).
+Of those with another commit, committed after the running build, the later one is `Available(build)`; none is `UpToDate`; only when both lookups fail is it `Failed(message)`, naming the status; an `unknown` build never offers an update.
+`download(build, …)` fetches the release asset's `browser_download_url`, or the artifact zip through `https://nightly.link/{repo}/actions/runs/{id}/contextswitcher-dev.zip` (GitHub serves artifacts only with a token) and unpacks its `.apk`; both follow the redirect to storage.
 `TaskListScreen` checks after every sync, also when the sync failed, shows *Update* in the top bar for `Available` — disabled while downloading — and reports the first failure of a start in a Snackbar.
 `com.contextswitcher.android.update.ApkInstaller` writes the APK into a `PackageInstaller` session with `USER_ACTION_NOT_REQUIRED` (Android 12+); `InstallResultReceiver` starts the installer's confirmation intent when user action is pending and toasts a failure.
 
 Tags: android
 
 Covers:
-- req~android-update-hint~4
+- req~android-update-hint~5
 
 Needs: impl, utest
 

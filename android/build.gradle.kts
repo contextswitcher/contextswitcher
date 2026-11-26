@@ -14,15 +14,22 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.21"
 }
 
-// The commit this APK is built from, compared by the in-app update hint with
-// the commit the `android-dev` pre-release's tag points at. "unknown" outside
-// a git checkout (then the app never offers an update).
+// The commit this APK is built from and its commit time (epoch seconds), which
+// the in-app update hint compares with the newest day release and dev build.
+// "unknown" outside a git checkout (then the app never offers an update).
 val gitCommit: String = runCatching {
     providers.exec {
         commandLine("git", "rev-parse", "HEAD")
         isIgnoreExitValue = true
     }.standardOutput.asText.get().trim()
 }.getOrDefault("").ifEmpty { "unknown" }
+
+val gitCommitTime: Long = runCatching {
+    providers.exec {
+        commandLine("git", "show", "--no-patch", "--format=%ct", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.get().trim().toLong()
+}.getOrDefault(0L)
 
 // The line the app shows for its build, in the desktop's format (MainWindow's
 // commit label): `<short sha> (<yyyy-MM-dd HH:mm>)`; empty outside a checkout.
@@ -42,6 +49,7 @@ android {
         minSdk = 26
         targetSdk = 36
         buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")
+        buildConfigField("long", "GIT_COMMIT_TIME", "${gitCommitTime}L")
         buildConfigField("String", "GIT_COMMIT_LINE", "\"$gitCommitLine\"")
     }
 

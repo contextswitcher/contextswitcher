@@ -10,6 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Changed
 
+- The Android app's *Update* also offers the newest day release, not only the dev build, whichever is newer; dev builds are Actions artifacts now, not the `android-dev` release.
 - The Android APK of a day release is named after it, e.g. `contextswitcher-2026-11-27.apk`, instead of `android-debug.apk`.
 - An empty *Windows Terminal tab folder* shows in gray the folder it falls back to, the first *Local folders* entry.
 

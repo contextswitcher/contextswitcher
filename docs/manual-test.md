@@ -1410,14 +1410,15 @@ Needs the debug APK on a phone with synced tasks of a category whose tasks recor
 - [ ] *Call (Android Auto)* with the phone connected to the car → the car shows an ongoing call; the overview and the card come through the car's speakers; saying "next" steps, a sentence is sent as the reply, and the finished turn is read out; the car's hang-up (or *Hang up* on the phone) ends it.
 - [ ] Head unit: *Tour* in the header → category list → the same card as a message screen with *Dictate* and *Next*; *Previous* and *Repeat* in the header. Dictation from the tour sends with the voice-mode hint.
 
-## Android update hint (`dsn~android-update-hint~4`)
+## Android update hint (`dsn~android-update-hint~5`)
 
-Needs the debug APK on a phone and a finished run of *Publish Android dev build* (`gh workflow run android-dev.yml`) for a newer commit.
+Needs the debug APK on a phone, a day release and a finished run of *Publish Android dev build* (`gh workflow run android-dev.yml`) for a newer commit.
 
-- [ ] Open the app on a build older than `android-dev` → after the sync, **Update** is in the top bar.
-- [ ] Tap it → it reads *Updating…*; the first time, Android asks to allow ContextSwitcher to install apps and to confirm; the app restarts on the new build and **Update** is gone.
-- [ ] Push to main without starting the workflow → the `android-dev` release and tag do not change, and the app offers no update.
-- [ ] Publish again and update on Android 12 or later → it installs without a confirmation.
+- [ ] Open the app on a build older than the dev build → after the sync, **Update** is in the top bar.
+- [ ] Tap it → it reads *Updating…*; the first time, Android asks to allow ContextSwitcher to install apps and to confirm; the app restarts on the dev build and **Update** is gone.
+- [ ] Install an APK older than the newest day release, with no newer dev build → **Update** installs the day release.
+- [ ] Push to `experimental` without starting the workflow → the app offers no update until the next day release.
+- [ ] Update again on Android 12 or later → it installs without a confirmation.
 - [ ] Settings with an empty *Token* → **Update** still appears.
 - [ ] Without network → a Snackbar says the update check failed, once per start; the task list works as before.
 

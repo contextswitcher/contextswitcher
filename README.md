@@ -586,7 +586,7 @@ When Claude finishes in the task opened last, the car also announces it like an 
 
 **GitHub token.** The settings screen's *Username* is your GitHub login; *Token* is a personal access token for your task backup repository, **Contents: Read and write** (sync, and pushing a task created on the phone).
 
-**Updates.** After each sync, the app compares its build with the `android-dev` pre-release of this public repository and shows *Update* in the top bar when there is a newer APK; a tap downloads and installs it — no token needed.
+**Updates.** After each sync, the app looks for a newer build — the newest day release (`contextswitcher-<date>.apk`) or the newest dev build (an Actions artifact of *Publish Android dev build*, fetched through nightly.link) — and shows *Update* in the top bar for the newer of the two; a tap downloads and installs it — no token needed.
 The desktop app needs no token: its update check is a `git fetch` in its own checkout with whatever credentials that clone already uses.
 
 ## Recovery and troubleshooting
