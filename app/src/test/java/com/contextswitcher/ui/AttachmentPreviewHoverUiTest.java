@@ -11,6 +11,10 @@ import javax.imageio.ImageIO;
 import com.contextswitcher.queue.Attachments;
 
 import javafx.application.Platform;
+import javafx.geometry.Point2D;
+import javafx.scene.control.Tooltip;
+import javafx.scene.image.ImageView;
+import javafx.stage.Window;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.skin.TextAreaSkin;
@@ -74,6 +78,32 @@ class AttachmentPreviewHoverUiTest {
         assertThat(UiTestSupport.copyPathAt(field, box.getMinX() + box.getWidth() / 2, box.getMinY() + box.getHeight() / 2))
                 .as("right-click on the second marker copies its path")
                 .isEqualTo(second.toString());
+    }
+
+    /// The real pointer over a pasted screenshot's marker in the Add-task
+    /// field pops its picture up — not just the lookup finding the path.
+    @Test
+    void hoveringAMarkerInTheAddTaskFieldShowsThePicture() throws Exception {
+        Path shot = png("hovered.png");
+        UiTestSupport.openAddTask();
+        TextArea field = UiTestSupport.awaitPresent(
+                () -> FX_ROBOT.selectNodes(TextArea.class).fromAll()
+                        .filter(area -> "add-task-description".equals(area.getId())).findFirst(),
+                "add-task description field");
+        String text = "see " + Attachments.marker(shot);
+        onFx(() -> field.setText(text));
+        UiTestSupport.awaitPresent(
+                () -> Optional.ofNullable(pathUnder(field, text.indexOf(shot.toString()) + 2)),
+                "laid-out marker");
+        Point2D at = onFx(() -> {
+            Rectangle2D box = ((TextAreaSkin) field.getSkin()).getCharacterBounds(text.indexOf(shot.toString()) + 2);
+            return field.localToScreen(box.getMinX() + box.getWidth() / 2, box.getMinY() + box.getHeight() / 2);
+        });
+        FX_ROBOT.mouse().moveTo(at.add(-30, 0));
+        FX_ROBOT.mouse().moveTo(at);
+        UiTestSupport.awaitPresent(() -> onFx(() -> Window.getWindows().stream()
+                .filter(w -> w instanceof Tooltip tip && tip.isShowing() && tip.getGraphic() instanceof ImageView)
+                .findFirst()), "image popup");
     }
 
     /// The marker path the hover lookup finds at the character `index`, using
