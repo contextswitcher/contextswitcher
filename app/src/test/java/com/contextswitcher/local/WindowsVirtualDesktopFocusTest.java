@@ -216,9 +216,12 @@ class WindowsVirtualDesktopFocusTest {
         // A second Add-Type of the same types throws, so an Add-Type inside
         // the loop would silently demote every tick after the first to the
         // registry read — the stale mirror the watcher exists to avoid.
+        // Two compiles, each once: the COM shim and the foreground-window
+        // helper (`dsn~desktop-change-foreground-log~1`), kept apart so a
+        // failure of the latter never costs the desktop reads.
         String script = WindowsVirtualDesktopFocus.watchScript();
-        assertThat(script).containsOnlyOnce("Add-Type");
-        assertThat(script.indexOf("Add-Type"))
+        assertThat(script).containsOnlyOnce("public class CsVdCur").containsOnlyOnce("public class CsFgWin");
+        assertThat(script.lastIndexOf("Add-Type"))
                 .isLessThan(script.indexOf("while ($true)"));
         // The same pinned vtable as the one-shot read, and the registry (with
         // its desktop-0 assumption) still as the in-loop fallback.
@@ -314,5 +317,33 @@ class WindowsVirtualDesktopFocusTest {
         assertThat(currentReturning(0, "noise\ndesktops:JabRef\tmisc\n").names())
                 .containsExactly("JabRef", "misc");
         assertThat(currentReturning(1, "").names()).isNull();
+    }
+
+    // [utest->dsn~desktop-change-foreground-log~1]
+    @Test
+    void watchScriptNamesTheForegroundWindowOnADesktopChange() {
+        String script = WindowsVirtualDesktopFocus.watchScript();
+        assertThat(script)
+                .contains("GetForegroundWindow")
+                .contains("public class CsFgWin")
+                .doesNotContain("__FOREGROUND_TYPES__")
+                .doesNotContain("__TYPES__")
+                .contains("'foreground:' + [CsFgWin]::Describe($fg) + \"`t\" + [CsFgWin]::Describe($lastFg)");
+        // Not on the first read: that is the startup, not a change.
+        assertThat(script).contains("$fgOk -and $last -ne $null");
+    }
+
+    // [utest->dsn~desktop-change-foreground-log~1]
+    @Test
+    void foregroundLineBecomesTheLogMessage() {
+        assertThat(WindowsVirtualDesktopFocus.foregroundMessage(
+                "foreground:SumatraPDF (pid 7, class SUMATRA_PDF_FRAME) \"a.pdf\"\tjava (pid 3, class GlassWndClass) \"CS\"",
+                "AnchorHub.SumatraPDF"))
+                .isEqualTo("Desktop changed to \"AnchorHub.SumatraPDF\"; in front now: "
+                        + "SumatraPDF (pid 7, class SUMATRA_PDF_FRAME) \"a.pdf\"; "
+                        + "before: java (pid 3, class GlassWndClass) \"CS\"");
+        assertThat(WindowsVirtualDesktopFocus.foregroundMessage("foreground:none\tnone", null))
+                .isEqualTo("Desktop changed to (unnamed); in front now: none; before: none");
+        assertThat(WindowsVirtualDesktopFocus.foregroundMessage("desktop:misc", "misc")).isNull();
     }
 }

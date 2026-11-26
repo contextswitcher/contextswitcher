@@ -15,6 +15,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Changed
 
+- When the virtual desktop changes, the log names the window that came to the front and the one in front before, so a jump to another desktop can be traced to the app that caused it.
 - A folder that no Explorer window shows yet opens as a new tab in an Explorer window on the current desktop instead of a new window.
 
 ## [2026-11-25] - 2026-11-25

@@ -742,6 +742,23 @@ Covers:
 
 Needs: impl, utest
 
+### Foreground window logged on a desktop change
+`dsn~desktop-change-foreground-log~1`
+
+A desktop change nobody asked for is hard to attribute afterwards: Windows follows any window that is activated on another desktop, and the log only showed that the desktop had changed (field report 2026-11-26: a jump to `AnchorHub.SumatraPDF` with no ContextSwitcher command anywhere near it).
+So the persistent desktop watcher (`dsn~active-desktop-filter~6`) also reads `GetForegroundWindow` on every tick, and on each desktop change after its first read prints a `foreground:` line describing two windows, tab-separated: the one in front now — normally the window whose activation made Windows switch — and the one in front on the tick before (≤ 250 ms earlier, still on the old desktop).
+Each is `process (pid N, class C) "title"` (`CsFgWin.Describe`, its own `Add-Type`, so a failure there only drops this line, never the desktop reads).
+The reader thread logs it at INFO as `Desktop changed to "<name>"; in front now: …; before: …`.
+A switch ContextSwitcher itself makes is logged by its own command lines anyway (`Running local: powershell …`); this line is what names an outside cause.
+Without the watcher (the one-shot poll fallback) nothing is logged.
+
+Tags: windows
+
+Covers:
+- req~app-window-on-current-desktop~2
+
+Needs: impl, utest
+
 ### Chat focus action
 `dsn~chat-focus-action~2`
 

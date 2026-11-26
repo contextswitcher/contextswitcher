@@ -409,7 +409,15 @@ public class WindowsVirtualDesktopFocus {
     /// pipe to the UTF-8 reader on the Java side; `[Console]::Out` auto-flushes,
     /// so a change line is visible immediately. A tick that cannot read at all
     /// prints nothing — the keep-last-known contract of [#current].
+    ///
+    /// Each tick also notes the foreground window; on a desktop change after
+    /// the first read it prints a [#FOREGROUND_PREFIX] line describing the
+    /// window in front now — normally the one whose activation made Windows
+    /// switch — and the one in front on the tick before, tab-separated
+    /// (`dsn~desktop-change-foreground-log~1`). Its own `Add-Type`, so a
+    /// failure there costs only this line, never the desktop reads.
     // [impl->dsn~active-desktop-filter~6]
+    // [impl->dsn~desktop-change-foreground-log~1]
     private static final String WATCH_SCRIPT = """
             $ErrorActionPreference = 'Stop'
             [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
@@ -420,6 +428,12 @@ public class WindowsVirtualDesktopFocus {
             __TYPES__
             "@
             } catch { $comOk = $false }
+            $fgOk = $true
+            try {
+              Add-Type -TypeDefinition @"
+            __FOREGROUND_TYPES__
+            "@
+            } catch { $fgOk = $false }
             function Get-CurrentName {
               $cur = $null
               if ($comOk) { try { $cur = [CsVdCur]::Current() } catch { $cur = $null } }
@@ -436,11 +450,23 @@ public class WindowsVirtualDesktopFocus {
             }
             $last = $null
             $lastNames = $null
+            $lastFg = [IntPtr]::Zero
             while ($true) {
+              $fg = [IntPtr]::Zero
               try {
                 $line = 'desktop:' + (Get-CurrentName)
-                if ($line -ne $last) { [Console]::Out.WriteLine($line); $last = $line }
+                if ($fgOk) { try { $fg = [CsFgWin]::Current() } catch { } }
+                if ($line -ne $last) {
+                  [Console]::Out.WriteLine($line)
+                  if ($fgOk -and $last -ne $null) {
+                    try {
+                      [Console]::Out.WriteLine('foreground:' + [CsFgWin]::Describe($fg) + "`t" + [CsFgWin]::Describe($lastFg))
+                    } catch { }
+                  }
+                  $last = $line
+                }
               } catch { }
+              $lastFg = $fg
               try {
                 $names = 'desktops:' + (@(Get-DesktopNames) -join "`t")
                 if ($names -ne $lastNames) { [Console]::Out.WriteLine($names); $lastNames = $names }
@@ -503,11 +529,59 @@ public class WindowsVirtualDesktopFocus {
     /// noticing an externally triggered desktop switch.
     static final int WATCH_INTERVAL_MILLIS = 250;
 
+    /// Marks a watcher stdout line naming the foreground window right after a
+    /// desktop change, and the one before it, tab-separated.
+    // [impl->dsn~desktop-change-foreground-log~1]
+    static final String FOREGROUND_PREFIX = "foreground:";
+
+    /// The foreground window as `process (pid N, class C) "title"` — enough
+    /// to tell from the log which app pulled Windows to another desktop.
+    // [impl->dsn~desktop-change-foreground-log~1]
+    private static final String FOREGROUND_TYPES = """
+            using System;
+            using System.Text;
+            using System.Runtime.InteropServices;
+            public class CsFgWin {
+              [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+              [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+              [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr h, StringBuilder s, int n);
+              [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+              public static IntPtr Current() { return GetForegroundWindow(); }
+              public static string Describe(IntPtr h) {
+                if (h == IntPtr.Zero) { return "none"; }
+                uint pid;
+                GetWindowThreadProcessId(h, out pid);
+                string process = "?";
+                try { process = System.Diagnostics.Process.GetProcessById((int)pid).ProcessName; } catch { }
+                var cls = new StringBuilder(256);
+                GetClassName(h, cls, 256);
+                var title = new StringBuilder(512);
+                GetWindowText(h, title, 512);
+                return process + " (pid " + pid + ", class " + cls + ") \\"" + title.ToString().Replace("\\t", " ") + "\\"";
+              }
+            }
+            """;
+
     /// The watcher script: registry helper first (functions before use), then
     /// the compile-once + check-loop body.
     static String watchScript() {
         return REGISTRY_CURRENT_FUNCTION + "\n" + NAMES_FUNCTION + "\n"
-                + WATCH_SCRIPT.replace("__TYPES__", CURRENT_COM_TYPES.strip());
+                + WATCH_SCRIPT.replace("__TYPES__", CURRENT_COM_TYPES.strip())
+                        .replace("__FOREGROUND_TYPES__", FOREGROUND_TYPES.strip());
+    }
+
+    /// One watcher stdout line → the log message naming the windows in front
+    /// after and before a desktop change, or null for any other line.
+    /// `desktop` is the desktop just switched to (null: unnamed).
+    // [impl->dsn~desktop-change-foreground-log~1]
+    static @Nullable String foregroundMessage(String line, @Nullable String desktop) {
+        if (!line.startsWith(FOREGROUND_PREFIX)) {
+            return null;
+        }
+        String[] parts = line.substring(FOREGROUND_PREFIX.length()).split("\t", 2);
+        String before = parts.length > 1 ? parts[1] : "?";
+        return "Desktop changed to %s; in front now: %s; before: %s".formatted(
+                desktop == null ? "(unnamed)" : "\"" + desktop + "\"", parts[0], before);
     }
 
     /// The local argv for the watcher (base64 `-EncodedCommand`).
@@ -581,10 +655,17 @@ public class WindowsVirtualDesktopFocus {
             try (var lines = process.inputReader(StandardCharsets.UTF_8)) {
                 process.getOutputStream().close();
                 String line;
+                @Nullable String desktop = null;
                 while ((line = lines.readLine()) != null) {
                     ActiveDesktop read = parseWatchLine(line);
                     if (read != null) {
+                        desktop = read.name();
                         onRead.accept(read);
+                    }
+                    // [impl->dsn~desktop-change-foreground-log~1]
+                    String foreground = foregroundMessage(line, desktop);
+                    if (foreground != null) {
+                        org.tinylog.Logger.info("{}", foreground);
                     }
                     SortedSet<String> desktops = parseDesktopsLine(line);
                     if (desktops != null) {
