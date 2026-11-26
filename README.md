@@ -283,6 +283,7 @@ Opening one of a task's links opens the page on its category's desktop (a tab th
 
 **Deep links.** `contextswitcher://task/<id>` selects a task and raises the app, `contextswitcher://switch/<id>` runs the full switch, and a category's **Copy link** hands out `contextswitcher://category/<name>` (`contextswitcher://switch-category/<name>` also runs the category's switch, its OneNote note included) — paste them into OneNote pages or READMEs to link back.
 A click reaches the running instance; with none running, the app starts and handles the link itself.
+With [AnchorHub](https://github.com/contextswitcher/anchorhub) installed (Windows), every OneNote page a task's or category's `note:` points to shows these links back at its top, a done task's struck through ([`req~onenote-backlinks~1`](docs/requirements/switching.md)); `oneNoteBacklinks: false` in `settings.yaml` turns that off.
 
 ## The terminal lane
 

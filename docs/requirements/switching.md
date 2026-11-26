@@ -128,6 +128,21 @@ Covers:
 
 Needs: dsn
 
+### Backlinks from OneNote pages to their tasks
+`req~onenote-backlinks~1`
+
+A task or category links to its OneNote page with `note:`; the page itself does not tell which tasks belong to it.
+With AnchorHub installed, each OneNote page a task or category links to shows at its top a link back to each of them, which opens it in ContextSwitcher.
+A done task's link is struck through; a deleted task's or category's link disappears from the page.
+The backlinks follow the task files without any action of the user, and `settings.yaml` can turn them off.
+
+Tags: windows, linux_no
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### Open the task's note
 `req~open-task-note~1`
 
@@ -668,6 +683,25 @@ Tags: windows, linux
 
 Covers:
 - req~koppter-sync~1
+
+Needs: impl, utest
+
+### OneNote backlinks through AnchorHub
+`dsn~onenote-backlinks~1`
+
+`OneNoteBacklinks.links` (core, pure) turns the loaded task entries and the categories' `note:` values into the backlink list: every task whose **own** `note:` is a OneNote link (`OneNoteLink.preferDesktop`, then the `onenote:` link in it) gives label = its title, url = `contextswitcher://task/<id>` (`DeepLinkUrls.taskUrl`, what the task's *Copy link* hands out), done = status `done`; every category whose `CONTEXTSWITCHER.md` `note:` is one gives label `Category <name>`, url = `contextswitcher://category/<name>` (`DeepLinkUrls.categoryUrl`), done = false.
+Other notes and task files that do not parse are skipped; the list is sorted by URL, so the same links compare equal.
+`OneNoteBacklinks.request` encodes it as `{"source":"contextswitcher","name":"ContextSwitcher","links":[{note,label,url,done}…]}` — always the complete set, so ankd removes the source's backlinks from every page no longer listed (a deleted task or category).
+
+`Main.startOneNoteBacklinks` starts `OneNoteBacklinkSync` only when `ankd.exe` lies where AnchorHub's installer puts it (`%LOCALAPPDATA%\Programs\AnchorHub\ankd.exe`, `OneNoteBacklinks.installedAnkd`, Windows only).
+A change of the task list, of the folder set, or of a category's `CONTEXTSWITCHER.md` — and the end of the startup scan, never before it — snapshots the list on the FX thread and restarts a 5-second debounce; the sync then runs on a worker thread, reads the categories' notes fresh, and skips when the list equals the last one ankd took.
+It pipes the request into `ankd onenote-backlinks-sync` and logs its answer (`OneNoteBacklinks.parseResult`: updated, removed, unchanged, failed pages); a nonzero exit is logged with ankd's stderr, an empty answer means an ankd too old for the command (logged once, no error UI), and a failed page makes the next change send the list again.
+`oneNoteBacklinks: false` in `settings.yaml` turns it off (`OneNoteBacklinks.enabled`, read fresh on every sync).
+
+Tags: windows
+
+Covers:
+- req~onenote-backlinks~1
 
 Needs: impl, utest
 
