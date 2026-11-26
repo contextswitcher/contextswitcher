@@ -26,7 +26,10 @@ import org.tinylog.Logger;
 /// `Document.Folder.Self.Path` matches the target (case-insensitive, trailing
 /// separators ignored) is brought to the foreground by its `HWND` (restoring it
 /// if minimised; an Alt tap works around the foreground lock). With none
-/// open, a fresh Explorer window is launched at the folder.
+/// showing it, the folder opens as a new tab (Ctrl+T, then `Navigate2` on the
+/// tab that appeared) in an Explorer window already on this desktop; only
+/// with no Explorer window here — or when the tab does not appear within 3 s —
+/// is a fresh Explorer window launched at the folder.
 ///
 /// A matching window on **another** virtual desktop is first moved to the one
 /// in view (`CsMv.Focus`, [WindowsWindowMove]) so focusing it does not drag the
@@ -80,6 +83,33 @@ public class LocalFolderFocus {
                 }
               }
             }
+            function Get-Tabs($sh, [IntPtr] $hwnd) {
+              foreach ($o in $sh.Windows()) {
+                try { if ([IntPtr]$o.HWND -eq $hwnd) { $o } } catch { }
+              }
+            }
+            function Open-AsTab {
+              $sh = New-Object -ComObject Shell.Application
+              $hwnd = [IntPtr]::Zero
+              foreach ($o in $sh.Windows()) {
+                try {
+                  if ($o.FullName -notlike '*\\explorer.exe') { continue }
+                  $h = [IntPtr]$o.HWND
+                  if ([CsMv]::IsHere($h)) { $hwnd = $h; break }
+                } catch { }
+              }
+              if ($hwnd -eq [IntPtr]::Zero) { return $false }
+              $before = @(Get-Tabs $sh $hwnd).Count
+              if (-not [CsMv]::NewTab($hwnd)) { return $false }
+              for ($i = 0; $i -lt 30; $i++) {
+                Start-Sleep -Milliseconds 100
+                $now = @(Get-Tabs $sh $hwnd)
+                if ($now.Count -gt $before) {
+                  try { $now[$now.Count - 1].Navigate2($target); return $true } catch { return $false }
+                }
+              }
+              return $false
+            }
             $shell = New-Object -ComObject Shell.Application
             foreach ($w in $shell.Windows()) {
               $path = $null
@@ -87,6 +117,11 @@ public class LocalFolderFocus {
               if ($path -and ($path.TrimEnd('\\', '/') -ieq $norm)) {
                 $outcome = [CsMv]::Focus([IntPtr]$w.HWND)
                 if ($outcome -like 'elsewhere*') {
+                  if (Open-AsTab) {
+                    Restore-Back (-1)
+                    Write-Output ("opened as a tab here, the open window is on another desktop (" + $outcome + "): " + $target)
+                    exit 0
+                  }
                   $before = Get-FolderWindowCount
                   Start-Process explorer.exe -ArgumentList $target
                   Restore-Back $before
@@ -99,6 +134,11 @@ public class LocalFolderFocus {
               }
             }
             if (Test-Path -LiteralPath $target) {
+              if (Open-AsTab) {
+                Restore-Back (-1)
+                Write-Output ("opened as a tab: " + $target)
+                exit 0
+              }
               Start-Process explorer.exe -ArgumentList $target
               Restore-Back 0
               Write-Output ("opened: " + $target)

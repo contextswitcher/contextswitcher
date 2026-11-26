@@ -123,6 +123,7 @@ tmux:
   window: "@17"           # immutable tmux window id (or a window name)
 # terminal:               # local alternative to tmux: focus a Windows Terminal tab
 #   tabTitle: jabref-npe  # pin the tab title via WT right-click -> "Rename Tab"
+#   folder: C:\git\jabref # where a missing tab is reopened (default: first of folders)
 claude:
   cwd: /home/you/repos/jabref
   sessionId: 8924d3ac-…   # enables resume after a host reboot
@@ -263,10 +264,10 @@ Everything else about such a task is a normal task: switch to it, mirror its ter
 Switching (play icon on row hover, double-click, or `contextswitcher://switch/<id>`) runs every configured action at once and shows one status chip per action, failure detail included ([`docs/requirements/switching.md`](docs/requirements/switching.md)):
 
 * **tmux** — focuses the task's window on its remote; if the window is gone (the host rebooted), it is recreated in the recorded working directory and `claude --resume <sessionId>` is issued.
-  A task with a `terminal:` section focuses the matching **local Windows Terminal** tab by its pinned title instead, across windows and virtual desktops.
+  A task with a `terminal:` section focuses the matching **local Windows Terminal** tab by its pinned title instead, across windows and virtual desktops; a tab that is gone (after a reboot) is reopened in `terminal.folder`, else in the first of `folders`.
 * **IntelliJ** — opens the project on the remote via JetBrains Gateway; an already-open JetBrains Client window is focused instead (also across virtual desktops).
 * **Browser** — focuses the tab showing each of the task's URLs, opening what is missing, collecting them in a browser tab group of the task's own; only the first URL is activated.
-* **Folders** — focuses or opens the local directories in File Explorer.
+* **Folders** — focuses the local directories in File Explorer; a folder no window shows yet opens as a new tab in an Explorer window on this desktop, a new window only when there is none.
 * **Note and chat** — opens the task's (or its category's) note page and Matrix room.
 
 **Status and suspend.** Click a row's status label (or the hover pause icon) to suspend; the row menu adds **Mark done**, **Rename task** (which also renames the tmux window on the remote), and **Delete task**.

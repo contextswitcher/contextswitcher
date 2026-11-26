@@ -48,10 +48,28 @@ class LocalFolderFocusTest {
         String script = LocalFolderFocus.script("C:\\p", 0);
         String body = script.substring(script.indexOf("$target = "));
         String elsewhere = body.substring(body.indexOf("if ($outcome -like 'elsewhere*')"));
-        assertThat(elsewhere.substring(0, elsewhere.indexOf("exit 0")))
+        assertThat(elsewhere.substring(0, elsewhere.indexOf("Restore-Back $before")))
+                .contains("if (Open-AsTab)")
                 .contains("Start-Process explorer.exe -ArgumentList $target");
         assertThat(body).doesNotContain("SetForegroundWindow").doesNotContain("SwitchToThisWindow");
         assertThat(script).doesNotContain("SwitchToThisWindow");
+    }
+
+    /// A folder no window shows opens as a new tab of an Explorer window on
+    /// this desktop (Ctrl+T, then `Navigate2`); a new window only without one.
+    // [utest->dsn~explorer-folder-focus~5]
+    @Test
+    void aFolderNotShownOpensAsATabOfAnExplorerWindowHere() {
+        String script = LocalFolderFocus.script("C:\\p", 0);
+        assertThat(script)
+                .contains("if ([CsMv]::IsHere($h)) { $hwnd = $h; break }")
+                .contains("if (-not [CsMv]::NewTab($hwnd)) { return $false }")
+                .contains("$now[$now.Count - 1].Navigate2($target)")
+                .contains("if ($o.FullName -notlike '*\\explorer.exe') { continue }");
+        String open = script.substring(script.indexOf("if (Test-Path -LiteralPath $target)"));
+        assertThat(open.indexOf("if (Open-AsTab)")).isLessThan(open.indexOf("Start-Process explorer.exe"));
+        assertThat(WindowsWindowMove.TYPES)
+                .contains("if (GetForegroundWindow() != hwnd) { return false; }");
     }
 
     @Test
@@ -74,7 +92,8 @@ class LocalFolderFocusTest {
                 .contains("[CsMv]::FrontProcess([uint32]$back)")
                 .contains("if ($back -le 0) { return }");
         String body = script.substring(script.indexOf("$shell = New-Object"));
-        assertThat(body.split("Restore-Back", -1)).hasSize(4);
+        // focus, tab elsewhere, window elsewhere, tab, new window
+        assertThat(body.split("Restore-Back", -1)).hasSize(6);
         assertThat(body.indexOf("Restore-Back 0"))
                 .isGreaterThan(body.lastIndexOf("Start-Process explorer.exe"));
         assertThat(WindowsWindowMove.TYPES).contains("owner != pid || !IsHere(h)");

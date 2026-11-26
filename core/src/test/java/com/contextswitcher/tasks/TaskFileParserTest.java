@@ -147,6 +147,22 @@ class TaskFileParserTest {
         assertThat(task.tmux()).isNull();
     }
 
+    // [utest->dsn~local-terminal-focus~7]
+    @Test
+    void terminalSectionParsesReopenFolder() throws Exception {
+        String content = """
+                ---
+                terminal:
+                  tabTitle: kopp-todos
+                  folder: C:\\git\\kopp-todos
+                ---
+                """;
+
+        Task task = parser.parse("t", content);
+
+        assertThat(task.terminal()).isEqualTo(new Task.TerminalConfig("kopp-todos", "C:\\git\\kopp-todos"));
+    }
+
     @Test
     void terminalSectionRequiresTabTitle() {
         String content = """

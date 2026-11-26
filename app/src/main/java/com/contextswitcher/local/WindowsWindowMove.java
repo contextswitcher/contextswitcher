@@ -152,6 +152,20 @@ public class WindowsWindowMove {
 
               [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
 
+              // Raises the Explorer window and presses Ctrl+T in it — a new
+              // tab; false (no keys sent) when it did not come to the front,
+              // so the keystroke never lands in another app.
+              public static bool NewTab(IntPtr hwnd) {
+                Front(hwnd);
+                System.Threading.Thread.Sleep(100);
+                if (GetForegroundWindow() != hwnd) { return false; }
+                keybd_event(0x11, 0, 0, IntPtr.Zero);
+                keybd_event(0x54, 0, 0, IntPtr.Zero);
+                keybd_event(0x54, 0, 2, IntPtr.Zero);
+                keybd_event(0x11, 0, 2, IntPtr.Zero);
+                return true;
+              }
+
               // Whether the foreground window belongs to the given process.
               public static bool ProcessInFront(uint pid) {
                 uint owner;

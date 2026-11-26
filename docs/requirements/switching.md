@@ -36,7 +36,7 @@ Needs: dsn
 
 A task may name a local Windows Terminal tab — a shell kept open for `gradlew` and the like, next to or instead of a remote tmux window.
 Activating a task with a `terminal` section brings that tab (identified by its fixed tab title) to the foreground, across multiple terminal windows and — where possible — virtual desktops.
-After a reboot the tab is gone; it is then reopened in the task's first local folder.
+After a reboot the tab is gone; it is then reopened in the task's `terminal.folder`, else in its first local folder.
 
 Tags: windows
 
@@ -50,7 +50,7 @@ Needs: dsn
 `req~focus-local-folder~3`
 
 A task can name local `folders` — a project checkout, its notes directory, a downloads folder.
-Activating the task brings, for each of them, a File Explorer window already showing that folder forward rather than opening another; with none open, a fresh Explorer window is opened at the folder.
+Activating the task brings, for each of them, a File Explorer window already showing that folder forward rather than opening another; with none showing it, the folder opens as a new tab in an Explorer window already on the desktop in view, and only with no Explorer window there in a fresh window.
 ContextSwitcher itself stays in front, just above those windows: the user switched there to keep working in it (field report 2026-11-17, Explorer took the foreground on a category switch).
 The single-directory `folder` scalar stays valid as the one-entry form.
 
@@ -508,7 +508,7 @@ Needs: impl, utest
 `ExplorerFolderAction` (chip `folder`) focuses each of the task's `folders`, in file order — so the last one ends up in front — and is configured exactly when the list is non-empty.
 A folder that fails does not stop the rest: the chip fails naming the folders that did not open (`n of m failed: …`), and a single-folder task keeps the plain wording of the one result.
 `TaskFileParser.parseFolders` reads the list from `folders`, accepting a `folder` scalar as the one-entry form (what a local category's generated task file writes, `dsn~group-config-apply~2`) and dropping blank entries; the same pair of keys is read from a category's `CONTEXTSWITCHER.md` (`dsn~category-action-defaults~2`).
-`LocalFolderFocus` handles one folder per call: it builds a PowerShell script that enumerates open File Explorer windows via the `Shell.Application` COM object (`.Windows()`) and matches each window's `Document.Folder.Self.Path` against the target (case-insensitive, trailing separators trimmed); a match is brought forward by its `HWND` through `CsMv.Focus` (`dsn~window-move-here~2`): moved here when on another desktop, then raised; when it stays elsewhere it is left alone and `explorer.exe <folder>` opens a new window here instead, reported as `opened here, the open window is on another desktop (…)`. With no window showing the folder, `explorer.exe <folder>` opens a fresh one.
+`LocalFolderFocus` handles one folder per call: it builds a PowerShell script that enumerates open File Explorer windows via the `Shell.Application` COM object (`.Windows()`) and matches each window's `Document.Folder.Self.Path` against the target (case-insensitive, trailing separators trimmed); a match is brought forward by its `HWND` through `CsMv.Focus` (`dsn~window-move-here~2`): moved here when on another desktop, then raised; when it stays elsewhere it is left alone and `explorer.exe <folder>` opens a new window here instead, reported as `opened here, the open window is on another desktop (…)`. With no window showing the folder, it opens as a **new tab** in an Explorer window already on this desktop (`CsMv.IsHere`): `CsMv.NewTab` raises that window and presses `Ctrl`+`T` — only when the window really came to the front, so the keystroke never lands in another app — and the tab that appears in `Shell.Application.Windows()` under the same `HWND` (polled for up to 3 s) is sent to the folder with `Navigate2`, reported as `opened as a tab: …`. The same is tried before the *elsewhere* fallback above. Only with no Explorer window on this desktop, or when no tab appears, does `explorer.exe <folder>` open a fresh window — the habit of the user's Win+E (focus an existing Explorer instead of a new one) and of the extension's tab moves (`dsn~switch-tabs-to-current-desktop~1`) applied to folders.
 The action (a switch) then hands the foreground back to ContextSwitcher: `LocalFolderFocus.focus(folder, true)` passes the app's own pid as `$back`, and after a focus — or, for a newly launched window, once `Shell.Application` lists one more window at the folder (up to 10 s; Explorer shows a new window after about 2 s, later on a cold start, and activates it then) — `CsMv.FrontProcess` raises the app's topmost visible window *on this desktop*, re-checked three times 150 ms apart; with none here nothing is raised, since raising a window elsewhere would switch desktops.
 The category header's folder button (`dsn~category-folders-button~1`) is a request to see the folders and passes pid `0`: Explorer stays in front.
 The script runs as a base64 `-EncodedCommand` via `LocalCommandRunner`; the folder is a single-quoted PowerShell literal with `'` doubled. Exit code 0 = focused or opened, 2 = the folder does not exist.

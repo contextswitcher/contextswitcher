@@ -2,10 +2,12 @@ package com.contextswitcher.switching;
 
 import com.contextswitcher.tasks.Task;
 import com.contextswitcher.terminal.WindowsTerminalFocus;
+import org.jspecify.annotations.Nullable;
 
 /// Focuses the task's local Windows Terminal tab (the local alternative to the
 /// remote `tmux` action) by its fixed tab title, via UI Automation; a tab
-/// that is gone (after a reboot) is reopened in the task's first `folders` entry.
+/// that is gone (after a reboot) is reopened in `terminal.folder`, else in the
+/// task's first `folders` entry.
 // [impl->dsn~local-terminal-focus~7]
 public class LocalTerminalAction implements SwitchAction {
 
@@ -31,8 +33,9 @@ public class LocalTerminalAction implements SwitchAction {
         if (terminal == null) {
             return ActionResult.failure("terminal not configured");
         }
-        WindowsTerminalFocus.FocusResult result = focus.focus(terminal.tabTitle(),
-                task.folders().isEmpty() ? null : task.folders().getFirst());
+        @Nullable String folder = terminal.folder() != null ? terminal.folder()
+                : task.folders().isEmpty() ? null : task.folders().getFirst();
+        WindowsTerminalFocus.FocusResult result = focus.focus(terminal.tabTitle(), folder);
         return result.ok() ? ActionResult.success(result.detail()) : ActionResult.failure(result.detail());
     }
 }
