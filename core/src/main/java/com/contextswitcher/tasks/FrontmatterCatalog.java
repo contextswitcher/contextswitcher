@@ -136,9 +136,10 @@ public final class FrontmatterCatalog {
             new Field("note", "OneNote", "Switch actions", Type.STRING,
                     "Opened by \"Open note\" — the page's onenote:… link (any other link works too)."),
             // [impl->dsn~local-terminal-focus~7]
+            new Field("terminal", "Open in Windows Terminal", "Switch actions", Type.BOOLEAN,
+                    "Focuses a local Windows Terminal tab on every switch, e.g. a shell for gradlew."),
             new Field("terminal.tabTitle", "Windows Terminal tab", "Switch actions", Type.STRING,
-                    "Local Windows Terminal tab focused on switch, e.g. a shell for gradlew "
-                            + "(the title pinned via \"Rename Tab\")."),
+                    "The tab's title, pinned via \"Rename Tab\"; empty means the task's title."),
             new Field("terminal.folder", "Windows Terminal tab folder", "Switch actions", Type.STRING,
                     "Where the tab is reopened when it is gone, e.g. after a reboot; "
                             + "empty means the first local folder."));
@@ -149,7 +150,7 @@ public final class FrontmatterCatalog {
     // [impl->dsn~task-field-form~6]
     public static final Set<String> SWITCH_ACTION_KEYS =
             Set.of("intellij", "intellij.projectPath", "vscode", "browser.urls", "folders", "chat", "note",
-                    "terminal.tabTitle", "terminal.folder",
+                    "terminal", "terminal.tabTitle", "terminal.folder",
                     "desktop", "completeControl", "profile");
 
     /// Whether `field` belongs on the Switch actions pane ([#SWITCH_ACTION_KEYS]).
@@ -241,9 +242,10 @@ public final class FrontmatterCatalog {
                     BROWSER_URLS_HELP),
             new Field("folders", "Local folders", "Defaults for its tasks", Type.LIST,
                     "Folders opened in the file manager on switch; one per line."),
+            new Field("terminal", "Open in Windows Terminal", "Defaults for its tasks", Type.BOOLEAN,
+                    "Focuses a local Windows Terminal tab on every switch to a task without its own."),
             new Field("terminal.tabTitle", "Windows Terminal tab", "Defaults for its tasks", Type.STRING,
-                    "Local Windows Terminal tab focused on switch, e.g. a shell for gradlew; "
-                            + "a task's own tab wins."),
+                    "The tab's title; empty means each task's title, a task's own tab wins."),
             new Field("terminal.folder", "Windows Terminal tab folder", "Defaults for its tasks",
                     Type.STRING,
                     "Where the tab is reopened when it is gone, e.g. after a reboot; "

@@ -167,7 +167,11 @@ class EditorFieldFormUiTest {
         showTab("Switch actions");
         assertThat(onFx(() -> awaitControl(TextField.class, "field-folders-0").getPromptText()))
                 .contains(CATEGORY_FOLDER);
-        // The terminal tab folder hints at the folder it falls back to.
+        // Ticking *Open in Windows Terminal* shows the tab folder, hinting at the folder it falls back to.
+        onFx(() -> {
+            awaitControl(CheckBox.class, "field-terminal").setSelected(true);
+            return null;
+        });
         assertThat(onFx(() -> awaitControl(TextField.class, "field-terminal-folder").getPromptText()))
                 .contains(CATEGORY_FOLDER);
     }

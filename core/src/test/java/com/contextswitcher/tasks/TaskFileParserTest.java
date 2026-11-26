@@ -163,18 +163,16 @@ class TaskFileParserTest {
         assertThat(task.terminal()).isEqualTo(new Task.TerminalConfig("kopp-todos", "C:\\git\\kopp-todos"));
     }
 
+    // [utest->dsn~local-terminal-focus~7]
     @Test
-    void terminalSectionRequiresTabTitle() {
+    void terminalSectionWithoutTabTitleUsesTheTaskTitle() throws Exception {
         String content = """
                 ---
-                terminal:
-                  foo: bar
+                terminal: {}
                 ---
                 """;
 
-        assertThatThrownBy(() -> parser.parse("t", content))
-                .isInstanceOf(TaskParseException.class)
-                .hasMessageContaining("terminal.tabTitle");
+        assertThat(parser.parse("t", content).terminal()).isEqualTo(new Task.TerminalConfig(null, null));
     }
 
     @Test

@@ -1892,8 +1892,10 @@ public class TaskFileParser {
         if (terminal == null) {
             return null;
         }
+        // A bare `terminal: {}` (the form's checkbox alone) names the tab after the task.
+        String tabTitle = optionalString(terminal, "tabTitle", null);
         String folder = optionalString(terminal, "folder", null);
-        return new Task.TerminalConfig(requiredString(terminal, "tabTitle", "terminal"),
+        return new Task.TerminalConfig(tabTitle == null || tabTitle.isBlank() ? null : tabTitle.strip(),
                 folder == null || folder.isBlank() ? null : folder.strip());
     }
 

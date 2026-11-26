@@ -161,13 +161,14 @@ public record Task(
     }
 
     /// A local terminal running the task's session (alternative to remote
-    /// `tmux`): the fixed title of the Windows Terminal tab to focus. The user
-    /// pins the title via WT "Rename Tab" so it stays stable and unambiguous.
+    /// `tmux`): the fixed title of the Windows Terminal tab to focus, `null`
+    /// for the task's title. The user pins the title via WT "Rename Tab" so it
+    /// stays stable and unambiguous.
     /// `folder` is where a missing tab (after a reboot) is reopened; `null`
     /// falls back to the task's first `folders` entry.
-    public record TerminalConfig(String tabTitle, @Nullable String folder) {
+    public record TerminalConfig(@Nullable String tabTitle, @Nullable String folder) {
 
-        public TerminalConfig(String tabTitle) {
+        public TerminalConfig(@Nullable String tabTitle) {
             this(tabTitle, null);
         }
     }
