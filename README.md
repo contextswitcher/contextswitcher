@@ -110,6 +110,7 @@ The window remembers its geometry across restarts; `showOnAllDesktops` pins it t
 
 One Markdown file per task in `~/.contextswitcher/tasks/`, the file name being the task id.
 Copy `TEMPLATE.md`, give it a speaking name, and keep only the sections you need — switching runs exactly what is configured.
+A coding agent can create and update tasks for you with the [`contextswitcher-tasks` skill](skills/contextswitcher-tasks/SKILL.md): `npx skills add contextswitcher/contextswitcher --skill contextswitcher-tasks -g` on every machine sessions run on.
 
 ```yaml
 ---

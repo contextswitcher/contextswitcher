@@ -10,6 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Added
 
+- An agent skill, `contextswitcher-tasks`, lets Claude Code (or another coding agent) create and update tasks on request, e.g. "create a contextswitcher task for X in category Y"; install it with `npx skills add contextswitcher/contextswitcher --skill contextswitcher-tasks -g`.
 - With AnchorHub installed, each OneNote page a task or category links to with `note:` shows a link back to it at the top, struck through once the task is done and gone once it is deleted; `oneNoteBacklinks: false` in `settings.yaml` turns this off. Needs an AnchorHub release with `onenote-backlinks-sync`.
 - `terminal.folder` (task or category) names the directory a gone *Windows Terminal tab* is reopened in, e.g. after a reboot, without adding it to `folders` and so to File Explorer.
 
