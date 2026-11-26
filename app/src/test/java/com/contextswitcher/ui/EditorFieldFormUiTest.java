@@ -43,7 +43,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// YAML, and leaving a pane writes back only what changed — comments included.
 /// A list is a field per entry plus an empty one to add the next. The rebuilt
 /// form shows what was written, and clearing a field removes its key; an
-/// empty *Local folders* field hints at the category's folders.
+/// empty *Local folders* field hints at the category's folders, an empty
+/// *Windows Terminal tab folder* at the first of them.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
 // [utest->dsn~task-field-form~6]
@@ -165,6 +166,9 @@ class EditorFieldFormUiTest {
         // Empty again, the field hints at the category's folder the switch opens instead.
         showTab("Switch actions");
         assertThat(onFx(() -> awaitControl(TextField.class, "field-folders-0").getPromptText()))
+                .contains(CATEGORY_FOLDER);
+        // The terminal tab folder hints at the folder it falls back to.
+        assertThat(onFx(() -> awaitControl(TextField.class, "field-terminal-folder").getPromptText()))
                 .contains(CATEGORY_FOLDER);
     }
 

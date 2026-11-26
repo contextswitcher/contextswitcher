@@ -86,6 +86,14 @@ final class ConfigForm {
         if (!categoryFolders.isEmpty() && controls.get("folders") instanceof ListFieldEditor folders) {
             folders.setPrompt(String.join(", ", categoryFolders) + "  (from the category)");
         }
+        // [impl->dsn~local-terminal-focus~7]
+        if (controls.get("terminal.folder") instanceof TextField terminalFolder) {
+            List<String> own = controls.get("folders") instanceof ListFieldEditor folders ? folders.values().stream().filter(v -> !v.isBlank()).toList() : List.of();
+            String first = !own.isEmpty() ? own.getFirst() + "  (first local folder)"
+                    : !categoryFolders.isEmpty() ? categoryFolders.getFirst() + "  (first local folder of the category)"
+                    : null;
+            terminalFolder.setPromptText(first);
+        }
     }
 
     /// One control per catalog field, seeded from the file's frontmatter and

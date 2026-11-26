@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [Unreleased]
+
+### Changed
+
+- An empty *Windows Terminal tab folder* shows in gray the folder it falls back to, the first *Local folders* entry.
+
 ## [2026-11-26] - 2026-11-26
 
 ### Added
@@ -499,6 +505,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[Unreleased]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-26...main
 [2026-11-26]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-25...v2026-11-26
 [2026-11-25]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-22...v2026-11-25
 [2026-11-22]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-21...v2026-11-22
