@@ -1290,6 +1290,50 @@ public class TaskFileParser {
         return String.join("\n", lines);
     }
 
+    /// Sets (or inserts) a top-level `key:` list in the frontmatter textually
+    /// (comment-preserving), in block form — one `  - item` line per value,
+    /// each serialized by SnakeYAML, so a Windows path or one with commas
+    /// stays one item. An existing `key:` is replaced along with its indented
+    /// item lines; a missing one is inserted after `title:` (else at the
+    /// fence top), like [#withScalar]. An empty list leaves `content` as is.
+    // [impl->dsn~task-create-context-fields~1]
+    public static String withBlockList(String content, String key, List<String> values) {
+        String normalized = content.replace("\r\n", "\n");
+        String[] lines = normalized.split("\n", -1);
+        if (values.isEmpty() || lines.length == 0 || !isFence(lines[0])) {
+            return content;
+        }
+        StringBuilder block = new StringBuilder(key).append(':');
+        for (String value : values) {
+            block.append("\n  - ").append(yamlScalar(value));
+        }
+        List<String> out = new ArrayList<>(Arrays.asList(lines));
+        int titleLine = -1;
+        for (int i = 1; i < out.size() && !isFence(out.get(i)); i++) {
+            if (out.get(i).startsWith(key + ":")) {
+                int end = i + 1;
+                while (end < out.size() && !isFence(out.get(end))
+                        && (out.get(end).startsWith(" ") || out.get(end).startsWith("\t")
+                                || out.get(end).startsWith("-"))) {
+                    end++;
+                }
+                out.subList(i, end).clear();
+                out.add(i, block.toString());
+                return String.join("\n", out);
+            }
+            if (out.get(i).startsWith("title:")) {
+                titleLine = i;
+            }
+        }
+        if (titleLine >= 0) {
+            int end = scalarEnd(lines, titleLine);
+            out.set(end, out.get(end) + "\n" + block);
+        } else {
+            out.set(0, FENCE + "\n" + block);
+        }
+        return String.join("\n", out);
+    }
+
     /// Inserts a bare top-level `intellij:` line into the frontmatter when the
     /// task has no (uncommented) `intellij:` section yet — enough to enable the
     /// IntelliJ switch action, whose `projectPath` falls back to the Claude

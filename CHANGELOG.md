@@ -8,6 +8,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Added
+
+- The *Add task* dialog asks for optional *Folders* (one per line), a *Note* link and a *Chat* link and writes the filled ones into the new task; a folder or OneNote's *Copy Link to Page* on the clipboard fills them in, the note keeps the `onenote:` link, and folders are stored for this computer only (`folders-<computer name>:`), so a synced task still works on the other one.
+
 ### Changed
 
 - The Android app's *Update* also offers the newest day release, not only the dev build, whichever is newer; dev builds are Actions artifacts now, not the `android-dev` release.

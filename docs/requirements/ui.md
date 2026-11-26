@@ -1749,6 +1749,29 @@ Covers:
 
 Needs: impl, utest
 
+### The Add-task dialog takes folders, a note and a chat link
+`dsn~task-create-context-fields~1`
+
+Under the description field of the Add-task dialog (`dsn~task-create-ui~15`) sit three optional context fields, general rather than tied to any kind of task: **Folders** (`add-task-folders`, one per line), **Note** (`add-task-note`) and **Chat** (`add-task-chat`).
+Each filled one is written into the new task file's frontmatter by `TaskContextFields.apply` — for the plain, the local and the remote flow alike (a pasted PR URL takes its own path and ignores them); an empty field writes no key, and neither does a value equal to the category's own, which the task falls back to anyway.
+The category's values show as each field's prompt text and follow the category picked.
+
+- **Folders** go under the **host-scoped** key `folders-<host>:` (`TaskContextFields.foldersKey`, `dsn~machine-key-variants~1`) as a block list (`TaskFileParser.withBlockList`): the task directory is synchronised between machines (`req~machine-specific-values~1`), and a path of this machine would open nothing on the other one — where the scoped key is ignored and the category's folders still apply.
+  Only an unknown host name falls back to plain `folders:`.
+  Lines are stripped of the quotes Windows' *Copy as path* adds.
+- **Note** stores the `onenote:` desktop link (`OneNoteLink.noteLink`): OneNote's *Copy Link to Page* puts a `https://onedrive.live.com/…` web URL and the `onenote:` URL on the clipboard, and pasted into the one-line field the two arrive glued together, which the field narrows to the `onenote:` link at once.
+  A web link alone is kept as it is — neither form can be derived from the other (the web link lacks the notebook's folder path, the `onenote:` link the `resid`) — and a muted hint under the field says that it opens the browser and how to get the desktop link.
+- **Chat** takes any link as is: Matrix permalinks are rewritten when the task is switched to, Teams links pass through.
+
+The clipboard pre-fills them like the description: a folder of this machine (one absolute path to an existing directory, optionally quoted, or the folder itself copied in Explorer — `TaskContextFields.clipboardFolder`, shared with the setup wizard, `dsn~category-from-folder~3`) fills Folders, and a clipboard of nothing but links that holds OneNote's (`TaskContextFields.clipboardNote`) fills Note; either one then leaves the description empty instead of making the path or link the title.
+
+Tags: windows, linux
+
+Covers:
+- req~task-create~1
+
+Needs: impl, utest
+
 ### URLs mentioned in free text become browser tabs
 `dsn~task-url-collect~2`
 

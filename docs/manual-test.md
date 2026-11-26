@@ -539,6 +539,15 @@ Windows only — ConPTY exists nowhere else, so none of this can be checked on L
       that travels the same way.
       *Verified live by Oliver, 2026-07-19 (devbox).*
 
+### Add-task context fields (`dsn~task-create-context-fields~1`)
+
+- [ ] In OneNote, **Copy Link to Page**, then **Add task…** → the *Note* field holds the `onenote:` link, the description is empty.
+      Type a title, **Add plain task** → the task's note icon opens the page in the OneNote desktop app.
+- [ ] In Explorer, copy a folder (Ctrl+C), then **Add task…** → *Folders* holds its path; the new task's frontmatter has `folders-<computer name>:`, and a switch opens the folder.
+      On the other machine (synced tasks) the same task opens the category's folders instead.
+- [ ] Paste only the `https://onedrive.live.com/…` line into *Note* → a hint says it opens the browser.
+  *(Prefill, hint and written keys automated: `AddTaskDialogUiTest.contextFieldsPrefillFromTheClipboardAndLandInTheFile`.)*
+
 ### PR-task creation does not steal a queue box (`dsn~task-from-pr~6`)
 
 - [ ] Select task A, start **Add from PR…** with a PR URL, and while the window

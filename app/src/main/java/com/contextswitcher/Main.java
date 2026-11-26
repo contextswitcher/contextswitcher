@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -933,9 +934,10 @@ public class Main extends Application {
                 (url, remote, group, mode) ->
                         createTaskFromPr(repository, files, ssh, messageSender, url, remote, group,
                                 settings, mode),
-                (title, remote, workdir, repo, bootstrap, group, mode, appendix, autoRemove) ->
+                (title, remote, workdir, repo, bootstrap, group, mode, appendix, autoRemove, context) ->
                         createLiveTask(repository, files, ssh, messageSender, title, remote,
-                                workdir, repo, bootstrap, group, settings, mode, appendix, autoRemove),
+                                workdir, repo, bootstrap, group, settings, mode, appendix, autoRemove,
+                                context),
                 (source, instruction, mode) ->
                         forkTask(repository, files, ssh, messageSender, settings, source, instruction, mode),
                 (taskId, workdir, description, mode) ->
@@ -3970,7 +3972,7 @@ public class Main extends Application {
             SshCommandRunner ssh, MessageSender sender, String title, String remote,
             @Nullable String workdir, @Nullable String repo, boolean bootstrapWorktree,
             String group, AppSettings settings, ClaudeMode mode, @Nullable String appendix,
-            boolean autoRemove) {
+            boolean autoRemove, UnaryOperator<String> context) {
         boolean hints = settings.hints();
         boolean claudeAuto = settings.claudeAuto();
         ExecutorService executor = this.actionExecutor;
@@ -3997,8 +3999,9 @@ public class Main extends Application {
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~2]
         // [impl->dsn~idle-task-removal~3]
-        String withPrs = TaskFileParser.withFlag(TaskFileParser.addUrlsFrom(content, title),
-                IdleRemoval.KEY, autoRemove);
+        // The Add-task dialog's context fields. [impl->dsn~task-create-context-fields~1]
+        String withPrs = context.apply(TaskFileParser.withFlag(TaskFileParser.addUrlsFrom(content, title),
+                IdleRemoval.KEY, autoRemove));
         // Dated like the per-task worktrees; the description slug is
         // only a placeholder until the adopted title renames the file.
         String dated = LocalDate.now() + "-" + title;
