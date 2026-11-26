@@ -11,6 +11,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Added
 
 - **Win+Shift+F** switches to the task of the window in front, e.g. a Teams meeting: a task (or category) names its windows with `windowTitle:`, text the window title contains; several matches select the first and name them all, none says so in the status bar. The key is `switchByWindowHotkey` in `settings.yaml` (Windows; `Win+F` itself belongs to Feedback Hub).
+- The *Add task* dialog asks for optional *Folders* (one per line), a *Note* link and a *Chat* link and writes the filled ones into the new task; a folder or OneNote's *Copy Link to Page* on the clipboard fills them in, the note keeps the `onenote:` link, and folders are stored for this computer only (`folders-<computer name>:`), so a synced task still works on the other one.
 
 ### Changed
 

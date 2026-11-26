@@ -72,6 +72,7 @@ import com.contextswitcher.tasks.GroupConfig;
 import com.contextswitcher.tasks.IdleRemoval;
 import com.contextswitcher.tasks.MergedCleanup;
 import com.contextswitcher.tasks.Task;
+import com.contextswitcher.tasks.TaskContextFields;
 import com.contextswitcher.tasks.TaskEntry;
 import com.contextswitcher.switching.AutoPrLookup;
 import com.contextswitcher.switching.AutoPrPoller;
@@ -143,6 +144,8 @@ import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -349,10 +352,12 @@ public class MainWindow {
     /// category created from a URL. It stays out of the description because
     /// that also becomes the task's title, file name and tmux window name.
     // [impl->dsn~task-create-live~8]
+    /// `context` adds the Add-task dialog's context fields to the new file's
+    /// content (`dsn~task-create-context-fields~1`).
     public interface LiveTaskCreator {
         void create(String title, String remote, @Nullable String workdir,
                 @Nullable String repo, boolean bootstrapWorktree, String group, ClaudeMode mode,
-                @Nullable String appendix, boolean autoRemove);
+                @Nullable String appendix, boolean autoRemove, UnaryOperator<String> context);
     }
 
     private final LiveTaskCreator onCreateLiveTask;
@@ -3721,7 +3726,18 @@ public class MainWindow {
         String prefill = lastSubmissionFailed && Objects.equals(clip, lastSubmittedClip)
                 ? lastSubmittedInput : clip;
         lastSubmissionFailed = false;
-        if (prefill != null && !prefill.isBlank()) {
+        // A folder or a OneNote link on the clipboard pre-fills its context
+        // field instead of the title, which it would make no sense as.
+        // [impl->dsn~task-create-context-fields~1]
+        Clipboard clipboard = Clipboard.getSystemClipboard();
+        List<java.io.File> clipFiles = clipboard.hasFiles() ? clipboard.getFiles() : List.of();
+        @Nullable String clipFolder = clipFiles.size() == 1
+                ? TaskContextFields.clipboardFolder(clipFiles.getFirst().getAbsolutePath())
+                : TaskContextFields.clipboardFolder(clip);
+        @Nullable String clipNote = TaskContextFields.clipboardNote(clip);
+        boolean clipIsContext = Objects.equals(prefill, clip)
+                && (TaskContextFields.clipboardFolder(clip) != null || clipNote != null);
+        if (prefill != null && !prefill.isBlank() && !clipIsContext) {
             field.setText(prefill.strip());
         }
         Label modeLabel = new Label();
@@ -3731,6 +3747,69 @@ public class MainWindow {
         updateMode.accept(field.getText());
         field.textProperty().addListener((obs, old, text) -> updateMode.accept(text));
         modeLabel.getStyleClass().add(Styles.TEXT_MUTED);
+        // Optional context for the new task — local folders, a note and a
+        // chat link — each written into its frontmatter when filled; the
+        // category's own values show as prompt text, since a task falls back
+        // to them anyway. [impl->dsn~task-create-context-fields~1]
+        TextArea foldersField = new TextArea();
+        foldersField.setId("add-task-folders");
+        foldersField.setPrefRowCount(2);
+        foldersField.setMinHeight(Region.USE_PREF_SIZE);
+        if (clipFolder != null) {
+            foldersField.setText(clipFolder);
+        }
+        TextField noteField = new TextField();
+        noteField.setId("add-task-note");
+        if (clipNote != null) {
+            noteField.setText(clipNote);
+        }
+        // The pasted pair arrives glued into one line (a TextField drops the
+        // newline): keep only its `onenote:` link, the one stored.
+        noteField.textProperty().addListener((obs, old, text) -> {
+            String desktop = text == null ? null : com.contextswitcher.tasks.OneNoteLink.noteLink(text);
+            if (desktop != null && !desktop.equals(text)) {
+                Platform.runLater(() -> noteField.setText(desktop));
+            }
+        });
+        Label noteHint = new Label("Web link — opens the browser; use OneNote's"
+                + " \"Copy Link to Page\" (both lines) for the desktop app.");
+        noteHint.setId("add-task-note-hint");
+        Runnable updateNoteHint = () -> {
+            boolean web = TaskContextFields.isWebOnlyNote(noteField.getText());
+            noteHint.setVisible(web);
+            noteHint.setManaged(web);
+        };
+        updateNoteHint.run();
+        noteField.textProperty().addListener((obs, old, text) -> updateNoteHint.run());
+        TextField chatField = new TextField();
+        chatField.setId("add-task-chat");
+        Runnable updateInherited = () -> {
+            String picked = categoryBox.getValue() == null ? "" : categoryBox.getValue();
+            List<String> folders = groupDefaults(picked).folders();
+            foldersField.setPromptText(folders.isEmpty() ? "Local folders, one per line"
+                    : "From the category: " + String.join("\n", folders));
+            String note = groupNoteUrl(picked);
+            noteField.setPromptText(note == null ? "OneNote page link (onenote:…)" : "From the category: " + note);
+            String chat = groupChatUrl(picked);
+            chatField.setPromptText(chat == null ? "Chat link (Matrix, Teams, …)" : "From the category: " + chat);
+        };
+        updateInherited.run();
+        categoryBox.valueProperty().addListener((obs, old, value) -> updateInherited.run());
+        GridPane contextGrid = new GridPane();
+        contextGrid.setHgap(6);
+        contextGrid.setVgap(4);
+        contextGrid.addRow(0, new Label("Folders:"), foldersField);
+        contextGrid.addRow(1, new Label("Note:"), noteField);
+        contextGrid.add(noteHint, 1, 2);
+        contextGrid.addRow(3, new Label("Chat:"), chatField);
+        noteHint.getStyleClass().add(Styles.TEXT_MUTED);
+        noteHint.setWrapText(true);
+        noteHint.setMinHeight(Region.USE_PREF_SIZE);
+        ColumnConstraints labelColumn = new ColumnConstraints();
+        labelColumn.setMinWidth(Region.USE_PREF_SIZE);
+        ColumnConstraints fieldColumn = new ColumnConstraints();
+        fieldColumn.setHgrow(Priority.ALWAYS);
+        contextGrid.getColumnConstraints().addAll(labelColumn, fieldColumn);
         Label remoteHint = new Label();
         Label localHint = new Label();
         Label keysHint = new Label("Enter starts a new line; three Enters or three"
@@ -3788,7 +3867,7 @@ public class MainWindow {
         // The queue pane's quick messages, above the field like above the add box.
         // [impl->dsn~quick-message-buttons~7]
         Node quickMessages = quickRow.apply(field);
-        VBox content = new VBox(6, categoryRow, quickMessages, field, modeLabel, modeRow,
+        VBox content = new VBox(6, categoryRow, quickMessages, field, modeLabel, contextGrid, modeRow,
                 autoRemove, keysHint, remoteHint, localHint);
         // Enlarging the dialog grows the description field, not the hints.
         VBox.setVgrow(field, Priority.ALWAYS);
@@ -3901,21 +3980,31 @@ public class MainWindow {
         GroupConfig defaults = target.defaults();
         String remote = target.remote();
         String localWorkdir = target.localWorkdir();
+        // The context fields, applied to whichever file the flow writes.
+        // [impl->dsn~task-create-context-fields~1]
+        List<String> pickedFolders = TaskContextFields.folders(foldersField.getText());
+        @Nullable String pickedNote = TaskContextFields.note(noteField.getText());
+        @Nullable String pickedChat = TaskContextFields.chat(chatField.getText());
+        @Nullable String inheritedNote = groupNoteUrl(group);
+        @Nullable String inheritedChat = groupChatUrl(group);
+        UnaryOperator<String> context = created -> TaskContextFields.apply(created, pickedFolders,
+                pickedNote, pickedChat, TaskFileParser.hostName(), defaults.folders(),
+                inheritedNote, inheritedChat);
         // A PR task is a Claude session on a remote; without Claude the URL is
         // only a title. [impl->dsn~contexts-only~1]
         if (!contextsOnly && PrTitleLookup.isPrOrMrUrl(input)) {
             createTaskFromPrUrl(input, group, mode);
         } else if (clicked == remoteType) {
-            createLiveTask(input, group, remote, defaults, mode, autoRemove.isSelected());
+            createLiveTask(input, group, remote, defaults, mode, autoRemove.isSelected(), context);
         } else if (clicked == localType && localWorkdir != null) {
             // The file-only task (its `folder:` is the group's directory,
             // dsn~group-config-apply~2) plus a local Claude in that directory.
-            String taskId = createTitleTask(input, group, null, autoRemove.isSelected());
+            String taskId = createTitleTask(input, group, null, autoRemove.isSelected(), context);
             if (taskId != null) {
                 onStartLocalClaude.start(taskId, localWorkdir, input, mode);
             }
         } else {
-            createTitleTask(input, group, null, autoRemove.isSelected());
+            createTitleTask(input, group, null, autoRemove.isSelected(), context);
         }
         // A typed query would hide the new task (and its task-less category);
         // clear it so the row shows. Cancel above keeps the query.
@@ -3971,12 +4060,12 @@ public class MainWindow {
     /// selects the row (showing it in the terminal).
     // [impl->dsn~task-create-live~8]
     private void createLiveTask(String title, String group, @Nullable String remote,
-            GroupConfig defaults, ClaudeMode mode, boolean autoRemove) {
+            GroupConfig defaults, ClaudeMode mode, boolean autoRemove, UnaryOperator<String> context) {
         if (remote == null) {
             return;
         }
         onCreateLiveTask.create(title, remote, defaults.resolveWorkdir(),
-                defaults.repo(), defaults.bootstrapWorktree(), group, mode, null, autoRemove);
+                defaults.repo(), defaults.bootstrapWorktree(), group, mode, null, autoRemove, context);
     }
 
     /// Adds a browser URL to a task's `browser.urls` from a dialog
@@ -4148,6 +4237,13 @@ public class MainWindow {
     /// As above; `autoRemove` writes the idle janitor's flag (`dsn~idle-task-removal~3`).
     private @Nullable String createTitleTask(String title, String group, @Nullable String notes,
             boolean autoRemove) {
+        return createTitleTask(title, group, notes, autoRemove, UnaryOperator.identity());
+    }
+
+    /// As above; `context` adds the dialog's context fields
+    /// (`dsn~task-create-context-fields~1`).
+    private @Nullable String createTitleTask(String title, String group, @Nullable String notes,
+            boolean autoRemove, UnaryOperator<String> context) {
         String base = group.isEmpty() ? title : group + "/" + title;
         String fileName = uniqueFileName(TaskFileParser.newTaskFileName(base));
         GroupConfig defaults = groupDefaults(group);
@@ -4157,8 +4253,8 @@ public class MainWindow {
         if (notes != null) {
             created = created.stripTrailing() + "\n\n" + notes.strip() + "\n";
         }
-        String content = TaskFileParser.withFlag(TaskFileParser.addUrlsFrom(created, title),
-                IdleRemoval.KEY, autoRemove);
+        String content = context.apply(TaskFileParser.withFlag(TaskFileParser.addUrlsFrom(created, title),
+                IdleRemoval.KEY, autoRemove));
         String error = files.save(fileName, content);
         if (error != null) {
             noteTaskCreationFailed();
@@ -5081,7 +5177,7 @@ public class MainWindow {
             String workspacesRoot, @Nullable String web, String template, ClaudeMode mode) {
         if (remote != null) {
             onCreateLiveTask.create(description, remote, workspacesRoot, web, false, name,
-                    mode, template, false);
+                    mode, template, false, UnaryOperator.identity());
             return;
         }
         // The file keeps the whole prompt, template included, so a failed
@@ -5374,8 +5470,21 @@ public class MainWindow {
     /// The group's `note:` URL from its `CONTEXTSWITCHER.md`, null without one.
     // [impl->dsn~group-note-open~5]
     private @Nullable String groupNoteUrl(String group) {
+        if (group.isEmpty()) {
+            return null;
+        }
         String fileName = groupConfigFileName(group);
         return files.exists(fileName) ? TaskFileParser.groupNote(files.load(fileName)) : null;
+    }
+
+    /// The group's `chat:` link from its `CONTEXTSWITCHER.md`, null without one
+    /// — the Add-task dialog's inherited chat (`dsn~task-create-context-fields~1`).
+    private @Nullable String groupChatUrl(String group) {
+        if (group.isEmpty()) {
+            return null;
+        }
+        String fileName = groupConfigFileName(group);
+        return files.exists(fileName) ? TaskFileParser.groupChat(files.load(fileName)) : null;
     }
 
     /// Opens the group's note, flushing the editor first and resolving the

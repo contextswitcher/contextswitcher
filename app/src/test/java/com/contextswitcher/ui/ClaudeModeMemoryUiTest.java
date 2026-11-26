@@ -47,8 +47,8 @@ class ClaudeModeMemoryUiTest {
         pickInCombo(modeCombo("model: as is"), "opus");
         pickInCombo(modeCombo("effort: as is"), "high");
         var field = awaitPresent(
-                () -> FX_ROBOT.selectNodes(javafx.scene.control.TextArea.class)
-                        .fetchOptionalFrom(dialogPane()),
+                () -> FX_ROBOT.selectNodes(javafx.scene.control.TextArea.class).from(dialogPane())
+                        .filter(area -> "add-task-description".equals(area.getId())).findFirst(),
                 "dialog text area");
         FX_ROBOT.mouse().moveTo(field).click();
         FX_ROBOT.keyboard()

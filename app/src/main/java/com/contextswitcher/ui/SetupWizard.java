@@ -230,23 +230,9 @@ public final class SetupWizard {
     /// absolute path to an existing directory — say
     /// `c:\git-repositories\git.overleaf.com\6aad3ebf9a43af8873645708`.
     // [impl->dsn~category-from-folder~3]
+    /// Shared with the Add-task dialog's Folders field (`dsn~task-create-context-fields~1`).
     static @Nullable String clipboardFolder(@Nullable String clip) {
-        if (clip == null) {
-            return null;
-        }
-        String text = clip.strip();
-        if (text.length() >= 2 && text.startsWith("\"") && text.endsWith("\"")) {
-            text = text.substring(1, text.length() - 1).strip();
-        }
-        if (text.isEmpty() || text.contains("\n") || text.contains("\r")) {
-            return null;
-        }
-        try {
-            java.nio.file.Path path = java.nio.file.Path.of(text);
-            return path.isAbsolute() && java.nio.file.Files.isDirectory(path) ? text : null;
-        } catch (java.nio.file.InvalidPathException e) {
-            return null;
-        }
+        return com.contextswitcher.tasks.TaskContextFields.clipboardFolder(clip);
     }
 
     private static @Nullable String versionLine(LocalCommandRunner.LocalResult result, String mark) {

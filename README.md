@@ -70,7 +70,7 @@ Clicking it quits the app with exit code 55, which `just loop` takes as "pull, r
 2. Later remotes go into **Settings** (the gear at the top-right); everything else has a working default.
 3. Get tasks in, whichever fits:
    * **Sync tmux windows…** (toolbar, ⋮ menu) — one task per running tmux window on your remotes, including working directory, Claude session id and the PR the session published.
-   * **Add task…** (toolbar `+`, `Ctrl+T`) — type a title *or* paste a GitHub PR or GitLab MR URL; the app creates the tmux window on the category's remote, starts Claude in it, and primes it with the description or the PR. Pick the category, model and reasoning effort in the same dialog. **Add plain task** just writes the file.
+   * **Add task…** (toolbar `+`, `Ctrl+T`) — type a title *or* paste a GitHub PR or GitLab MR URL; the app creates the tmux window on the category's remote, starts Claude in it, and primes it with the description or the PR. Pick the category, model and reasoning effort in the same dialog, and optionally the task's local folders, note link (OneNote's *Copy Link to Page*) and chat link. **Add plain task** just writes the file.
 4. Select a task: the Terminal pane mirrors its terminal live, Notes and Configuration edit its file, and the Queue drafts messages for its chat.
 5. Press play (or double-click) to switch: tmux window focused, IntelliJ project opened, browser tabs focused, note and chat opened, folders raised.
 

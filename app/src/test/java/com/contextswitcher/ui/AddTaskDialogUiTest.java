@@ -5,6 +5,8 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 import com.contextswitcher.tasks.Agent;
+import com.contextswitcher.tasks.Task;
+import com.contextswitcher.tasks.TaskContextFields;
 import com.contextswitcher.tasks.TaskFileParser;
 
 import javafx.application.Platform;
@@ -13,6 +15,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 
 import io.gitlab.fxlabs.testfx.junit.jupiter.TestFxApplication;
@@ -273,6 +276,70 @@ class AddTaskDialogUiTest {
                 ? Optional.of(true) : Optional.empty(), "the list narrowed to the local category");
         assertThat(category.getValue()).isEqualTo("alpha");
         FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
+    }
+
+    /// OneNote's "Copy Link to Page" pair on the clipboard pre-fills the Note
+    /// field with its `onenote:` link — not the title — and the filled
+    /// context fields land in the new file: the folders under this machine's
+    /// host-scoped key, note and chat as plain keys; a web link alone shows
+    /// the desktop-link hint.
+    // [utest->dsn~task-create-context-fields~1]
+    @Test
+    void contextFieldsPrefillFromTheClipboardAndLandInTheFile() throws Exception {
+        String web = "https://onedrive.live.com/view.aspx?resid=D7087D4BC5300FA4%21514904&id=documents&end";
+        String desktop = "onenote:https://d.docs.live.net/D7087D4BC5300FA4/Dokumente/Lehre/Arbeiten.one"
+                + "#MA%20-%20SDev&section-id={154B32CE-2450-4C6E-ACF1-D0A5EEFC61F2}"
+                + "&page-id={666AC41B-1C96-448D-AF38-3DEF10279206}&end";
+        setClipboard(web + "\r\n" + desktop + "\r\n");
+        try {
+            openAddTask();
+            Button plain = awaitButton("Add plain task");
+            TextArea title = (TextArea) plain.getScene().lookup("#add-task-description");
+            TextArea folders = (TextArea) plain.getScene().lookup("#add-task-folders");
+            TextField note = (TextField) plain.getScene().lookup("#add-task-note");
+            TextField chat = (TextField) plain.getScene().lookup("#add-task-chat");
+            Node hint = plain.getScene().lookup("#add-task-note-hint");
+            assertThat(title.getText()).isEmpty();
+            assertThat(note.getText()).isEqualTo(desktop);
+            assertThat(hint.isVisible()).isFalse();
+            Platform.runLater(() -> note.setText(web));
+            awaitPresent(() -> Optional.of(hint).filter(Node::isVisible), "the web-link hint");
+            // Both lines pasted into the one-line field arrive glued together.
+            Platform.runLater(() -> note.setText(web + desktop));
+            awaitPresent(() -> Optional.of(note).filter(field -> desktop.equals(field.getText())),
+                    "the note narrowed to its onenote: link");
+            awaitPresent(() -> Optional.of(hint).filter(node -> !node.isVisible()), "the hint gone");
+            Platform.runLater(() -> {
+                folders.setText(UiTestSupport.tasksDir.toString());
+                chat.setText("https://matrix.to/#/!room:matrix.org");
+            });
+            Platform.runLater(title::requestFocus);
+            UiTestSupport.awaitFocused(title, "the title field");
+            FX_ROBOT.keyboard().print("Theta context")
+                    .type(KeyCode.ENTER, KeyCode.ENTER, KeyCode.ENTER);
+            Path task = awaitTaskFileContaining("Theta context");
+            String content = Files.readString(task);
+            assertThat(content)
+                    .contains(TaskContextFields.foldersKey(TaskFileParser.hostName()) + ":\n  - ")
+                    .contains("chat: ");
+            Task parsed = new TaskFileParser().parse("theta", content);
+            assertThat(parsed.note()).isEqualTo(desktop);
+            assertThat(parsed.folders()).containsExactly(UiTestSupport.tasksDir.toString());
+            assertThat(parsed.chat()).isEqualTo("https://matrix.to/#/!room:matrix.org");
+        } finally {
+            setClipboard("");
+        }
+    }
+
+    private static void setClipboard(String text) throws Exception {
+        java.util.concurrent.CompletableFuture<Void> done = new java.util.concurrent.CompletableFuture<>();
+        Platform.runLater(() -> {
+            javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+            content.putString(text);
+            javafx.scene.input.Clipboard.getSystemClipboard().setContent(content);
+            done.complete(null);
+        });
+        done.get(5, java.util.concurrent.TimeUnit.SECONDS);
     }
 
     private static MainWindow mainWindow() {
