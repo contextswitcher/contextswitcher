@@ -87,6 +87,9 @@ class OneNoteBacklinksTest {
                 List.of(new Link(PAGE, "Fix \"NPE\"", "contextswitcher://task/a", true))));
         assertThat(json.path("source").asText()).isEqualTo("contextswitcher");
         assertThat(json.path("name").asText()).isEqualTo("ContextSwitcher");
+        byte[] icon = java.util.Base64.getDecoder().decode(json.path("icon").asText());
+        assertThat(icon).hasSizeLessThan(64 * 1024);
+        assertThat(java.util.Arrays.copyOf(icon, 4)).containsExactly(0x89, 'P', 'N', 'G');
         assertThat(json.path("links")).hasSize(1);
         var link = json.path("links").get(0);
         assertThat(link.path("note").asText()).isEqualTo(PAGE);

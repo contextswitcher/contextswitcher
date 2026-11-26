@@ -41,6 +41,11 @@ public final class OneNoteBacklinks {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
+    /// The app icon at 32 px (the browser extension's `icon-32.png`), Base64,
+    /// which ankd shows in front of ContextSwitcher's links; null when the
+    /// resource is missing (the request then goes without it).
+    private static final @Nullable String ICON = loadIcon();
+
     private OneNoteBacklinks() {
     }
 
@@ -99,11 +104,15 @@ public final class OneNoteBacklinks {
         return link == null || !link.startsWith("onenote:") ? null : link;
     }
 
-    /// The JSON object ankd reads from stdin.
+    /// The JSON object ankd reads from stdin, with the app icon as `icon`
+    /// (a Base64 PNG, well under ankd's 64 KB).
     public static String request(List<Link> links) {
         ObjectNode root = JSON.createObjectNode();
         root.put("source", "contextswitcher");
         root.put("name", "ContextSwitcher");
+        if (ICON != null) {
+            root.put("icon", ICON);
+        }
         ArrayNode array = root.putArray("links");
         for (Link link : links) {
             array.addObject()
@@ -113,6 +122,14 @@ public final class OneNoteBacklinks {
                     .put("done", link.done());
         }
         return root.toString();
+    }
+
+    private static @Nullable String loadIcon() {
+        try (var in = OneNoteBacklinks.class.getResourceAsStream("backlink-icon.png")) {
+            return in == null ? null : java.util.Base64.getEncoder().encodeToString(in.readAllBytes());
+        } catch (java.io.IOException e) {
+            return null;
+        }
     }
 
     /// ankd's answer, or null when it printed nothing — an ankd that does
