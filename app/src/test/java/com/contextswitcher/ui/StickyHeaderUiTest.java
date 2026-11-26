@@ -67,8 +67,7 @@ class StickyHeaderUiTest {
         // only defines inside `.list-view`; the pinned header must get it too,
         // and in the same shape as the header row it stands in for.
         // [utest->dsn~current-category-highlight~3]
-        // The last row is the category's "Add task…" row, which is no task.
-        runFx(() -> list.getSelectionModel().select(list.getItems().size() - 2));
+        runFx(() -> list.getSelectionModel().select(list.getItems().size() - 1));
         awaitFx(() -> pinnedHeader().getStyleClass().contains("group-header-current"),
                 "the pinned header to show the current category");
         assertThat(callFx(StickyHeaderUiTest::pinnedHeaderIsOpaque))

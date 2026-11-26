@@ -44,7 +44,7 @@ class NestedGroupingUiTest {
             await(list, () -> {
                 List<String> names = rowNames(list);
                 int header = names.indexOf("[nest-work]");
-                return header >= 0 && names.subList(header, header + 4).equals(List.of(
+                return header >= 0 && header + 4 <= names.size() && names.subList(header, header + 4).equals(List.of(
                         "[nest-work]", "nest-work/nest-plain", "{prio1@1}", "nest-work/nest-prio"));
             }, "prio1 nested in nest-work, the untagged task first");
 

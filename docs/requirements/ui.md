@@ -1722,7 +1722,7 @@ A PR URL always routes to the PR flow (`dsn~task-from-pr~6`) regardless of the b
 Each slug is capped at 60 chars, cut at a `-` word boundary (trailing `-`/`.` stripped): a live task's input is a free-form multi-sentence **description** (`dsn~task-create-live~8` derives the short title from it later), and an uncapped slug blows the Windows 260-char MAX_PATH under `%USERPROFILE%\.contextswitcher\tasks\` — the file name is only the task id, not the displayed title.
 Submitting the dialog (any of the three add buttons) moves the keyboard focus to the task list on the left, so the arrow keys and the switch chord act on the new task instead of on the toolbar button or `Add task…` row the dialog was opened from — the same move the row's play button makes (`dsn~task-row-hover-actions~7`). The focus request is deferred to the next pulse: the PR flow opens its host dialog from within this one, and the owner window claims the focus back as that closes.
 `TaskRepository` publishes the observable set of subfolder names — including empty folders — so an empty folder still renders as a group.
-Every hand-filled category offers it twice (`~14`, Carl, 2026-09-16): an always-visible plus icon at the right end of its header, and a slim, muted `Add task…` row (`TaskListCell.AddTaskRow`, a flat button with a plus icon, indented to the task titles) closing its tasks while it is expanded — both open the dialog for that group so the task lands in it (its per-group workdir defaults then apply).
+Every hand-filled category offers it twice (`~14`, Carl, 2026-09-16): an always-visible plus icon at the right end of its header, and a slim, muted `Add task…` row (`TaskListCell.AddTaskRow`, a flat button with a plus icon, indented to the task titles) right under its header while the category is selected (`dsn~category-action-rows~1`) — both open the dialog for that group so the task lands in it (its per-group workdir defaults then apply).
 They replaced the header's hover-only plus and the `Add…` row that only an empty group showed, so adding to a category never depends on hovering or on the category being empty; like the header, the row is a drop target for the category (`dsn~task-move-dnd~6`). An auto category has neither (`dsn~auto-category-placeholder-row~2`).
 
 Tags: windows, linux
@@ -1730,6 +1730,23 @@ Tags: windows, linux
 Covers:
 - req~task-create~1
 - req~compose-key-conventions~5
+
+Needs: impl, utest
+
+### Find and add rows under the selected category
+`dsn~category-action-rows~1`
+
+A category's `Find task…` and `Add task…` rows show only while the category itself is selected — its header row, or one of these two rows — directly under its header, `Find task…` first (Oliver, 2026-11-26); `~14` of `dsn~task-create-ui~15` closed every expanded category with an `Add task…` row.
+`Find task…` (`TaskListCell.FindTaskRow`, magnifier icon, styled like the add row) scopes the find field to the category (`MainWindow.scopeToCategory`, `dsn~category-search~3`), unlike the header name's press it never lifts the scope; `Add task…` opens the dialog for the category as before.
+An auto category gets the `Find task…` row only; its synced-from placeholder stays its last row (`dsn~auto-category-placeholder-row~2`).
+The rows appear and go 400 ms after the selection settles, restarted by every press in the list: they shift the rows below them, and a shift between a double-click's two clicks would switch the task that moved under the mouse.
+A rebuild keeps the selected header selected, so the rows do not vanish with the next task-file write.
+
+Tags: windows, linux
+
+Covers:
+- req~task-create~1
+- req~task-find~3
 
 Needs: impl, utest
 

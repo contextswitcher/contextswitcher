@@ -868,7 +868,7 @@ Needs: impl, utest
 `dsn~auto-category-placeholder-row~2`
 
 An auto category (its `CONTEXTSWITCHER.md` carries an `auto:` section) is filled by its search, never by hand, so it gets neither the header's plus nor the `Add task…` row (`dsn~task-create-ui~15`): its `AddTaskRow` renders as a task-shaped placeholder instead — a sync icon, "Synced from a GitHub pull-request search", and the query as the muted second line.
-`MainWindow` emits that row as the **last** row of an auto category whether or not it has tasks (where a hand-filled category's last row is its `Add task…` row), so where the rows come from stays visible.
+`MainWindow` emits that row as the **last** row of an auto category whether or not it has tasks (a hand-filled category shows its `Add task…` row only while selected, `dsn~category-action-rows~1`), so where the rows come from stays visible.
 A click anywhere on the row opens `AutoPrLookup.searchUrl` — the same query with the forced `is:pr is:open`, URL-encoded into `https://github.com/search?…&type=pullrequests` — in the browser. The web search is approximate on purpose: `maxSloc` is this application's filter and has no GitHub equivalent.
 
 Tags: windows, linux

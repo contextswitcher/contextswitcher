@@ -1003,6 +1003,18 @@ public class MainWindow {
     // [impl->dsn~selection-survives-a-filter~2]
     private boolean replacingRows;
 
+    /// The category whose `Find task…`/`Add task…` rows show under its
+    /// header: the one whose header (or one of those rows) is selected.
+    // [impl->dsn~category-action-rows~1]
+    private @Nullable String openCategory;
+    /// Opens/closes [#openCategory] a moment after the selection settles:
+    /// the rows shift every row below them, and a shift between the two
+    /// clicks of a double-click would switch the task that moved under the
+    /// mouse instead of the one clicked. Each press restarts it.
+    // [impl->dsn~category-action-rows~1]
+    private final javafx.animation.PauseTransition openCategoryDelay =
+            new javafx.animation.PauseTransition(Duration.millis(400));
+
     /// Advances the creating rows' time-driven bars — through the bound
     /// properties, not a cell rebuild; runs only while a creation is in flight.
     // [impl->dsn~task-create-progress~6]
@@ -1330,7 +1342,7 @@ public class MainWindow {
                 this::refactoringSummaryFor, this::showRefactorings,
                 task -> creations.get(task.id()),
                 this::groupAutoQuery, this::openAutoSearch,
-                this::toggleCategoryScope, this::groupPath, this::isCurrentGroup, this::syncGroupsMenu,
+                this::toggleCategoryScope, this::scopeToCategory, this::groupPath, this::isCurrentGroup, this::syncGroupsMenu,
                 this::sessionStopped, this::syncLocalSessions, task -> todoLines.apply(task.id())));
         // A session started or ended flips its row's pause/play toggle.
         // [impl->dsn~task-row-hover-actions~7]
@@ -1363,6 +1375,20 @@ public class MainWindow {
                 return;
             }
             applySelection(selected);
+            openCategoryDelay.playFromStart();
+        });
+        // [impl->dsn~category-action-rows~1]
+        openCategoryDelay.setOnFinished(event -> {
+            String open = openCategoryOf(list.getSelectionModel().getSelectedItem());
+            if (!Objects.equals(open, openCategory)) {
+                openCategory = open;
+                rebuildRows();
+            }
+        });
+        list.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (openCategoryDelay.getStatus() == Animation.Status.RUNNING) {
+                openCategoryDelay.playFromStart();
+            }
         });
 
         rebuildRows();
@@ -1942,6 +1968,18 @@ public class MainWindow {
         } else {
             statusBar.message("Category " + group + " is hidden by a list filter.");
         }
+    }
+
+    /// The category a selected row opens: a category header's, or that of
+    /// its own `Find task…`/`Add task…` row; null for anything else.
+    // [impl->dsn~category-action-rows~1]
+    private static @Nullable String openCategoryOf(@Nullable Object selected) {
+        return switch (selected) {
+            case GroupHeader header -> header.name();
+            case TaskListCell.FindTaskRow find -> find.group();
+            case TaskListCell.AddTaskRow add -> add.group();
+            case null, default -> null;
+        };
     }
 
     /// A press on a category header's name: scopes the find field to that
@@ -3056,13 +3094,24 @@ public class MainWindow {
             rows.add(new GroupHeader(name, expanded, defaults.tags(), defaults.remote(),
                     groupConfigWarning(name), defaults.folders(), groupPath(name), runningCount));
             if (expanded) {
-                addNestedRows(rows, name, tasks, subLevels, order, labelRepos, finding);
-                // Every category closes with its last row: the slim "Add task…"
-                // row, or — for an auto category, filled by its search — the
-                // synced-from placeholder (TaskListCell tells the two apart).
+                boolean auto = groupAutoQuery(name) != null;
+                // The selected category offers finding in it and adding to it
+                // right under its header; an auto category takes no tasks by hand.
+                // [impl->dsn~category-action-rows~1]
                 // [impl->dsn~task-create-ui~15]
+                if (name.equals(openCategory)) {
+                    rows.add(new TaskListCell.FindTaskRow(name));
+                    if (!auto) {
+                        rows.add(new TaskListCell.AddTaskRow(name));
+                    }
+                }
+                addNestedRows(rows, name, tasks, subLevels, order, labelRepos, finding);
+                // An auto category, filled by its search, closes with the
+                // synced-from placeholder (TaskListCell renders its AddTaskRow so).
                 // [impl->dsn~auto-category-placeholder-row~2]
-                rows.add(new TaskListCell.AddTaskRow(name));
+                if (auto) {
+                    rows.add(new TaskListCell.AddTaskRow(name));
+                }
             }
         }
         // The completed-work section is pinned below every group, collapsed by
@@ -3225,6 +3274,18 @@ public class MainWindow {
                 Logger.debug("Rebuild left nothing selected; was {} (pending {}, previewed {},"
                                 + " narrowed {}, row {})", onScreenId, pending,
                         previewed == null ? null : previewed.id(), narrowed, row);
+            }
+        }
+        // A selected header is no task, so nothing above keeps it: the open
+        // category's header takes the highlight back, without scrolling.
+        // [impl->dsn~category-action-rows~1]
+        String open = openCategory;
+        if (list != null && open != null && list.getSelectionModel().getSelectedItem() == null) {
+            for (int i = 0; i < visibleRows.size(); i++) {
+                if (visibleRows.get(i) instanceof GroupHeader header && header.name().equals(open)) {
+                    list.getSelectionModel().select(i);
+                    break;
+                }
             }
         }
     }
@@ -7279,6 +7340,7 @@ public class MainWindow {
         return switch (row) {
             case GroupHeader header -> header.name();
             case TaskListCell.AddTaskRow add -> add.group();
+            case TaskListCell.FindTaskRow find -> find.group();
             case TaskEntry.Loaded loaded -> groupOf(loaded.id());
             case TaskEntry.Failed failed -> groupOf(failed.fileName().replaceFirst("\\.md$", ""));
             default -> null;
