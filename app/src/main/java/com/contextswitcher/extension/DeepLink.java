@@ -1,8 +1,8 @@
 package com.contextswitcher.extension;
 
 import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+
+import com.contextswitcher.tasks.DeepLinkUrls;
 
 /// A parsed `contextswitcher://` deep link (https://github.com/contextswitcher/contextswitcher-private/issues/47): `contextswitcher://task/<id>`
 /// selects the task and focuses the app, `contextswitcher://switch/<id>` runs
@@ -43,8 +43,7 @@ public record DeepLink(Kind kind, String target) {
     /// characters survive the round trip through [#parse].
     // [impl->dsn~category-link-copy~1]
     public static String categoryUrl(String category) {
-        return "contextswitcher://category/"
-                + URLEncoder.encode(category, StandardCharsets.UTF_8).replace("+", "%20");
+        return DeepLinkUrls.categoryUrl(category);
     }
 
     /// The `contextswitcher://task/<id>` link to the task `id`, ready to be
@@ -52,11 +51,7 @@ public record DeepLink(Kind kind, String target) {
     /// `/` of group folders, so the id survives the round trip through [#parse].
     // [impl->dsn~task-link-copy~1]
     public static String taskUrl(String id) {
-        StringBuilder url = new StringBuilder("contextswitcher://task");
-        for (String segment : id.split("/")) {
-            url.append('/').append(URLEncoder.encode(segment, StandardCharsets.UTF_8).replace("+", "%20"));
-        }
-        return url.toString();
+        return DeepLinkUrls.taskUrl(id);
     }
 
     /// Parses `url`.

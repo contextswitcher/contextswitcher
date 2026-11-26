@@ -36,7 +36,7 @@ Needs: dsn
 
 A task may name a local Windows Terminal tab — a shell kept open for `gradlew` and the like, next to or instead of a remote tmux window.
 Activating a task with a `terminal` section brings that tab (identified by its fixed tab title) to the foreground, across multiple terminal windows and — where possible — virtual desktops.
-After a reboot the tab is gone; it is then reopened in the task's first local folder.
+After a reboot the tab is gone; it is then reopened in the task's `terminal.folder`, else in its first local folder.
 
 Tags: windows
 
@@ -50,7 +50,7 @@ Needs: dsn
 `req~focus-local-folder~3`
 
 A task can name local `folders` — a project checkout, its notes directory, a downloads folder.
-Activating the task brings, for each of them, a File Explorer window already showing that folder forward rather than opening another; with none open, a fresh Explorer window is opened at the folder.
+Activating the task brings, for each of them, a File Explorer window already showing that folder forward rather than opening another; with none showing it, the folder opens as a new tab in an Explorer window already on the desktop in view, and only with no Explorer window there in a fresh window.
 ContextSwitcher itself stays in front, just above those windows: the user switched there to keep working in it (field report 2026-11-17, Explorer took the foreground on a category switch).
 The single-directory `folder` scalar stays valid as the one-entry form.
 
@@ -122,6 +122,21 @@ A change that came from the other application is not sent back, so the two never
 A filter sent while ContextSwitcher is not running starts no instance, and koppter's window is not raised by a change ContextSwitcher sent.
 
 Tags: windows, linux
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
+### Backlinks from OneNote pages to their tasks
+`req~onenote-backlinks~1`
+
+A task or category links to its OneNote page with `note:`; the page itself does not tell which tasks belong to it.
+With AnchorHub installed, each OneNote page a task or category links to shows at its top a link back to each of them, which opens it in ContextSwitcher.
+A done task's link is struck through; a deleted task's or category's link disappears from the page.
+The backlinks follow the task files without any action of the user, and `settings.yaml` can turn them off.
+
+Tags: windows, linux_no
 
 Covers:
 - feat~task-context-switching~1
@@ -493,7 +508,7 @@ Needs: impl, utest
 `ExplorerFolderAction` (chip `folder`) focuses each of the task's `folders`, in file order — so the last one ends up in front — and is configured exactly when the list is non-empty.
 A folder that fails does not stop the rest: the chip fails naming the folders that did not open (`n of m failed: …`), and a single-folder task keeps the plain wording of the one result.
 `TaskFileParser.parseFolders` reads the list from `folders`, accepting a `folder` scalar as the one-entry form (what a local category's generated task file writes, `dsn~group-config-apply~2`) and dropping blank entries; the same pair of keys is read from a category's `CONTEXTSWITCHER.md` (`dsn~category-action-defaults~2`).
-`LocalFolderFocus` handles one folder per call: it builds a PowerShell script that enumerates open File Explorer windows via the `Shell.Application` COM object (`.Windows()`) and matches each window's `Document.Folder.Self.Path` against the target (case-insensitive, trailing separators trimmed); a match is brought forward by its `HWND` through `CsMv.Focus` (`dsn~window-move-here~2`): moved here when on another desktop, then raised; when it stays elsewhere it is left alone and `explorer.exe <folder>` opens a new window here instead, reported as `opened here, the open window is on another desktop (…)`. With no window showing the folder, `explorer.exe <folder>` opens a fresh one.
+`LocalFolderFocus` handles one folder per call: it builds a PowerShell script that enumerates open File Explorer windows via the `Shell.Application` COM object (`.Windows()`) and matches each window's `Document.Folder.Self.Path` against the target (case-insensitive, trailing separators trimmed); a match is brought forward by its `HWND` through `CsMv.Focus` (`dsn~window-move-here~2`): moved here when on another desktop, then raised; when it stays elsewhere it is left alone and `explorer.exe <folder>` opens a new window here instead, reported as `opened here, the open window is on another desktop (…)`. With no window showing the folder, it opens as a **new tab** in an Explorer window already on this desktop (`CsMv.IsHere`): `CsMv.NewTab` raises that window and presses `Ctrl`+`T` — only when the window really came to the front, so the keystroke never lands in another app — and the tab that appears in `Shell.Application.Windows()` under the same `HWND` (polled for up to 3 s) is sent to the folder with `Navigate2`, reported as `opened as a tab: …`. The same is tried before the *elsewhere* fallback above. Only with no Explorer window on this desktop, or when no tab appears, does `explorer.exe <folder>` open a fresh window — the habit of the user's Win+E (focus an existing Explorer instead of a new one) and of the extension's tab moves (`dsn~switch-tabs-to-current-desktop~1`) applied to folders.
 The action (a switch) then hands the foreground back to ContextSwitcher: `LocalFolderFocus.focus(folder, true)` passes the app's own pid as `$back`, and after a focus — or, for a newly launched window, once `Shell.Application` lists one more window at the folder (up to 10 s; Explorer shows a new window after about 2 s, later on a cold start, and activates it then) — `CsMv.FrontProcess` raises the app's topmost visible window *on this desktop*, re-checked three times 150 ms apart; with none here nothing is raised, since raising a window elsewhere would switch desktops.
 The category header's folder button (`dsn~category-folders-button~1`) is a request to see the folders and passes pid `0`: Explorer stays in front.
 The script runs as a base64 `-EncodedCommand` via `LocalCommandRunner`; the folder is a single-quoted PowerShell literal with `'` doubled. Exit code 0 = focused or opened, 2 = the folder does not exist.
@@ -671,6 +686,25 @@ Covers:
 
 Needs: impl, utest
 
+### OneNote backlinks through AnchorHub
+`dsn~onenote-backlinks~1`
+
+`OneNoteBacklinks.links` (core, pure) turns the loaded task entries and the categories' `note:` values into the backlink list: every task whose **own** `note:` is a OneNote link (`OneNoteLink.preferDesktop`, then the `onenote:` link in it) gives label = its title, url = `contextswitcher://task/<id>` (`DeepLinkUrls.taskUrl`, what the task's *Copy link* hands out), done = status `done`; every category whose `CONTEXTSWITCHER.md` `note:` is one gives label `Category <name>`, url = `contextswitcher://category/<name>` (`DeepLinkUrls.categoryUrl`), done = false.
+Other notes and task files that do not parse are skipped; the list is sorted by URL, so the same links compare equal.
+`OneNoteBacklinks.request` encodes it as `{"source":"contextswitcher","name":"ContextSwitcher","icon":…,"links":[{note,label,url,done}…]}`, `icon` being the app icon at 32 px (the extension's `icon-32.png`, bundled as `backlink-icon.png`) as Base64 PNG, which ankd shows in front of the links — always the complete set, so ankd removes the source's backlinks from every page no longer listed (a deleted task or category).
+
+`Main.startOneNoteBacklinks` starts `OneNoteBacklinkSync` only when `ankd.exe` lies where AnchorHub's installer puts it (`%LOCALAPPDATA%\Programs\AnchorHub\ankd.exe`, `OneNoteBacklinks.installedAnkd`, Windows only).
+A change of the task list, of the folder set, or of a category's `CONTEXTSWITCHER.md` — and the end of the startup scan, never before it — snapshots the list on the FX thread and restarts a 5-second debounce; the sync then runs on a worker thread, reads the categories' notes fresh, and skips when the list equals the last one ankd took.
+It pipes the request into `ankd onenote-backlinks-sync` and logs its answer (`OneNoteBacklinks.parseResult`: updated, removed, unchanged, failed pages); a nonzero exit is logged with ankd's stderr, an empty answer means an ankd too old for the command (logged once, no error UI), and a failed page makes the next change send the list again.
+`oneNoteBacklinks: false` in `settings.yaml` turns it off (`OneNoteBacklinks.enabled`, read fresh on every sync).
+
+Tags: windows
+
+Covers:
+- req~onenote-backlinks~1
+
+Needs: impl, utest
+
 ### Note focus action
 `dsn~note-focus-action~1`
 
@@ -700,6 +734,23 @@ A window already on the current desktop, or pinned to all desktops (`IsWindowOnC
 `NoteFocusAction` calls it for OneNote (`ONENOTE`, `Framework::CFrame`) before opening an `onenote:` link — so the link activates a window on this desktop — and adds `moved OneNote here` to the chip detail when it moved one; with OneNote not running, the link starts it here anyway.
 `LocalFolderFocus` (`dsn~explorer-folder-focus~5`) moves a matching Explorer window here before focusing it and reports `moved here: <folder>`; any outcome other than a plain focus is logged at INFO, so the behaviour on a new Windows build can be read off the user's log.
 The C# types live once in `WindowsWindowMove.TYPES` and are embedded by every script that moves windows; more apps (VS Code, SumatraPDF) take a process/class pair.
+
+Tags: windows
+
+Covers:
+- req~app-window-on-current-desktop~2
+
+Needs: impl, utest
+
+### Foreground window logged on a desktop change
+`dsn~desktop-change-foreground-log~1`
+
+A desktop change nobody asked for is hard to attribute afterwards: Windows follows any window that is activated on another desktop, and the log only showed that the desktop had changed (field report 2026-11-26: a jump to `AnchorHub.SumatraPDF` with no ContextSwitcher command anywhere near it).
+So the persistent desktop watcher (`dsn~active-desktop-filter~6`) also reads `GetForegroundWindow` on every tick, and on each desktop change after its first read prints a `foreground:` line describing two windows, tab-separated: the one in front now — normally the window whose activation made Windows switch — and the one in front on the tick before (≤ 250 ms earlier, still on the old desktop).
+Each is `process (pid N, class C) "title"` (`CsFgWin.Describe`, its own `Add-Type`, so a failure there only drops this line, never the desktop reads).
+The reader thread logs it at INFO as `Desktop changed to "<name>"; in front now: …; before: …`.
+A switch ContextSwitcher itself makes is logged by its own command lines anyway (`Running local: powershell …`); this line is what names an outside cause.
+Without the watcher (the one-shot poll fallback) nothing is logged.
 
 Tags: windows
 

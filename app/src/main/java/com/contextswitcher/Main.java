@@ -74,6 +74,8 @@ import com.contextswitcher.local.WindowsDesktopPin;
 import com.contextswitcher.local.LocalFolderFocus;
 import com.contextswitcher.local.ScreenWatch;
 import com.contextswitcher.config.KoppterSync;
+import com.contextswitcher.config.OneNoteBacklinks;
+import com.contextswitcher.local.OneNoteBacklinkSync;
 import com.contextswitcher.local.WindowGather;
 import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
@@ -330,6 +332,12 @@ public class Main extends Application {
     /// Whether the initial task-directory scan has finished — the auto
     /// categories' gate (see the scan below).
     private volatile boolean tasksScanned;
+
+    /// The OneNote backlink sync (`dsn~onenote-backlinks~1`), null without
+    /// AnchorHub; fed snapshots of the task list taken on the FX thread.
+    private volatile @Nullable OneNoteBacklinkSync oneNoteBacklinks;
+    private volatile List<TaskEntry> backlinkEntries = List.of();
+    private volatile List<String> backlinkFolders = List.of();
     private @Nullable RefactoringMinerPoller refactoringPoller;
     private @Nullable RefactoringMinerView refactoringView;
     private @Nullable ExtensionServer extensionServer;
@@ -624,6 +632,9 @@ public class Main extends Application {
                 // half-loaded list every already-tracked PR would look new.
                 // [impl->dsn~auto-pr-category~3]
                 tasksScanned = true;
+                // Behind the scan's own list mutations, so the first sync
+                // sees the whole list. [impl->dsn~onenote-backlinks~1]
+                Platform.runLater(() -> backlinksChanged(repository));
                 repository.startWatching();
             } catch (IOException e) {
                 Logger.error(e, "Task directory scan failed");
@@ -1121,7 +1132,10 @@ public class Main extends Application {
         // reports a name. [impl->dsn~window-position-per-desktop~2]
         applyStoredGeometry(stage, windowPositions, WindowPositions.STARTUP);
         // [impl->dsn~task-repository-watching~7]
-        repository.setOnGroupConfigChange(window::groupConfigChanged);
+        repository.setOnGroupConfigChange(() -> {
+            window.groupConfigChanged();
+            backlinksChanged(repository);
+        });
         // The shell needs the Application for its host services (MADR 0032).
         // [impl->dsn~contexts-only~1]
         window.setContextsOnly(settings.contextsOnly());
@@ -1184,6 +1198,9 @@ public class Main extends Application {
                     .ifPresent(url -> Platform.runLater(
                             () -> handleDeepLink(orchestrator, repository, files, stage, url)));
         }
+
+        // [impl->dsn~onenote-backlinks~1]
+        startOneNoteBacklinks(repository, files, actionExecutor, scheduler, taskEntries, taskFolders);
 
         // [impl->dsn~task-running-indicator~7]
         recomputeStatusHosts(repository);
@@ -2351,6 +2368,52 @@ public class Main extends Application {
         }
         String fileName = group + "/" + TaskRepository.GROUP_CONFIG_FILE_NAME;
         return files.exists(fileName) ? extract.apply(files.load(fileName)) : null;
+    }
+
+    /// Starts the OneNote backlink sync when AnchorHub's `ankd.exe` is
+    /// installed (Windows only): every change of the task list, the folder
+    /// set or a category config restarts its debounce, and so does the end
+    /// of the startup scan.
+    // [impl->dsn~onenote-backlinks~1]
+    private void startOneNoteBacklinks(TaskRepository repository, MainWindow.TaskFileAccess files,
+            ExecutorService worker, ScheduledExecutorService scheduler,
+            ObservableList<TaskEntry> taskEntries, ObservableSet<String> taskFolders) {
+        Path ankd = OneNoteBacklinks.installedAnkd(System.getProperty("os.name", ""), System.getenv("LOCALAPPDATA"));
+        if (ankd == null) {
+            Logger.debug("AnchorHub's ankd.exe not installed; no OneNote backlinks");
+            return;
+        }
+        oneNoteBacklinks = new OneNoteBacklinkSync(ankd, scheduler, worker,
+                () -> {
+                    Map<String, @Nullable String> notes = new java.util.TreeMap<>();
+                    for (String folder : backlinkFolders) {
+                        notes.put(folder, groupLink(files, folder, TaskFileParser::groupNote));
+                    }
+                    return OneNoteBacklinks.links(backlinkEntries, notes);
+                },
+                () -> OneNoteBacklinks.enabled(readSettingsFile(configDir())));
+        taskEntries.addListener(
+                (javafx.collections.ListChangeListener<TaskEntry>) change -> backlinksChanged(repository));
+        taskFolders.addListener(
+                (javafx.collections.SetChangeListener<String>) change -> backlinksChanged(repository));
+        if (tasksScanned) {
+            Platform.runLater(() -> backlinksChanged(repository));
+        }
+    }
+
+    /// Snapshots the task list for the backlink sync and restarts its
+    /// debounce; nothing before the startup scan is done — a half-loaded
+    /// list would take the backlinks off the pages of the tasks not yet read.
+    /// FX thread only.
+    // [impl->dsn~onenote-backlinks~1]
+    private void backlinksChanged(TaskRepository repository) {
+        OneNoteBacklinkSync sync = oneNoteBacklinks;
+        if (sync == null || !tasksScanned) {
+            return;
+        }
+        backlinkEntries = List.copyOf(repository.entries());
+        backlinkFolders = List.copyOf(repository.folders());
+        sync.changed();
     }
 
     /// The host a task's window belongs on: its own `remote:`, else its

@@ -1892,7 +1892,9 @@ public class TaskFileParser {
         if (terminal == null) {
             return null;
         }
-        return new Task.TerminalConfig(requiredString(terminal, "tabTitle", "terminal"));
+        String folder = optionalString(terminal, "folder", null);
+        return new Task.TerminalConfig(requiredString(terminal, "tabTitle", "terminal"),
+                folder == null || folder.isBlank() ? null : folder.strip());
     }
 
     /// Every `intellij` key is optional (`projectPath` falls back to the

@@ -138,7 +138,10 @@ public final class FrontmatterCatalog {
             // [impl->dsn~local-terminal-focus~7]
             new Field("terminal.tabTitle", "Windows Terminal tab", "Switch actions", Type.STRING,
                     "Local Windows Terminal tab focused on switch, e.g. a shell for gradlew "
-                            + "(the title pinned via \"Rename Tab\")."));
+                            + "(the title pinned via \"Rename Tab\")."),
+            new Field("terminal.folder", "Windows Terminal tab folder", "Switch actions", Type.STRING,
+                    "Where the tab is reopened when it is gone, e.g. after a reboot; "
+                            + "empty means the first local folder."));
 
     /// The keys the **Switch actions** pane shows, in both catalogs: what a
     /// switch to the task (or into the category) opens. The Configuration pane
@@ -146,7 +149,7 @@ public final class FrontmatterCatalog {
     // [impl->dsn~task-field-form~6]
     public static final Set<String> SWITCH_ACTION_KEYS =
             Set.of("intellij", "intellij.projectPath", "vscode", "browser.urls", "folders", "chat", "note",
-                    "terminal.tabTitle",
+                    "terminal.tabTitle", "terminal.folder",
                     "desktop", "completeControl", "profile");
 
     /// Whether `field` belongs on the Switch actions pane ([#SWITCH_ACTION_KEYS]).
@@ -240,7 +243,11 @@ public final class FrontmatterCatalog {
                     "Folders opened in the file manager on switch; one per line."),
             new Field("terminal.tabTitle", "Windows Terminal tab", "Defaults for its tasks", Type.STRING,
                     "Local Windows Terminal tab focused on switch, e.g. a shell for gradlew; "
-                            + "a task's own tab wins."));
+                            + "a task's own tab wins."),
+            new Field("terminal.folder", "Windows Terminal tab folder", "Defaults for its tasks",
+                    Type.STRING,
+                    "Where the tab is reopened when it is gone, e.g. after a reboot; "
+                            + "empty means the first local folder."));
 
     private FrontmatterCatalog() {
     }
