@@ -507,6 +507,7 @@ public record AppSettings(Path tasksDir, int wsPort, String wsToken, List<HostSe
                 contextsOnly: false          # true = without Claude: no terminal and queue panes, no Claude actions; only the contexts (notes, browser, folders) are switched
                 koppterSync: false           # true = share the categories' project: and the profile's context with koppter's filter, both ways
                 oneNoteBacklinks: true       # false = do not have AnchorHub put links back to the tasks and categories at the top of their OneNote pages
+                switchByWindowHotkey: Win+Shift+F   # Windows: global hotkey that switches to the task whose windowTitle: the window in front has in its title; Win/Ctrl/Alt/Shift + a letter, digit or F1-F24; off = none; read at startup
                 refactoringMinerPort: 6789   # loopback port the refactoring web view is served and tunnelled on
                 hosts:                       # machines sessions run on; their destinations are what the tmux sync scans (none: it falls back to remotes of existing tasks)
                   - destination: koppor@devbox             # ssh destination, user part included (or an alias, or wsl:<distro>)

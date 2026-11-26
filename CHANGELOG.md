@@ -8,6 +8,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Added
+
+- **Win+Shift+F** switches to the task of the window in front, e.g. a Teams meeting: a task (or category) names its windows with `windowTitle:`, text the window title contains; several matches select the first and name them all, none says so in the status bar. The key is `switchByWindowHotkey` in `settings.yaml` (Windows; `Win+F` itself belongs to Feedback Hub).
+
 ### Changed
 
 - The Android app's *Update* also offers the newest day release, not only the dev build, whichever is newer; dev builds are Actions artifacts now, not the `android-dev` release.

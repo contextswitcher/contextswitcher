@@ -98,7 +98,12 @@ public final class FrontmatterCatalog {
                     "Removes session, worktree and task once it has been inactive for a day."),
             // [impl->dsn~task-tag-model~2]
             new Field("tags", "Tags", "Task", Type.LIST,
-                    "One tag per line; the palette and its colors are configured in settings."),
+                    "One tag per line; the palette and its colors are configured in settings."),            // [impl->dsn~switch-by-window-title~1]
+            new Field(WindowTitleMatch.KEY, "Window titles", "Task", Type.LIST,
+                    "The switch-by-window hotkey (" + com.contextswitcher.config.WindowHotkey.DEFAULT
+                            + " by default) switches to this task while a window whose title contains one "
+                            + "of these is in front, e.g. a Teams meeting's name; one per line."),
+
             // [impl->dsn~host-table~1]
             new Field("remote", "Host", "Session", Type.HOST,
                     "ssh destination (user@host or an alias) — one of the settings' hosts or any "
@@ -168,7 +173,11 @@ public final class FrontmatterCatalog {
                     "Merged, expired auto-PR and closed plain-shell tasks are deleted "
                             + "instead of kept; pinned tasks never are."),
             new Field("tags", "Tags", "Category", Type.LIST,
-                    "Inherited by every task in the category; one per line."),
+                    "Inherited by every task in the category; one per line."),            // [impl->dsn~switch-by-window-title~1]
+            new Field(WindowTitleMatch.KEY, "Window titles", "Category", Type.LIST,
+                    "The switch-by-window hotkey switches into the category while a window whose title "
+                            + "contains one of these is in front — unless a task's own window titles match."),
+
             // [impl->dsn~task-agent~1]
             new Field("agent", "Agent", "Category", Type.STRING,
                     "CLI the tasks' windows run: claude (empty), claude-api, vibe or codex."),

@@ -157,6 +157,21 @@ Covers:
 
 Needs: dsn
 
+### Switch to the task of the window in front
+`req~switch-by-window~1`
+
+In a meeting window (Microsoft Teams, say), one key press switches to the task the meeting belongs to, opening its note, folders and the rest — the meeting app cannot carry a button of ContextSwitcher's.
+A task, or a category, names its windows by text their titles contain (`windowTitle:`); a global hotkey, configurable in `settings.yaml`, finds the task whose text the title of the window in front contains and runs its switch.
+When several tasks match, ContextSwitcher comes up with the first one selected and names them all; when none does, it comes up and says so — a press never appears to do nothing.
+A hotkey that cannot be registered is reported, naming the key.
+
+Tags: windows, linux_later
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### App windows on the desktop in view
 `req~app-window-on-current-desktop~2`
 
@@ -775,6 +790,49 @@ Tags: windows
 
 Covers:
 - req~app-window-on-current-desktop~2
+
+Needs: impl, utest
+
+### Matching the window in front to a task
+`dsn~switch-by-window-title~1`
+
+`windowTitle:` is a string or a list of strings, in a task file or a category's `CONTEXTSWITCHER.md`; it is read without a field on `Task` (`TaskFileParser.frontmatterStrings`, like `vscode:`), fresh on every press, so an edit counts at once — and it is a *Window titles* list on the Configuration pane (`FrontmatterCatalog`), in `TEMPLATE.md` and in the category skeleton, hence in both F1 references.
+`WindowTitleMatch` (core, pure) matches each entry case-insensitively as a plain substring of the window title — what is copied out of a title bar is what is typed, so `Thesis weekly sync` matches `Thesis weekly sync | Microsoft Teams`, and no `|` or `(` in a meeting name turns into regex syntax.
+A candidate scores the length of its longest matching entry; the highest score wins, so a more specific entry beats a broader one.
+Tasks are matched first (only those not `done`); categories count only when no task matches, which is their fallback: a category-wide `Thesis` catches every Thesis meeting no task claims.
+
+`Main.switchByWindow` (FX thread) acts on the outcome and logs it at INFO with the window's process, pid and title:
+one task → it is selected, the app raised, and the regular switch runs, as `contextswitcher://switch/<id>` does (`dsn~deep-link-url~1`);
+several tasks → the first is selected and the app raised, the status bar naming them all (`Window '…' matches 2 tasks: A, B — selected the first, ▶ switches`), so the choice is one click instead of a dialog in the way;
+one category → its header is selected and the category switch runs (`dsn~category-switch~1`); several → the first selected and all named;
+none → the app comes up and the status bar says `No task for window '<title>' — add it as windowTitle: to a task or category`.
+
+Tags: windows
+
+Covers:
+- req~switch-by-window~1
+
+Needs: impl, utest
+
+### The switch-by-window hotkey
+`dsn~switch-by-window-hotkey~1`
+
+`switchByWindowHotkey:` in `settings.yaml` (`WindowHotkey`, core) names the combination as `Win`/`Ctrl`/`Alt`/`Shift` plus a letter, digit or `F1`…`F24`, at least one modifier; absent means `Win+Shift+F`, `off` (or empty, `false`) turns it off; it is read once at startup.
+The default is not `Win+F`: on Windows 11 that is Feedback Hub's, and `RegisterHotKey` refuses it with 1409 (`ERROR_HOTKEY_ALREADY_REGISTERED`), as it does `Win+Alt+F` and `Ctrl+Win+F` (probe on build 26300); `Ctrl+Alt` is avoided, being AltGr on a German keyboard.
+
+`WindowsHotkey` registers it in a persistent `powershell` process (MADR 0039), the pattern of the desktop watcher (`dsn~active-desktop-filter~6`): inline C# calls `RegisterHotKey` with `MOD_NOREPEAT` on its own thread and runs a `GetMessage` loop, printing `registered`, or `failed:<win32 error>` and exiting; per `WM_HOTKEY` it calls `AllowSetForegroundWindow` for ContextSwitcher's pid — the press is the listener's input, so it holds the foreground right the raise needs — and prints `hotkey:<pid>\t<process>\t<title>` of the foreground window.
+When that window is ContextSwitcher's own (its pid is passed in), the line describes the next window down the z-order that is visible, not cloaked, titled, unowned and no tool window — the one that was in front before.
+Java keeps the process's stdin open; a thread in the script blocks on it and posts `WM_QUIT` at end-of-file, so closing it on exit — or the JVM dying — unregisters the key instead of leaving an orphan that would make the next start fail with 1409.
+A `$ProgressPreference` of `SilentlyContinue` keeps PowerShell's CLIXML progress record off the merged stream, and a line glued behind one is cut loose anyway (`WindowsHotkey.unglued`).
+
+No failure is silent: a value that does not parse, a refused key (`Hotkey Win+F not registered: already taken by Windows or another app — set another one as switchByWindowHotkey in settings.yaml`), a listener that ends before registering (its output logged) and one that dies later each go to the status bar and the log, naming the key.
+Like the watcher, it is not restarted.
+Off Windows, and under the UI tests (`LocalCommandRunner.NO_DESKTOP_SIDE_EFFECTS`), it does not start.
+
+Tags: windows
+
+Covers:
+- req~switch-by-window~1
 
 Needs: impl, utest
 

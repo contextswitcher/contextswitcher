@@ -79,6 +79,9 @@ import com.contextswitcher.local.OneNoteBacklinkSync;
 import com.contextswitcher.local.WindowGather;
 import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
+import com.contextswitcher.local.WindowsHotkey;
+import com.contextswitcher.config.WindowHotkey;
+import com.contextswitcher.tasks.WindowTitleMatch;
 import com.contextswitcher.local.WindowsWindowMove;
 import com.contextswitcher.local.ClaudeCliSummarizer;
 import com.contextswitcher.local.LocalCommandRunner;
@@ -281,6 +284,10 @@ public class Main extends Application {
     private final AtomicBoolean desktopWatchAttempted = new AtomicBoolean();
     private volatile WindowsVirtualDesktopFocus.@Nullable Watch desktopWatch;
     private volatile boolean desktopWatchLive;
+    /// The *switch by window* hotkey's listener process; null while off,
+    /// not running, or being closed by [#stop].
+    // [impl->dsn~switch-by-window-hotkey~1]
+    private volatile WindowsHotkey.@Nullable Listener windowHotkey;
     /// True while the window is pinned to all desktops on Windows
     /// (`showOnAllDesktops`); the same poll then also drives the per-desktop
     /// window position. Refreshed on a settings save, like the pin itself.
@@ -1198,6 +1205,10 @@ public class Main extends Application {
                     .ifPresent(url -> Platform.runLater(
                             () -> handleDeepLink(orchestrator, repository, files, stage, url)));
         }
+
+        // The global hotkey that switches to the task of the window in front.
+        // [impl->dsn~switch-by-window-hotkey~1]
+        startWindowHotkey(orchestrator, repository, files, stage, taskFolders);
 
         // [impl->dsn~onenote-backlinks~1]
         startOneNoteBacklinks(repository, files, actionExecutor, scheduler, taskEntries, taskFolders);
@@ -2178,6 +2189,12 @@ public class Main extends Application {
         if (watch != null) {
             watch.close();
         }
+        // [impl->dsn~switch-by-window-hotkey~1]
+        WindowsHotkey.Listener hotkeyListener = this.windowHotkey;
+        this.windowHotkey = null;
+        if (hotkeyListener != null) {
+            hotkeyListener.close();
+        }
         if (statusPoller != null) {
             statusPoller.close();
         }
@@ -2723,6 +2740,150 @@ public class Main extends Application {
         } else if (link.kind() == DeepLink.Kind.SWITCH_CATEGORY) {
             window.switchCategory(link.target());
         }
+    }
+
+    /// Registers the *switch by window* hotkey (`switchByWindowHotkey:` in
+    /// `settings.yaml`, read once at startup) through [WindowsHotkey]. Every
+    /// way it can fail to be live is said in the status bar and the log,
+    /// naming the key: a value that does not parse, a key Windows refuses,
+    /// a listener that dies later. Off Windows and under the UI tests the
+    /// listener does not start, silently — there is no hotkey to miss.
+    // [impl->dsn~switch-by-window-hotkey~1]
+    private void startWindowHotkey(SwitchOrchestrator orchestrator, TaskRepository repository,
+            MainWindow.TaskFileAccess files, Stage stage, ObservableSet<String> folders) {
+        MainWindow window = this.window;
+        if (window == null) {
+            return;
+        }
+        WindowHotkey.Setting setting = WindowHotkey.fromSettings(readSettingsFile(configDir()));
+        if (setting.error() != null) {
+            Logger.warn("{}", setting.error());
+            window.statusBar().message(setting.error());
+            return;
+        }
+        WindowHotkey.Hotkey hotkey = setting.hotkey();
+        if (hotkey == null) {
+            Logger.info("{} is off", WindowHotkey.SETTING);
+            return;
+        }
+        String label = hotkey.label();
+        this.windowHotkey = WindowsHotkey.start(hotkey, new WindowsHotkey.Events() {
+            @Override
+            public void registered() {
+                Logger.info("Hotkey {} switches to the task of the window in front", label);
+            }
+
+            @Override
+            public void failed(int errorCode) {
+                String message = WindowHotkey.failure(label, errorCode);
+                Logger.warn("{}", message);
+                Platform.runLater(() -> window.statusBar().message(message));
+            }
+
+            @Override
+            public void pressed(WindowsHotkey.Press press) {
+                Platform.runLater(() -> switchByWindow(orchestrator, repository, files, stage, folders, press));
+            }
+
+            @Override
+            public void ended(boolean registered) {
+                // A close from stop() nulls the field first; anything else is
+                // the listener dying under a live app. No restart: a machine
+                // where it cannot run would respawn-fail forever, like the
+                // desktop watcher.
+                if (registered && windowHotkey != null) {
+                    String message = "Hotkey " + label + " stopped working; restart ContextSwitcher to get it back";
+                    Logger.warn("{}", message);
+                    Platform.runLater(() -> window.statusBar().message(message));
+                }
+            }
+        });
+    }
+
+    /// One press of the *switch by window* hotkey (FX thread): finds the
+    /// tasks that are not done, and failing those the categories, whose
+    /// `windowTitle:` the window's title contains (`WindowTitleMatch`), read
+    /// fresh from the files so an edit counts at once. One task: the full
+    /// switch, as `contextswitcher://switch/<id>` runs it; one category: the
+    /// category's switch. Several: the first is selected and the status bar
+    /// lists them — the user picks with one click instead of a dialog in the
+    /// way. None: the app comes up saying so, since a press that seems to do
+    /// nothing would read as a dead hotkey.
+    // [impl->dsn~switch-by-window-title~1]
+    private void switchByWindow(SwitchOrchestrator orchestrator, TaskRepository repository,
+            MainWindow.TaskFileAccess files, Stage stage, ObservableSet<String> folders,
+            WindowsHotkey.Press press) {
+        MainWindow window = this.window;
+        if (window == null) {
+            return;
+        }
+        String title = press.title();
+        Map<String, Task> byId = new LinkedHashMap<>();
+        List<WindowTitleMatch.Candidate> tasks = new ArrayList<>();
+        for (TaskEntry entry : repository.entries()) {
+            if (entry instanceof TaskEntry.Loaded loaded && loaded.task().status() != TaskStatus.DONE) {
+                String content = files.read(loaded.id() + ".md");
+                List<String> patterns = content == null ? List.of()
+                        : TaskFileParser.frontmatterStrings(content, WindowTitleMatch.KEY);
+                if (!patterns.isEmpty()) {
+                    byId.put(loaded.id(), loaded.task());
+                    tasks.add(new WindowTitleMatch.Candidate(loaded.id(), patterns));
+                }
+            }
+        }
+        List<WindowTitleMatch.Candidate> categories = new ArrayList<>();
+        for (String folder : new java.util.TreeSet<>(folders)) {
+            String fileName = folder + "/" + TaskRepository.GROUP_CONFIG_FILE_NAME;
+            if (files.exists(fileName)) {
+                List<String> patterns = TaskFileParser.frontmatterStrings(files.load(fileName), WindowTitleMatch.KEY);
+                if (!patterns.isEmpty()) {
+                    categories.add(new WindowTitleMatch.Candidate(folder, patterns));
+                }
+            }
+        }
+        WindowTitleMatch.Outcome outcome = WindowTitleMatch.resolve(title, tasks, categories);
+        Logger.info("Switch-by-window hotkey: {} (pid {}) \"{}\" -> {} {}",
+                press.process().isEmpty() ? "?" : press.process(), press.pid(), title, outcome.kind(), outcome.ids());
+        List<String> ids = outcome.ids();
+        switch (outcome.kind()) {
+            case TASK -> {
+                window.selectTask(ids.getFirst());
+                raise(stage);
+                switchTo(orchestrator, files, byId.get(ids.getFirst()));
+            }
+            case TASKS -> {
+                window.selectTask(ids.getFirst());
+                raise(stage);
+                window.statusBar().message("Window '%s' matches %d tasks: %s — selected the first, ▶ switches"
+                        .formatted(title, ids.size(),
+                                String.join(", ", ids.stream().map(id -> byId.get(id).title()).toList())));
+            }
+            case CATEGORY -> {
+                window.selectCategory(ids.getFirst());
+                raise(stage);
+                window.switchCategory(ids.getFirst());
+            }
+            case CATEGORIES -> {
+                window.selectCategory(ids.getFirst());
+                raise(stage);
+                window.statusBar().message("Window '%s' matches %d categories: %s — selected the first, ▶ switches"
+                        .formatted(title, ids.size(), String.join(", ", ids)));
+            }
+            case NONE -> {
+                raise(stage);
+                window.statusBar().message(title.isBlank()
+                        ? "No window in front to find a task for"
+                        : "No task for window '%s' — add it as %s: to a task or category"
+                                .formatted(title, WindowTitleMatch.KEY));
+            }
+        }
+    }
+
+    /// De-iconifies and raises the main window, as a deep link does.
+    private static void raise(Stage stage) {
+        stage.setIconified(false);
+        stage.toFront();
+        stage.requestFocus();
     }
 
     /// Selects the task owning the browser tab the user just activated (FX

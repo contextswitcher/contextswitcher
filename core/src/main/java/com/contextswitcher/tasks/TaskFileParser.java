@@ -392,6 +392,7 @@ public class TaskFileParser {
                     %3$s
                     # profile: lecture
                     # tags: [needs-review]
+                    # windowTitle: [%1$s weekly]
                     # auto: {query: "repo:owner/%1$s review-requested:@me", maxSloc: 50, deleteHours: 24}
                     # intellij: {projectPath: /data/koppor/%1$s}
                     # browser: {urls: [https://github.com/owner/%1$s]}
@@ -438,6 +439,11 @@ public class TaskFileParser {
                 # tags: [needs-review]
                 #   Tags inherited by every task in this group (as if each task
                 #   carried them); colors are configured in settings.yaml.
+                # windowTitle: [%1$s weekly]
+                #   The switch-by-window hotkey (switchByWindowHotkey in settings.yaml,
+                #   default Win+Shift+F) switches into this category while a window
+                #   whose title contains one of these is in front, matched
+                #   case-insensitively — unless a task's own windowTitle matches.
                 # autoDelete: true
                 #   Lets the automatisms delete this category's tasks unattended: a
                 #   task whose PRs are all merged, an auto category's expired task,
@@ -1043,6 +1049,18 @@ public class TaskFileParser {
     // [impl->dsn~vscode-action~1]
     public static boolean frontmatterFlag(String content, String key) {
         return Boolean.TRUE.equals(groupValue(content, key));
+    }
+
+    /// A top-level key of a frontmatter (a task file's or a group's) that is
+    /// a single string or a list of them — how `windowTitle:` is read
+    /// without a field of its own on [Task]. Blank entries are dropped;
+    /// empty when the key is absent or the frontmatter does not parse.
+    // [impl->dsn~switch-by-window-title~1]
+    public static List<String> frontmatterStrings(String content, String key) {
+        Object value = groupValue(content, key);
+        List<?> items = value instanceof List<?> list ? list : value == null ? List.of() : List.of(value);
+        return items.stream().filter(java.util.Objects::nonNull).map(Object::toString)
+                .map(String::strip).filter(item -> !item.isEmpty()).toList();
     }
 
     private static @Nullable Object groupValue(String content, String key) {

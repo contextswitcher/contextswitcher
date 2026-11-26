@@ -141,6 +141,7 @@ claude:
 #   - C:\Users\me\nextcloud\SE2
 # note: onenote:…         # note page opened on switch
 # chat: https://matrix.to/#/…             # Matrix room opened on switch (Element)
+# windowTitle: Thesis weekly sync        # switch-by-window hotkey: the window in front has this in its title
 ---
 
 # Notes
@@ -282,6 +283,12 @@ Sending a queued message to a suspended task resumes it first — and so does me
 
 **Virtual desktops** (Windows). A category's header play button switches to its `desktop:` and does nothing else.
 Opening one of a task's links opens the page on its category's desktop (a tab that already exists is focused where it is), and while the active-desktop filter is on, switching desktops re-selects the task you last had selected there.
+
+**Switch by window** (Windows). Press **Win+Shift+F** in a meeting window (or any other) to switch to the task it belongs to — its note, folders and the rest open as on ▶.
+A task names its windows with `windowTitle:`, one text or a list, matched case-insensitively as part of the title, so `windowTitle: Thesis weekly sync` catches the Teams window `Thesis weekly sync | Microsoft Teams`; a category's `windowTitle:` switches into the category when no task matches.
+Several matching tasks: the app comes up with the first selected and the status bar naming them all; none: the status bar says `No task for window '…'`.
+Pressed while ContextSwitcher itself is in front, it takes the window that was in front before.
+The key is `switchByWindowHotkey` in `settings.yaml` (`Win`/`Ctrl`/`Alt`/`Shift` plus a letter, digit or F-key; `off` turns it off; read at startup) — `Win+F` itself is taken by Windows 11's Feedback Hub, and a key Windows refuses is reported in the status bar ([`req~switch-by-window~1`](docs/requirements/switching.md), MADR [0039](docs/decisions/0039-global-hotkey-through-a-persistent-powershell-listener.md)).
 
 **Deep links.** `contextswitcher://task/<id>` selects a task and raises the app, `contextswitcher://switch/<id>` runs the full switch, and a category's **Copy link** hands out `contextswitcher://category/<name>` (`contextswitcher://switch-category/<name>` also runs the category's switch, its OneNote note included) — paste them into OneNote pages or READMEs to link back.
 A click reaches the running instance; with none running, the app starts and handles the link itself.
