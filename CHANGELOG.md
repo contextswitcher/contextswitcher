@@ -10,6 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Changed
 
+- The Android APK of a day release is named after it, e.g. `contextswitcher-2026-11-27.apk`, instead of `android-debug.apk`.
 - An empty *Windows Terminal tab folder* shows in gray the folder it falls back to, the first *Local folders* entry.
 
 ## [2026-11-26] - 2026-11-26

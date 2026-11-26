@@ -572,7 +572,7 @@ Needs: impl, utest
 ### Update hint
 `dsn~android-update-hint~4`
 
-The `android-dev.yml` workflow, started by hand only (`workflow_dispatch`), builds the debug APK, uploads it to the `android-dev` pre-release with `--clobber` and then moves the `android-dev` tag to `$GITHUB_SHA`; `build.yml`'s `android` job only builds on a push, and day tags still get their own pre-release.
+The `android-dev.yml` workflow, started by hand only (`workflow_dispatch`), builds the debug APK, uploads it to the `android-dev` pre-release with `--clobber` and then moves the `android-dev` tag to `$GITHUB_SHA`; `build.yml`'s `android` job only builds on a push, and day tags still get their own pre-release, whose APK is `contextswitcher-<date>.apk`.
 `android/build.gradle.kts` bakes `git rev-parse HEAD` into `BuildConfig.GIT_COMMIT` (`unknown` outside a checkout).
 `com.contextswitcher.android.update.AppUpdates.check()` reads the tag's commit (`GET /repos/{repo}/git/ref/tags/android-dev`) without a token and answers `UpToDate`, `Available(commit)` or `Failed(message)` — any status but 200 is named in the message, and an `unknown` build never offers an update.
 `download` fetches `https://github.com/{repo}/releases/download/android-dev/android-debug.apk`, following the redirect to storage.
