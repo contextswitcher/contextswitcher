@@ -342,7 +342,7 @@ public class Main extends Application {
     private @Nullable RefactoringMinerView refactoringView;
     private @Nullable ExtensionServer extensionServer;
     /// The `gatherWindows` watcher of the environment profile in effect;
-    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~3]
+    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~4]
     private final WindowGather windowGather = new WindowGather();
     /// Reports the connected screens; stopped on exit. [impl->dsn~screen-chosen-profile~1]
     private final ScreenWatch screenWatch = new ScreenWatch();
@@ -1113,7 +1113,7 @@ public class Main extends Application {
         // Docking, undocking, a projector: the connected screens pick a
         // profile of their own, applied without a task switch.
         // [impl->dsn~screen-chosen-profile~1]
-        screenWatch.start(screens -> screensChanged(screens, window, environmentProfile));
+        screenWatch.start(change -> screensChanged(change, window, environmentProfile));
         // A project or context picked in the filter menu goes to koppter.
         // [impl->dsn~koppter-sync~1]
         window.installProjectContextFilter(selection -> actionExecutor.execute(() -> sendToKoppter(selection)));
@@ -2255,10 +2255,14 @@ public class Main extends Application {
     /// `screenProfiles:` rule names and, when that differs from the one in
     /// effect, re-applies the environment profile. The first set after the
     /// start applies only when a rule matches — starting at the desk should
-    /// not reset the machine to `default` behind the user's back.
+    /// not reset the machine to `default` behind the user's back. Screens
+    /// back as before a sleep are no docking: the profile follows them, but
+    /// no window is swept over.
     // [impl->dsn~screen-chosen-profile~1]
-    private void screensChanged(List<ScreenProfiles.ConnectedScreen> screens, MainWindow window,
+    // [impl->dsn~screens-sleep-round-trip~1]
+    private void screensChanged(ScreenWatch.Change change, MainWindow window,
             EnvironmentProfileAction environmentProfile) {
+        List<ScreenProfiles.ConnectedScreen> screens = change.screens();
         String settingsText = readSettingsFile(configDir());
         String chosen = ScreenProfiles.parse(settingsText).pick(screens);
         boolean first;
@@ -2266,7 +2270,10 @@ public class Main extends Application {
             first = !screensSeen;
             screensSeen = true;
         }
-        if (!first) {
+        if (change.sleepRoundTrip()) {
+            // waking up as before the sleep: not even the drop before it counts
+            windowGather.noScreenChange();
+        } else if (!first) {
             // docking or undocking: a `gatherWhen: docking` watcher sweeps
             windowGather.screensChanged();
         }

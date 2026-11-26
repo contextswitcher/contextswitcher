@@ -587,7 +587,7 @@ Covers:
 Needs: impl, utest
 
 ### Gather windows onto one screen
-`dsn~environment-profile-gather-windows~3`
+`dsn~environment-profile-gather-windows~4`
 
 A profile's `gatherWindows: <screen>` takes a selector like `screens:` (EDID name or product code, `primary`, `internal`, `external`; `off` switches a lower layer's gathering off) and layers per key like the other keys.
 `WindowsEnvironment.apply` hands the effective value to `WindowGather`, which keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside to resolve the selector) for it: same selector — nothing happens; another — restart; none — stop; `Main.stop` stops it, and the watcher exits on its own once the app's process is gone.
@@ -598,6 +598,7 @@ A window covering its whole screen without being maximized with a title bar (`WS
 A maximized window covers its screen too where no taskbar takes room, and is moved: the laptop's maximized Firefox was taken for a slide show and stayed (field report 2026-11-22).
 A window still on its old screen after 3 moves within one grace (an elevated Task Manager refuses them) is logged once as `did not stay` and left alone until it is closed; with one screen, or none matching the selector, nothing moves.
 `gatherWhen: docking` (default `always`, layered per key) leaves new windows alone: the watcher sweeps every window over only for 10 s after a screen change — one it sees itself, or one `Main.screensChanged` reported to `WindowGather.screensChanged` within the last 20 s before the watcher started — so docking brings the laptop's windows to the big screen, and a window opened later on the laptop or a second monitor stays there (field report 2026-11-22: a new SumatraPDF on the 27" was pulled onto the 32").
+A change the running watcher sees itself counts once the new set has stayed unchanged for 3 s, and not when the screens are back as before a sleep (`dsn~screens-sleep-round-trip~1`); such a round trip reported by `ScreenWatch` also clears the change `Main.screensChanged` reported before the sleep.
 A docking watcher started without such a change (the app starting while docked, a task switch to a profile with the key) does not sweep; switching between `always` and `docking` restarts the watcher.
 Moves are logged with the window handle (`Window gather: moved notepad++ 0x1A2B from \\.\DISPLAY2 to \\.\DISPLAY1`); the chip reports starting and stopping.
 
@@ -642,6 +643,23 @@ Covers:
 
 Needs: impl, utest
 
+### Sleep is not docking
+`dsn~screens-sleep-round-trip~1`
+
+Going to sleep, Windows drops the external screens a few seconds before the processes stop, and waking up it brings them back; both looked like undocking and docking, and after waking up at the desk the gather watcher swept every window onto the 32" (field report 2026-11-26).
+`SleepGuard` (inline C# `CsSleepGuard`, compiled into the `ScreenWatch` and `WindowGather` watchers) is fed every look at the screens with the wall-clock time and settles a set once it stayed unchanged for 3 s.
+A wall-clock jump of more than 10 s between two looks is a sleep: the set not yet settled is dropped, and the set the machine went to sleep with is the one settled before the sleep — or the one before that, when the last change settled at most 30 s before the sleep.
+A set settled within 2 min of waking up that equals it is a round trip: `ScreenWatch` reports it with `end<TAB>sleep`, `Main.screensChanged` re-applies the profile it picks but tells `WindowGather` nothing changed, and the gather watcher does not sweep.
+A drop that did not settle before the sleep is not reported at all; waking up to other screens (docked or undocked while asleep) is an ordinary change; no screens at all (standby) is no look.
+
+Tags: windows
+
+Covers:
+- req~screen-chosen-profile~1
+- req~environment-profiles~1
+
+Needs: impl, utest
+
 ### Screen-chosen profile
 `dsn~screen-chosen-profile~1`
 
@@ -649,10 +667,10 @@ Needs: impl, utest
 A selector matches a `ConnectedScreen` as a profile's `screens:` key does: EDID name or product code, `primary`, `internal`, `external`, case-insensitive.
 `EnvironmentProfiles.effective(screen, category, override)` layers per key `default` < screen-chosen < category < override; `EnvironmentProfileAction` takes the screen-chosen name from a supplier and labels the chip with the layers, `desk (screens) + lecture`.
 
-`ScreenWatch` keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside like `WindowGather`'s) that polls the active screens every 500 ms and prints a set only after it stayed unchanged for 3 s, never an empty one (standby); it exits once the app's process is gone, and `Main.stop` stops it.
+`ScreenWatch` keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside like `WindowGather`'s) that polls the active screens every 500 ms and prints a set only after it stayed unchanged for 3 s, never an empty one (standby), and not across a sleep (`dsn~screens-sleep-round-trip~1`); it exits once the app's process is gone, and `Main.stop` stops it.
 `Main.screensChanged` picks the profile for each reported set; when it differs from the one in effect, `EnvironmentProfileAction.reapply` applies the effective profile for the category last switched to, with the outcome as a status-bar message.
 The first set after the start applies only when a rule matches, so starting the app does not reset the machine to `default` unasked.
-With `gatherWindows:` in the screen-chosen profile, docking gathers windows onto the main screen: the gather watcher (`dsn~environment-profile-gather-windows~3`) starts with the profile and pulls every window over; with `gatherWhen: docking` only right after docking.
+With `gatherWindows:` in the screen-chosen profile, docking gathers windows onto the main screen: the gather watcher (`dsn~environment-profile-gather-windows~4`) starts with the profile and pulls every window over; with `gatherWhen: docking` only right after docking.
 Off Windows `ScreenWatch` starts nothing.
 
 Tags: windows

@@ -15,6 +15,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - An empty *Windows Terminal tab folder* shows in gray the folder it falls back to, the first *Local folders* entry.
 - *Switch actions* has an *Open in Windows Terminal* checkbox; the tab title and folder fields show only while it is ticked, and an empty tab title uses the task's title.
 
+### Fixed
+
+- Waking up from sleep at the desk no longer moves windows around with `gatherWhen: docking`: screens that come back as they were before the sleep are not taken for docking.
+
 ## [2026-11-26] - 2026-11-26
 
 ### Added

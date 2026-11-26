@@ -28,12 +28,45 @@ class ScreenWatchTest {
         assertThat(parser.accept("screen\t\tBOE0C9F\t1\t0")).isNull();
         assertThat(parser.accept("some compiler warning")).isNull();
         assertThat(parser.accept("screen\tDELL U3223QE\tDEL4282\t0\t1")).isNull();
-        assertThat(parser.accept("end")).containsExactly(
+        assertThat(parser.accept("end")).isEqualTo(new ScreenWatch.Change(List.of(
                 new ConnectedScreen("", "BOE0C9F", true, false),
-                new ConnectedScreen("DELL U3223QE", "DEL4282", false, true));
+                new ConnectedScreen("DELL U3223QE", "DEL4282", false, true)), false));
 
         assertThat(parser.accept("screen\t\tBOE0C9F\t1\t1")).isNull();
-        assertThat(parser.accept("end")).containsExactly(new ConnectedScreen("", "BOE0C9F", true, true));
+        assertThat(parser.accept("end")).isEqualTo(
+                new ScreenWatch.Change(List.of(new ConnectedScreen("", "BOE0C9F", true, true)), false));
+    }
+
+    // [utest->dsn~screens-sleep-round-trip~1]
+    @Test
+    void endSleepMarksTheSetAsBackFromASleep() {
+        ScreenWatch.Parser parser = new ScreenWatch.Parser();
+
+        parser.accept("screen\tDELL U3223QE\tDEL4282\t0\t1");
+        assertThat(parser.accept("end\tsleep")).isEqualTo(new ScreenWatch.Change(
+                List.of(new ConnectedScreen("DELL U3223QE", "DEL4282", false, true)), true));
+    }
+
+    // [utest->dsn~screens-sleep-round-trip~1]
+    @Test
+    void scriptReportsThroughTheSleepGuard() {
+        assertThat(ScreenWatch.script(4711))
+                .contains("public class CsSleepGuard {")
+                .contains("guard.Look(sb.ToString())")
+                .contains("guard.RoundTrip ? \"end\\tsleep\" : \"end\"")
+                .doesNotContain("__SLEEP__");
+    }
+
+    /// Compiles the watcher's C# for real: with a parent pid that does not
+    /// exist, `Run` returns at once.
+    @Test
+    @org.junit.jupiter.api.condition.EnabledOnOs(org.junit.jupiter.api.condition.OS.WINDOWS)
+    void watcherCompilesAndExitsWithoutItsParent() {
+        LocalCommandRunner.LocalResult result = new LocalCommandRunner(java.time.Duration.ofSeconds(60))
+                .run(PowerShellCommand.of(ScreenWatch.script(Integer.MAX_VALUE)));
+
+        assertThat(result.stderr()).doesNotContain("error CS");
+        assertThat(result.exitCode()).isZero();
     }
 
     @Test
