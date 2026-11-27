@@ -25,6 +25,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- The refactoring badge no longer starts a new RefactoringMiner run every two minutes on a repository too large to analyze: a run is capped at under five minutes on the remote and not retried until the task's HEAD moves.
 - Clicking a file path or link Claude wrapped across two lines in the terminal opens it; before, the click did nothing or opened a cut-off path.
 - Waking up from sleep at the desk no longer moves windows around with `gatherWhen: docking`: screens that come back as they were before the sleep are not taken for docking.
 

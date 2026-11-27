@@ -22,6 +22,10 @@ public final class RefactoringMinerCommands {
     private RefactoringMinerCommands() {
     }
 
+    /// Remote time limit of one count run; the poller's ssh timeout is
+    /// derived from it, so the remote side always gives up first.
+    public static final int COUNT_TIMEOUT_SECONDS = 280;
+
     /// The RefactoringMiner release the setup button installs.
     public static final String VERSION = "3.1.4";
 
@@ -122,10 +126,16 @@ public final class RefactoringMinerCommands {
     /// cannot resolve a **linked worktree's** `.git` file — the common dir is
     /// the real repository either way. `--path-format=absolute`: from a linked
     /// worktree the common dir would otherwise print relative.
+    ///
+    /// The JVM runs under `timeout` (where the remote has it) a bit shorter
+    /// than the poller's ssh timeout: killing the local ssh does not kill the
+    /// remote JVM, so without it a range too large to finish orphaned one
+    /// full-CPU RefactoringMiner per poll tick.
     public static List<String> countCommand(String rmHome, String worktree, String baseBranch) {
         return List.of("cd", worktree,
                 "&&", "OUT=$(mktemp)",
-                "&&", rmHome + "/bin/RefactoringMiner",
+                "&&", "$(command -v timeout >/dev/null && echo timeout " + COUNT_TIMEOUT_SECONDS + ")",
+                rmHome + "/bin/RefactoringMiner",
                 "-bc", "$(git rev-parse --path-format=absolute --git-common-dir)",
                 "$(git merge-base " + baseBranch + " HEAD)",
                 "$(git rev-parse HEAD)",

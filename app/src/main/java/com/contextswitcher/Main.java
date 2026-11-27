@@ -224,7 +224,9 @@ public class Main extends Application {
 
     /// Timeout for the refactoring poller's ssh runs: a RefactoringMiner
     /// analysis of a long commit range takes minutes, not the ssh default 10 s.
-    private static final Duration REFACTORING_SSH_TIMEOUT = Duration.ofMinutes(5);
+    /// A little above the remote's own limit, so the JVM is gone before ssh is.
+    private static final Duration REFACTORING_SSH_TIMEOUT =
+            Duration.ofSeconds(RefactoringMinerCommands.COUNT_TIMEOUT_SECONDS + 20);
 
     private @Nullable TaskRepository repository;
     private @Nullable TaskGitBackup taskBackup;

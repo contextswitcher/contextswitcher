@@ -1,5 +1,8 @@
 package com.contextswitcher.analysis;
 
+import java.util.List;
+
+import com.contextswitcher.ssh.SshCommandRunner;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,5 +53,29 @@ class RefactoringLookupTest {
         assertThat(RefactoringLookup.countRefactorings("Exception in thread main ...")).isNull();
         assertThat(RefactoringLookup.countRefactorings("{}")).isNull();
         assertThat(RefactoringLookup.countRefactorings("")).isNull();
+    }
+
+    // A run that fails or times out (RM on a huge range) must still pin the
+    // HEAD — otherwise every tick starts another full-CPU JVM on the remote.
+    @Test
+    void failedCountRunPinsTheHeadSoItIsNotRetried() {
+        SshCommandRunner ssh = new SshCommandRunner() {
+            @Override
+            public SshResult run(String host, List<String> remoteCommand) {
+                return remoteCommand.contains("-bc")
+                        ? new SshResult(124, "", "")
+                        : new SshResult(0, "abc\nbase\n", "");
+            }
+
+            @Override
+            public SshResult runWithInput(String host, List<String> remoteCommand, byte[] input) {
+                throw new UnsupportedOperationException();
+            }
+        };
+
+        RefactoringSummary summary = new RefactoringLookup(ssh)
+                .summary("devbox", "/rm", "/wt", "origin/main", null);
+
+        assertThat(summary).isEqualTo(new RefactoringSummary("abc", 0));
     }
 }

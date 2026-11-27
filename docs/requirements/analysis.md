@@ -82,7 +82,8 @@ Needs: impl, utest
 `dsn~refactoring-analysis-poller~1`
 
 `RefactoringMinerPoller` (shaped like `PrStatePoller`: daemon scheduler, fixed delay, per-task emission) analyzes every live task with a remote, a status-publishing tmux window, and a known worktree — but only while the window's live `@cs_status` is `waiting` or `done`, so a working session is never raced.
-Per tick and task, `RefactoringLookup` probes HEAD and merge-base first: an unchanged HEAD returns the cached `RefactoringSummary` without an analysis run, HEAD equal to the merge-base is count 0 without a JVM start, and only a moved HEAD runs the count command, whose JSON is parsed into the summary (total refactorings across all commits; unparseable output yields nothing and keeps the previous state).
+Per tick and task, `RefactoringLookup` probes HEAD and merge-base first: an unchanged HEAD returns the cached `RefactoringSummary` without an analysis run, HEAD equal to the merge-base is count 0 without a JVM start, and only a moved HEAD runs the count command, whose JSON is parsed into the summary (total refactorings across all commits).
+A failed, timed-out or unparseable run yields count 0 for that HEAD, so it is not retried until HEAD moves; the count runs under a remote `timeout` shorter than the ssh timeout, because ending ssh does not end the remote JVM.
 `MainWindow` merges the summaries per task id — never removing, repainting rows without rebuilding — and the row renders a circled-count badge (hidden at 0) whose click opens the web view.
 The poller exists only when some host has a RefactoringMiner directory at startup; it reads each target's host directory fresh per poll (`Main.refactoringMinerHome(remote)`) and skips the tasks of a host without one.
 
