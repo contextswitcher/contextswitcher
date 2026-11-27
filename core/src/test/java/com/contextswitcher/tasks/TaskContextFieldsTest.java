@@ -38,6 +38,19 @@ class TaskContextFieldsTest {
     }
 
     @Test
+    void fileUrlsBecomePaths() {
+        assertThat(TaskContextFields.fromFileUrl("file:///C:/Users/olive/OneDrive/Projects/publications/SG-2026"))
+                .isEqualTo("C:\\Users\\olive\\OneDrive\\Projects\\publications\\SG-2026");
+        assertThat(TaskContextFields.fromFileUrl("file:///C:/My%20Docs/a+b")).isEqualTo("C:\\My Docs\\a+b");
+        assertThat(TaskContextFields.fromFileUrl("file:///c:")).isEqualTo("c:\\");
+        assertThat(TaskContextFields.fromFileUrl("file:///data/notes")).isEqualTo("/data/notes");
+        assertThat(TaskContextFields.fromFileUrl("file://localhost/data/notes")).isEqualTo("/data/notes");
+        assertThat(TaskContextFields.fromFileUrl("file://server/share/x")).isEqualTo("\\\\server\\share\\x");
+        assertThat(TaskContextFields.fromFileUrl("C:\\git")).isEqualTo("C:\\git");
+        assertThat(TaskContextFields.folders("file:///data/notes\n/data/notes")).containsExactly("/data/notes");
+    }
+
+    @Test
     void noteKeepsTheDesktopLinkOfThePastedPair() {
         assertThat(TaskContextFields.note(WEB + "\n" + DESKTOP + "\n")).isEqualTo(DESKTOP);
         // A single-line field drops the newline: the two links glued together.

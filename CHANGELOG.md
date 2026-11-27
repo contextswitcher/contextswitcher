@@ -20,6 +20,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - An empty *Windows Terminal tab folder* shows in gray the folder it falls back to, the first *Local folders* entry.
 - A category's *Add task…* row shows only while its header is selected, right under the header, with a new *Find task…* row above it that searches just that category.
 - *Switch actions* has an *Open in Windows Terminal* checkbox; the tab title and folder fields show only while it is ticked, and an empty tab title uses the task's title.
+- A `file:///C:/…` URL pasted into a *Folders* field (Explorer's address bar, a browser) turns into the folder path `C:\…`.
 
 ### Fixed
 

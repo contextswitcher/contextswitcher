@@ -136,6 +136,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TextInputDialog;
@@ -3819,6 +3820,14 @@ public class MainWindow {
         if (clipFolder != null) {
             foldersField.setText(clipFolder);
         }
+        // A pasted `file://` URL (Explorer's address bar) becomes its path.
+        foldersField.setTextFormatter(new TextFormatter<String>(change -> {
+            if (change.getText().length() > 1) {
+                change.setText(change.getText().lines().map(TaskContextFields::fromFileUrl)
+                        .collect(java.util.stream.Collectors.joining("\n")));
+            }
+            return change;
+        }));
         TextField noteField = new TextField();
         noteField.setId("add-task-note");
         if (clipNote != null) {

@@ -1,5 +1,7 @@
 package com.contextswitcher.tasks;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -19,7 +21,8 @@ public final class TaskContextFields {
     }
 
     /// The folders a Folders field lists: one per non-blank line, each
-    /// stripped of the double quotes Windows' *Copy as path* adds; duplicates
+    /// stripped of the double quotes Windows' *Copy as path* adds and a
+    /// `file://` URL turned into its path ([#fromFileUrl]); duplicates
     /// dropped, order kept. Not checked against the disk — a folder typed
     /// for later is the user's call.
     public static List<String> folders(@Nullable String text) {
@@ -28,12 +31,45 @@ public final class TaskContextFields {
             return folders;
         }
         for (String line : text.split("\\R")) {
-            String folder = unquote(line.strip());
+            String folder = fromFileUrl(unquote(line.strip()));
             if (!folder.isEmpty() && !folders.contains(folder)) {
                 folders.add(folder);
             }
         }
         return folders;
+    }
+
+    /// A `file://` URL as the path it names, anything else unchanged:
+    /// `file:///C:/Users/me/My%20Docs` → `C:\Users\me\My Docs`,
+    /// `file:///data/notes` → `/data/notes`, `file://server/share/x` →
+    /// `\\server\share\x`. Explorer's address bar and browsers copy
+    /// folders that way; a file manager opens only the path.
+    public static String fromFileUrl(String text) {
+        String url = text.strip();
+        if (!url.regionMatches(true, 0, "file:", 0, 5)) {
+            return text;
+        }
+        String rest = url.substring(5);
+        String host = "";
+        if (rest.startsWith("//")) {
+            int slash = rest.indexOf('/', 2);
+            host = slash < 0 ? rest.substring(2) : rest.substring(2, slash);
+            rest = slash < 0 ? "/" : rest.substring(slash);
+        }
+        String path;
+        try {
+            path = URLDecoder.decode(rest.replace("+", "%2B"), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            path = rest;
+        }
+        if (!host.isEmpty() && !host.equalsIgnoreCase("localhost")) {
+            return "\\\\" + host + path.replace('/', '\\');
+        }
+        if (path.matches("/[A-Za-z]:(/.*)?")) {
+            String drive = path.substring(1);
+            return drive.length() == 2 ? drive + "\\" : drive.replace('/', '\\');
+        }
+        return path;
     }
 
     /// The note link a Note field stands for, or null when blank: the
