@@ -23,8 +23,10 @@ public final class RefactoringMinerCommands {
     }
 
     /// Remote time limit of one count run; the poller's ssh timeout is
-    /// derived from it, so the remote side always gives up first.
-    public static final int COUNT_TIMEOUT_SECONDS = 280;
+    /// derived from it, so the remote side always gives up first. Generous:
+    /// a large repository (ICU) takes RM over half an hour, and the badge is
+    /// opt-in per task, so a long run is one the user asked for.
+    public static final int COUNT_TIMEOUT_SECONDS = 2 * 60 * 60;
 
     /// The RefactoringMiner release the setup button installs.
     public static final String VERSION = "3.1.4";
