@@ -207,6 +207,28 @@ public final class FrontmatterCatalog {
             new Field("contexts", "todo.txt contexts", "Category", Type.LIST,
                     "The contexts (environment profiles) the category belongs to, such as desk; "
                             + "one per line, empty means every context."),
+            // [impl->dsn~host-table~1]
+            new Field("remote", "Host", "Defaults for its tasks", Type.HOST,
+                    "ssh destination (user@host or an alias) a new task in the category "
+                            + "inherits — one of the settings' hosts or any other."),
+            // [impl->dsn~category-action-defaults~2]
+            new Field("intellij", "Open in IntelliJ", "Defaults for its tasks", Type.BOOLEAN,
+                    "Used by every task of the category that configures no intellij section."),
+            new Field("intellij.projectPath", "IntelliJ project path", "Defaults for its tasks",
+                    Type.STRING,
+                    "Project directory; empty falls back to the task's Claude workspace."),
+            new Field("browser.urls", "Browser URLs", "Defaults for its tasks", Type.LIST,
+                    BROWSER_URLS_HELP),
+            new Field("folders", "Local folders", "Defaults for its tasks", Type.LIST,
+                    "Folders opened in the file manager on switch; one per line."),
+            new Field("terminal", "Open in Windows Terminal", "Defaults for its tasks", Type.BOOLEAN,
+                    "Focuses a local Windows Terminal tab on every switch to a task without its own."),
+            new Field("terminal.tabTitle", "Windows Terminal tab", "Defaults for its tasks", Type.STRING,
+                    "The tab's title; empty means each task's title, a task's own tab wins."),
+            new Field("terminal.folder", "Windows Terminal tab folder", "Defaults for its tasks",
+                    Type.STRING,
+                    "Where the tab is reopened when it is gone, e.g. after a reboot; "
+                            + "empty means the first local folder."),
             new Field("repo", "GitHub repository", "Repository", Type.STRING,
                     "The category's GitHub repository, opened by the header's repository icon "
                             + "and named in a live task's bootstrap prompt."),
@@ -236,29 +258,7 @@ public final class FrontmatterCatalog {
                     Type.STRING,
                     "How long a task is kept after its PR left the search, if the category "
                             + "deletes automatically; 0 = kept. "
-                            + "Empty means " + GroupConfig.AutoPr.DEFAULT_DELETE_HOURS + "."),
-            // [impl->dsn~host-table~1]
-            new Field("remote", "Host", "Defaults for its tasks", Type.HOST,
-                    "ssh destination (user@host or an alias) a new task in the category "
-                            + "inherits — one of the settings' hosts or any other."),
-            // [impl->dsn~category-action-defaults~2]
-            new Field("intellij", "Open in IntelliJ", "Defaults for its tasks", Type.BOOLEAN,
-                    "Used by every task of the category that configures no intellij section."),
-            new Field("intellij.projectPath", "IntelliJ project path", "Defaults for its tasks",
-                    Type.STRING,
-                    "Project directory; empty falls back to the task's Claude workspace."),
-            new Field("browser.urls", "Browser URLs", "Defaults for its tasks", Type.LIST,
-                    BROWSER_URLS_HELP),
-            new Field("folders", "Local folders", "Defaults for its tasks", Type.LIST,
-                    "Folders opened in the file manager on switch; one per line."),
-            new Field("terminal", "Open in Windows Terminal", "Defaults for its tasks", Type.BOOLEAN,
-                    "Focuses a local Windows Terminal tab on every switch to a task without its own."),
-            new Field("terminal.tabTitle", "Windows Terminal tab", "Defaults for its tasks", Type.STRING,
-                    "The tab's title; empty means each task's title, a task's own tab wins."),
-            new Field("terminal.folder", "Windows Terminal tab folder", "Defaults for its tasks",
-                    Type.STRING,
-                    "Where the tab is reopened when it is gone, e.g. after a reboot; "
-                            + "empty means the first local folder."));
+                            + "Empty means " + GroupConfig.AutoPr.DEFAULT_DELETE_HOURS + "."));
 
     private FrontmatterCatalog() {
     }
