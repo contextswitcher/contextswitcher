@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~refactoring-analysis-poller~1]
+// [utest->dsn~refactoring-analysis-poller~2]
 class RefactoringLookupTest {
 
     // The shape RM 3.1.4's `-bc … -json` actually writes (captured live

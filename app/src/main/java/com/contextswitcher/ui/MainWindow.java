@@ -961,7 +961,7 @@ public class MainWindow {
     }
     /// Refactoring count per task id, refreshed by the RefactoringMiner
     /// poller (https://github.com/contextswitcher/contextswitcher-private/issues/50); drives the per-row badge.
-    // [impl->dsn~refactoring-analysis-poller~1]
+    // [impl->dsn~refactoring-analysis-poller~2]
     private final Map<String, RefactoringSummary> refactoringsByTask = new ConcurrentHashMap<>();
     private @Nullable ListView<Object> taskList;
 
@@ -2537,7 +2537,7 @@ public class MainWindow {
 
     /// The task's refactoring summary, or null when the poller has not
     /// resolved it yet (https://github.com/contextswitcher/contextswitcher-private/issues/50).
-    // [impl->dsn~refactoring-analysis-poller~1]
+    // [impl->dsn~refactoring-analysis-poller~2]
     private @Nullable RefactoringSummary refactoringSummaryFor(Task task) {
         return refactoringsByTask.get(task.id());
     }
@@ -2661,7 +2661,7 @@ public class MainWindow {
     /// Merges fresh per-task refactoring summaries in — same shape as
     /// [#updatePrStates]: never removes (a failed poll keeps the last known
     /// count), repaints without rebuilding.
-    // [impl->dsn~refactoring-analysis-poller~1]
+    // [impl->dsn~refactoring-analysis-poller~2]
     public void updateRefactorings(Map<String, RefactoringSummary> fresh) {
         boolean changed = false;
         for (Map.Entry<String, RefactoringSummary> entry : fresh.entrySet()) {

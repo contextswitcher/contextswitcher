@@ -83,6 +83,9 @@ public final class FrontmatterCatalog {
             + URL_TITLE_SEPARATOR + "\" and a short title; a leading \"[chrome] \" or \"[firefox] \" "
             + "opens that one entry in that browser.";
 
+    /// The task key switching the refactoring badge's background count on.
+    public static final String REFACTORING_BADGE = "refactoringBadge";
+
     /// The keys of a task file, in form order.
     public static final List<Field> TASK = List.of(
             new Field("title", "Title", "Task", Type.STRING,
@@ -96,6 +99,10 @@ public final class FrontmatterCatalog {
             // [impl->dsn~idle-task-removal~3]
             new Field("autoRemoveIdle", "Remove when inactive", "Task", Type.BOOLEAN,
                     "Removes session, worktree and task once it has been inactive for a day."),
+            // [impl->dsn~refactoring-analysis-poller~2]
+            new Field(REFACTORING_BADGE, "Refactoring badge", "Task", Type.BOOLEAN,
+                    "Counts the task's refactorings with RefactoringMiner in the background whenever "
+                            + "its session is idle; costs minutes of CPU on the host per new commit."),
             // [impl->dsn~task-tag-model~2]
             new Field("tags", "Tags", "Task", Type.LIST,
                     "One tag per line; the palette and its colors are configured in settings."),            // [impl->dsn~switch-by-window-title~1]

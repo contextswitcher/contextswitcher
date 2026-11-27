@@ -17,6 +17,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 - The Android app's *Update* also offers the newest day release, not only the dev build, whichever is newer; dev builds are Actions artifacts now, not the `android-dev` release.
 - The Android APK of a day release is named after it, e.g. `contextswitcher-2026-11-27.apk`, instead of `android-debug.apk`.
+- RefactoringMiner no longer runs in the background for every task: the refactoring-count badge is a per-task *Refactoring badge* checkbox, off by default; without it RefactoringMiner runs only when you open the refactoring view.
 - A category's settings show *Defaults for its tasks* (host, IntelliJ, browser, folders, terminal) above *Repository* instead of at the very bottom.
 - An empty *Windows Terminal tab folder* shows in gray the folder it falls back to, the first *Local folders* entry.
 - A category's *Add task…* row shows only while its header is selected, right under the header, with a new *Find task…* row above it that searches just that category.

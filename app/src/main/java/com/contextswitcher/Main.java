@@ -145,6 +145,7 @@ import com.contextswitcher.terminal.TmuxHost;
 import com.contextswitcher.tasks.IdleRemoval;
 import com.contextswitcher.tasks.MergedCleanup;
 import com.contextswitcher.tasks.TaskEntry;
+import com.contextswitcher.tasks.FrontmatterCatalog;
 import com.contextswitcher.tasks.TaskFileParser;
 import com.contextswitcher.tasks.TaskGitBackup;
 import com.contextswitcher.tasks.TaskSync;
@@ -1225,7 +1226,7 @@ public class Main extends Application {
                 statuses -> {
                     // Stashed (volatile) before the FX hop: the refactoring
                     // poller's idle gate reads it from its own thread.
-                    // [impl->dsn~refactoring-analysis-poller~1]
+                    // [impl->dsn~refactoring-analysis-poller~2]
                     Map<String, String> previous = liveStatuses;
                     liveStatuses = statuses;
                     // App-hosted sessions report through files of their own.
@@ -1306,7 +1307,7 @@ public class Main extends Application {
         // The refactoring badge (https://github.com/contextswitcher/contextswitcher-private/issues/50), only when some host has a RefactoringMiner
         // install; the first one added later needs a restart. Each host's
         // directory is read fresh per poll, so further hosts need none.
-        // [impl->dsn~refactoring-analysis-poller~1]
+        // [impl->dsn~refactoring-analysis-poller~2]
         if (settings.anyRefactoringMiner()) {
             recomputeRefactoringTargets(repository, files);
             taskEntries.addListener(
@@ -2036,7 +2037,7 @@ public class Main extends Application {
     /// window's `@cs_status`), and a known worktree (`claude.workspace`, else
     /// `claude.cwd`). The group's `baseBranch` is resolved here — a config
     /// read per recompute, not per tick.
-    // [impl->dsn~refactoring-analysis-poller~1]
+    // [impl->dsn~refactoring-analysis-poller~2]
     private void recomputeRefactoringTargets(TaskRepository repository,
             MainWindow.TaskFileAccess files) {
         List<RefactoringMinerPoller.Target> targets = new ArrayList<>();
@@ -2050,6 +2051,12 @@ public class Main extends Application {
             String remote = task.remote();
             if (claude == null || remote == null || tmux == null || tmux.window() == null
                     || task.status() == TaskStatus.SUSPENDED) {
+                continue;
+            }
+            // Opt-in per task: an RM run costs minutes of CPU on the host.
+            String content = files.read(task.id() + ".md");
+            if (content == null
+                    || !TaskFileParser.frontmatterFlag(content, FrontmatterCatalog.REFACTORING_BADGE)) {
                 continue;
             }
             String worktree = claude.workspace() != null ? claude.workspace() : claude.cwd();
@@ -2088,7 +2095,7 @@ public class Main extends Application {
     /// The RefactoringMiner directory on `remote`, read fresh from the host
     /// table — so one set in the settings needs no restart once the poller
     /// runs — or null when that host has none (its tasks are then skipped).
-    // [impl->dsn~refactoring-analysis-poller~1]
+    // [impl->dsn~refactoring-analysis-poller~2]
     private @Nullable String refactoringMinerHome(String remote) {
         try {
             return AppSettings.loadOrCreate(configDir()).refactoringMinerHome(remote);

@@ -396,7 +396,7 @@ public class TaskListCell extends ListCell<Object> {
     private final BiConsumer<String, Runnable> onNewTmuxWindow;
     /// The task's background refactoring summary, or null while unresolved —
     /// decides whether the row shows the count badge (https://github.com/contextswitcher/contextswitcher-private/issues/50).
-    // [impl->dsn~refactoring-analysis-poller~1]
+    // [impl->dsn~refactoring-analysis-poller~2]
     private final Function<Task, @Nullable RefactoringSummary> refactoringSummary;
     /// Opens the task's RefactoringMiner AST-diff web view — the hover
     /// button's and the count badge's click. The `Runnable` is called (FX
@@ -1501,7 +1501,7 @@ public class TaskListCell extends ListCell<Object> {
         // not after the title) that opens the same AST-diff view as the gutter
         // button. Nothing shows until the poller found at least one
         // refactoring — a permanent 0 on every row would be noise.
-        // [impl->dsn~refactoring-analysis-poller~1]
+        // [impl->dsn~refactoring-analysis-poller~2]
         RefactoringSummary refactoringCount = refactoringSummary.apply(task);
         if (refactoringCount != null && refactoringCount.count() > 0) {
             Button badge = new Button(CircledCount.glyph(refactoringCount.count()));

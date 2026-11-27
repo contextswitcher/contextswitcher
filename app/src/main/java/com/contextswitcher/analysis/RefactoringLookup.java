@@ -11,7 +11,7 @@ import org.tinylog.Logger;
 /// expensive RefactoringMiner `-bc` run whose JSON is parsed for the count.
 /// Blocking; runs on the poller thread. The runner needs a generous timeout —
 /// analyzing a large commit range takes RM minutes, not the ssh default 10 s.
-// [impl->dsn~refactoring-analysis-poller~1]
+// [impl->dsn~refactoring-analysis-poller~2]
 public class RefactoringLookup {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

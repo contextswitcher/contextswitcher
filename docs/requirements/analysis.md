@@ -18,9 +18,10 @@ Covers:
 Needs: dsn
 
 ### Automatic refactoring count badge
-`req~refactoring-badge~1`
+`req~refactoring-badge~2`
 
-After the task's AI session goes idle, its row shows how many refactorings the task's committed work contains relative to the category's base branch, without the user asking.
+For a task the user switched it on for, its row shows how many refactorings the task's committed work contains relative to the category's base branch once its AI session goes idle.
+Off by default: RefactoringMiner is expensive (minutes of CPU on a large repository), so without the switch it runs only when the user opens the web view.
 Clicking the count opens the web view.
 A task whose count cannot be determined (worktree gone, remote unreachable) keeps its last known count rather than flickering to nothing.
 
@@ -46,7 +47,7 @@ Tags: windows, linux
 
 Covers:
 - req~refactoring-web-view~1
-- req~refactoring-badge~1
+- req~refactoring-badge~2
 
 Needs: impl, utest
 
@@ -79,9 +80,9 @@ Covers:
 Needs: impl, utest
 
 ### Refactoring analysis poller
-`dsn~refactoring-analysis-poller~1`
+`dsn~refactoring-analysis-poller~2`
 
-`RefactoringMinerPoller` (shaped like `PrStatePoller`: daemon scheduler, fixed delay, per-task emission) analyzes every live task with a remote, a status-publishing tmux window, and a known worktree — but only while the window's live `@cs_status` is `waiting` or `done`, so a working session is never raced.
+`RefactoringMinerPoller` (shaped like `PrStatePoller`: daemon scheduler, fixed delay, per-task emission) analyzes every live task with `refactoringBadge: true` in its frontmatter (the *Refactoring badge* checkbox of the task form), a remote, a status-publishing tmux window, and a known worktree — but only while the window's live `@cs_status` is `waiting` or `done`, so a working session is never raced.
 Per tick and task, `RefactoringLookup` probes HEAD and merge-base first: an unchanged HEAD returns the cached `RefactoringSummary` without an analysis run, HEAD equal to the merge-base is count 0 without a JVM start, and only a moved HEAD runs the count command, whose JSON is parsed into the summary (total refactorings across all commits).
 A failed, timed-out or unparseable run yields count 0 for that HEAD, so it is not retried until HEAD moves; the count runs under a remote `timeout` shorter than the ssh timeout, because ending ssh does not end the remote JVM.
 `MainWindow` merges the summaries per task id — never removing, repainting rows without rebuilding — and the row renders a circled-count badge (hidden at 0) whose click opens the web view.
@@ -90,6 +91,6 @@ The poller exists only when some host has a RefactoringMiner directory at startu
 Tags: windows, linux
 
 Covers:
-- req~refactoring-badge~1
+- req~refactoring-badge~2
 
 Needs: impl, utest

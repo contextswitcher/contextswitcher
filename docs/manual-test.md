@@ -1216,7 +1216,7 @@ Needs an imported plain-shell task — a tmux window that carried no Claude when
 - [ ] With `showOnAllDesktops: false`, switching desktops moves nothing and no per-desktop entries appear.
 - [ ] With `showOnAllDesktops: false`, move/resize the window, restart → it opens at the moved position and size (the startup restore works without the pin; also verify once on Linux).
 
-## Refactoring view and badge ([#50](https://github.com/contextswitcher/contextswitcher-private/issues/50) | `dsn~refactoring-web-view~1` / `dsn~refactoring-analysis-poller~1` | MADR 0022)
+## Refactoring view and badge ([#50](https://github.com/contextswitcher/contextswitcher-private/issues/50) | `dsn~refactoring-web-view~1` / `dsn~refactoring-analysis-poller~2` | MADR 0022)
 
 Precondition: RefactoringMiner unzipped on the remote (`/data/koppor/RefactoringMiner-3.1.4`), the host's *RefactoringMiner* cell set in the settings' host table, a live remote-Claude task with a published `@cs_workspace` whose branch has at least one commit with a refactoring (an extract/rename/move).
 
@@ -1225,7 +1225,8 @@ Precondition: RefactoringMiner unzipped on the remote (`/data/koppor/Refactoring
 - [ ] An **uncommitted** edit in the worktree is visible in the view (directory mode).
 - [ ] Open the view for a *second* task → the first view's browser tab stops answering (single view; the old JVM was killed), the new task's diff shows.
 - [ ] Close the app while a view is open → on the remote, no `RefactoringMiner` java process is left and port 6789 is free (`ss -ltn | grep 6789`), no `/tmp/cs-rm-*`/`tmp.*` base directory remains.
-- [ ] After Claude finishes a task (row dot turns green/waiting), the row shows a circled refactoring count within ~2 poll minutes when its commits contain refactorings; clicking the count opens the same view.
+- [ ] Without the task's *Refactoring badge* checkbox, no `RefactoringMiner` java process ever starts on the remote for it (`pgrep -f RefactoringMiner`), however often Claude finishes.
+- [ ] Tick *Refactoring badge* in the task form; after Claude finishes the task (row dot turns green/waiting), the row shows a circled refactoring count within ~2 poll minutes when its commits contain refactorings; clicking the count opens the same view.
 - [ ] A task whose commits contain no refactorings shows no badge (not a `⓪`).
 - [ ] With the host's *RefactoringMiner* cell empty, the hover button answers with the status-bar hint naming that host, and no badge ever appears for its tasks.
 - [ ] Category with `baseBranch: <other>` in its `CONTEXTSWITCHER.md` → the view diffs against that branch.
