@@ -51,6 +51,7 @@ import com.techsenger.jeditermfx.core.typeahead.TerminalTypeAheadManager;
 import com.techsenger.jeditermfx.core.model.JediTerminal;
 import com.techsenger.jeditermfx.core.model.StyleState;
 import com.techsenger.jeditermfx.core.model.TerminalTextBuffer;
+import com.techsenger.jeditermfx.core.model.hyperlinks.LinkResult;
 import com.techsenger.jeditermfx.ui.DefaultHyperlinkFilter;
 import com.techsenger.jeditermfx.ui.DefaultTerminalCopyPasteHandler;
 import com.techsenger.jeditermfx.ui.TerminalCopyPasteHandler;
@@ -1074,13 +1075,13 @@ public class TerminalPane {
 
     /// The link under the pointer — what the terminal's context menu offers
     /// to copy — and whether it is a file path rather than a URL.
-    // [impl->dsn~terminal-link-copy~2]
+    // [impl->dsn~terminal-link-copy~3]
     private @Nullable String hoveredLink;
     private boolean hoveredPath;
 
     /// The hard-wrapped link under the last right-click — no link to the
     /// hover filters, or only a cut-off piece of one.
-    // [impl->dsn~terminal-link-copy~2]
+    // [impl->dsn~terminal-link-copy~3]
     private WrappedLink.@Nullable Target wrappedLink;
 
     private void hovered(@Nullable String link, boolean path) {
@@ -1144,6 +1145,28 @@ public class TerminalPane {
         widget.getPane().addEventFilter(MouseEvent.MOUSE_PRESSED, event ->
                 wrappedLink = event.getButton() == MouseButton.SECONDARY
                         && widget.getTerminalPanel() instanceof PanePanel panel ? panel.wrappedLinkAt(event) : null);
+        // A filter: a wrapped link wins over the line-wise piece the canvas would open.
+        // [impl->dsn~terminal-link-copy~3]
+        widget.getPane().addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
+            if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 1 || !event.isStillSincePress()
+                    || !(widget.getTerminalPanel() instanceof PanePanel panel)) {
+                return;
+            }
+            WrappedLink.Target target = panel.wrappedLinkAt(event);
+            if (target == null) {
+                return;
+            }
+            event.consume();
+            panel.getCanvas().requestFocus();
+            if (target.path()) {
+                openLinkedPath(target.text());
+            } else {
+                LinkResult url = new DefaultHyperlinkFilter().apply(target.text());
+                if (url != null) {
+                    url.getItems().getFirst().getLinkInfo().navigate();
+                }
+            }
+        });
     }
 
     /// The repository the pane's `#123` links resolve against — set from the
@@ -1226,7 +1249,14 @@ public class TerminalPane {
         JediTermFxWidget view = new JediTermFxWidget(
                 Math.max(80, longestVisibleLine(snapshot)),
                 Math.max(1, (int) snapshot.lines().count()),
-                new TerminalSettings(Themes.isDark(), Themes.isEverforest()));
+                new TerminalSettings(Themes.isDark(), Themes.isEverforest())) {
+            // The panel that knows hard-wrapped links (`dsn~terminal-link-copy~3`).
+            @Override
+            protected TerminalPanel createTerminalPanel(SettingsProvider provider, StyleState style,
+                    TerminalTextBuffer buffer) {
+                return new PanePanel(provider, buffer, style, false);
+            }
+        };
         // URLs in the captured screen stay clickable, like in the live mirror.
         addHyperlinkFilters(view);
         view.setTtyConnector(new StringTtyConnector(snapshot));
@@ -1723,7 +1753,7 @@ public class TerminalPane {
         /// pointer rests on a link — JediTermFX 1.1.0 drops a link's own
         /// popup group (`LinkInfoEx.PopupMenuGroupProvider`), so the panel adds it.
         /// A hard-wrapped link beats the hover: that one is a piece at best.
-        // [impl->dsn~terminal-link-copy~2]
+        // [impl->dsn~terminal-link-copy~3]
         @Override
         public List<TerminalAction> getActions() {
             WrappedLink.Target wrapped = wrappedLink;

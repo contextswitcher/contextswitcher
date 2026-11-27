@@ -261,7 +261,7 @@ A path Claude prints — the attachment an image paste uploaded, the report it j
 `FileHyperlinkFilter` (package `terminal`) marks an absolute or `~`-rooted path whose last segment ends in an extension; a directory is nothing to open, and the extension is what keeps the slashes of ordinary prose out of the links.
 A click opens the file in its registered application when it is on *this* machine (the attachment case: the upload keeps the name, so `Attachments.localCopy` maps `…/.contextswitcher/attachments/<name>` to the local copy even when the remote home differs from the local one), and otherwise downloads it from the mirrored host first — the "Files" menu's own route, `RemoteFiles.stat` then `downloadGeneratedFile`, so the size limit and the "no readable file" alert apply unchanged.
 
-A hyperlink filter sees one line at a time, so a path Claude Code hard-wrapped across two lines stays plain text; the menu remains the way to reach those.
+A hyperlink filter sees one line at a time, so a path Claude Code hard-wrapped across two lines is no link to it; a click on such a path opens it whole all the same (`dsn~terminal-link-copy~3`).
 
 Tags: windows, linux
 
@@ -286,14 +286,15 @@ Covers:
 Needs: impl, utest
 
 ### A hovered terminal link can be copied
-`dsn~terminal-link-copy~2`
+`dsn~terminal-link-copy~3`
 
 Copying a path Claude printed by selecting it is fiddly, and a hard-wrapped or truncated one cannot be selected whole.
 While the pointer rests on a link (`dsn~terminal-hyperlinks~1`, `dsn~terminal-issue-links~2`, `dsn~terminal-file-links~1`), the terminal's context menu starts with "Copy path" for a file link and "Copy link" otherwise, which puts the target — the one the status bar shows (`dsn~terminal-link-hover~1`) — on the clipboard.
 The panel adds the entry itself: JediTermFX 1.1.0 ignores a link's own popup group.
 A URL or path Claude Code hard-wrapped across rows gets the same entry with the whole target, from a right-click on any of its rows: the line-wise filters see at most a piece of it, so `WrappedLink` joins the rows around the click, indentation removed, and runs the URL and path patterns over the result.
 A row counts as cut when it ends within four columns of the terminal's width and the next row is not blank, since Claude's own wrap width is unknown here.
-Clicking and the status bar stay line-wise.
+A primary click on any of its rows opens that whole target — a path as described in `dsn~terminal-file-links~1`, a URL in the browser — and wins over a line-wise link on a piece of it, which would open a cut-off path.
+The status bar stays line-wise.
 
 Tags: windows, linux
 
