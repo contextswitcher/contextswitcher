@@ -10,6 +10,7 @@ import atlantafx.base.theme.Styles;
 
 import com.contextswitcher.local.LocalCommandRunner;
 import com.contextswitcher.tasks.Task;
+import com.contextswitcher.tasks.TaskContextFields;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -198,18 +199,19 @@ final class ListFieldEditor extends VBox {
     private static final Pattern POSIX_DRIVE = Pattern.compile("/(?:cygdrive/|mnt/)?([a-zA-Z])(/.*)?");
 
     /// A folder row: a browse button at the right end, and a pasted
-    /// POSIX drive path converted on Windows (typing goes char by char, so
-    /// only an insertion longer than one char — a paste — is touched).
+    /// `file://` URL converted to its path, a POSIX drive path to the
+    /// Windows form on Windows (typing goes char by char, so only an
+    /// insertion longer than one char — a paste — is touched).
     // [impl->dsn~task-field-form~6]
     private void addBrowse(HBox row, TextField field) {
-        if (LocalCommandRunner.onWindows()) {
-            field.setTextFormatter(new TextFormatter<String>(change -> {
-                if (change.getText().length() > 1) {
-                    change.setText(windowsPath(change.getText()));
-                }
-                return change;
-            }));
-        }
+        boolean windows = LocalCommandRunner.onWindows();
+        field.setTextFormatter(new TextFormatter<String>(change -> {
+            if (change.getText().length() > 1) {
+                String path = TaskContextFields.fromFileUrl(change.getText());
+                change.setText(windows ? windowsPath(path) : path);
+            }
+            return change;
+        }));
         Button browse = new Button(null, new SvgNode(MDITechnology.FOLDER_OPEN_OUTLINE.path(), 14));
         browse.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
         browse.setFocusTraversable(false);

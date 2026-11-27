@@ -83,6 +83,9 @@ public final class FrontmatterCatalog {
             + URL_TITLE_SEPARATOR + "\" and a short title; a leading \"[chrome] \" or \"[firefox] \" "
             + "opens that one entry in that browser.";
 
+    /// The task key switching the refactoring badge's background count on.
+    public static final String REFACTORING_BADGE = "refactoringBadge";
+
     /// The keys of a task file, in form order.
     public static final List<Field> TASK = List.of(
             new Field("title", "Title", "Task", Type.STRING,
@@ -96,9 +99,18 @@ public final class FrontmatterCatalog {
             // [impl->dsn~idle-task-removal~3]
             new Field("autoRemoveIdle", "Remove when inactive", "Task", Type.BOOLEAN,
                     "Removes session, worktree and task once it has been inactive for a day."),
+            // [impl->dsn~refactoring-analysis-poller~2]
+            new Field(REFACTORING_BADGE, "Refactoring badge", "Task", Type.BOOLEAN,
+                    "Counts the task's refactorings with RefactoringMiner in the background whenever "
+                            + "its session is idle; costs minutes of CPU on the host per new commit."),
             // [impl->dsn~task-tag-model~2]
             new Field("tags", "Tags", "Task", Type.LIST,
-                    "One tag per line; the palette and its colors are configured in settings."),
+                    "One tag per line; the palette and its colors are configured in settings."),            // [impl->dsn~switch-by-window-title~1]
+            new Field(WindowTitleMatch.KEY, "Window titles", "Task", Type.LIST,
+                    "The switch-by-window hotkey (" + com.contextswitcher.config.WindowHotkey.DEFAULT
+                            + " by default) switches to this task while a window whose title contains one "
+                            + "of these is in front, e.g. a Teams meeting's name; one per line."),
+
             // [impl->dsn~host-table~1]
             new Field("remote", "Host", "Session", Type.HOST,
                     "ssh destination (user@host or an alias) — one of the settings' hosts or any "
@@ -136,9 +148,10 @@ public final class FrontmatterCatalog {
             new Field("note", "OneNote", "Switch actions", Type.STRING,
                     "Opened by \"Open note\" — the page's onenote:… link (any other link works too)."),
             // [impl->dsn~local-terminal-focus~7]
+            new Field("terminal", "Open in Windows Terminal", "Switch actions", Type.BOOLEAN,
+                    "Focuses a local Windows Terminal tab on every switch, e.g. a shell for gradlew."),
             new Field("terminal.tabTitle", "Windows Terminal tab", "Switch actions", Type.STRING,
-                    "Local Windows Terminal tab focused on switch, e.g. a shell for gradlew "
-                            + "(the title pinned via \"Rename Tab\")."),
+                    "The tab's title, pinned via \"Rename Tab\"; empty means the task's title."),
             new Field("terminal.folder", "Windows Terminal tab folder", "Switch actions", Type.STRING,
                     "Where the tab is reopened when it is gone, e.g. after a reboot; "
                             + "empty means the first local folder."));
@@ -149,7 +162,7 @@ public final class FrontmatterCatalog {
     // [impl->dsn~task-field-form~6]
     public static final Set<String> SWITCH_ACTION_KEYS =
             Set.of("intellij", "intellij.projectPath", "vscode", "browser.urls", "folders", "chat", "note",
-                    "terminal.tabTitle", "terminal.folder",
+                    "terminal", "terminal.tabTitle", "terminal.folder",
                     "desktop", "completeControl", "profile");
 
     /// Whether `field` belongs on the Switch actions pane ([#SWITCH_ACTION_KEYS]).
@@ -167,7 +180,11 @@ public final class FrontmatterCatalog {
                     "Merged, expired auto-PR and closed plain-shell tasks are deleted "
                             + "instead of kept; pinned tasks never are."),
             new Field("tags", "Tags", "Category", Type.LIST,
-                    "Inherited by every task in the category; one per line."),
+                    "Inherited by every task in the category; one per line."),            // [impl->dsn~switch-by-window-title~1]
+            new Field(WindowTitleMatch.KEY, "Window titles", "Category", Type.LIST,
+                    "The switch-by-window hotkey switches into the category while a window whose title "
+                            + "contains one of these is in front — unless a task's own window titles match."),
+
             // [impl->dsn~task-agent~1]
             new Field("agent", "Agent", "Category", Type.STRING,
                     "CLI the tasks' windows run: claude (empty), claude-api, vibe or codex."),
@@ -197,6 +214,28 @@ public final class FrontmatterCatalog {
             new Field("contexts", "todo.txt contexts", "Category", Type.LIST,
                     "The contexts (environment profiles) the category belongs to, such as desk; "
                             + "one per line, empty means every context."),
+            // [impl->dsn~host-table~1]
+            new Field("remote", "Host", "Defaults for its tasks", Type.HOST,
+                    "ssh destination (user@host or an alias) a new task in the category "
+                            + "inherits — one of the settings' hosts or any other."),
+            // [impl->dsn~category-action-defaults~2]
+            new Field("intellij", "Open in IntelliJ", "Defaults for its tasks", Type.BOOLEAN,
+                    "Used by every task of the category that configures no intellij section."),
+            new Field("intellij.projectPath", "IntelliJ project path", "Defaults for its tasks",
+                    Type.STRING,
+                    "Project directory; empty falls back to the task's Claude workspace."),
+            new Field("browser.urls", "Browser URLs", "Defaults for its tasks", Type.LIST,
+                    BROWSER_URLS_HELP),
+            new Field("folders", "Local folders", "Defaults for its tasks", Type.LIST,
+                    "Folders opened in the file manager on switch; one per line."),
+            new Field("terminal", "Open in Windows Terminal", "Defaults for its tasks", Type.BOOLEAN,
+                    "Focuses a local Windows Terminal tab on every switch to a task without its own."),
+            new Field("terminal.tabTitle", "Windows Terminal tab", "Defaults for its tasks", Type.STRING,
+                    "The tab's title; empty means each task's title, a task's own tab wins."),
+            new Field("terminal.folder", "Windows Terminal tab folder", "Defaults for its tasks",
+                    Type.STRING,
+                    "Where the tab is reopened when it is gone, e.g. after a reboot; "
+                            + "empty means the first local folder."),
             new Field("repo", "GitHub repository", "Repository", Type.STRING,
                     "The category's GitHub repository, opened by the header's repository icon "
                             + "and named in a live task's bootstrap prompt."),
@@ -226,28 +265,7 @@ public final class FrontmatterCatalog {
                     Type.STRING,
                     "How long a task is kept after its PR left the search, if the category "
                             + "deletes automatically; 0 = kept. "
-                            + "Empty means " + GroupConfig.AutoPr.DEFAULT_DELETE_HOURS + "."),
-            // [impl->dsn~host-table~1]
-            new Field("remote", "Host", "Defaults for its tasks", Type.HOST,
-                    "ssh destination (user@host or an alias) a new task in the category "
-                            + "inherits — one of the settings' hosts or any other."),
-            // [impl->dsn~category-action-defaults~2]
-            new Field("intellij", "Open in IntelliJ", "Defaults for its tasks", Type.BOOLEAN,
-                    "Used by every task of the category that configures no intellij section."),
-            new Field("intellij.projectPath", "IntelliJ project path", "Defaults for its tasks",
-                    Type.STRING,
-                    "Project directory; empty falls back to the task's Claude workspace."),
-            new Field("browser.urls", "Browser URLs", "Defaults for its tasks", Type.LIST,
-                    BROWSER_URLS_HELP),
-            new Field("folders", "Local folders", "Defaults for its tasks", Type.LIST,
-                    "Folders opened in the file manager on switch; one per line."),
-            new Field("terminal.tabTitle", "Windows Terminal tab", "Defaults for its tasks", Type.STRING,
-                    "Local Windows Terminal tab focused on switch, e.g. a shell for gradlew; "
-                            + "a task's own tab wins."),
-            new Field("terminal.folder", "Windows Terminal tab folder", "Defaults for its tasks",
-                    Type.STRING,
-                    "Where the tab is reopened when it is gone, e.g. after a reboot; "
-                            + "empty means the first local folder."));
+                            + "Empty means " + GroupConfig.AutoPr.DEFAULT_DELETE_HOURS + "."));
 
     private FrontmatterCatalog() {
     }

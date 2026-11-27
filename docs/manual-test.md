@@ -539,6 +539,15 @@ Windows only — ConPTY exists nowhere else, so none of this can be checked on L
       that travels the same way.
       *Verified live by Oliver, 2026-07-19 (devbox).*
 
+### Add-task context fields (`dsn~task-create-context-fields~1`)
+
+- [ ] In OneNote, **Copy Link to Page**, then **Add task…** → the *Note* field holds the `onenote:` link, the description is empty.
+      Type a title, **Add plain task** → the task's note icon opens the page in the OneNote desktop app.
+- [ ] In Explorer, copy a folder (Ctrl+C), then **Add task…** → *Folders* holds its path; the new task's frontmatter has `folders-<computer name>:`, and a switch opens the folder.
+      On the other machine (synced tasks) the same task opens the category's folders instead.
+- [ ] Paste only the `https://onedrive.live.com/…` line into *Note* → a hint says it opens the browser.
+  *(Prefill, hint and written keys automated: `AddTaskDialogUiTest.contextFieldsPrefillFromTheClipboardAndLandInTheFile`.)*
+
 ### PR-task creation does not steal a queue box (`dsn~task-from-pr~6`)
 
 - [ ] Select task A, start **Add from PR…** with a PR URL, and while the window
@@ -1207,7 +1216,7 @@ Needs an imported plain-shell task — a tmux window that carried no Claude when
 - [ ] With `showOnAllDesktops: false`, switching desktops moves nothing and no per-desktop entries appear.
 - [ ] With `showOnAllDesktops: false`, move/resize the window, restart → it opens at the moved position and size (the startup restore works without the pin; also verify once on Linux).
 
-## Refactoring view and badge ([#50](https://github.com/contextswitcher/contextswitcher-private/issues/50) | `dsn~refactoring-web-view~1` / `dsn~refactoring-analysis-poller~1` | MADR 0022)
+## Refactoring view and badge ([#50](https://github.com/contextswitcher/contextswitcher-private/issues/50) | `dsn~refactoring-web-view~1` / `dsn~refactoring-analysis-poller~2` | MADR 0022)
 
 Precondition: RefactoringMiner unzipped on the remote (`/data/koppor/RefactoringMiner-3.1.4`), the host's *RefactoringMiner* cell set in the settings' host table, a live remote-Claude task with a published `@cs_workspace` whose branch has at least one commit with a refactoring (an extract/rename/move).
 
@@ -1216,7 +1225,8 @@ Precondition: RefactoringMiner unzipped on the remote (`/data/koppor/Refactoring
 - [ ] An **uncommitted** edit in the worktree is visible in the view (directory mode).
 - [ ] Open the view for a *second* task → the first view's browser tab stops answering (single view; the old JVM was killed), the new task's diff shows.
 - [ ] Close the app while a view is open → on the remote, no `RefactoringMiner` java process is left and port 6789 is free (`ss -ltn | grep 6789`), no `/tmp/cs-rm-*`/`tmp.*` base directory remains.
-- [ ] After Claude finishes a task (row dot turns green/waiting), the row shows a circled refactoring count within ~2 poll minutes when its commits contain refactorings; clicking the count opens the same view.
+- [ ] Without the task's *Refactoring badge* checkbox, no `RefactoringMiner` java process ever starts on the remote for it (`pgrep -f RefactoringMiner`), however often Claude finishes.
+- [ ] Tick *Refactoring badge* in the task form; after Claude finishes the task (row dot turns green/waiting), the row shows a circled refactoring count within ~2 poll minutes when its commits contain refactorings; clicking the count opens the same view.
 - [ ] A task whose commits contain no refactorings shows no badge (not a `⓪`).
 - [ ] With the host's *RefactoringMiner* cell empty, the hover button answers with the status-bar hint naming that host, and no badge ever appears for its tasks.
 - [ ] Category with `baseBranch: <other>` in its `CONTEXTSWITCHER.md` → the view diffs against that branch.
@@ -1410,14 +1420,15 @@ Needs the debug APK on a phone with synced tasks of a category whose tasks recor
 - [ ] *Call (Android Auto)* with the phone connected to the car → the car shows an ongoing call; the overview and the card come through the car's speakers; saying "next" steps, a sentence is sent as the reply, and the finished turn is read out; the car's hang-up (or *Hang up* on the phone) ends it.
 - [ ] Head unit: *Tour* in the header → category list → the same card as a message screen with *Dictate* and *Next*; *Previous* and *Repeat* in the header. Dictation from the tour sends with the voice-mode hint.
 
-## Android update hint (`dsn~android-update-hint~4`)
+## Android update hint (`dsn~android-update-hint~5`)
 
-Needs the debug APK on a phone and a finished run of *Publish Android dev build* (`gh workflow run android-dev.yml`) for a newer commit.
+Needs the debug APK on a phone, a day release and a finished run of *Publish Android dev build* (`gh workflow run android-dev.yml`) for a newer commit.
 
-- [ ] Open the app on a build older than `android-dev` → after the sync, **Update** is in the top bar.
-- [ ] Tap it → it reads *Updating…*; the first time, Android asks to allow ContextSwitcher to install apps and to confirm; the app restarts on the new build and **Update** is gone.
-- [ ] Push to main without starting the workflow → the `android-dev` release and tag do not change, and the app offers no update.
-- [ ] Publish again and update on Android 12 or later → it installs without a confirmation.
+- [ ] Open the app on a build older than the dev build → after the sync, **Update** is in the top bar.
+- [ ] Tap it → it reads *Updating…*; the first time, Android asks to allow ContextSwitcher to install apps and to confirm; the app restarts on the dev build and **Update** is gone.
+- [ ] Install an APK older than the newest day release, with no newer dev build → **Update** installs the day release.
+- [ ] Push to `experimental` without starting the workflow → the app offers no update until the next day release.
+- [ ] Update again on Android 12 or later → it installs without a confirmation.
 - [ ] Settings with an empty *Token* → **Update** still appears.
 - [ ] Without network → a Snackbar says the update check failed, once per start; the task list works as before.
 

@@ -119,6 +119,20 @@ class ConfigFormMergeTest {
         assertThat(Frontmatter.parse(off)).doesNotContainKey("intellij");
     }
 
+    /// The *Open in Windows Terminal* checkbox works the same way: alone it
+    /// writes a bare section, which the parser reads as a tab named after the task.
+    // [utest->dsn~local-terminal-focus~7]
+    @Test
+    void theTerminalCheckboxAddsAndRemovesTheBareSection() throws Exception {
+        String enabled = merge(FrontmatterCatalog.TASK, TASK, Map.of("terminal", true));
+        assertThat(ConfigForm.seeds(FrontmatterCatalog.TASK, enabled).get("terminal")).isEqualTo(true);
+        assertThat(new com.contextswitcher.tasks.TaskFileParser().parse("t", enabled).terminal())
+                .isEqualTo(new com.contextswitcher.tasks.Task.TerminalConfig(null, null));
+
+        String off = merge(FrontmatterCatalog.TASK, enabled, Map.of("terminal", false));
+        assertThat(Frontmatter.parse(off)).doesNotContainKey("terminal");
+    }
+
     @Test
     void urlLinesRoundTripThroughTheirTitles() {
         String out = merge(FrontmatterCatalog.TASK, TASK, Map.of("browser.urls",

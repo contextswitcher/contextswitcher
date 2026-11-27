@@ -157,6 +157,21 @@ Covers:
 
 Needs: dsn
 
+### Switch to the task of the window in front
+`req~switch-by-window~1`
+
+In a meeting window (Microsoft Teams, say), one key press switches to the task the meeting belongs to, opening its note, folders and the rest — the meeting app cannot carry a button of ContextSwitcher's.
+A task, or a category, names its windows by text their titles contain (`windowTitle:`); a global hotkey, configurable in `settings.yaml`, finds the task whose text the title of the window in front contains and runs its switch.
+When several tasks match, ContextSwitcher comes up with the first one selected and names them all; when none does, it comes up and says so — a press never appears to do nothing.
+A hotkey that cannot be registered is reported, naming the key.
+
+Tags: windows, linux_later
+
+Covers:
+- feat~task-context-switching~1
+
+Needs: dsn
+
 ### App windows on the desktop in view
 `req~app-window-on-current-desktop~2`
 
@@ -468,7 +483,8 @@ Needs: impl, utest
 ### Local Windows Terminal focus action
 `dsn~local-terminal-focus~7`
 
-`LocalTerminalAction` focuses the task's `terminal.tabTitle`. `WindowsTerminalFocus` builds a PowerShell UI Automation script (find the `CASCADIA_HOSTING_WINDOW_CLASS` window whose `TabItem` name equals the title, `SelectionItemPattern.Select` it, restore + Alt-tap + `SetForegroundWindow`/`BringWindowToTop`) and runs it as a base64 `-EncodedCommand` via `LocalCommandRunner` (a local child-process runner mirroring the ssh runner). The title is embedded as a single-quoted PowerShell literal with `'` doubled; exit code 0 = focused, 2 = no such tab.
+`LocalTerminalAction` focuses the task's `terminal.tabTitle`, or a tab titled like the task when the section names none.
+The form's *Open in Windows Terminal* checkbox is the section's presence: ticked alone it writes `terminal: {}`, and the tab title and folder fields show only while it is ticked. `WindowsTerminalFocus` builds a PowerShell UI Automation script (find the `CASCADIA_HOSTING_WINDOW_CLASS` window whose `TabItem` name equals the title, `SelectionItemPattern.Select` it, restore + Alt-tap + `SetForegroundWindow`/`BringWindowToTop`) and runs it as a base64 `-EncodedCommand` via `LocalCommandRunner` (a local child-process runner mirroring the ssh runner). The title is embedded as a single-quoted PowerShell literal with `'` doubled; exit code 0 = focused, 2 = no such tab.
 The raise goes through `CsMv.Focus` (`dsn~window-move-here~2`): a window is raised only when it is on the virtual desktop in view, after a move there when needed; one that stays elsewhere is left alone, since raising it switches the user to its desktop.
 Windows parked on another virtual desktop are **cloaked** (`DWM_CLOAKED_SHELL`): absent from the UIA root, `Process.MainWindowHandle` skips them, and UIA cannot descend into their subtree — but `EnumWindows` does list them.
 When the desktop-local sweep finds no tab, the script enumerates `CASCADIA_HOSTING_WINDOW_CLASS` windows whose **window title equals the tab title** — the title shows the active tab, so a match needs no tab selection — and brings that window here (`CsMv.Focus`). When it cannot be moved, the script exits 3, the action fails with `tab "<title>" is on another desktop`, and no tab is reopened: the user is never switched to another desktop (field report 2026-11-15; the earlier `SwitchToThisWindow` jump is gone).
@@ -586,7 +602,7 @@ Covers:
 Needs: impl, utest
 
 ### Gather windows onto one screen
-`dsn~environment-profile-gather-windows~3`
+`dsn~environment-profile-gather-windows~4`
 
 A profile's `gatherWindows: <screen>` takes a selector like `screens:` (EDID name or product code, `primary`, `internal`, `external`; `off` switches a lower layer's gathering off) and layers per key like the other keys.
 `WindowsEnvironment.apply` hands the effective value to `WindowGather`, which keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside to resolve the selector) for it: same selector — nothing happens; another — restart; none — stop; `Main.stop` stops it, and the watcher exits on its own once the app's process is gone.
@@ -597,6 +613,7 @@ A window covering its whole screen without being maximized with a title bar (`WS
 A maximized window covers its screen too where no taskbar takes room, and is moved: the laptop's maximized Firefox was taken for a slide show and stayed (field report 2026-11-22).
 A window still on its old screen after 3 moves within one grace (an elevated Task Manager refuses them) is logged once as `did not stay` and left alone until it is closed; with one screen, or none matching the selector, nothing moves.
 `gatherWhen: docking` (default `always`, layered per key) leaves new windows alone: the watcher sweeps every window over only for 10 s after a screen change — one it sees itself, or one `Main.screensChanged` reported to `WindowGather.screensChanged` within the last 20 s before the watcher started — so docking brings the laptop's windows to the big screen, and a window opened later on the laptop or a second monitor stays there (field report 2026-11-22: a new SumatraPDF on the 27" was pulled onto the 32").
+A change the running watcher sees itself counts once the new set has stayed unchanged for 3 s, and not when the screens are back as before a sleep (`dsn~screens-sleep-round-trip~1`); such a round trip reported by `ScreenWatch` also clears the change `Main.screensChanged` reported before the sleep.
 A docking watcher started without such a change (the app starting while docked, a task switch to a profile with the key) does not sweep; switching between `always` and `docking` restarts the watcher.
 Moves are logged with the window handle (`Window gather: moved notepad++ 0x1A2B from \\.\DISPLAY2 to \\.\DISPLAY1`); the chip reports starting and stopping.
 
@@ -641,6 +658,23 @@ Covers:
 
 Needs: impl, utest
 
+### Sleep is not docking
+`dsn~screens-sleep-round-trip~1`
+
+Going to sleep, Windows drops the external screens a few seconds before the processes stop, and waking up it brings them back; both looked like undocking and docking, and after waking up at the desk the gather watcher swept every window onto the 32" (field report 2026-11-26).
+`SleepGuard` (inline C# `CsSleepGuard`, compiled into the `ScreenWatch` and `WindowGather` watchers) is fed every look at the screens with the wall-clock time and settles a set once it stayed unchanged for 3 s.
+A wall-clock jump of more than 10 s between two looks is a sleep: the set not yet settled is dropped, and the set the machine went to sleep with is the one settled before the sleep — or the one before that, when the last change settled at most 30 s before the sleep.
+A set settled within 2 min of waking up that equals it is a round trip: `ScreenWatch` reports it with `end<TAB>sleep`, `Main.screensChanged` re-applies the profile it picks but tells `WindowGather` nothing changed, and the gather watcher does not sweep.
+A drop that did not settle before the sleep is not reported at all; waking up to other screens (docked or undocked while asleep) is an ordinary change; no screens at all (standby) is no look.
+
+Tags: windows
+
+Covers:
+- req~screen-chosen-profile~1
+- req~environment-profiles~1
+
+Needs: impl, utest
+
 ### Screen-chosen profile
 `dsn~screen-chosen-profile~1`
 
@@ -648,10 +682,10 @@ Needs: impl, utest
 A selector matches a `ConnectedScreen` as a profile's `screens:` key does: EDID name or product code, `primary`, `internal`, `external`, case-insensitive.
 `EnvironmentProfiles.effective(screen, category, override)` layers per key `default` < screen-chosen < category < override; `EnvironmentProfileAction` takes the screen-chosen name from a supplier and labels the chip with the layers, `desk (screens) + lecture`.
 
-`ScreenWatch` keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside like `WindowGather`'s) that polls the active screens every 500 ms and prints a set only after it stayed unchanged for 3 s, never an empty one (standby); it exits once the app's process is gone, and `Main.stop` stops it.
+`ScreenWatch` keeps one long-running `powershell` watcher (inline C#, `CsScreens` compiled alongside like `WindowGather`'s) that polls the active screens every 500 ms and prints a set only after it stayed unchanged for 3 s, never an empty one (standby), and not across a sleep (`dsn~screens-sleep-round-trip~1`); it exits once the app's process is gone, and `Main.stop` stops it.
 `Main.screensChanged` picks the profile for each reported set; when it differs from the one in effect, `EnvironmentProfileAction.reapply` applies the effective profile for the category last switched to, with the outcome as a status-bar message.
 The first set after the start applies only when a rule matches, so starting the app does not reset the machine to `default` unasked.
-With `gatherWindows:` in the screen-chosen profile, docking gathers windows onto the main screen: the gather watcher (`dsn~environment-profile-gather-windows~3`) starts with the profile and pulls every window over; with `gatherWhen: docking` only right after docking.
+With `gatherWindows:` in the screen-chosen profile, docking gathers windows onto the main screen: the gather watcher (`dsn~environment-profile-gather-windows~4`) starts with the profile and pulls every window over; with `gatherWhen: docking` only right after docking.
 Off Windows `ScreenWatch` starts nothing.
 
 Tags: windows
@@ -756,6 +790,49 @@ Tags: windows
 
 Covers:
 - req~app-window-on-current-desktop~2
+
+Needs: impl, utest
+
+### Matching the window in front to a task
+`dsn~switch-by-window-title~1`
+
+`windowTitle:` is a string or a list of strings, in a task file or a category's `CONTEXTSWITCHER.md`; it is read without a field on `Task` (`TaskFileParser.frontmatterStrings`, like `vscode:`), fresh on every press, so an edit counts at once — and it is a *Window titles* list on the Configuration pane (`FrontmatterCatalog`), in `TEMPLATE.md` and in the category skeleton, hence in both F1 references.
+`WindowTitleMatch` (core, pure) matches each entry case-insensitively as a plain substring of the window title — what is copied out of a title bar is what is typed, so `Thesis weekly sync` matches `Thesis weekly sync | Microsoft Teams`, and no `|` or `(` in a meeting name turns into regex syntax.
+A candidate scores the length of its longest matching entry; the highest score wins, so a more specific entry beats a broader one.
+Tasks are matched first (only those not `done`); categories count only when no task matches, which is their fallback: a category-wide `Thesis` catches every Thesis meeting no task claims.
+
+`Main.switchByWindow` (FX thread) acts on the outcome and logs it at INFO with the window's process, pid and title:
+one task → it is selected, the app raised, and the regular switch runs, as `contextswitcher://switch/<id>` does (`dsn~deep-link-url~1`);
+several tasks → the first is selected and the app raised, the status bar naming them all (`Window '…' matches 2 tasks: A, B — selected the first, ▶ switches`), so the choice is one click instead of a dialog in the way;
+one category → its header is selected and the category switch runs (`dsn~category-switch~1`); several → the first selected and all named;
+none → the app comes up and the status bar says `No task for window '<title>' — add it as windowTitle: to a task or category`.
+
+Tags: windows
+
+Covers:
+- req~switch-by-window~1
+
+Needs: impl, utest
+
+### The switch-by-window hotkey
+`dsn~switch-by-window-hotkey~1`
+
+`switchByWindowHotkey:` in `settings.yaml` (`WindowHotkey`, core) names the combination as `Win`/`Ctrl`/`Alt`/`Shift` plus a letter, digit or `F1`…`F24`, at least one modifier; absent means `Win+Shift+F`, `off` (or empty, `false`) turns it off; it is read once at startup.
+The default is not `Win+F`: on Windows 11 that is Feedback Hub's, and `RegisterHotKey` refuses it with 1409 (`ERROR_HOTKEY_ALREADY_REGISTERED`), as it does `Win+Alt+F` and `Ctrl+Win+F` (probe on build 26300); `Ctrl+Alt` is avoided, being AltGr on a German keyboard.
+
+`WindowsHotkey` registers it in a persistent `powershell` process (MADR 0039), the pattern of the desktop watcher (`dsn~active-desktop-filter~6`): inline C# calls `RegisterHotKey` with `MOD_NOREPEAT` on its own thread and runs a `GetMessage` loop, printing `registered`, or `failed:<win32 error>` and exiting; per `WM_HOTKEY` it calls `AllowSetForegroundWindow` for ContextSwitcher's pid — the press is the listener's input, so it holds the foreground right the raise needs — and prints `hotkey:<pid>\t<process>\t<title>` of the foreground window.
+When that window is ContextSwitcher's own (its pid is passed in), the line describes the next window down the z-order that is visible, not cloaked, titled, unowned and no tool window — the one that was in front before.
+Java keeps the process's stdin open; a thread in the script blocks on it and posts `WM_QUIT` at end-of-file, so closing it on exit — or the JVM dying — unregisters the key instead of leaving an orphan that would make the next start fail with 1409.
+A `$ProgressPreference` of `SilentlyContinue` keeps PowerShell's CLIXML progress record off the merged stream, and a line glued behind one is cut loose anyway (`WindowsHotkey.unglued`).
+
+No failure is silent: a value that does not parse, a refused key (`Hotkey Win+F not registered: already taken by Windows or another app — set another one as switchByWindowHotkey in settings.yaml`), a listener that ends before registering (its output logged) and one that dies later each go to the status bar and the log, naming the key.
+Like the watcher, it is not restarted.
+Off Windows, and under the UI tests (`LocalCommandRunner.NO_DESKTOP_SIDE_EFFECTS`), it does not start.
+
+Tags: windows
+
+Covers:
+- req~switch-by-window~1
 
 Needs: impl, utest
 

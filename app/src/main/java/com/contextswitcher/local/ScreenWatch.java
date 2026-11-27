@@ -23,10 +23,15 @@ import org.tinylog.Logger;
 /// up docked, Windows reconfigures the displays a dozen times or more within
 /// seconds, and applying a profile in between would chase a moving target.
 /// An empty set (all screens off, as during standby) is never reported.
+/// Sleep is not docking ([SleepGuard]): a set dropped while going to sleep
+/// is not reported, and the set the machine wakes up to is reported marked
+/// as a round trip ([Change#sleepRoundTrip]) when it is the one it went to
+/// sleep with.
 /// The watcher exits on its own once the app's process is gone.
 ///
 /// Windows-only: elsewhere [#start] does nothing.
 // [impl->dsn~screen-chosen-profile~1]
+// [impl->dsn~screens-sleep-round-trip~1]
 public class ScreenWatch implements AutoCloseable {
 
     /// How long the screen set must stay unchanged before it is reported.
@@ -45,22 +50,17 @@ public class ScreenWatch implements AutoCloseable {
               public static void Run(int parentPid, int stableMs) {
                 Process parent = null;
                 try { parent = Process.GetProcessById(parentPid); } catch { return; }
-                string reported = null, last = null;
-                long since = 0;
-                var clock = Stopwatch.StartNew();
+                var guard = new CsSleepGuard(stableMs);
                 while (!parent.HasExited) {
                   var sb = new StringBuilder();
                   foreach (var s in CsScreens.Active()) {
                     sb.Append("screen\\t").Append((s.Name ?? "").Replace('\\t', ' ')).Append('\\t').Append(s.Code ?? "")
                       .Append('\\t').Append(s.Internal ? 1 : 0).Append('\\t').Append(s.Primary ? 1 : 0).Append('\\n');
                   }
-                  string now = sb.ToString();
-                  long tick = clock.ElapsedMilliseconds;
-                  if (now != last) { last = now; since = tick; }
-                  else if (now != reported && now.Length > 0 && tick - since >= stableMs) {
-                    reported = now;
-                    Console.Write(now);
-                    Console.WriteLine("end");
+                  string settled = guard.Look(sb.ToString());
+                  if (settled != null) {
+                    Console.Write(settled);
+                    Console.WriteLine(guard.RoundTrip ? "end\\tsleep" : "end");
                     Console.Out.Flush();
                   }
                   Thread.Sleep(500);
@@ -68,8 +68,14 @@ public class ScreenWatch implements AutoCloseable {
               }
             }
             __SCREENS__
+            __SLEEP__
             "@
             """;
+
+    /// A stable set of connected screens; `sleepRoundTrip` when it is the
+    /// set the machine went to sleep with, back after waking up.
+    public record Change(List<ConnectedScreen> screens, boolean sleepRoundTrip) {
+    }
 
     /// Starts a watcher process from its argv; swapped out in tests.
     @FunctionalInterface
@@ -93,6 +99,7 @@ public class ScreenWatch implements AutoCloseable {
 
     static String script(long parentPid) {
         return SCRIPT.replace("__SCREENS__", WindowsEnvironment.screenTypes())
+                .replace("__SLEEP__", SleepGuard.types())
                 + "[CsScreenWatch]::Run(%d, %d)\n".formatted(parentPid, STABLE_MS);
     }
 
@@ -102,7 +109,7 @@ public class ScreenWatch implements AutoCloseable {
 
     /// Starts watching; `onChange` gets each stable screen set, the first
     /// one shortly after the start, on the watcher's reader thread.
-    public synchronized void start(Consumer<List<ConnectedScreen>> onChange) {
+    public synchronized void start(Consumer<Change> onChange) {
         if (!windows || process != null) {
             return;
         }
@@ -117,17 +124,18 @@ public class ScreenWatch implements AutoCloseable {
         }
     }
 
-    private static void read(Process watcher, Consumer<List<ConnectedScreen>> onChange) {
+    private static void read(Process watcher, Consumer<Change> onChange) {
         Parser parser = new Parser();
         try (BufferedReader out = new BufferedReader(
                 new InputStreamReader(watcher.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = out.readLine()) != null) {
-                List<ConnectedScreen> screens = parser.accept(line);
-                if (screens != null) {
-                    Logger.info("Screens: {}", screens);
+                Change change = parser.accept(line);
+                if (change != null) {
+                    Logger.info("Screens: {}{}", change.screens(),
+                            change.sleepRoundTrip() ? " (back as before the sleep)" : "");
                     try {
-                        onChange.accept(screens);
+                        onChange.accept(change);
                     } catch (RuntimeException e) {
                         Logger.warn(e, "Screen change handling failed");
                     }
@@ -139,15 +147,15 @@ public class ScreenWatch implements AutoCloseable {
     }
 
     /// Turns the watcher's output into screen sets: `screen<TAB>name<TAB>code<TAB>internal<TAB>primary`
-    /// lines, closed by `end`. Anything else (a compiler warning) is logged
-    /// and skipped.
+    /// lines, closed by `end` — or by `end<TAB>sleep` for a sleep round trip.
+    /// Anything else (a compiler warning) is logged and skipped.
     static final class Parser {
         private final List<ConnectedScreen> pending = new ArrayList<>();
 
         /// The completed set when `line` closes one; null otherwise.
-        @Nullable List<ConnectedScreen> accept(String line) {
-            if (line.equals("end")) {
-                List<ConnectedScreen> done = List.copyOf(pending);
+        @Nullable Change accept(String line) {
+            if (line.equals("end") || line.equals("end	sleep")) {
+                Change done = new Change(List.copyOf(pending), line.equals("end	sleep"));
                 pending.clear();
                 return done;
             }

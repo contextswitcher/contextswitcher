@@ -35,7 +35,8 @@ public class LocalTerminalAction implements SwitchAction {
         }
         @Nullable String folder = terminal.folder() != null ? terminal.folder()
                 : task.folders().isEmpty() ? null : task.folders().getFirst();
-        WindowsTerminalFocus.FocusResult result = focus.focus(terminal.tabTitle(), folder);
+        WindowsTerminalFocus.FocusResult result = focus.focus(
+                terminal.tabTitle() != null ? terminal.tabTitle() : task.title(), folder);
         return result.ok() ? ActionResult.success(result.detail()) : ActionResult.failure(result.detail());
     }
 }

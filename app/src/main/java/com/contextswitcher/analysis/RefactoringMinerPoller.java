@@ -26,7 +26,7 @@ import org.jspecify.annotations.Nullable;
 /// repeated a tick later anyway. The per-task summary cache (keyed by HEAD
 /// sha) keeps a tick cheap: one `git rev-parse` round-trip per task, the
 /// expensive RefactoringMiner run only when HEAD actually moved.
-// [impl->dsn~refactoring-analysis-poller~1]
+// [impl->dsn~refactoring-analysis-poller~2]
 public class RefactoringMinerPoller implements AutoCloseable {
 
     /// One pollable task: its id (the badge key), the remote and worktree to

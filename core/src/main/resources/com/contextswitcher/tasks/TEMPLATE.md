@@ -30,6 +30,12 @@ browser:
 # OneNote desktop app opens (the onedrive.live.com web URL opens the browser).
 # Without a task note, the category's note (the group's CONTEXTSWITCHER.md note:) is used.
 # note: onenote:https://d.docs.live.net/…/Projects.one#Page&section-id={…}&page-id={…}&end
+# Switch to this task with the switch-by-window hotkey (switchByWindowHotkey in
+# settings.yaml, default Win+Shift+F) while a window whose title contains this
+# text is in front, matched case-insensitively — e.g. the Teams meeting
+# "Thesis weekly sync | Microsoft Teams". One text or a list (optional); a
+# category's windowTitle: counts only when no task's matches.
+# windowTitle: Thesis weekly sync
 # The intellij:, browser:, and folders: sections above default to the
 # category's (the group's CONTEXTSWITCHER.md); a section set here wins.
 # Any key can be scoped to one machine by suffixing it with this computer's

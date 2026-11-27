@@ -13,7 +13,7 @@ import java.io.File
 /// session. The first time, Android asks to allow ContextSwitcher to install
 /// apps and to confirm; once it has installed itself, Android 12 and later let
 /// later updates through without a confirmation.
-// [impl->dsn~android-update-hint~4]
+// [impl->dsn~android-update-hint~5]
 object ApkInstaller {
 
     fun install(context: Context, apk: File) {

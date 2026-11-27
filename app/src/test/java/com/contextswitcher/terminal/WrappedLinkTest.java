@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~terminal-link-copy~2]
+// [utest->dsn~terminal-link-copy~3]
 class WrappedLinkTest {
 
     private static final int WIDTH = 60;

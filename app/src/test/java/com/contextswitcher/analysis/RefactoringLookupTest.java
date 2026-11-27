@@ -1,10 +1,13 @@
 package com.contextswitcher.analysis;
 
+import java.util.List;
+
+import com.contextswitcher.ssh.SshCommandRunner;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~refactoring-analysis-poller~1]
+// [utest->dsn~refactoring-analysis-poller~2]
 class RefactoringLookupTest {
 
     // The shape RM 3.1.4's `-bc … -json` actually writes (captured live
@@ -50,5 +53,29 @@ class RefactoringLookupTest {
         assertThat(RefactoringLookup.countRefactorings("Exception in thread main ...")).isNull();
         assertThat(RefactoringLookup.countRefactorings("{}")).isNull();
         assertThat(RefactoringLookup.countRefactorings("")).isNull();
+    }
+
+    // A run that fails or times out (RM on a huge range) must still pin the
+    // HEAD — otherwise every tick starts another full-CPU JVM on the remote.
+    @Test
+    void failedCountRunPinsTheHeadSoItIsNotRetried() {
+        SshCommandRunner ssh = new SshCommandRunner() {
+            @Override
+            public SshResult run(String host, List<String> remoteCommand) {
+                return remoteCommand.contains("-bc")
+                        ? new SshResult(124, "", "")
+                        : new SshResult(0, "abc\nbase\n", "");
+            }
+
+            @Override
+            public SshResult runWithInput(String host, List<String> remoteCommand, byte[] input) {
+                throw new UnsupportedOperationException();
+            }
+        };
+
+        RefactoringSummary summary = new RefactoringLookup(ssh)
+                .summary("devbox", "/rm", "/wt", "origin/main", null);
+
+        assertThat(summary).isEqualTo(new RefactoringSummary("abc", 0));
     }
 }

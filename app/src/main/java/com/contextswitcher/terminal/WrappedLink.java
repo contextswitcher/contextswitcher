@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 /// Such a link is several unrelated lines to the terminal, each with its own
 /// indentation, so the line-wise filters see at most a cut-off piece of it.
 /// This glues the rows back together around a position in them.
-// [impl->dsn~terminal-link-copy~2]
+// [impl->dsn~terminal-link-copy~3]
 public final class WrappedLink {
 
     /// How far short of the last column a hard-cut row may end.

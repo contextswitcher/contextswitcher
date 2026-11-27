@@ -114,7 +114,10 @@ jobs:
           jbang heylogs@nbbrd extract --batch -r "${GITHUB_REF_NAME#v}" -o notes.md CHANGELOG.md
           # The release title already names the date; the heading "[d] - d" would repeat it twice more.
           sed -i '/^## \[/d' notes.md
-          gh release create "$GITHUB_REF_NAME" android/build/outputs/apk/debug/android-debug.apk --prerelease --verify-tag --title "${GITHUB_REF_NAME#v}" --notes-file notes.md
+          # Named like the release (contextswitcher-2026-11-26.apk) so downloads of several days stay apart.
+          apk="$RUNNER_TEMP/contextswitcher-${GITHUB_REF_NAME#v}.apk"
+          cp android/build/outputs/apk/debug/android-debug.apk "$apk"
+          gh release create "$GITHUB_REF_NAME" "$apk" --prerelease --verify-tag --title "${GITHUB_REF_NAME#v}" --notes-file notes.md
 
   changelog:
     runs-on: ubuntu-latest

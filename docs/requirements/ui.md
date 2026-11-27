@@ -1722,7 +1722,7 @@ A PR URL always routes to the PR flow (`dsn~task-from-pr~6`) regardless of the b
 Each slug is capped at 60 chars, cut at a `-` word boundary (trailing `-`/`.` stripped): a live task's input is a free-form multi-sentence **description** (`dsn~task-create-live~8` derives the short title from it later), and an uncapped slug blows the Windows 260-char MAX_PATH under `%USERPROFILE%\.contextswitcher\tasks\` — the file name is only the task id, not the displayed title.
 Submitting the dialog (any of the three add buttons) moves the keyboard focus to the task list on the left, so the arrow keys and the switch chord act on the new task instead of on the toolbar button or `Add task…` row the dialog was opened from — the same move the row's play button makes (`dsn~task-row-hover-actions~7`). The focus request is deferred to the next pulse: the PR flow opens its host dialog from within this one, and the owner window claims the focus back as that closes.
 `TaskRepository` publishes the observable set of subfolder names — including empty folders — so an empty folder still renders as a group.
-Every hand-filled category offers it twice (`~14`, Carl, 2026-09-16): an always-visible plus icon at the right end of its header, and a slim, muted `Add task…` row (`TaskListCell.AddTaskRow`, a flat button with a plus icon, indented to the task titles) closing its tasks while it is expanded — both open the dialog for that group so the task lands in it (its per-group workdir defaults then apply).
+Every hand-filled category offers it twice (`~14`, Carl, 2026-09-16): an always-visible plus icon at the right end of its header, and a slim, muted `Add task…` row (`TaskListCell.AddTaskRow`, a flat button with a plus icon, indented to the task titles) right under its header while the category is selected (`dsn~category-action-rows~1`) — both open the dialog for that group so the task lands in it (its per-group workdir defaults then apply).
 They replaced the header's hover-only plus and the `Add…` row that only an empty group showed, so adding to a category never depends on hovering or on the category being empty; like the header, the row is a drop target for the category (`dsn~task-move-dnd~6`). An auto category has neither (`dsn~auto-category-placeholder-row~2`).
 
 Tags: windows, linux
@@ -1730,6 +1730,23 @@ Tags: windows, linux
 Covers:
 - req~task-create~1
 - req~compose-key-conventions~5
+
+Needs: impl, utest
+
+### Find and add rows under the selected category
+`dsn~category-action-rows~1`
+
+A category's `Find task…` and `Add task…` rows show only while the category itself is selected — its header row, or one of these two rows — directly under its header, `Find task…` first (Oliver, 2026-11-26); `~14` of `dsn~task-create-ui~15` closed every expanded category with an `Add task…` row.
+`Find task…` (`TaskListCell.FindTaskRow`, magnifier icon, styled like the add row) scopes the find field to the category (`MainWindow.scopeToCategory`, `dsn~category-search~3`), unlike the header name's press it never lifts the scope; `Add task…` opens the dialog for the category as before.
+An auto category gets the `Find task…` row only; its synced-from placeholder stays its last row (`dsn~auto-category-placeholder-row~2`).
+The rows appear and go 400 ms after the selection settles, restarted by every press in the list: they shift the rows below them, and a shift between a double-click's two clicks would switch the task that moved under the mouse.
+A rebuild keeps the selected header selected, so the rows do not vanish with the next task-file write.
+
+Tags: windows, linux
+
+Covers:
+- req~task-create~1
+- req~task-find~3
 
 Needs: impl, utest
 
@@ -1741,6 +1758,29 @@ The combo therefore lists its entries like the `Ctrl+J` popup does (`CategoryJum
 A heading is a disabled, caption-styled cell; the arrow keys step over it in the direction they were going instead of landing on it.
 A host picker right of the combo (`add-task-host`) narrows the list: `(all hosts)` (the default), `local` for the local categories (a CS config with a directory and no `remote:`, `dsn~task-create-local~4`) and one entry per remote some category resolves to (`CategoryJump.hosts`/`onHost`; a category's host is what `Add remote Claude` would use — its own `remote:`, else the settings fallback).
 A pick that the filter removes falls back to the category the dialog was opened for, which is always listed.
+
+Tags: windows, linux
+
+Covers:
+- req~task-create~1
+
+Needs: impl, utest
+
+### The Add-task dialog takes folders, a note and a chat link
+`dsn~task-create-context-fields~1`
+
+Under the description field of the Add-task dialog (`dsn~task-create-ui~15`) sit three optional context fields, general rather than tied to any kind of task: **Folders** (`add-task-folders`, one per line), **Note** (`add-task-note`) and **Chat** (`add-task-chat`).
+Each filled one is written into the new task file's frontmatter by `TaskContextFields.apply` — for the plain, the local and the remote flow alike (a pasted PR URL takes its own path and ignores them); an empty field writes no key, and neither does a value equal to the category's own, which the task falls back to anyway.
+The category's values show as each field's prompt text and follow the category picked.
+
+- **Folders** go under the **host-scoped** key `folders-<host>:` (`TaskContextFields.foldersKey`, `dsn~machine-key-variants~1`) as a block list (`TaskFileParser.withBlockList`): the task directory is synchronised between machines (`req~machine-specific-values~1`), and a path of this machine would open nothing on the other one — where the scoped key is ignored and the category's folders still apply.
+  Only an unknown host name falls back to plain `folders:`.
+  Lines are stripped of the quotes Windows' *Copy as path* adds, and a pasted `file://` URL (Explorer's address bar, a browser) becomes its path (`TaskContextFields.fromFileUrl`).
+- **Note** stores the `onenote:` desktop link (`OneNoteLink.noteLink`): OneNote's *Copy Link to Page* puts a `https://onedrive.live.com/…` web URL and the `onenote:` URL on the clipboard, and pasted into the one-line field the two arrive glued together, which the field narrows to the `onenote:` link at once.
+  A web link alone is kept as it is — neither form can be derived from the other (the web link lacks the notebook's folder path, the `onenote:` link the `resid`) — and a muted hint under the field says that it opens the browser and how to get the desktop link.
+- **Chat** takes any link as is: Matrix permalinks are rewritten when the task is switched to, Teams links pass through.
+
+The clipboard pre-fills them like the description: a folder of this machine (one absolute path to an existing directory, optionally quoted, or the folder itself copied in Explorer — `TaskContextFields.clipboardFolder`, shared with the setup wizard, `dsn~category-from-folder~3`) fills Folders, and a clipboard of nothing but links that holds OneNote's (`TaskContextFields.clipboardNote`) fills Note; either one then leaves the description empty instead of making the path or link the title.
 
 Tags: windows, linux
 
@@ -2333,7 +2373,7 @@ A **configure icon button** in the Notes pane header (left of *Revert*, `MDIInte
 The form is generated from `FrontmatterCatalog` — one control per key a user hand-edits, grouped into sections — the way the settings dialog is generated from `SettingsCatalog` (`dsn~settings-editor~5`); both render through the shared `FieldForm` (bold section header, label above a full-width control, hover highlight, the field's help as the row tooltip).
 A task file gets the `TASK` catalog, a category's `CONTEXTSWITCHER.md` the `CATEGORY` one.
 The catalog is split over two panes built the same way (`ConfigFormPane`): **Switch actions**, between *Notes* and *Configuration*, holds what a switch opens — `FrontmatterCatalog.SWITCH_ACTION_KEYS`: `intellij`, `intellij.projectPath`, `vscode`, `browser.urls`, `folders`, `chat`, `note` (labelled *OneNote*), `terminal.tabTitle` (a local Windows Terminal tab, e.g. a shell for `gradlew`), and for a category `desktop`, `completeControl` (local to this machine, like the rest) and `profile` (its environment profile, `dsn~environment-profiles~1`) — and **Configuration** every other field; a form of a single section goes without its section header, the tab names it.
-Each *Local folders* row has a browse button (`DirectoryChooser`, saved at once), and on Windows a pasted `/c/…`, `/cygdrive/c/…` or `/mnt/c/…` path is converted to `C:\…` (`ListFieldEditor.windowsPath`); only an insertion of more than one character counts as a paste, so typing a path by hand is left alone.
+Each *Local folders* row has a browse button (`DirectoryChooser`, saved at once), and a pasted `file://` URL becomes its path (`TaskContextFields.fromFileUrl`) and on Windows a pasted `/c/…`, `/cygdrive/c/…` or `/mnt/c/…` path is converted to `C:\…` (`ListFieldEditor.windowsPath`); only an insertion of more than one character counts as a paste, so typing a path by hand is left alone.
 A task's empty *Local folders* field shows the category's folders as its hint, since a switch opens those instead (`Task.withCategoryDefaults`).
 Text fields are strings, a checkbox is a flag, a drop-down the fixed sets (`status`), and a list (`tags`, `folders`, `browser.urls`) is a `ListFieldEditor`: a single-line field per entry plus an empty one at the end — typing into it adds the next empty one, Enter moves to the next field — and a trash can, shown while a row is hovered, removing that entry (the queue's delete-on-hover, `dsn~message-queue-ui~28`); `browser.urls` entries read as links (`dsn~browser-url-links~1`).
 The `remote` field is labelled *Host* and is an **editable** drop-down offering the settings' host destinations (`dsn~host-table~1`) — any other destination typed in is kept, blank removes the key; the frontmatter key stays `remote:`, which every task file, the tmux sync and the Android app read.

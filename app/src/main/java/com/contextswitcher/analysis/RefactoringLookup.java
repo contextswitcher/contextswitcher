@@ -11,7 +11,7 @@ import org.tinylog.Logger;
 /// expensive RefactoringMiner `-bc` run whose JSON is parsed for the count.
 /// Blocking; runs on the poller thread. The runner needs a generous timeout —
 /// analyzing a large commit range takes RM minutes, not the ssh default 10 s.
-// [impl->dsn~refactoring-analysis-poller~1]
+// [impl->dsn~refactoring-analysis-poller~2]
 public class RefactoringLookup {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -25,7 +25,8 @@ public class RefactoringLookup {
     /// The current summary for `worktree` on `remote`, or null when it cannot
     /// be determined (worktree gone, unreachable remote, unparseable output) —
     /// the caller then keeps whatever it had. Returns `cached` unchanged (no
-    /// RM run) while HEAD still matches it.
+    /// RM run) while HEAD still matches it. A failed or timed-out RM run
+    /// yields count 0 for that HEAD, so it is not retried every tick.
     public @Nullable RefactoringSummary summary(String remote, String rmHome, String worktree,
             String baseBranch, @Nullable RefactoringSummary cached) {
         SshCommandRunner.SshResult probe =
@@ -48,13 +49,15 @@ public class RefactoringLookup {
         }
         SshCommandRunner.SshResult counted =
                 ssh.run(remote, RefactoringMinerCommands.countCommand(rmHome, worktree, baseBranch));
-        if (!counted.ok()) {
-            Logger.warn("RefactoringMiner count failed for {} on {}: {}",
-                    worktree, remote, counted.stderr().strip());
-            return null;
+        Integer count = counted.ok() ? countRefactorings(counted.stdout()) : null;
+        if (count == null) {
+            // Count 0 (no badge) for this HEAD instead of "unknown": a range
+            // RM cannot finish (timeout) would otherwise re-run every tick.
+            Logger.warn("RefactoringMiner count failed for {} on {} (exit {}), not retried until HEAD moves: {}",
+                    worktree, remote, counted.exitCode(), counted.stderr().strip());
+            return new RefactoringSummary(head, 0);
         }
-        Integer count = countRefactorings(counted.stdout());
-        return count == null ? null : new RefactoringSummary(head, count);
+        return new RefactoringSummary(head, count);
     }
 
     /// The total refactoring count in RM's `-json` output — the sum over

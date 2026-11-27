@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -79,6 +80,9 @@ import com.contextswitcher.local.OneNoteBacklinkSync;
 import com.contextswitcher.local.WindowGather;
 import com.contextswitcher.local.WindowsEnvironment;
 import com.contextswitcher.local.WindowsVirtualDesktopFocus;
+import com.contextswitcher.local.WindowsHotkey;
+import com.contextswitcher.config.WindowHotkey;
+import com.contextswitcher.tasks.WindowTitleMatch;
 import com.contextswitcher.local.WindowsWindowMove;
 import com.contextswitcher.local.ClaudeCliSummarizer;
 import com.contextswitcher.local.LocalCommandRunner;
@@ -141,6 +145,7 @@ import com.contextswitcher.terminal.TmuxHost;
 import com.contextswitcher.tasks.IdleRemoval;
 import com.contextswitcher.tasks.MergedCleanup;
 import com.contextswitcher.tasks.TaskEntry;
+import com.contextswitcher.tasks.FrontmatterCatalog;
 import com.contextswitcher.tasks.TaskFileParser;
 import com.contextswitcher.tasks.TaskGitBackup;
 import com.contextswitcher.tasks.TaskSync;
@@ -220,7 +225,9 @@ public class Main extends Application {
 
     /// Timeout for the refactoring poller's ssh runs: a RefactoringMiner
     /// analysis of a long commit range takes minutes, not the ssh default 10 s.
-    private static final Duration REFACTORING_SSH_TIMEOUT = Duration.ofMinutes(5);
+    /// A little above the remote's own limit, so the JVM is gone before ssh is.
+    private static final Duration REFACTORING_SSH_TIMEOUT =
+            Duration.ofSeconds(RefactoringMinerCommands.COUNT_TIMEOUT_SECONDS + 20);
 
     private @Nullable TaskRepository repository;
     private @Nullable TaskGitBackup taskBackup;
@@ -281,6 +288,10 @@ public class Main extends Application {
     private final AtomicBoolean desktopWatchAttempted = new AtomicBoolean();
     private volatile WindowsVirtualDesktopFocus.@Nullable Watch desktopWatch;
     private volatile boolean desktopWatchLive;
+    /// The *switch by window* hotkey's listener process; null while off,
+    /// not running, or being closed by [#stop].
+    // [impl->dsn~switch-by-window-hotkey~1]
+    private volatile WindowsHotkey.@Nullable Listener windowHotkey;
     /// True while the window is pinned to all desktops on Windows
     /// (`showOnAllDesktops`); the same poll then also drives the per-desktop
     /// window position. Refreshed on a settings save, like the pin itself.
@@ -342,7 +353,7 @@ public class Main extends Application {
     private @Nullable RefactoringMinerView refactoringView;
     private @Nullable ExtensionServer extensionServer;
     /// The `gatherWindows` watcher of the environment profile in effect;
-    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~3]
+    /// stopped on exit. [impl->dsn~environment-profile-gather-windows~4]
     private final WindowGather windowGather = new WindowGather();
     /// Reports the connected screens; stopped on exit. [impl->dsn~screen-chosen-profile~1]
     private final ScreenWatch screenWatch = new ScreenWatch();
@@ -933,9 +944,10 @@ public class Main extends Application {
                 (url, remote, group, mode) ->
                         createTaskFromPr(repository, files, ssh, messageSender, url, remote, group,
                                 settings, mode),
-                (title, remote, workdir, repo, bootstrap, group, mode, appendix, autoRemove) ->
+                (title, remote, workdir, repo, bootstrap, group, mode, appendix, autoRemove, context) ->
                         createLiveTask(repository, files, ssh, messageSender, title, remote,
-                                workdir, repo, bootstrap, group, settings, mode, appendix, autoRemove),
+                                workdir, repo, bootstrap, group, settings, mode, appendix, autoRemove,
+                                context),
                 (source, instruction, mode) ->
                         forkTask(repository, files, ssh, messageSender, settings, source, instruction, mode),
                 (taskId, workdir, description, mode) ->
@@ -1113,7 +1125,7 @@ public class Main extends Application {
         // Docking, undocking, a projector: the connected screens pick a
         // profile of their own, applied without a task switch.
         // [impl->dsn~screen-chosen-profile~1]
-        screenWatch.start(screens -> screensChanged(screens, window, environmentProfile));
+        screenWatch.start(change -> screensChanged(change, window, environmentProfile));
         // A project or context picked in the filter menu goes to koppter.
         // [impl->dsn~koppter-sync~1]
         window.installProjectContextFilter(selection -> actionExecutor.execute(() -> sendToKoppter(selection)));
@@ -1199,6 +1211,10 @@ public class Main extends Application {
                             () -> handleDeepLink(orchestrator, repository, files, stage, url)));
         }
 
+        // The global hotkey that switches to the task of the window in front.
+        // [impl->dsn~switch-by-window-hotkey~1]
+        startWindowHotkey(orchestrator, repository, files, stage, taskFolders);
+
         // [impl->dsn~onenote-backlinks~1]
         startOneNoteBacklinks(repository, files, actionExecutor, scheduler, taskEntries, taskFolders);
 
@@ -1210,7 +1226,7 @@ public class Main extends Application {
                 statuses -> {
                     // Stashed (volatile) before the FX hop: the refactoring
                     // poller's idle gate reads it from its own thread.
-                    // [impl->dsn~refactoring-analysis-poller~1]
+                    // [impl->dsn~refactoring-analysis-poller~2]
                     Map<String, String> previous = liveStatuses;
                     liveStatuses = statuses;
                     // App-hosted sessions report through files of their own.
@@ -1291,7 +1307,7 @@ public class Main extends Application {
         // The refactoring badge (https://github.com/contextswitcher/contextswitcher-private/issues/50), only when some host has a RefactoringMiner
         // install; the first one added later needs a restart. Each host's
         // directory is read fresh per poll, so further hosts need none.
-        // [impl->dsn~refactoring-analysis-poller~1]
+        // [impl->dsn~refactoring-analysis-poller~2]
         if (settings.anyRefactoringMiner()) {
             recomputeRefactoringTargets(repository, files);
             taskEntries.addListener(
@@ -2021,7 +2037,7 @@ public class Main extends Application {
     /// window's `@cs_status`), and a known worktree (`claude.workspace`, else
     /// `claude.cwd`). The group's `baseBranch` is resolved here — a config
     /// read per recompute, not per tick.
-    // [impl->dsn~refactoring-analysis-poller~1]
+    // [impl->dsn~refactoring-analysis-poller~2]
     private void recomputeRefactoringTargets(TaskRepository repository,
             MainWindow.TaskFileAccess files) {
         List<RefactoringMinerPoller.Target> targets = new ArrayList<>();
@@ -2035,6 +2051,12 @@ public class Main extends Application {
             String remote = task.remote();
             if (claude == null || remote == null || tmux == null || tmux.window() == null
                     || task.status() == TaskStatus.SUSPENDED) {
+                continue;
+            }
+            // Opt-in per task: an RM run costs minutes of CPU on the host.
+            String content = files.read(task.id() + ".md");
+            if (content == null
+                    || !TaskFileParser.frontmatterFlag(content, FrontmatterCatalog.REFACTORING_BADGE)) {
                 continue;
             }
             String worktree = claude.workspace() != null ? claude.workspace() : claude.cwd();
@@ -2073,7 +2095,7 @@ public class Main extends Application {
     /// The RefactoringMiner directory on `remote`, read fresh from the host
     /// table — so one set in the settings needs no restart once the poller
     /// runs — or null when that host has none (its tasks are then skipped).
-    // [impl->dsn~refactoring-analysis-poller~1]
+    // [impl->dsn~refactoring-analysis-poller~2]
     private @Nullable String refactoringMinerHome(String remote) {
         try {
             return AppSettings.loadOrCreate(configDir()).refactoringMinerHome(remote);
@@ -2178,6 +2200,12 @@ public class Main extends Application {
         if (watch != null) {
             watch.close();
         }
+        // [impl->dsn~switch-by-window-hotkey~1]
+        WindowsHotkey.Listener hotkeyListener = this.windowHotkey;
+        this.windowHotkey = null;
+        if (hotkeyListener != null) {
+            hotkeyListener.close();
+        }
         if (statusPoller != null) {
             statusPoller.close();
         }
@@ -2255,10 +2283,14 @@ public class Main extends Application {
     /// `screenProfiles:` rule names and, when that differs from the one in
     /// effect, re-applies the environment profile. The first set after the
     /// start applies only when a rule matches — starting at the desk should
-    /// not reset the machine to `default` behind the user's back.
+    /// not reset the machine to `default` behind the user's back. Screens
+    /// back as before a sleep are no docking: the profile follows them, but
+    /// no window is swept over.
     // [impl->dsn~screen-chosen-profile~1]
-    private void screensChanged(List<ScreenProfiles.ConnectedScreen> screens, MainWindow window,
+    // [impl->dsn~screens-sleep-round-trip~1]
+    private void screensChanged(ScreenWatch.Change change, MainWindow window,
             EnvironmentProfileAction environmentProfile) {
+        List<ScreenProfiles.ConnectedScreen> screens = change.screens();
         String settingsText = readSettingsFile(configDir());
         String chosen = ScreenProfiles.parse(settingsText).pick(screens);
         boolean first;
@@ -2266,7 +2298,10 @@ public class Main extends Application {
             first = !screensSeen;
             screensSeen = true;
         }
-        if (!first) {
+        if (change.sleepRoundTrip()) {
+            // waking up as before the sleep: not even the drop before it counts
+            windowGather.noScreenChange();
+        } else if (!first) {
             // docking or undocking: a `gatherWhen: docking` watcher sweeps
             windowGather.screensChanged();
         }
@@ -2716,6 +2751,150 @@ public class Main extends Application {
         } else if (link.kind() == DeepLink.Kind.SWITCH_CATEGORY) {
             window.switchCategory(link.target());
         }
+    }
+
+    /// Registers the *switch by window* hotkey (`switchByWindowHotkey:` in
+    /// `settings.yaml`, read once at startup) through [WindowsHotkey]. Every
+    /// way it can fail to be live is said in the status bar and the log,
+    /// naming the key: a value that does not parse, a key Windows refuses,
+    /// a listener that dies later. Off Windows and under the UI tests the
+    /// listener does not start, silently — there is no hotkey to miss.
+    // [impl->dsn~switch-by-window-hotkey~1]
+    private void startWindowHotkey(SwitchOrchestrator orchestrator, TaskRepository repository,
+            MainWindow.TaskFileAccess files, Stage stage, ObservableSet<String> folders) {
+        MainWindow window = this.window;
+        if (window == null) {
+            return;
+        }
+        WindowHotkey.Setting setting = WindowHotkey.fromSettings(readSettingsFile(configDir()));
+        if (setting.error() != null) {
+            Logger.warn("{}", setting.error());
+            window.statusBar().message(setting.error());
+            return;
+        }
+        WindowHotkey.Hotkey hotkey = setting.hotkey();
+        if (hotkey == null) {
+            Logger.info("{} is off", WindowHotkey.SETTING);
+            return;
+        }
+        String label = hotkey.label();
+        this.windowHotkey = WindowsHotkey.start(hotkey, new WindowsHotkey.Events() {
+            @Override
+            public void registered() {
+                Logger.info("Hotkey {} switches to the task of the window in front", label);
+            }
+
+            @Override
+            public void failed(int errorCode) {
+                String message = WindowHotkey.failure(label, errorCode);
+                Logger.warn("{}", message);
+                Platform.runLater(() -> window.statusBar().message(message));
+            }
+
+            @Override
+            public void pressed(WindowsHotkey.Press press) {
+                Platform.runLater(() -> switchByWindow(orchestrator, repository, files, stage, folders, press));
+            }
+
+            @Override
+            public void ended(boolean registered) {
+                // A close from stop() nulls the field first; anything else is
+                // the listener dying under a live app. No restart: a machine
+                // where it cannot run would respawn-fail forever, like the
+                // desktop watcher.
+                if (registered && windowHotkey != null) {
+                    String message = "Hotkey " + label + " stopped working; restart ContextSwitcher to get it back";
+                    Logger.warn("{}", message);
+                    Platform.runLater(() -> window.statusBar().message(message));
+                }
+            }
+        });
+    }
+
+    /// One press of the *switch by window* hotkey (FX thread): finds the
+    /// tasks that are not done, and failing those the categories, whose
+    /// `windowTitle:` the window's title contains (`WindowTitleMatch`), read
+    /// fresh from the files so an edit counts at once. One task: the full
+    /// switch, as `contextswitcher://switch/<id>` runs it; one category: the
+    /// category's switch. Several: the first is selected and the status bar
+    /// lists them — the user picks with one click instead of a dialog in the
+    /// way. None: the app comes up saying so, since a press that seems to do
+    /// nothing would read as a dead hotkey.
+    // [impl->dsn~switch-by-window-title~1]
+    private void switchByWindow(SwitchOrchestrator orchestrator, TaskRepository repository,
+            MainWindow.TaskFileAccess files, Stage stage, ObservableSet<String> folders,
+            WindowsHotkey.Press press) {
+        MainWindow window = this.window;
+        if (window == null) {
+            return;
+        }
+        String title = press.title();
+        Map<String, Task> byId = new LinkedHashMap<>();
+        List<WindowTitleMatch.Candidate> tasks = new ArrayList<>();
+        for (TaskEntry entry : repository.entries()) {
+            if (entry instanceof TaskEntry.Loaded loaded && loaded.task().status() != TaskStatus.DONE) {
+                String content = files.read(loaded.id() + ".md");
+                List<String> patterns = content == null ? List.of()
+                        : TaskFileParser.frontmatterStrings(content, WindowTitleMatch.KEY);
+                if (!patterns.isEmpty()) {
+                    byId.put(loaded.id(), loaded.task());
+                    tasks.add(new WindowTitleMatch.Candidate(loaded.id(), patterns));
+                }
+            }
+        }
+        List<WindowTitleMatch.Candidate> categories = new ArrayList<>();
+        for (String folder : new java.util.TreeSet<>(folders)) {
+            String fileName = folder + "/" + TaskRepository.GROUP_CONFIG_FILE_NAME;
+            if (files.exists(fileName)) {
+                List<String> patterns = TaskFileParser.frontmatterStrings(files.load(fileName), WindowTitleMatch.KEY);
+                if (!patterns.isEmpty()) {
+                    categories.add(new WindowTitleMatch.Candidate(folder, patterns));
+                }
+            }
+        }
+        WindowTitleMatch.Outcome outcome = WindowTitleMatch.resolve(title, tasks, categories);
+        Logger.info("Switch-by-window hotkey: {} (pid {}) \"{}\" -> {} {}",
+                press.process().isEmpty() ? "?" : press.process(), press.pid(), title, outcome.kind(), outcome.ids());
+        List<String> ids = outcome.ids();
+        switch (outcome.kind()) {
+            case TASK -> {
+                window.selectTask(ids.getFirst());
+                raise(stage);
+                switchTo(orchestrator, files, byId.get(ids.getFirst()));
+            }
+            case TASKS -> {
+                window.selectTask(ids.getFirst());
+                raise(stage);
+                window.statusBar().message("Window '%s' matches %d tasks: %s — selected the first, ▶ switches"
+                        .formatted(title, ids.size(),
+                                String.join(", ", ids.stream().map(id -> byId.get(id).title()).toList())));
+            }
+            case CATEGORY -> {
+                window.selectCategory(ids.getFirst());
+                raise(stage);
+                window.switchCategory(ids.getFirst());
+            }
+            case CATEGORIES -> {
+                window.selectCategory(ids.getFirst());
+                raise(stage);
+                window.statusBar().message("Window '%s' matches %d categories: %s — selected the first, ▶ switches"
+                        .formatted(title, ids.size(), String.join(", ", ids)));
+            }
+            case NONE -> {
+                raise(stage);
+                window.statusBar().message(title.isBlank()
+                        ? "No window in front to find a task for"
+                        : "No task for window '%s' — add it as %s: to a task or category"
+                                .formatted(title, WindowTitleMatch.KEY));
+            }
+        }
+    }
+
+    /// De-iconifies and raises the main window, as a deep link does.
+    private static void raise(Stage stage) {
+        stage.setIconified(false);
+        stage.toFront();
+        stage.requestFocus();
     }
 
     /// Selects the task owning the browser tab the user just activated (FX
@@ -3970,7 +4149,7 @@ public class Main extends Application {
             SshCommandRunner ssh, MessageSender sender, String title, String remote,
             @Nullable String workdir, @Nullable String repo, boolean bootstrapWorktree,
             String group, AppSettings settings, ClaudeMode mode, @Nullable String appendix,
-            boolean autoRemove) {
+            boolean autoRemove, UnaryOperator<String> context) {
         boolean hints = settings.hints();
         boolean claudeAuto = settings.claudeAuto();
         ExecutorService executor = this.actionExecutor;
@@ -3997,8 +4176,9 @@ public class Main extends Application {
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~2]
         // [impl->dsn~idle-task-removal~3]
-        String withPrs = TaskFileParser.withFlag(TaskFileParser.addUrlsFrom(content, title),
-                IdleRemoval.KEY, autoRemove);
+        // The Add-task dialog's context fields. [impl->dsn~task-create-context-fields~1]
+        String withPrs = context.apply(TaskFileParser.withFlag(TaskFileParser.addUrlsFrom(content, title),
+                IdleRemoval.KEY, autoRemove));
         // Dated like the per-task worktrees; the description slug is
         // only a placeholder until the adopted title renames the file.
         String dated = LocalDate.now() + "-" + title;

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~environment-profile-gather-windows~3]
+// [utest->dsn~environment-profile-gather-windows~4]
 class WindowGatherTest {
 
     /// A process that runs until destroyed and prints nothing.
@@ -87,17 +87,17 @@ class WindowGatherTest {
     void dockingOnlySweepsOnlyRightAfterAScreenChange() throws Exception {
         assertThat(gather.gather("DELL U3223QE", true).detail())
                 .isEqualTo("windows gathered onto DELL U3223QE on docking");
-        assertThat(scriptOf(commands.getLast())).contains(", $true, $false, " + WindowGather.DOCK_SWEEP_MS + ")");
+        assertThat(scriptOf(commands.getLast())).contains(", $true, $false, " + WindowGather.DOCK_SWEEP_MS + ", " + WindowGather.SETTLE_MS + ")");
 
         gather.gather(null);
         gather.screensChanged();
         gather.gather("DELL U3223QE", true);
-        assertThat(scriptOf(commands.getLast())).contains(", $true, $true, " + WindowGather.DOCK_SWEEP_MS + ")");
+        assertThat(scriptOf(commands.getLast())).contains(", $true, $true, " + WindowGather.DOCK_SWEEP_MS + ", " + WindowGather.SETTLE_MS + ")");
 
         // Switching the mode restarts the watcher; `always` always gathers.
         gather.gather("DELL U3223QE", false);
         assertThat(started).hasSize(3);
-        assertThat(scriptOf(commands.getLast())).contains(", $false, $true, " + WindowGather.DOCK_SWEEP_MS + ")");
+        assertThat(scriptOf(commands.getLast())).contains(", $false, $true, " + WindowGather.DOCK_SWEEP_MS + ", " + WindowGather.SETTLE_MS + ")");
     }
 
     @Test
@@ -109,7 +109,7 @@ class WindowGatherTest {
                 .contains("public class CsScreens {")
                 .contains("public static int Pick(Screen s, string[] keys)")
                 .endsWith("[CsGather]::Run('O''Brien Beamer', 4711, " + WindowGather.GRACE_MS + ", "
-                        + WindowGather.MAX_TRIES + ", $false, $true, " + WindowGather.DOCK_SWEEP_MS + ")\n");
+                        + WindowGather.MAX_TRIES + ", $false, $true, " + WindowGather.DOCK_SWEEP_MS + ", " + WindowGather.SETTLE_MS + ")\n");
         // One Add-Type: CsGather refers to CsScreens, which a second
         // in-memory assembly would not see.
         assertThat(script.split("Add-Type", -1)).hasSize(2);

@@ -86,6 +86,14 @@ final class ConfigForm {
         if (!categoryFolders.isEmpty() && controls.get("folders") instanceof ListFieldEditor folders) {
             folders.setPrompt(String.join(", ", categoryFolders) + "  (from the category)");
         }
+        // [impl->dsn~local-terminal-focus~7]
+        if (controls.get("terminal.folder") instanceof TextField terminalFolder) {
+            List<String> own = controls.get("folders") instanceof ListFieldEditor folders ? folders.values().stream().filter(v -> !v.isBlank()).toList() : List.of();
+            String first = !own.isEmpty() ? own.getFirst() + "  (first local folder)"
+                    : !categoryFolders.isEmpty() ? categoryFolders.getFirst() + "  (first local folder of the category)"
+                    : null;
+            terminalFolder.setPromptText(first);
+        }
     }
 
     /// One control per catalog field, seeded from the file's frontmatter and
@@ -178,14 +186,21 @@ final class ConfigForm {
                 root.getChildren().add(FieldForm.section(group, root.getChildren().isEmpty()));
             }
             Region control = controls.get(field.key());
-            root.getChildren().add(switch (field.type()) {
+            Node row = switch (field.type()) {
                 case DESKTOP -> FieldForm.row(field.label(), field.help(), control, desktopRefresh(control));
                 case LIST -> urlActions != null && field.key().equals("browser.urls")
                         ? FieldForm.rowWithCaptionActions(field.label(), field.help(), control,
                                 urlButtons((ListFieldEditor) control, urlActions))
                         : FieldForm.row(field.label(), field.help(), control);
                 default -> FieldForm.row(field.label(), field.help(), control);
-            });
+            };
+            // A section's settings show only while its checkbox (`terminal`, `intellij`) is ticked:
+            // unticking drops them from the file anyway.
+            if (field.parent() != null && controls.get(field.parent()) instanceof CheckBox section) {
+                row.visibleProperty().bind(section.selectedProperty());
+                row.managedProperty().bind(section.selectedProperty());
+            }
+            root.getChildren().add(row);
         }
         return root;
     }
@@ -277,6 +292,8 @@ final class ConfigForm {
             // The bare `intellij:` key already enables the action — its mere
             // presence is the checkbox, the path below it is optional.
             case "intellij" -> data.containsKey("intellij");
+            // [impl->dsn~local-terminal-focus~7]
+            case "terminal" -> data.containsKey("terminal");
             case "completeControl" -> data.get("desktop") instanceof Map<?, ?> nested
                     && Boolean.parseBoolean(String.valueOf(nested.get("completeControl")));
             default -> Boolean.parseBoolean(String.valueOf(Frontmatter.get(data, key)));

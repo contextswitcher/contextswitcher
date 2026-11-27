@@ -47,12 +47,16 @@ import org.tinylog.Logger;
 /// laptop or the second monitor stays there (field report 2026-11-22: a new
 /// SumatraPDF on the 27" was pulled onto the 32" and back three times). A
 /// watcher started without a recent screen change (the app starting while
-/// docked, a task switch) does not sweep.
+/// docked, a task switch) does not sweep. The running watcher sweeps once
+/// the changed set has settled for [#SETTLE_MS], and not at all when the
+/// screens are back as before a sleep ([SleepGuard]): waking up at the desk
+/// is not docking.
 ///
 /// One watcher at a time: [#gather] with the running selector is a no-op,
 /// another selector restarts it, null stops it. The watcher also exits when
 /// the app's process is gone, so a crash leaves no orphan behind.
-// [impl->dsn~environment-profile-gather-windows~3]
+// [impl->dsn~environment-profile-gather-windows~4]
+// [impl->dsn~screens-sleep-round-trip~1]
 public class WindowGather implements AutoCloseable {
 
     /// How long after first sight a window on the wrong screen is pulled over.
@@ -65,6 +69,11 @@ public class WindowGather implements AutoCloseable {
     /// are swept over — long enough for Windows' own restoring of window
     /// positions on redocking to be undone.
     static final int DOCK_SWEEP_MS = 10_000;
+
+    /// With `gatherWhen: docking`: how long a changed screen set must stay
+    /// unchanged before the running watcher sweeps — as long as
+    /// [ScreenWatch] waits before it reports the set.
+    static final int SETTLE_MS = ScreenWatch.STABLE_MS;
 
     /// A screen change this recent makes a newly started docking watcher
     /// sweep: the screen watch reports a set once it has been stable for a
@@ -173,7 +182,7 @@ public class WindowGather implements AutoCloseable {
               }
 
               public static void Run(string selector, int parentPid, int graceMs, int maxTries,
-                  bool dockingOnly, bool sweepNow, int sweepMs) {
+                  bool dockingOnly, bool sweepNow, int sweepMs, int settleMs) {
                 SetThreadDpiAwarenessContext((IntPtr) (-4));  // per-monitor v2: physical pixels everywhere
                 Process parent = null;
                 try { parent = Process.GetProcessById(parentPid); } catch { return; }
@@ -183,16 +192,23 @@ public class WindowGather implements AutoCloseable {
                 string target = null;
                 var clock = Stopwatch.StartNew();
                 long sweepFrom = long.MinValue / 2;
+                var guard = new CsSleepGuard(settleMs);
                 Console.WriteLine("watching for " + selector + (dockingOnly ? " (on docking only)" : ""));
                 while (!parent.HasExited) {
                   long tick = clock.ElapsedMilliseconds;
                   var mons = Monitors();
                   string now = Layout(mons);
+                  // a docking counts once the screens settled, and not when they are back as before a sleep
+                  bool firstSettled = guard.Settled == null;
+                  if (guard.Look(now) != null && dockingOnly && !firstSettled) {
+                    if (guard.RoundTrip) { Console.WriteLine("screens back as before the sleep: windows stay where they are"); }
+                    else { sweepFrom = tick; Console.WriteLine("sweeping windows over for " + sweepMs + " ms"); }
+                  }
                   if (now != layout) {
                     bool first = layout == null;
                     layout = now;
-                    if (dockingOnly) {
-                      if (!first || sweepNow) { sweepFrom = tick; Console.WriteLine("sweeping windows over for " + sweepMs + " ms"); }
+                    if (dockingOnly && first) {
+                      if (sweepNow) { sweepFrom = tick; Console.WriteLine("sweeping windows over for " + sweepMs + " ms"); }
                       else { Console.WriteLine("no recent docking: windows stay where they are"); }
                     }
                     firstSeen.Clear();  // a changed screen set: every window gets its grace again
@@ -246,6 +262,7 @@ public class WindowGather implements AutoCloseable {
               }
             }
             __SCREENS__
+            __SLEEP__
             "@
             """;
 
@@ -284,9 +301,9 @@ public class WindowGather implements AutoCloseable {
     /// change, and at its start only when `sweepNow`.
     static String script(String selector, long parentPid, boolean dockingOnly, boolean sweepNow) {
         return "$ErrorActionPreference = 'Stop'\n"
-                + SCRIPT.replace("__SCREENS__", WindowsEnvironment.screenTypes())
-                + "[CsGather]::Run('%s', %d, %d, %d, $%b, $%b, %d)\n".formatted(selector.replace("'", "''"),
-                        parentPid, GRACE_MS, MAX_TRIES, dockingOnly, sweepNow, DOCK_SWEEP_MS);
+                + SCRIPT.replace("__SCREENS__", WindowsEnvironment.screenTypes()).replace("__SLEEP__", SleepGuard.types())
+                + "[CsGather]::Run('%s', %d, %d, %d, $%b, $%b, %d, %d)\n".formatted(selector.replace("'", "''"),
+                        parentPid, GRACE_MS, MAX_TRIES, dockingOnly, sweepNow, DOCK_SWEEP_MS, SETTLE_MS);
     }
 
     static List<String> command(String selector, long parentPid) {
@@ -298,6 +315,12 @@ public class WindowGather implements AutoCloseable {
     public void screensChanged() {
         screensChangedAt = System.nanoTime();
         screensChangedSeen = true;
+    }
+
+    /// The screens are back as before a sleep: the change before the sleep
+    /// does not make a newly started watcher sweep either.
+    public void noScreenChange() {
+        screensChangedSeen = false;
     }
 
     private boolean recentScreenChange() {

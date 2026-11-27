@@ -165,7 +165,7 @@ class MainActivity : ComponentActivity() {
         val ssh = SshjCommandRunner({ settingsStore.loadSshPrivateKey() }, knownHosts, jumpHosts = { settingsStore.loadJumpHosts() })
         val messageSender = MessageSender(ssh, File(filesDir, "attachments").toPath())
         PhoneProvenance.install(this, messageSender, ssh)
-        val updates = AppUpdates(BuildConfig.GIT_COMMIT)
+        val updates = AppUpdates(BuildConfig.GIT_COMMIT, BuildConfig.GIT_COMMIT_TIME)
         setContent {
             MaterialTheme {
                 Surface {
@@ -473,7 +473,7 @@ internal fun TaskListScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // [impl->dsn~android-update-hint~4]
+    // [impl->dsn~android-update-hint~5]
     fun checkForUpdate() {
         if (updates == null) {
             return
@@ -619,12 +619,13 @@ internal fun TaskListScreen(
 
     fun installUpdate() {
         val source = updates ?: return
+        val build = (update as? AppUpdates.Check.Available)?.build ?: return
         updating = true
         scope.launch {
             val failure = withContext(Dispatchers.IO) {
                 runCatching {
                     val apk = File(context.cacheDir, "update.apk")
-                    source.download(apk)
+                    source.download(build, apk)
                     ApkInstaller.install(context, apk)
                 }.exceptionOrNull()
             }

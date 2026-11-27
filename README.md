@@ -70,7 +70,7 @@ Clicking it quits the app with exit code 55, which `just loop` takes as "pull, r
 2. Later remotes go into **Settings** (the gear at the top-right); everything else has a working default.
 3. Get tasks in, whichever fits:
    * **Sync tmux windows…** (toolbar, ⋮ menu) — one task per running tmux window on your remotes, including working directory, Claude session id and the PR the session published.
-   * **Add task…** (toolbar `+`, `Ctrl+T`) — type a title *or* paste a GitHub PR or GitLab MR URL; the app creates the tmux window on the category's remote, starts Claude in it, and primes it with the description or the PR. Pick the category, model and reasoning effort in the same dialog. **Add plain task** just writes the file.
+   * **Add task…** (toolbar `+`, `Ctrl+T`) — type a title *or* paste a GitHub PR or GitLab MR URL; the app creates the tmux window on the category's remote, starts Claude in it, and primes it with the description or the PR. Pick the category, model and reasoning effort in the same dialog, and optionally the task's local folders, note link (OneNote's *Copy Link to Page*) and chat link. **Add plain task** just writes the file.
 4. Select a task: the Terminal pane mirrors its terminal live, Notes and Configuration edit its file, and the Queue drafts messages for its chat.
 5. Press play (or double-click) to switch: tmux window focused, IntelliJ project opened, browser tabs focused, note and chat opened, folders raised.
 
@@ -141,6 +141,7 @@ claude:
 #   - C:\Users\me\nextcloud\SE2
 # note: onenote:…         # note page opened on switch
 # chat: https://matrix.to/#/…             # Matrix room opened on switch (Element)
+# windowTitle: Thesis weekly sync        # switch-by-window hotkey: the window in front has this in its title
 ---
 
 # Notes
@@ -282,6 +283,12 @@ Sending a queued message to a suspended task resumes it first — and so does me
 
 **Virtual desktops** (Windows). A category's header play button switches to its `desktop:` and does nothing else.
 Opening one of a task's links opens the page on its category's desktop (a tab that already exists is focused where it is), and while the active-desktop filter is on, switching desktops re-selects the task you last had selected there.
+
+**Switch by window** (Windows). Press **Win+Shift+F** in a meeting window (or any other) to switch to the task it belongs to — its note, folders and the rest open as on ▶.
+A task names its windows with `windowTitle:`, one text or a list, matched case-insensitively as part of the title, so `windowTitle: Thesis weekly sync` catches the Teams window `Thesis weekly sync | Microsoft Teams`; a category's `windowTitle:` switches into the category when no task matches.
+Several matching tasks: the app comes up with the first selected and the status bar naming them all; none: the status bar says `No task for window '…'`.
+Pressed while ContextSwitcher itself is in front, it takes the window that was in front before.
+The key is `switchByWindowHotkey` in `settings.yaml` (`Win`/`Ctrl`/`Alt`/`Shift` plus a letter, digit or F-key; `off` turns it off; read at startup) — `Win+F` itself is taken by Windows 11's Feedback Hub, and a key Windows refuses is reported in the status bar ([`req~switch-by-window~1`](docs/requirements/switching.md), MADR [0039](docs/decisions/0039-global-hotkey-through-a-persistent-powershell-listener.md)).
 
 **Deep links.** `contextswitcher://task/<id>` selects a task and raises the app, `contextswitcher://switch/<id>` runs the full switch, and a category's **Copy link** hands out `contextswitcher://category/<name>` (`contextswitcher://switch-category/<name>` also runs the category's switch, its OneNote note included) — paste them into OneNote pages or READMEs to link back.
 A click reaches the running instance; with none running, the app starts and handles the link itself.
@@ -586,7 +593,7 @@ When Claude finishes in the task opened last, the car also announces it like an 
 
 **GitHub token.** The settings screen's *Username* is your GitHub login; *Token* is a personal access token for your task backup repository, **Contents: Read and write** (sync, and pushing a task created on the phone).
 
-**Updates.** After each sync, the app compares its build with the `android-dev` pre-release of this public repository and shows *Update* in the top bar when there is a newer APK; a tap downloads and installs it — no token needed.
+**Updates.** After each sync, the app looks for a newer build — the newest day release (`contextswitcher-<date>.apk`) or the newest dev build (an Actions artifact of *Publish Android dev build*, fetched through nightly.link) — and shows *Update* in the top bar for the newer of the two; a tap downloads and installs it — no token needed.
 The desktop app needs no token: its update check is a `git fetch` in its own checkout with whatever credentials that clone already uses.
 
 ## Recovery and troubleshooting

@@ -107,10 +107,16 @@ public class TaskListCell extends ListCell<Object> {
         }
     }
 
-    /// The slim "Add task…" row closing an expanded category's tasks (an auto
-    /// category's synced-from placeholder instead).
+    /// The slim "Add task…" row under a selected category's header (an auto
+    /// category's synced-from placeholder, closing its tasks, instead).
     // [impl->dsn~task-create-ui~15]
     public record AddTaskRow(String group) {
+    }
+
+    /// The slim "Find task…" row under a selected category's header: scopes
+    /// the find field to the category.
+    // [impl->dsn~category-action-rows~1]
+    public record FindTaskRow(String group) {
     }
 
     /// A task whose remote half is still being set up: the file is already on
@@ -252,6 +258,9 @@ public class TaskListCell extends ListCell<Object> {
     /// Scopes the find field to a category by name — a press on the header's
     /// name drops it into the field as a chip. [impl->dsn~category-search~3]
     private final Consumer<String> onScopeCategory;
+    /// Scopes the find field to a category (never lifts the scope) — the
+    /// "Find task…" row. [impl->dsn~category-action-rows~1]
+    private final Consumer<String> onFindInCategory;
     /// The directory a category's task workspaces live under, null when its
     /// config names none — shown on the header, and stripped from its tasks'
     /// workspace paths. [impl->dsn~category-header-path~1]
@@ -387,7 +396,7 @@ public class TaskListCell extends ListCell<Object> {
     private final BiConsumer<String, Runnable> onNewTmuxWindow;
     /// The task's background refactoring summary, or null while unresolved —
     /// decides whether the row shows the count badge (https://github.com/contextswitcher/contextswitcher-private/issues/50).
-    // [impl->dsn~refactoring-analysis-poller~1]
+    // [impl->dsn~refactoring-analysis-poller~2]
     private final Function<Task, @Nullable RefactoringSummary> refactoringSummary;
     /// Opens the task's RefactoringMiner AST-diff web view — the hover
     /// button's and the count badge's click. The `Runnable` is called (FX
@@ -441,7 +450,8 @@ public class TaskListCell extends ListCell<Object> {
             Function<Task, @Nullable Creation> creationOf,
             Function<String, @Nullable String> groupAutoQuery,
             Consumer<String> onOpenAutoSearch,
-            Consumer<String> onScopeCategory, Function<String, @Nullable String> groupPath,
+            Consumer<String> onScopeCategory, Consumer<String> onFindInCategory,
+            Function<String, @Nullable String> groupPath,
             Predicate<String> groupCurrent,
             Function<Task, javafx.scene.control.@Nullable Menu> syncGroupsMenu,
             Predicate<Task> sessionStopped,
@@ -455,6 +465,7 @@ public class TaskListCell extends ListCell<Object> {
         this.groupAutoQuery = groupAutoQuery;
         this.onOpenAutoSearch = onOpenAutoSearch;
         this.onScopeCategory = onScopeCategory;
+        this.onFindInCategory = onFindInCategory;
         this.groupPath = groupPath;
         this.groupCurrent = groupCurrent;
         this.onSwitch = onSwitch;
@@ -529,6 +540,9 @@ public class TaskListCell extends ListCell<Object> {
                 // the cell's own edges around it count too.
                 // [impl->dsn~task-create-ui~15]
                 onAddTask.accept(add.group());
+            } else if (getItem() instanceof FindTaskRow find) {
+                // [impl->dsn~category-action-rows~1]
+                onFindInCategory.accept(find.group());
             } else if (getItem() instanceof TaskEntry.Loaded loaded) {
                 if (event.getClickCount() == 2) {
                     switchTask(loaded.task());
@@ -643,7 +657,8 @@ public class TaskListCell extends ListCell<Object> {
         }
         // The "Add task…" row highlights as a whole cell, edge to edge; its
         // button's own hover fill stopped short of the cell's padding.
-        if (item instanceof AddTaskRow add && groupAutoQuery.apply(add.group()) == null) {
+        if (item instanceof AddTaskRow add && groupAutoQuery.apply(add.group()) == null
+                || item instanceof FindTaskRow) {
             getStyleClass().add(ADD_TASK_CELL);
         }
         switch (item) {
@@ -677,6 +692,7 @@ public class TaskListCell extends ListCell<Object> {
                 case DoneHeader header -> doneHeader(header);
                 case LabelHeader header -> labelHeader(header);
                 case AddTaskRow add -> addTaskRow(add);
+                case FindTaskRow find -> findTaskRow(find);
                 default -> null;
             };
         } catch (RuntimeException e) {
@@ -1255,6 +1271,22 @@ public class TaskListCell extends ListCell<Object> {
         return row;
     }
 
+    /// The "Find task…" row, shaped like the "Add task…" row below it.
+    // [impl->dsn~category-action-rows~1]
+    private HBox findTaskRow(FindTaskRow find) {
+        Button button = new Button("Find task…", new SvgNode(MDIInterface.MAGNIFY.path(), 12));
+        button.setId("group-find-task-button");
+        button.getStyleClass().addAll(Styles.SMALL, Styles.FLAT, "add-task-row-button");
+        button.setFocusTraversable(false);
+        button.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(button, Priority.ALWAYS);
+        button.setOnMouseClicked(javafx.event.Event::consume);
+        button.setOnAction(event -> onFindInCategory.accept(find.group()));
+        HBox row = new HBox(button);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
     /// An auto category's last row, in place of the "Add task…" one: where its
     /// tasks come from. Shaped like a task row (icon slot, title line, muted
     /// second line) and clickable — it opens the same search on github.com,
@@ -1469,7 +1501,7 @@ public class TaskListCell extends ListCell<Object> {
         // not after the title) that opens the same AST-diff view as the gutter
         // button. Nothing shows until the poller found at least one
         // refactoring — a permanent 0 on every row would be noise.
-        // [impl->dsn~refactoring-analysis-poller~1]
+        // [impl->dsn~refactoring-analysis-poller~2]
         RefactoringSummary refactoringCount = refactoringSummary.apply(task);
         if (refactoringCount != null && refactoringCount.count() > 0) {
             Button badge = new Button(CircledCount.glyph(refactoringCount.count()));

@@ -6,6 +6,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-27] - 2026-11-27
+
+### Added
+
+- **Win+Shift+F** switches to the task of the window in front, e.g. a Teams meeting: a task (or category) names its windows with `windowTitle:`, text the window title contains; several matches select the first and name them all, none says so in the status bar. The key is `switchByWindowHotkey` in `settings.yaml` (Windows; `Win+F` itself belongs to Feedback Hub).
+- The *Add task* dialog asks for optional *Folders* (one per line), a *Note* link and a *Chat* link and writes the filled ones into the new task; a folder or OneNote's *Copy Link to Page* on the clipboard fills them in, the note keeps the `onenote:` link, and folders are stored for this computer only (`folders-<computer name>:`), so a synced task still works on the other one.
+
+### Changed
+
+- The Android app's *Update* also offers the newest day release, not only the dev build, whichever is newer; dev builds are Actions artifacts now, not the `android-dev` release.
+- The Android APK of a day release is named after it, e.g. `contextswitcher-2026-11-27.apk`, instead of `android-debug.apk`.
+- RefactoringMiner no longer runs in the background for every task: the refactoring-count badge is a per-task *Refactoring badge* checkbox, off by default; without it RefactoringMiner runs only when you open the refactoring view.
+- A category's settings show *Defaults for its tasks* (host, IntelliJ, browser, folders, terminal) above *Repository* instead of at the very bottom.
+- An empty *Windows Terminal tab folder* shows in gray the folder it falls back to, the first *Local folders* entry.
+- A category's *Add task…* row shows only while its header is selected, right under the header, with a new *Find task…* row above it that searches just that category.
+- *Switch actions* has an *Open in Windows Terminal* checkbox; the tab title and folder fields show only while it is ticked, and an empty tab title uses the task's title.
+- A `file:///C:/…` URL pasted into a *Folders* field (Explorer's address bar, a browser) turns into the folder path `C:\…`.
+
+### Fixed
+
+- The refactoring badge no longer starts a new RefactoringMiner run every two minutes on a large repository while the previous one is still running: a run may take up to two hours, a failed one is not retried until the task's HEAD moves, and no orphaned run is left on the remote.
+- Clicking a file path or link Claude wrapped across two lines in the terminal opens it; before, the click did nothing or opened a cut-off path.
+- Waking up from sleep at the desk no longer moves windows around with `gatherWhen: docking`: screens that come back as they were before the sleep are not taken for docking.
+
 ## [2026-11-26] - 2026-11-26
 
 ### Added
@@ -499,6 +523,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-27]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-26...v2026-11-27
 [2026-11-26]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-25...v2026-11-26
 [2026-11-25]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-22...v2026-11-25
 [2026-11-22]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-21...v2026-11-22
