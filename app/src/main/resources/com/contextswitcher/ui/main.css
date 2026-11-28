@@ -29,6 +29,9 @@
    (`dsn~current-category-highlight~3`). */
 .task-list .list-cell.group-header-cell {
     -fx-background-color: -color-bg-subtle;
+    /* What the header's hover gutter fades into (`.task-action-gutter`).
+       [impl->dsn~category-header-hover-actions~1] */
+    -cs-row-bg: -color-bg-subtle;
 }
 .task-list .list-cell.group-header-cell:filled {
     -fx-border-color: -color-border-default transparent -color-border-muted transparent;
@@ -55,6 +58,7 @@
 .task-list .list-cell.group-header-cell:selected,
 .task-list .list-cell.done-cell:selected {
     -fx-background-color: -color-cell-bg-selected;
+    -cs-row-bg: -color-cell-bg-selected;
 }
 
 /* One shared definition for EVERY control in the task-list toolbar — plain icon

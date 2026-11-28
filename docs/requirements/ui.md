@@ -1166,7 +1166,7 @@ Needs: impl, utest
 ### Group note opening
 `dsn~group-note-open~5`
 
-`TaskFileParser.groupNote` reads the `note:` scalar from the `CONTEXTSWITCHER.md` frontmatter (SnakeYAML `SafeConstructor`; null when absent, blank, or unparseable — a half-edited config must not break the menu). The group header's context menu shows "Open note" when set, and the header row carries an always-visible note icon (Material Design `NOTE_TEXT_OUTLINE` via SvgNode, MADR 0010) doing the same.
+`TaskFileParser.groupNote` reads the `note:` scalar from the `CONTEXTSWITCHER.md` frontmatter (SnakeYAML `SafeConstructor`; null when absent, blank, or unparseable — a half-edited config must not break the menu). The group header's context menu shows "Open note" when set, and the header row carries a note icon (Material Design `NOTE_TEXT_OUTLINE` via SvgNode, MADR 0010) doing the same, in its hover gutter (`dsn~category-header-hover-actions~1`).
 The icon is built by `TaskListCell.urlIconButton` and so behaves like every other address in the list (`dsn~pr-state-indicator~3`): a hand cursor, and the URL named in the status bar while hovered.
 Both flush the editor's unsaved changes and resolve the URL fresh from disk at click time — the icons take no focus, so a just-edited `CONTEXTSWITCHER.md` would otherwise yield the stale URL — and launch it via the OS protocol handler (`Main.openUrl`: `java.awt.Desktop.browse` → ShellExecute, no browser in the loop), which resolves `onenote:` to the OneNote desktop app.
 `onenote:` page links carry spaces and braces and are no valid `java.net.URI` — `openUrl` falls back to `HostServices.showDocument`, which passes the raw string to the OS, when `browse` refuses. Driving OneNote via COM `Application.NavigateTo(pageId)` plus Win32 foregrounding would be precise, but needs page ids and a Windows-only COM bridge; deferred in favour of the portable URL launch.
@@ -1182,7 +1182,7 @@ Needs: impl, utest
 `dsn~group-repo-open~2`
 
 `MainWindow.groupRepoUrl` reads the group's `repo:` through the existing `GroupConfig` parse (`dsn~group-config-apply~2`) — no new key, no new parser: the value a live task's bootstrap prompt already uses is the one the header opens.
-When set, the header row carries an always-visible link icon (Material Design `LINK_VARIANT`) next to the note icon, and the header's context menu an "Open repository" item; the tooltip is the URL itself, so the icon says where it goes.
+When set, the header row carries a link icon (Material Design `LINK_VARIANT`) next to the note icon in its hover gutter (`dsn~category-header-hover-actions~1`), and the header's context menu an "Open repository" item; the tooltip is the URL itself, so the icon says where it goes.
 The icon is a `TaskListCell.urlIconButton`: a hand cursor, and the URL in the status bar on hover — the PR icons' behavior, which is what a reader expects of anything in this list that leads somewhere.
 The chain link rather than `SOURCE_REPOSITORY`, whose branch-and-node glyph reads as a fork at the row's 14px and says nothing about following a link; the task rows' "Add link…" icon already makes the chain link this app's mark for a URL.
 `MainWindow.openGroupRepo` flushes the editor and re-reads the config before launching (`Main.openUrl`), for the same reason the note does: the icon takes no focus, so a just-edited `CONTEXTSWITCHER.md` would otherwise open the stale URL.
@@ -1650,6 +1650,22 @@ Covers:
 
 Needs: impl, utest
 
+### Hover header actions
+`dsn~category-header-hover-actions~1`
+
+A category header's trailing icons — "Jump to desktop" (`dsn~category-desktop-focus~4`), note (`dsn~group-note-open~5`), repository (`dsn~group-repo-open~2`) and the plus (`dsn~task-create-ui~15`), in that order — sit in an action gutter shown only while the mouse is on the header, the task row's gutter of `dsn~task-row-hover-actions~7` (Carl, 2026-11-28).
+It is laid over the header the same way: an unmanaged `HBox` the header row's `layoutChildren` places at full height, with the `task-action-gutter` fade into `-cs-row-bg` (the header cell's own colour, set on `group-header-cell`), so hovering never reflows or re-truncates the name.
+Play ("Switch to category", `dsn~category-switch~1`) stays out of the gutter, always visible at the header's right edge, with the gutter just left of it: it is the category's main action, the counterpart of a task row's play/pause.
+The root category has no play button, so its gutter ends flush with the right edge; a header with no gutter icons gets no gutter at all, since an empty one would still fade the name out.
+What the header states about the category stays always visible next to the name — the terminal, sync and folders icons, the `⚠` — as do its tags and a collapsed category's running count.
+
+Tags: windows, linux
+
+Covers:
+- req~task-list-window~1
+
+Needs: impl, utest
+
 ### Task from PR: window + primed Claude
 `dsn~task-from-pr~6`
 
@@ -1722,7 +1738,7 @@ A PR URL always routes to the PR flow (`dsn~task-from-pr~6`) regardless of the b
 Each slug is capped at 60 chars, cut at a `-` word boundary (trailing `-`/`.` stripped): a live task's input is a free-form multi-sentence **description** (`dsn~task-create-live~8` derives the short title from it later), and an uncapped slug blows the Windows 260-char MAX_PATH under `%USERPROFILE%\.contextswitcher\tasks\` — the file name is only the task id, not the displayed title.
 Submitting the dialog (any of the three add buttons) moves the keyboard focus to the task list on the left, so the arrow keys and the switch chord act on the new task instead of on the toolbar button or `Add task…` row the dialog was opened from — the same move the row's play button makes (`dsn~task-row-hover-actions~7`). The focus request is deferred to the next pulse: the PR flow opens its host dialog from within this one, and the owner window claims the focus back as that closes.
 `TaskRepository` publishes the observable set of subfolder names — including empty folders — so an empty folder still renders as a group.
-Every hand-filled category offers it twice (`~14`, Carl, 2026-09-16): an always-visible plus icon at the right end of its header, and a slim, muted `Add task…` row (`TaskListCell.AddTaskRow`, a flat button with a plus icon, indented to the task titles) right under its header while the category is selected (`dsn~category-action-rows~1`) — both open the dialog for that group so the task lands in it (its per-group workdir defaults then apply).
+Every hand-filled category offers it twice (`~14`, Carl, 2026-09-16): a plus icon at the right end of its header's hover gutter (`dsn~category-header-hover-actions~1`; always visible until 2026-11-28), and a slim, muted `Add task…` row (`TaskListCell.AddTaskRow`, a flat button with a plus icon, indented to the task titles) right under its header while the category is selected (`dsn~category-action-rows~1`) — both open the dialog for that group so the task lands in it (its per-group workdir defaults then apply).
 They replaced the header's hover-only plus and the `Add…` row that only an empty group showed, so adding to a category never depends on hovering or on the category being empty; like the header, the row is a drop target for the category (`dsn~task-move-dnd~6`). An auto category has neither (`dsn~auto-category-placeholder-row~2`).
 
 Tags: windows, linux
