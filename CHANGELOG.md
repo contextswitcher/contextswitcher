@@ -8,6 +8,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Fixed
+
+- The Android app no longer crashes when a task is opened just as the app goes to the background (Android refuses to start the finish watch then); the watch starts once the app is back in front.
+
 ### Changed
 
 - The task dots are green when Claude is done, yellow while it works and red when it needs you (question, permission, usage limit); a legend at the left of the status bar names them. Before, a finished turn showed red. The Android app uses the same colours.
