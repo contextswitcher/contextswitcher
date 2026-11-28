@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
-// [utest->dsn~task-running-indicator~7]
+// [utest->dsn~task-running-indicator~8]
 class TmuxStatusPollerTest {
 
     @Test

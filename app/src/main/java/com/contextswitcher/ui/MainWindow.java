@@ -889,7 +889,7 @@ public class MainWindow {
 
     /// Live `@cs_status` per window (`host windowId -> status`), refreshed by
     /// the status poller; drives the per-row running indicator.
-    // [impl->dsn~task-running-indicator~7]
+    // [impl->dsn~task-running-indicator~8]
     private final Map<String, String> runningStatusByKey = new ConcurrentHashMap<>();
     /// Live `@cs_session_id` per window (`host windowId -> Claude session id`),
     /// from the same status poll. Windows that publish none are absent, so a
@@ -1216,6 +1216,14 @@ public class MainWindow {
         updateNews.newsChecked(items, upstream, behind);
     }
 
+    private static Label legendEntry(String dotClass, String text) {
+        Label dot = new Label("●");
+        dot.getStyleClass().addAll("running-dot", dotClass);
+        Label entry = new Label(text, dot);
+        entry.getStyleClass().add(Styles.TEXT_MUTED);
+        return entry;
+    }
+
     public SwitchStatusBar statusBar() {
         return statusBar;
     }
@@ -1499,7 +1507,15 @@ public class MainWindow {
             Clipboard.getSystemClipboard().setContent(content);
             statusBar().message("Commit " + sha + " copied.");
         });
-        HBox bottomBar = new HBox(statusBar, profileOverride, commitLabel, openLog);
+        // The running dot's legend, left of the messages: a colour alone
+        // reads differently to everyone (demo 2026-11-28).
+        // [impl->dsn~task-running-indicator~8]
+        HBox legend = new HBox(8, legendEntry("running-dot-done", "done"),
+                legendEntry("running-dot-working", "working"),
+                legendEntry("running-dot-needs-you", "needs you"));
+        legend.setAlignment(Pos.CENTER_LEFT);
+        legend.setPadding(new Insets(0, 8, 0, 6));
+        HBox bottomBar = new HBox(legend, statusBar, profileOverride, commitLabel, openLog);
         bottomBar.setAlignment(Pos.CENTER_LEFT);
         bottomBar.setPadding(new Insets(0, 6, 0, 0));
         // The panes as ShellFX dock tabs (MADR 0032). The raw frontmatter editor
@@ -2201,7 +2217,7 @@ public class MainWindow {
     /// same way the poller builds its map (`host windowId`). A suspended
     /// task has none: its window was killed, so a window matching a
     /// lingering id belongs to some other context.
-    // [impl->dsn~task-running-indicator~7]
+    // [impl->dsn~task-running-indicator~8]
     private @Nullable String runningStatusFor(Task task) {
         if (task.status() == TaskStatus.SUSPENDED
                 || task.remote() == null || task.tmux() == null || task.tmux().window() == null) {
@@ -2701,7 +2717,7 @@ public class MainWindow {
     /// repaints the rows — but only when the snapshot actually differs: the
     /// poller ticks every few seconds, and an unconditional refresh() rebuilds
     /// every visible cell, making the rows flicker. Must run on the FX thread.
-    // [impl->dsn~task-running-indicator~7]
+    // [impl->dsn~task-running-indicator~8]
     public void updateRunningStatuses(Map<String, String> fresh) {
         if (runningStatusByKey.equals(fresh)) {
             return;

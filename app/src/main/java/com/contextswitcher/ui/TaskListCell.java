@@ -1349,7 +1349,7 @@ public class TaskListCell extends ListCell<Object> {
         // Leading bubble carries the task status: a checkmark once done, a pause
         // glyph while suspended, otherwise the live running dot. This replaces
         // the old status text column — the glyph says it all.
-        // [impl->dsn~task-running-indicator~7]
+        // [impl->dsn~task-running-indicator~8]
         javafx.scene.Node dot = switch (task.status()) {
             case DONE -> statusGlyph(MDIInterface.CHECK, "done");
             // [impl->dsn~suspended-timestamp~1]
@@ -1742,30 +1742,28 @@ public class TaskListCell extends ListCell<Object> {
     }
 
     /// A small dot showing the window's live self-reported state (the
-    /// `@cs_status` tmux option): orange while working, red whenever the
-    /// session needs the user — waiting for input, asking a question or a
-    /// permission (attention), or stopped at its usage limit
-    /// (`dsn~claude-limit-detection~2`) — and muted when done. The dot keeps
+    /// `@cs_status` tmux option): yellow while working, green once the turn
+    /// is done (waiting for the next prompt), red whenever the session is stuck
+    /// on the user — asking a question or a permission (attention), or stopped
+    /// at its usage limit (`dsn~claude-limit-detection~2`). The dot keeps
     /// its slot (transparent) when the status is unknown so titles stay
     /// aligned.
-    // [impl->dsn~task-running-indicator~7]
+    // [impl->dsn~task-running-indicator~8]
     // [impl->dsn~claude-limit-detection~2]
     // [impl->dsn~claude-interrupt-detection~1]
     private static Label runningDot(@Nullable String status) {
         Label dot = new Label("●");
         dot.setMinWidth(10);
         String normalized = status == null ? "" : status.toLowerCase(Locale.ROOT);
-        // Traffic-light semantics, colours from claude-semaphore (MIT,
-        // github.com/TaulantSela/claude-semaphore; named in main.css): anything
-        // that needs the user is the one vivid red, work in progress is orange,
-        // nothing else competes for attention. The tooltip tells the three reds
+        // Traffic-light semantics (colours named in main.css): green done,
+        // yellow working, red stuck on the user — the tooltip tells the reds
         // apart. No state class leaves the dot transparent.
         dot.getStyleClass().add("running-dot");
         @Nullable String state = switch (normalized) {
             case "working" -> "running-dot-working";
-            case "waiting", "attention", "limit" -> "running-dot-needs-you";
+            case "attention", "limit" -> "running-dot-needs-you";
             case "interrupted" -> "running-dot-interrupted";
-            case "done" -> "running-dot-done";
+            case "waiting", "done" -> "running-dot-done";
             default -> null;
         };
         if (state != null) {
@@ -1785,7 +1783,7 @@ public class TaskListCell extends ListCell<Object> {
     /// (pause) or done (check) task, in the same tone the old "done" dot used
     /// and sized to sit in the dot's slot so titles stay aligned with the
     /// running-dot rows — and the pin of a pinned task.
-    // [impl->dsn~task-running-indicator~7]
+    // [impl->dsn~task-running-indicator~8]
     // [impl->dsn~pinned-tasks~2]
     private static javafx.scene.Node statusGlyph(SVG icon, String tooltip) {
         SvgNode svg = new SvgNode(icon.path(), 12);

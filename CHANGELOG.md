@@ -10,6 +10,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Changed
 
+- The task dots are green when Claude is done, yellow while it works and red when it needs you (question, permission, usage limit); a legend at the left of the status bar names them. Before, a finished turn showed red. The Android app uses the same colours.
 - A category header shows only its play button until you hover it; the desktop, note, repository and *Add task* icons then appear just left of play, like a task row's actions.
 
 ## [2026-11-27] - 2026-11-27

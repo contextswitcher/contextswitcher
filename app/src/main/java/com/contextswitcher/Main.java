@@ -1218,7 +1218,7 @@ public class Main extends Application {
         // [impl->dsn~onenote-backlinks~1]
         startOneNoteBacklinks(repository, files, actionExecutor, scheduler, taskEntries, taskFolders);
 
-        // [impl->dsn~task-running-indicator~7]
+        // [impl->dsn~task-running-indicator~8]
         recomputeStatusHosts(repository);
         taskEntries.addListener(
                 (javafx.collections.ListChangeListener<TaskEntry>) change -> recomputeStatusHosts(repository));
@@ -2135,7 +2135,7 @@ public class Main extends Application {
     /// The distinct remotes of tasks that have a tmux window, for status
     /// polling. Suspended tasks never show a dot, so a host whose tmux tasks
     /// are all suspended is not polled at all — no idle ssh round-trips.
-    // [impl->dsn~task-running-indicator~7]
+    // [impl->dsn~task-running-indicator~8]
     private void recomputeStatusHosts(TaskRepository repository) {
         statusHosts = repository.entries().stream()
                 .filter(TaskEntry.Loaded.class::isInstance)

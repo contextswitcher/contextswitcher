@@ -478,7 +478,7 @@ That window is normally ContextSwitcher's own `cs-mirror-<name>` mirror session,
 A stamped `@cs_session_id` then differs from that task's recorded one, `TmuxWindowOwnership` (`dsn~tmux-window-ownership~4`) reads it as a stolen window, and the next switch resurrects a second window for a task whose own session is still running in the first (field report 2026-09-09).
 
 `UserPromptSubmit` → **working**, `Stop` (Claude finished responding) → **waiting**, `Notification` (Claude asks a question or waits for a permission) → **attention**.
-The row's dot follows traffic-light semantics: orange while working, one red for everything that needs you — waiting, attention and the usage limit, told apart by the dot's tooltip — and gray once done.
+The row's dot follows traffic-light semantics: yellow while working, green once Claude is done and waits for the next prompt, red when it needs you — a question, a permission or the usage limit, told apart by the dot's tooltip. A legend at the left of the status bar names the colours.
 No hook fires when a session runs into its **usage limit** — the turn just ends, so the `Stop` hook reports the ordinary "waiting".
 The app therefore greps the tail of each Claude pane for Claude Code's limit message and marks those tasks as **limit**, sorted and counted as awaiting your input.
 A turn cut short by an **API error** is detected the same way and simply told to `continue`, retried every five minutes while the error is still on screen.

@@ -189,15 +189,16 @@ class TaskListScreenTest {
         composeRule.onNodeWithText("Cancel").assertDoesNotExist()
     }
 
-    // [utest->dsn~android-running-dot~1]
+    // [utest->dsn~android-running-dot~2]
     @Test
     fun `a row's dot follows its window's status like the desktop's`() {
         val task = Task("g/t", "t", TaskStatus.ACTIVE, "host", Task.TmuxConfig("s", "@3"),
             null, null, null, null, null, emptyList(), emptyList(), emptyList(), null, null, "")
         assertThat(sessionStatus(task, mapOf("host @3" to "working"))).isEqualTo("working")
         assertThat(sessionStatus(task, mapOf("other @3" to "working"))).isNull()
-        assertThat(runningDotColor("working")).isEqualTo(Color(0xFFFF8A00))
-        assertThat(runningDotColor("attention")).isEqualTo(runningDotColor("waiting")).isEqualTo(runningDotColor("limit"))
+        assertThat(runningDotColor("working")).isEqualTo(Color(0xFFCCBB44))
+        assertThat(runningDotColor("waiting")).isEqualTo(Color(0xFF228833))
+        assertThat(runningDotColor("attention")).isEqualTo(runningDotColor("limit")).isEqualTo(Color(0xFFEE6677))
         assertThat(runningDotColor("interrupted")).isEqualTo(Color(0xFFEE3377))
         assertThat(runningDotColor(null)).isNull()
     }

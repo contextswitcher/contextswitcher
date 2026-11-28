@@ -289,10 +289,11 @@
 .root {
     /* The app mark's blue (Paul Tol's vibrant blue, the extension icon's too). */
     -cs-brand-blue: #0077BB;
-    /* claude-semaphore's (MIT) traffic light, so a user running both reads a
-       dot the same way in either. */
-    -cs-working: #FF8A00;
-    -cs-needs-you: #FF1010;
+    /* The running dot's traffic light, from Paul Tol's colour-blind-safe
+       "bright" scheme: green done, yellow working, red needs you. */
+    -cs-done: #228833;
+    -cs-working: #CCBB44;
+    -cs-needs-you: #EE6677;
     /* An interrupted turn: needs you too, but told apart from the red at a
        glance (Paul Tol's vibrant magenta). */
     -cs-interrupted: #EE3377;
@@ -347,7 +348,7 @@
     -fx-background-radius: 6;
 }
 
-/* The task row's running dot [impl->dsn~task-running-indicator~7]. */
+/* The task row's running dot [impl->dsn~task-running-indicator~8]. */
 .running-dot {
     -fx-text-fill: transparent;
 }
@@ -361,7 +362,7 @@
     -fx-text-fill: -cs-interrupted;
 }
 .running-dot.running-dot-done {
-    -fx-text-fill: -color-fg-subtle;
+    -fx-text-fill: -cs-done;
 }
 
 /* The switch status bar's per-action chips. Prefixed class names: AtlantaFX

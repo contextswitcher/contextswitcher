@@ -184,21 +184,23 @@ fun sessionStatus(task: Task, statuses: Map<String, String>): String? {
     return statuses[TmuxStatusPoller.key(remote, window)]
 }
 
-/// The desktop row's running dot (`dsn~task-running-indicator~7`) in
-/// claude-semaphore's colours: orange working, red whenever the session needs
-/// the user, magenta when the turn was interrupted
-/// (`dsn~claude-interrupt-detection~1`), muted when done. Unknown keeps the slot so titles stay aligned.
-// [impl->dsn~android-running-dot~1]
+/// The desktop row's running dot (`dsn~task-running-indicator~8`) in
+/// Paul Tol's "bright" colours: yellow working, green done (waiting for the
+/// next prompt), red when stuck on the user, magenta when the turn was
+/// interrupted (`dsn~claude-interrupt-detection~1`). Unknown keeps the slot so titles stay aligned.
+// [impl->dsn~android-running-dot~2]
 fun runningDotColor(status: String?): Color? = when (status?.lowercase()) {
-    "working" -> SEMAPHORE_WORKING
-    "waiting", "attention", TmuxStatusPoller.LIMIT -> SEMAPHORE_NEEDS_YOU
+    "working" -> WORKING
+    "attention", TmuxStatusPoller.LIMIT -> NEEDS_YOU
     TmuxStatusPoller.INTERRUPTED -> INTERRUPTED
-    "done" -> Color.Gray
+    "waiting", "done" -> DONE
     else -> null
 }
 
-private val SEMAPHORE_WORKING = Color(0xFFFF8A00)
-private val SEMAPHORE_NEEDS_YOU = Color(0xFFFF1010)
+/// The desktop's `-cs-done`, `-cs-working`, `-cs-needs-you`.
+private val DONE = Color(0xFF228833)
+private val WORKING = Color(0xFFCCBB44)
+private val NEEDS_YOU = Color(0xFFEE6677)
 /// The desktop's `-cs-interrupted` (Paul Tol's vibrant magenta).
 private val INTERRUPTED = Color(0xFFEE3377)
 

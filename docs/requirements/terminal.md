@@ -109,7 +109,7 @@ With that in place the local session joins the remote features unchanged:
 - **Focusing** (`dsn~tmux-focus-action~3`): `TmuxFocusAction` likewise, so a switch selects the window in the local session (and resurrects it when the recorded window is gone).
 - **Sending queued messages** (`dsn~message-queue-send~5`): the send buttons are enabled by the tmux host, not by a `remote:`, and the delivery takes the same `load-buffer`/`paste-buffer` route through the local shell.
   Only the attachments differ: a local chat reads the image where it already is, so nothing is uploaded and the marker is rewritten to its own absolute path.
-- **Status polling** (`dsn~task-running-indicator~7`): the pseudo-host is one of the polled hosts, so a local session gets the same running dots, `@cs_title` adoption, `@cs_pr` capture and model report — through a local shell, without an ssh round-trip.
+- **Status polling** (`dsn~task-running-indicator~8`): the pseudo-host is one of the polled hosts, so a local session gets the same running dots, `@cs_title` adoption, `@cs_pr` capture and model report — through a local shell, without an ssh round-trip.
 
 On Windows there is no tmux at all, so a local session is not mirrored but **owned** by the app instead (`dsn~terminal-owned-session~5`).
 
@@ -145,7 +145,7 @@ The bar below the terminal (`Clear input`, `Jump to bottom`, `Show diff`, `Files
 `Jump to bottom` scrolls that history back to the live output (`TerminalPanel.scrollToShowAllOutput`).
 `Show diff` runs git on this machine in the task's `claude.workspace`, else the session's directory (`LocalDiff`, the same changes-else-last-commit choice as `dsn~terminal-diff-window~2`), and opens the colored output in a read-only terminal window (`AnsiTextWindow`).
 `Files` lists this machine's own scratchpads — `<java.io.tmpdir>/claude/<encoded cwd>/<session>/scratchpad`, `RemoteFiles.listLocal` — and opens the picked file in place, with nothing to download; its "Custom path…" asks for a local path.
-No running dot is claimed for such a task either: the dots come from tmux options an owned process does not publish (`dsn~task-running-indicator~7`), and "the process is up" is not "Claude is waiting for you".
+No running dot is claimed for such a task either: the dots come from tmux options an owned process does not publish (`dsn~task-running-indicator~8`), and "the process is up" is not "Claude is waiting for you".
 A live theme switch leaves an owned session in the old colors — `TerminalPane.retheme` re-attaches a mirror, and re-attaching this would mean killing the Claude it hosts.
 
 What is given up deliberately is **detach**: closing the app ends the process, because no tmux holds it.
@@ -440,7 +440,7 @@ The source is the session transcript, `~/.claude/projects/<encoded claude.cwd>/<
 * A **selection** is copied as rendered at once (copy-on-select and `Ctrl+Shift+C` share JediTermFX's copy handler, which the mirror's widget replaces); when it has at least 20 letters and digits, the transcript is fetched and the reply containing it found by comparing letters and digits only — everything rendering changes is punctuation or whitespace.
   The matched span widens over hugging `*_`~` marks and, when only syntax precedes or follows it on its line, to the whole line (`- item`, `## Heading`), and replaces the clipboard unless the clipboard changed meanwhile.
   No match (a link rendered without its URL, a selection across replies) leaves the rendered text.
-* `AppSettings.autoCopyReplies` (default `false`; only an explicit `true` counts, since it overwrites the clipboard unasked) copies the last reply on a `working` → `waiting`/`done` edge of the **mirrored** window's poll status (`dsn~task-running-indicator~7`) — other tasks' replies never touch the clipboard.
+* `AppSettings.autoCopyReplies` (default `false`; only an explicit `true` counts, since it overwrites the clipboard unasked) copies the last reply on a `working` → `waiting`/`done` edge of the **mirrored** window's poll status (`dsn~task-running-indicator~8`) — other tasks' replies never touch the clipboard.
 
 A task without a recorded session id, and an app-owned session (no side channel), copy the rendered text only.
 
