@@ -507,7 +507,7 @@ public class WindowsVirtualDesktopFocus {
     /// Reads the named desktops once — the configuration form's refresh, which
     /// must work without the watcher too. Null when the read fails (off
     /// Windows, no `powershell`).
-    // [impl->dsn~task-field-form~6]
+    // [impl->dsn~task-field-form~7]
     public @Nullable SortedSet<String> names() {
         LocalCommandRunner.LocalResult result = runner.run(PowerShellCommand.of(namesScript()));
         if (result.exitCode() != 0) {

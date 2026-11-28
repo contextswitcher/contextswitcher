@@ -37,7 +37,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// UI automation of the Configuration and Switch actions panes
-/// (`dsn~task-field-form~6`): the notes header's configure button brings
+/// (`dsn~task-field-form~7`): the notes header's configure button brings
 /// Configuration forward, the forms are generated from the field catalog and
 /// pre-filled from the open file, **Raw YAML** shows the same frontmatter as
 /// YAML, and leaving a pane writes back only what changed — comments included.
@@ -47,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// *Windows Terminal tab folder* at the first of them.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~task-field-form~6]
+// [utest->dsn~task-field-form~7]
 @Tag("ui")
 @TestFxApplication(EditorFieldFormUiTest.TestApp.class)
 class EditorFieldFormUiTest {
@@ -107,6 +107,13 @@ class EditorFieldFormUiTest {
         // Pre-filled with what the file configures; untouched fields stay empty.
         assertThat(text(remote)).isEqualTo("devbox");
         assertThat(text(awaitControl(TextField.class, "field-chat"))).isEmpty();
+        // Each text field copies its value with the button on its right.
+        ButtonBase copy = awaitControl(ButtonBase.class, "field-remote-copy");
+        // Fired, not clicked: the field sits below the test window's bottom edge.
+        onFx(() -> { copy.fire(); return null; });
+        awaitPresent(() -> java.util.Optional.ofNullable(
+                onFx(() -> javafx.scene.input.Clipboard.getSystemClipboard().getString()))
+                .filter("devbox"::equals), "devbox on the clipboard");
 
         // The raw view is the fallback: the same frontmatter as YAML, comment
         // and all. Switching back rebuilds the form from it.

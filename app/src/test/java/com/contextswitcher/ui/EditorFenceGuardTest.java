@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// fence) would be written back without that fence — the corruption that
 /// turns a task into an unparseable "must start with a '---' frontmatter
 /// fence" row — while leaving every legitimate edit alone.
-// [utest->dsn~richtext-markdown-editor~9]
+// [utest->dsn~richtext-markdown-editor~10]
 class EditorFenceGuardTest {
 
     private static final String VALID = """

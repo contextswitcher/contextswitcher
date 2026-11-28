@@ -16,12 +16,12 @@ import javafx.scene.layout.VBox;
 
 /// The shared look of the app's generated option forms — the settings dialog
 /// (`dsn~settings-editor~5`) and the task/category configuration form
-/// (`dsn~task-field-form~6`), which are the same form over two different
+/// (`dsn~task-field-form~7`), which are the same form over two different
 /// catalogs: a bold section header, then one row per option with its label on
 /// the line above a full-width control, highlighting on hover and carrying the
 /// option's help as its tooltip.
 // [impl->dsn~settings-editor~5]
-// [impl->dsn~task-field-form~6]
+// [impl->dsn~task-field-form~7]
 final class FieldForm {
 
     private FieldForm() {

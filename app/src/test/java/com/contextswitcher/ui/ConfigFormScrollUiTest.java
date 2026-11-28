@@ -23,9 +23,9 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
-/// A form rebuilt under the user (`dsn~task-field-form~6`): the same file stays
+/// A form rebuilt under the user (`dsn~task-field-form~7`): the same file stays
 /// where it was scrolled to, even with a row more, another file starts on top.
-// [utest->dsn~task-field-form~6]
+// [utest->dsn~task-field-form~7]
 @Tag("ui")
 @TestFxApplication(ConfigFormScrollUiTest.TestApp.class)
 class ConfigFormScrollUiTest {

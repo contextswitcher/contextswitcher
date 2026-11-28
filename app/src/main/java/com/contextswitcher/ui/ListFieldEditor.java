@@ -39,7 +39,7 @@ import tools.maran.svg.materialdesign.MDIInterface;
 import tools.maran.svg.materialdesign.MDITechnology;
 import tools.maran.svgnode.SvgNode;
 
-/// A list field of the configuration forms (`dsn~task-field-form~6`): one
+/// A list field of the configuration forms (`dsn~task-field-form~7`): one
 /// single-line text field per entry, plus one empty field at the end to add
 /// the next entry. Typing into that last field adds a fresh empty one below
 /// it; a row's trash can, shown while the row is hovered, removes the entry —
@@ -52,7 +52,7 @@ import tools.maran.svgnode.SvgNode;
 /// row reads as a link that shows the page in the browser and drags to another
 /// place, its text field only appears for adding an entry or through the row's
 /// edit button.
-// [impl->dsn~task-field-form~6]
+// [impl->dsn~task-field-form~7]
 final class ListFieldEditor extends VBox {
 
     /// A row showing the page of the browser's tab in view (`main.css`).
@@ -186,7 +186,7 @@ final class ListFieldEditor extends VBox {
 
     /// A `/c/…`, `/cygdrive/c/…` or `/mnt/c/…` path as Windows writes it
     /// (`C:\\…`); anything else unchanged.
-    // [impl->dsn~task-field-form~6]
+    // [impl->dsn~task-field-form~7]
     static String windowsPath(String text) {
         Matcher m = POSIX_DRIVE.matcher(text.strip());
         if (!m.matches()) {
@@ -202,7 +202,7 @@ final class ListFieldEditor extends VBox {
     /// `file://` URL converted to its path, a POSIX drive path to the
     /// Windows form on Windows (typing goes char by char, so only an
     /// insertion longer than one char — a paste — is touched).
-    // [impl->dsn~task-field-form~6]
+    // [impl->dsn~task-field-form~7]
     private void addBrowse(HBox row, TextField field) {
         boolean windows = LocalCommandRunner.onWindows();
         field.setTextFormatter(new TextFormatter<String>(change -> {

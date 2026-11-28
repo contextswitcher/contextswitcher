@@ -43,7 +43,7 @@ import tools.maran.svgnode.SvgNode;
 /// with the raw YAML editor one toggle away. It works on the editor buffer:
 /// when the focus leaves the pane, the changed keys are patched in and saved;
 /// **Reload** drops what was not saved yet.
-// [impl->dsn~task-field-form~6]
+// [impl->dsn~task-field-form~7]
 final class ConfigFormPane {
 
     /// Held, not extended: only the header and the form or raw view go in it,
@@ -111,7 +111,7 @@ final class ConfigFormPane {
         this.refreshDesktops = refreshDesktops;
         this.urlActions = urlActions;
         // Icon-only like every pane toolbar's controls; the tooltip names each.
-        // [impl->dsn~task-field-form~6]
+        // [impl->dsn~task-field-form~7]
         rawToggle.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
         rawToggle.setId(id + "-raw-toggle");
         reloadButton.setId(id + "-reload-button");
@@ -255,7 +255,7 @@ final class ConfigFormPane {
     /// A rebuild of the same file stays where it was scrolled to: the file is
     /// rewritten behind the form all the time, for instance when a chat
     /// mentions a URL. Another file starts at the top.
-    // [impl->dsn~task-field-form~6]
+    // [impl->dsn~task-field-form~7]
     void reload(boolean force) {
         if (rawToggle.isSelected() || (!force && form != null && focusInside)) {
             return;

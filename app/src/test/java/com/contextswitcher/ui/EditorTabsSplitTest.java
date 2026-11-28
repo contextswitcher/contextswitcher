@@ -7,7 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// The editor lane's two tabs are one file: the configuration tab holds the
 /// YAML between the fences, the notes tab the body, and joining them gives
 /// the file back.
-// [utest->dsn~richtext-markdown-editor~9]
+// [utest->dsn~richtext-markdown-editor~10]
 class EditorTabsSplitTest {
 
     private static final String FILE = """

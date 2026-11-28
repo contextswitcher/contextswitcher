@@ -703,7 +703,7 @@ public class MainWindow {
     /// The open file split in two: the YAML frontmatter in the configuration
     /// pane's raw editor, the Markdown body in the notes editor; [#editorText]
     /// joins them back with the `---` fences.
-    // [impl->dsn~richtext-markdown-editor~9]
+    // [impl->dsn~richtext-markdown-editor~10]
     private final CodeTextModel configModel = new CodeTextModel();
     private final RichTextArea configEditor = new RichTextArea(configModel);
     private final CodeTextModel notesModel = new CodeTextModel();
@@ -974,7 +974,7 @@ public class MainWindow {
     private @Nullable Stage stage;
 
     /// The Configuration pane, built by [#show]: the frontmatter form with its
-    /// Raw YAML view (`dsn~task-field-form~6`).
+    /// Raw YAML view (`dsn~task-field-form~7`).
     private List<ConfigFormPane> formPanes = List.of();
     /// Set while a form pane writes its fields into the buffer: the reload
     /// that follows leaves a form the user is in alone (`ConfigFormPane.reload`).
@@ -984,6 +984,9 @@ public class MainWindow {
     /// pane to bring forward before there is a shell.
     // [impl->dsn~shell-layout~3]
     private ShellFxHost.@Nullable Hosted shell;
+    /// The file whose panes are in front — unlike [#editedFileName] not cleared
+    /// when the editor lets go of a file.
+    private @Nullable String panesFile;
 
     /// The ⋮ menu's refresh item, disabled while a refresh runs.
     private @Nullable MenuItem refreshNowItem;
@@ -1523,7 +1526,7 @@ public class MainWindow {
         // [impl->dsn~shell-layout~3]
         // Two panes over one catalog: the switch actions apart, the rest in
         // Configuration. They share the one raw editor.
-        // [impl->dsn~task-field-form~6]
+        // [impl->dsn~task-field-form~7]
         ConfigFormPane switchActions = formPane("switch-actions", FrontmatterCatalog::isSwitchAction);
         ConfigFormPane pane = formPane("config", field -> !FrontmatterCatalog.isSwitchAction(field));
         selectOnClick.accept(switchActions.getRoot());
@@ -5684,7 +5687,7 @@ public class MainWindow {
     /// desktops as last read, those the categories name, the active one and
     /// the fallback — for the configuration form to suggest, sorted ignoring
     /// case.
-    // [impl->dsn~task-field-form~6]
+    // [impl->dsn~task-field-form~7]
     public List<String> knownDesktops() {
         Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         SortedSet<String> existing = existingDesktops;
@@ -6857,7 +6860,7 @@ public class MainWindow {
     /// (a save triggers the file watcher, which must not stomp the open
     /// editor). Unsaved edits of the previous file are saved first — the
     /// focus-loss auto-save covers mouse flows, this covers the rest.
-    // [impl->dsn~richtext-markdown-editor~9]
+    // [impl->dsn~richtext-markdown-editor~10]
     private void openInEditor(String fileName) {
         if (fileName.equals(editedFileName)) {
             return;
@@ -6868,9 +6871,15 @@ public class MainWindow {
         editedFileName = fileName;
         boolean config = fileName.endsWith("/" + TaskRepository.GROUP_CONFIG_FILE_NAME);
         editorTypeLabel.setText(config ? "Category config file" : "Task file");
-        // A category is opened to edit its keys, so its pane comes forward. A
-        // task switch leaves the docks alone: whichever pane the user has in
-        // front stays there and just shows the new file.
+        // Each file keeps the panes the user had in front for it: Configuration
+        // opened for one task does not stay in front for the next. A category
+        // is opened to edit its keys, so its pane comes forward.
+        // [impl->dsn~richtext-markdown-editor~10]
+        ShellFxHost.Hosted hosted = shell;
+        if (hosted != null && panesFile != null && !panesFile.equals(fileName)) {
+            hosted.switchPanes().accept(panesFile, fileName);
+        }
+        panesFile = fileName;
         if (config) {
             showConfigurationPane();
         }
@@ -6961,7 +6970,7 @@ public class MainWindow {
     /// closing fence line. Content without frontmatter (a `Cannot read …`
     /// placeholder, a plain note) is all notes. Fence detection is the
     /// parser's (`\r\n`→`\n`, BOM dropped, `\n---` closes).
-    // [impl->dsn~richtext-markdown-editor~9]
+    // [impl->dsn~richtext-markdown-editor~10]
     static String[] splitFrontmatter(String content) {
         String normalized = content.replace("\r\n", "\n");
         if (normalized.startsWith("\uFEFF")) {
@@ -6980,7 +6989,7 @@ public class MainWindow {
         // "the empty line on top of the notes is strange"). It is structure,
         // not content, so the editor does not show it and `joinFrontmatter`
         // puts it back. Exactly one newline: a second blank line is the user's.
-        // [impl->dsn~richtext-markdown-editor~9]
+        // [impl->dsn~richtext-markdown-editor~10]
         if (notes.startsWith("\n")) {
             notes = notes.substring(1);
         }
@@ -6990,11 +6999,11 @@ public class MainWindow {
     /// Inverse of [#splitFrontmatter]: the fences come back around a non-blank
     /// frontmatter; a blank one yields the bare notes — which the fence guard
     /// then refuses to save over a file that had frontmatter.
-    // [impl->dsn~richtext-markdown-editor~9]
+    // [impl->dsn~richtext-markdown-editor~10]
     static String joinFrontmatter(String frontmatter, String notes) {
         // The blank line `splitFrontmatter` hides goes back in, so a load and
         // a save leave the file as the template writes it.
-        // [impl->dsn~richtext-markdown-editor~9]
+        // [impl->dsn~richtext-markdown-editor~10]
         return frontmatter.isBlank() ? notes : "---\n" + frontmatter + "\n---\n\n" + notes;
     }
 
@@ -7010,7 +7019,7 @@ public class MainWindow {
         // frontmatter fence" row (the only unguarded writer — every textual
         // mutator is fence-guarded). A background rename/adoption race, or a
         // stray model round-trip, must not corrupt a valid task file this way.
-        // [impl->dsn~richtext-markdown-editor~9]
+        // [impl->dsn~richtext-markdown-editor~10]
         if (droppedFrontmatterFence(editorLoadedContent, text)) {
             Logger.warn("Refusing to save {}: the edit dropped the '---' frontmatter fence", fileName);
             editorFileLabel.setText(fileName + " — not saved (would drop '---' fence)");
@@ -7037,7 +7046,7 @@ public class MainWindow {
     /// Both are normalized (`\r\n`→`\n`, BOM dropped) the way [TaskFileParser]
     /// parses them, so a fence-only difference is caught regardless of line
     /// endings.
-    // [impl->dsn~richtext-markdown-editor~9]
+    // [impl->dsn~richtext-markdown-editor~10]
     static boolean droppedFrontmatterFence(String loaded, String updated) {
         return startsWithFence(loaded) && !startsWithFence(updated);
     }
@@ -7052,7 +7061,7 @@ public class MainWindow {
 
     /// The auto-save half: writes only when the editor actually changed, so
     /// mere focus round-trips do not churn the file watcher.
-    // [impl->dsn~richtext-markdown-editor~9]
+    // [impl->dsn~richtext-markdown-editor~10]
     private void saveEditorIfDirty() {
         if (editedFileName != null && !editorText().equals(editorLoadedContent)) {
             saveEditor();
@@ -7062,7 +7071,7 @@ public class MainWindow {
     /// Discards the editor content in favour of what is on disk. Fine-grained
     /// undo/redo within the editing session is the RichTextArea built-in
     /// (Ctrl+Z / Ctrl+Y).
-    // [impl->dsn~richtext-markdown-editor~9]
+    // [impl->dsn~richtext-markdown-editor~10]
     private void revertEditor() {
         String fileName = editedFileName;
         if (fileName == null) {
@@ -7073,7 +7082,7 @@ public class MainWindow {
         setEditorFileStatus(fileName, content, "reverted to disk");
     }
 
-    // [impl->dsn~richtext-markdown-editor~9]
+    // [impl->dsn~richtext-markdown-editor~10]
     private BorderPane editorPane() {
         configModel.setDecorator(new MarkdownSyntaxDecorator(true));
         notesModel.setDecorator(new MarkdownSyntaxDecorator(false));
@@ -7085,7 +7094,7 @@ public class MainWindow {
         // The raw YAML shows in one form pane; the other one's form is rebuilt
         // from what was typed there once the focus has settled (a form the
         // focus went into is left alone).
-        // [impl->dsn~task-field-form~6]
+        // [impl->dsn~task-field-form~7]
         configEditor.focusedProperty().addListener((obs, was, focused) -> {
             if (!focused) {
                 Platform.runLater(() -> formPanes.forEach(pane -> pane.reload(false)));
@@ -7124,7 +7133,7 @@ public class MainWindow {
     }
 
     /// Auto-save, Ctrl+S, F1 and the attachment hover — the same on both tabs.
-    // [impl->dsn~richtext-markdown-editor~9]
+    // [impl->dsn~richtext-markdown-editor~10]
     private void wireEditor(RichTextArea editor) {
         editor.setWrapText(true);
         // Auto-save: leaving the editor (clicking a row, another pane, the
@@ -7199,7 +7208,7 @@ public class MainWindow {
 
     /// A configuration form pane holding the catalog fields `shows` picks; it
     /// writes into the editor buffer and saves.
-    // [impl->dsn~task-field-form~6]
+    // [impl->dsn~task-field-form~7]
     private ConfigFormPane formPane(String id, Predicate<FrontmatterCatalog.Field> shows) {
         ConfigFormPane pane = new ConfigFormPane(id, shows, configEditor, this::editorText,
                 updated -> {
@@ -7306,7 +7315,7 @@ public class MainWindow {
     /// The notes header's configure button: puts the Configuration pane — the
     /// open file's frontmatter as a generated key/value form ([ConfigFormPane]),
     /// raw YAML its fallback — in front, reopening it if it was closed.
-    // [impl->dsn~task-field-form~6]
+    // [impl->dsn~task-field-form~7]
     private void showConfigForm() {
         showConfigurationPane();
     }
@@ -8067,7 +8076,7 @@ public class MainWindow {
 
     /// Installs the one-shot read of this machine's named desktops (null when
     /// it fails) behind the configuration form's desktop refresh button.
-    // [impl->dsn~task-field-form~6]
+    // [impl->dsn~task-field-form~7]
     public void setDesktopNamesReader(Supplier<CompletableFuture<@Nullable SortedSet<String>>> reader) {
         this.desktopNamesReader = reader;
     }
@@ -8075,7 +8084,7 @@ public class MainWindow {
     /// The desktop refresh button's round-trip: reads the named desktops,
     /// records them as [#updateExistingDesktops] would, and completes on the
     /// FX thread with the refreshed [#knownDesktops].
-    // [impl->dsn~task-field-form~6]
+    // [impl->dsn~task-field-form~7]
     private CompletableFuture<List<String>> refreshKnownDesktops() {
         statusBar().message("Reading the virtual desktops …");
         return desktopNamesReader.get()

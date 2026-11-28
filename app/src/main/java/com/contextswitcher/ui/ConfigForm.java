@@ -27,12 +27,15 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 import org.jspecify.annotations.Nullable;
 
 import tools.maran.svg.materialdesign.MDIInterface;
+import tools.maran.svg.materialdesign.MDITechnology;
 import tools.maran.svgnode.SvgNode;
 
 /// The configuration form's generation and write-back, for [ConfigFormPane]:
@@ -44,7 +47,7 @@ import tools.maran.svgnode.SvgNode;
 /// only the keys the user actually changed are patched back into it
 /// ([Frontmatter#set]), so comments, key order, machine-suffixed variants and
 /// keys the app does not know about survive an edit.
-// [impl->dsn~task-field-form~6]
+// [impl->dsn~task-field-form~7]
 final class ConfigForm {
 
     private final List<Field> fields;
@@ -187,7 +190,9 @@ final class ConfigForm {
             }
             Region control = controls.get(field.key());
             Node row = switch (field.type()) {
-                case DESKTOP -> FieldForm.row(field.label(), field.help(), control, desktopRefresh(control));
+                case DESKTOP -> FieldForm.row(field.label(), field.help(), control,
+                        desktopRefresh(control), copyButton(control));
+                case STRING, HOST -> FieldForm.row(field.label(), field.help(), control, copyButton(control));
                 case LIST -> urlActions != null && field.key().equals("browser.urls")
                         ? FieldForm.rowWithCaptionActions(field.label(), field.help(), control,
                                 urlButtons((ListFieldEditor) control, urlActions))
@@ -258,6 +263,25 @@ final class ConfigForm {
     /// The desktop field's refresh button: reads the desktop names again — a
     /// desktop created or renamed since the form was built — and opens the
     /// suggestions with them. Disabled for the round-trip.
+    /// Copies the field's text to the clipboard — a session id or a path is
+    /// wanted elsewhere more often than it is edited.
+    // [impl->dsn~task-field-form~7]
+    private static Button copyButton(Region field) {
+        Button copy = new Button(null, new SvgNode(MDITechnology.CONTENT_COPY.path(), 16));
+        copy.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
+        copy.setId(field.getId() + "-copy");
+        copy.setTooltip(new Tooltip("Copy"));
+        copy.setFocusTraversable(false);
+        copy.setOnAction(event -> {
+            ClipboardContent content = new ClipboardContent();
+            content.putString(field instanceof ComboBox<?> combo
+                    ? combo.getEditor().getText()
+                    : ((TextField) field).getText());
+            Clipboard.getSystemClipboard().setContent(content);
+        });
+        return copy;
+    }
+
     private Button desktopRefresh(Region field) {
         Button refresh = new Button(null, new SvgNode(MDIInterface.RELOAD.path(), 16));
         refresh.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);

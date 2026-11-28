@@ -300,7 +300,7 @@ class WindowsVirtualDesktopFocusTest {
         assertThat(decoded).isEqualTo(WindowsVirtualDesktopFocus.currentScript());
     }
 
-    // [utest->dsn~task-field-form~6]
+    // [utest->dsn~task-field-form~7]
     @Test
     void oneShotNamesReadDefinesTheHelperBeforeUsingIt() {
         String script = WindowsVirtualDesktopFocus.namesScript();
@@ -311,7 +311,7 @@ class WindowsVirtualDesktopFocusTest {
         assertThat(WindowsVirtualDesktopFocus.watchScript()).contains("function Get-DesktopNames");
     }
 
-    // [utest->dsn~task-field-form~6]
+    // [utest->dsn~task-field-form~7]
     @Test
     void oneShotNamesReadParsesTheDesktopsLine() {
         assertThat(currentReturning(0, "noise\ndesktops:JabRef\tmisc\n").names())

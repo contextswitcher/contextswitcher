@@ -33,8 +33,10 @@ import com.techsenger.shellfx.material.theme.ThemePalette;
 import com.techsenger.shellfx.material.theme.ThemePalette16;
 import com.techsenger.shellfx.material.theme.ThemePalette32;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -71,8 +73,11 @@ public final class ShellFxHost {
     /// a pane in front. `showConfiguration` answers an explicit request, so it
     /// reopens a closed configuration pane and raises its window when popped
     /// out. `infoCenter` slides notifications about background work in over the
-    /// shell's right edge (MADR 0034).
-    public record Hosted(Scene scene, Runnable showConfiguration, InfoCenterView infoCenter) {
+    /// shell's right edge (MADR 0034). `switchPanes(from, to)` remembers which
+    /// tabs are in front for the file `from` and brings back those of `to` — the
+    /// start layout's for a file not shown before.
+    public record Hosted(Scene scene, Runnable showConfiguration, InfoCenterView infoCenter,
+            BiConsumer<String, String> switchPanes) {
     }
 
     /// What [#host] puts in the shell: the panes `MainWindow` builds, the status
@@ -326,8 +331,14 @@ public final class ShellFxHost {
         Themes.refresh();
         stage.setWidth(1100);
         stage.setHeight(650);
+        // [impl->dsn~richtext-markdown-editor~10]
+        List<Lane> startFront = lanes.front();
+        Map<String, List<Lane>> frontPerFile = new HashMap<>();
         return new Hosted(stage.getScene(), () -> lanes.bringToFront(configuration),
-                infoCenter.getInfoCenterView());
+                infoCenter.getInfoCenterView(), (from, to) -> {
+                    frontPerFile.put(from, lanes.front());
+                    lanes.select(frontPerFile.getOrDefault(to, startFront));
+                });
     }
 
     /// Lets `pane` pop out of `lane`'s tab into a window of its own and back.

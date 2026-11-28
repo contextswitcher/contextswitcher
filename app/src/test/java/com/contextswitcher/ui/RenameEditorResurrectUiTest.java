@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// driving the same tmux window and Claude session. Field report 2026-11-03:
 /// "the two plantuml tasks show the same claude remote".
 // [utest->dsn~task-move-dnd~6]
-// [utest->dsn~richtext-markdown-editor~9]
+// [utest->dsn~richtext-markdown-editor~10]
 @Tag("ui")
 @TestFxApplication(UiTestSupport.TestApp.class)
 class RenameEditorResurrectUiTest {

@@ -1063,7 +1063,7 @@ public class Main extends Application {
         window.setOnSetupWizard(this::rerunSetupWizard);
         // [impl->dsn~todo-txt-line~1]
         window.setTodoLines(todoTxt::linesFor);
-        // [impl->dsn~task-field-form~6]
+        // [impl->dsn~task-field-form~7]
         window.setDesktopNamesReader(() -> {
             ExecutorService executor = this.actionExecutor;
             return executor == null
@@ -3194,7 +3194,7 @@ public class Main extends Application {
                                 case TmuxSync.Reconciliation.SetStatus set -> {
                                     // read (not load): a load() failure returns
                                     // error text that, transformed and saved,
-                                    // would clobber the file (dsn~richtext-markdown-editor~9).
+                                    // would clobber the file (dsn~richtext-markdown-editor~10).
                                     String content = files.read(fileName);
                                     if (content == null) {
                                         Logger.warn("Skipping status sync of {}: file unreadable", fileName);
@@ -3772,7 +3772,7 @@ public class Main extends Application {
 
     /// File names come from TaskEntry (watcher-derived), i.e. from within the
     /// tasks directory; resolution stays inside it.
-    // [impl->dsn~richtext-markdown-editor~9]
+    // [impl->dsn~richtext-markdown-editor~10]
     private static MainWindow.TaskFileAccess taskFileAccess(Path tasksDir, Path queuesDir) {
         return new MainWindow.TaskFileAccess() {
             @Override

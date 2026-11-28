@@ -377,7 +377,7 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
       focus-traversal fix `dd3e211` — clicking it used to auto-save first.)*
 - [x] A file with broken YAML shows as an error row but opens in the editor
       and can be fixed there. *(2026-07-14.)*
-- [ ] **No self-corruption on a vanished file** (`dsn~richtext-markdown-editor~9`):
+- [ ] **No self-corruption on a vanished file** (`dsn~richtext-markdown-editor~10`):
       rename or delete a task's `.md` on disk, then trigger a frontmatter write
       for it (toggle status, run Sync while its session id is unrecorded, adopt a
       published title) → the write is skipped with a `file unreadable` log line;
@@ -393,13 +393,13 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
       the commented settings.yaml reference (`tasksDir`, `wsPort`, `wsToken`, `hints`,
       `claudeAuto`, `remotes`, `tags`); **Copy all** works and the popup stays open
       while the settings dialog remains usable.
-- [ ] **Editor auto-save fence guard** (`dsn~richtext-markdown-editor~9`):
+- [ ] **Editor auto-save fence guard** (`dsn~richtext-markdown-editor~10`):
       open a task, switch the **Configuration** pane to **Raw YAML** and clear
       it, click away (focus-loss auto-save) → the file label reads `not saved
       (would drop '---' fence)`, a warn line is logged, and the file on disk
       keeps its fence (the task does **not** turn into a red `must start with
       '---' fence` row). A normal edit in either pane still saves.
-- [ ] **Notes and Configuration panes** (`dsn~richtext-markdown-editor~9`):
+- [ ] **Notes and Configuration panes** (`dsn~richtext-markdown-editor~10`):
       select a task → **Notes** shows the body, **Raw YAML** in
       **Configuration** the YAML without `---` lines; edit both, click away →
       the file on disk has both edits with the fences intact. With

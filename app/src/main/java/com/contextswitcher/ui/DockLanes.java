@@ -154,6 +154,16 @@ final class DockLanes {
         }
     }
 
+    /// The lanes whose tab is selected in its dock — what the user has in front.
+    List<Lane> front() {
+        return all.stream().filter(lane -> lane.tab != null && lane.tab.getNode().isSelected()).toList();
+    }
+
+    /// Selects each lane's tab, as [#front] returned them.
+    void select(List<Lane> lanes) {
+        lanes.forEach(this::select);
+    }
+
     /// Shows a hidden lane: in its last dock if that still exists (a dock
     /// that lost its last tab closes), else beside another shown lane, else —
     /// every lane hidden, so no dock left — in a new dock of its own.
