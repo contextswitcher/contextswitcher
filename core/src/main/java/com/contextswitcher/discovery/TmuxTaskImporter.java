@@ -52,7 +52,8 @@ public class TmuxTaskImporter {
         List<String> skipped = new ArrayList<>();
         for (TmuxSession session : sessions) {
             for (TmuxWindow window : session.windows()) {
-                String label = "%s:%s (%s)".formatted(session.name(), window.index(), window.name());
+                // The task's title, so the sync summary can say what it imported.
+                String label = "%s:%s (%s)".formatted(session.name(), window.index(), title(window));
                 // The Claude session id is the strongest identity: a window
                 // whose session some task already tracks is covered no
                 // matter how the tmux coordinates shifted.

@@ -3160,6 +3160,7 @@ public class Main extends Application {
                 // backfilled sessionId immediately, not stomp it on auto-save).
                 List<String> changedFiles = new ArrayList<>();
                 StringBuilder errors = new StringBuilder();
+                StringBuilder imported = new StringBuilder();
                 // Host-routed: everything tmux-facing addresses a host, and a local
         // Claude session's is the pseudo-host `TmuxHost.LOCAL` — its commands
         // run through a local shell, every real host's over ssh.
@@ -3284,6 +3285,10 @@ public class Main extends Application {
                                     TmuxSync.coverageKeys(tasks, remote), knownSessionIds,
                                     settings.tasksDir(), LocalDate.now(), settings.hints());
                             created += result.created().size();
+                            // Imports land at the tasks root: no category.
+                            result.created().forEach(label -> imported.append(
+                                    "\n  \u2022 (no category) \u2014 ").append(label)
+                                    .append(" on ").append(remote));
                         }
                     } catch (Exception e) {
                         errors.append("\n").append(remote).append(": ").append(e.getMessage());
@@ -3294,6 +3299,7 @@ public class Main extends Application {
                                 (backfilled == 0 ? "" : ", session ids backfilled " + backfilled)
                                 + (rehomed == 0 ? "" : ", workspaces refreshed " + rehomed)
                                 + (committed == 0 ? "" : ", commits recorded " + committed))
+                        + (imported.length() == 0 ? "" : "\nImported:" + imported)
                         + (errors.length() == 0 ? "" : "\nErrors:" + errors);
                 Logger.info("Tmux sync{}: {}", announce ? "" : " (auto)", summary);
                 MainWindow window = this.window;

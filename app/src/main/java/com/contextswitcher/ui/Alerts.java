@@ -1,6 +1,5 @@
 package com.contextswitcher.ui;
 
-import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -53,8 +52,6 @@ public final class Alerts {
     public static Alert wrapping(@Nullable Window owner, Alert.AlertType type, String message) {
         Label content = new Label(message);
         content.setWrapText(true);
-        // A little breathing room below the header separator.
-        content.setPadding(new Insets(4, 0, 0, 0));
         return withContent(owner, type, content);
     }
 

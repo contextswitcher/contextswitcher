@@ -14,6 +14,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ### Fixed
 
+- The *Sync tmux windows…* summary now lists each imported task with its category and title, and its text no longer sticks to the dialog's left edge.
 - The Android app no longer crashes when a task is opened just as the app goes to the background (Android refuses to start the finish watch then); the watch starts once the app is back in front.
 
 ### Changed
