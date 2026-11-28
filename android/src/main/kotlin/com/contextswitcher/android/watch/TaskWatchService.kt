@@ -322,10 +322,16 @@ class TaskWatchService : Service() {
 
         /// Watches `task` from now on, replacing any earlier watch; a task
         /// without a remote tmux window is not watchable and changes nothing.
-        /// Call while the app is visible — Android refuses to start a
-        /// foreground service from the background.
+        /// Android refuses to start a foreground service from the background
+        /// (`ForegroundServiceStartNotAllowedException`, an
+        /// `IllegalStateException`); then nothing changes and the next call
+        /// from the visible app starts the watch.
         fun start(context: Context, task: Task) {
-            intentFor(context, task)?.let { ContextCompat.startForegroundService(context, it) }
+            val intent = intentFor(context, task) ?: return
+            try {
+                ContextCompat.startForegroundService(context, intent)
+            } catch (_: IllegalStateException) {
+            }
         }
 
         internal fun intentFor(context: Context, task: Task): Intent? {

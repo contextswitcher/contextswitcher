@@ -1074,7 +1074,7 @@ Needs: impl, utest
 `dsn~setup-wizard~13`
 
 `Main.runSetupWizard` replaces the clone offer at the fresh-machine moment (`dsn~task-git-clone-setup~2`: the task directory missing or empty and not a git checkout — an existing directory is never re-prompted) with `SetupWizard.show`, one `Dialog` whose content is swapped between four pages by *Back*/*Next* (their `ACTION` consumed, so the dialog stays open; the last page's *Finish* closes it with a `Result`, *Cancel* with none).
-Page one asks where sessions run — *remote over ssh* (default), *in WSL on this machine* (Windows only, `dsn~wsl-sessions~1`) or *this machine*, worded per OS: on Windows a local session runs in the app's own terminal pane and cannot be detached (`dsn~task-create-local~4`).
+Page one asks where sessions run — *remote over ssh* (default), *in WSL on this machine* (Windows only, `dsn~wsl-sessions~1`) or *this machine*, worded per OS: on Windows a local session runs in the app's own terminal pane and cannot be detached (`dsn~task-create-local~5`).
 The WSL choice is offered only on Windows, where WSL exists at all, and it is the one place a `wsl:<distro>` host is composed.
 This machine is checked as soon as the wizard opens (`localVerdict`, off the FX thread, the `Supplier` injected so a test needs no tools): `tmux -V` — not on Windows — and `claude --version`, each resolved like the local launcher resolves them (`RequiredTools.resolve`), since a GUI app's `PATH` is thinner than the login shell's; the verdict sits under the local choice, and *Next* with that choice repeats the check and only moves on when it passes.
 Page two is about the chosen machine and shows the fields that choice needs — the ssh destination, or the WSL distribution in an **editable** `ComboBox` filled from `wsl.exe --list --quiet` (blank means the default distribution) — and, for either, the host's workspaces directory (`dsn~host-table~1`), filled at once for a known host and otherwise once the check knows the remote's home; the configured ssh hosts are offered as radio choices above the destination field, *Another machine:* typing a new one.
@@ -1166,7 +1166,7 @@ Needs: impl, utest
 ### Group note opening
 `dsn~group-note-open~5`
 
-`TaskFileParser.groupNote` reads the `note:` scalar from the `CONTEXTSWITCHER.md` frontmatter (SnakeYAML `SafeConstructor`; null when absent, blank, or unparseable — a half-edited config must not break the menu). The group header's context menu shows "Open note" when set, and the header row carries an always-visible note icon (Material Design `NOTE_TEXT_OUTLINE` via SvgNode, MADR 0010) doing the same.
+`TaskFileParser.groupNote` reads the `note:` scalar from the `CONTEXTSWITCHER.md` frontmatter (SnakeYAML `SafeConstructor`; null when absent, blank, or unparseable — a half-edited config must not break the menu). The group header's context menu shows "Open note" when set, and the header row carries a note icon (Material Design `NOTE_TEXT_OUTLINE` via SvgNode, MADR 0010) doing the same, in its hover gutter (`dsn~category-header-hover-actions~1`).
 The icon is built by `TaskListCell.urlIconButton` and so behaves like every other address in the list (`dsn~pr-state-indicator~3`): a hand cursor, and the URL named in the status bar while hovered.
 Both flush the editor's unsaved changes and resolve the URL fresh from disk at click time — the icons take no focus, so a just-edited `CONTEXTSWITCHER.md` would otherwise yield the stale URL — and launch it via the OS protocol handler (`Main.openUrl`: `java.awt.Desktop.browse` → ShellExecute, no browser in the loop), which resolves `onenote:` to the OneNote desktop app.
 `onenote:` page links carry spaces and braces and are no valid `java.net.URI` — `openUrl` falls back to `HostServices.showDocument`, which passes the raw string to the OS, when `browse` refuses. Driving OneNote via COM `Application.NavigateTo(pageId)` plus Win32 foregrounding would be precise, but needs page ids and a Windows-only COM bridge; deferred in favour of the portable URL launch.
@@ -1182,7 +1182,7 @@ Needs: impl, utest
 `dsn~group-repo-open~2`
 
 `MainWindow.groupRepoUrl` reads the group's `repo:` through the existing `GroupConfig` parse (`dsn~group-config-apply~2`) — no new key, no new parser: the value a live task's bootstrap prompt already uses is the one the header opens.
-When set, the header row carries an always-visible link icon (Material Design `LINK_VARIANT`) next to the note icon, and the header's context menu an "Open repository" item; the tooltip is the URL itself, so the icon says where it goes.
+When set, the header row carries a link icon (Material Design `LINK_VARIANT`) next to the note icon in its hover gutter (`dsn~category-header-hover-actions~1`), and the header's context menu an "Open repository" item; the tooltip is the URL itself, so the icon says where it goes.
 The icon is a `TaskListCell.urlIconButton`: a hand cursor, and the URL in the status bar on hover — the PR icons' behavior, which is what a reader expects of anything in this list that leads somewhere.
 The chain link rather than `SOURCE_REPOSITORY`, whose branch-and-node glyph reads as a fork at the row's 14px and says nothing about following a link; the task rows' "Add link…" icon already makes the chain link this app's mark for a URL.
 `MainWindow.openGroupRepo` flushes the editor and re-reads the config before launching (`Main.openUrl`), for the same reason the note does: the icon takes no focus, so a just-edited `CONTEXTSWITCHER.md` would otherwise open the stale URL.
@@ -1312,11 +1312,12 @@ Covers:
 Needs: impl, utest
 
 ### Running indicator via @cs_status polling
-`dsn~task-running-indicator~7`
+`dsn~task-running-indicator~8`
 
-`TmuxStatusPoller` runs, per task host on a fixed interval (single daemon scheduler thread, fixed-*delay* so slow round-trips do not pile up), a one-line remote shell command that snapshots the host clock and prints `windowId|@cs_status|idleSeconds` per window (idle = now − `#{window_activity}`, computed remotely so a Windows/remote clock difference cannot skew it). It builds a `host windowId -> status` map handed to a callback that marshals to the FX thread. As a safety net for a status stuck on `working` (e.g. Claude's `Stop` hook never fired), a `working` window idle for at least `IDLE_SECONDS` (15) is reported as `waiting` — a short threshold so a status stuck on `working` recovers quickly; it only ever downgrades, so it does not fight correct status. `MainWindow` stores the map and, per row, `TaskListCell` draws a small dot coloured by status, in traffic-light semantics: orange `working` (`#FF8A00`), red for every state that needs the user — `waiting`, `attention` (Claude asked a question or waits for a permission, set by the `Notification` hook) and `limit` (`dsn~claude-limit-detection~2`) all share the one red `#FF1010`, told apart by the tooltip —, muted `done`, transparent when unknown.
-The dot carries a style class per state (`running-dot-working`, `running-dot-needs-you`, `running-dot-done`); `main.css` names the two semaphore colours once in `.root` (`-cs-working`, `-cs-needs-you`) and gives `done` the theme's subtle foreground (`~6`→`~7`: no colour set from Java, and `done` follows the theme instead of a fixed `#9E9E9E`).
-The three values are taken from claude-semaphore (MIT, `github.com/TaulantSela/claude-semaphore`), a tray traffic light for Claude sessions, so a user running both reads the same colour the same way; its fourth colour (green `#0AE254`, "task finished") has no counterpart here — a finished session is `waiting` for the next prompt, which is exactly the state that must be red. A **suspended** task never shows a dot: its window was killed, so a window on the host matching a lingering id is some other context's (tmux window ids restart per server). `Main` recomputes the polled host set on the FX thread whenever the task list changes and reads it (volatile) from the poller thread; suspended tasks do not contribute their host, so a host whose tmux tasks are all suspended is not polled at all. Status is state Claude sets for itself with `tmux set -w @cs_status …`, best driven by Claude Code `UserPromptSubmit`/`Stop` hooks.
+`TmuxStatusPoller` runs, per task host on a fixed interval (single daemon scheduler thread, fixed-*delay* so slow round-trips do not pile up), a one-line remote shell command that snapshots the host clock and prints `windowId|@cs_status|idleSeconds` per window (idle = now − `#{window_activity}`, computed remotely so a Windows/remote clock difference cannot skew it). It builds a `host windowId -> status` map handed to a callback that marshals to the FX thread. As a safety net for a status stuck on `working` (e.g. Claude's `Stop` hook never fired), a `working` window idle for at least `IDLE_SECONDS` (15) is reported as `waiting` — a short threshold so a status stuck on `working` recovers quickly; it only ever downgrades, so it does not fight correct status. `MainWindow` stores the map and, per row, `TaskListCell` draws a small dot coloured by status, in traffic-light semantics: yellow `working`, green `waiting` (the turn is done, Claude waits for the next prompt) and `done`, red when the session is stuck on the user — `attention` (Claude asked a question or waits for a permission, set by the `Notification` hook) and `limit` (`dsn~claude-limit-detection~2`) share the one red, told apart by the tooltip —, transparent when unknown.
+The dot carries a style class per state (`running-dot-working`, `running-dot-needs-you`, `running-dot-done`); `main.css` names the colours once in `.root` (`-cs-done` `#228833`, `-cs-working` `#CCBB44`, `-cs-needs-you` `#EE6677`, Paul Tol's colour-blind-safe "bright" scheme), so no colour is set from Java.
+`~7`→`~8` (demo 2026-11-28): the colours were claude-semaphore's orange/red with a finished turn red, which read as an error; green now means done, and the status bar's left end carries a legend of the three colours.
+A **suspended** task never shows a dot: its window was killed, so a window on the host matching a lingering id is some other context's (tmux window ids restart per server). `Main` recomputes the polled host set on the FX thread whenever the task list changes and reads it (volatile) from the poller thread; suspended tasks do not contribute their host, so a host whose tmux tasks are all suspended is not polled at all. Status is state Claude sets for itself with `tmux set -w @cs_status …`, best driven by Claude Code `UserPromptSubmit`/`Stop` hooks.
 
 Tags: windows, linux
 
@@ -1343,10 +1344,10 @@ Needs: impl
 `dsn~claude-limit-detection~2`
 
 Claude Code publishes no hook when a session runs into its usage limit: the turn simply ends, so the `Stop` hook reports the ordinary `waiting` and the blocked session is indistinguishable from a finished one.
-`TmuxStatusPoller` therefore appends a second pass to its existing per-host round-trip (`dsn~task-running-indicator~7`): for every window that publishes a `@cs_status` (selected on the remote with `#{?@cs_status,#{window_id},}`, so non-Claude windows cost nothing), it greps the pane's visible screen plus twelve lines of scrollback (`capture-pane -p -J -S -12`) for Claude's limit messages — `limit reached` or `reached your <model> limit` — and prints a `limit|windowId` marker line per hit.
+`TmuxStatusPoller` therefore appends a second pass to its existing per-host round-trip (`dsn~task-running-indicator~8`): for every window that publishes a `@cs_status` (selected on the remote with `#{?@cs_status,#{window_id},}`, so non-Claude windows cost nothing), it greps the pane's visible screen plus twelve lines of scrollback (`capture-pane -p -J -S -12`) for Claude's limit messages — `limit reached` or `reached your <model> limit` — and prints a `limit|windowId` marker line per hit.
 The trailing `true` keeps the command's exit code at 0 when the last window does not match.
 `parseInto` reports the status `limit` for every marked window unless its effective status is `working` — a working window has moved on and the message is stale scrollback.
-`TaskListCell` colours a `limit` dot red (`#FF1010`, the shared needs-you red of `dsn~task-running-indicator~7`) with the tooltip "usage limit reached — pay attention"; `TaskOrder.actionRank` ranks it ahead of `attention` in the "Action needed" sort, and `MainWindow.awaitsInput` counts it as awaiting the user (`dsn~awaits-input-filter~1`), since the session cannot continue without the user picking another model or buying credits.
+`TaskListCell` colours a `limit` dot red (`-cs-needs-you`, the shared needs-you red of `dsn~task-running-indicator~8`) with the tooltip "usage limit reached — pay attention"; `TaskOrder.actionRank` ranks it ahead of `attention` in the "Action needed" sort, and `MainWindow.awaitsInput` counts it as awaiting the user (`dsn~awaits-input-filter~1`), since the session cannot continue without the user picking another model or buying credits.
 
 Tags: windows, linux
 
@@ -1592,7 +1593,7 @@ Needs: impl, utest
 
 A start can go wrong: the tmux window comes up but Claude never does (a bad `claude` invocation, a remote hiccup), or the session exits later — the terminal mirror then shows a bare shell and the task looks dead without being it.
 A flat `Claude` button sits **left of the `IDEA` button** on the PR header line (`dsn~open-in-intellij~3`), visible only while the previewed task's own window is known to run something other than Claude.
-The evidence is `#{pane_current_command}`, which `TmuxStatusPoller` reads as a seventh field of its existing per-host round-trip (`dsn~task-running-indicator~7`) and hands to `MainWindow.updateWindowCommands` as a `host windowId -> command` map; a window the poll has not seen is simply absent, and absence counts as "has Claude" — the button appears on evidence, never on silence. A suspended task never shows it (its window was killed, so a matching id is some other context's, as for the running dot).
+The evidence is `#{pane_current_command}`, which `TmuxStatusPoller` reads as a seventh field of its existing per-host round-trip (`dsn~task-running-indicator~8`) and hands to `MainWindow.updateWindowCommands` as a `host windowId -> command` map; a window the poll has not seen is simply absent, and absence counts as "has Claude" — the button appears on evidence, never on silence. A suspended task never shows it (its window was killed, so a matching id is some other context's, as for the running dot).
 The pane command is the same test `TmuxTaskImporter` uses on import: `claude` means a session, anything else (`bash`, `zsh`, …) does not.
 Pressing it types `claude --resume <sessionId> || claude` into the recorded window — `TmuxResurrect.startClaude`, the command a resurrect already sends (`dsn~tmux-resurrect~7`), so the conversation is continued where one is recorded and a fresh session started where it is not (or where the id no longer resolves), `--dangerously-skip-permissions` following the `claudeAuto` setting.
 The round-trip runs off the FX thread with the button disabled and the status bar reporting `Starting Claude …` → outcome, the async single-shot button shape.
@@ -1647,6 +1648,22 @@ Covers:
 - req~task-list-window~1
 - req~task-status-toggle~2
 - req~task-delete~2
+
+Needs: impl, utest
+
+### Hover header actions
+`dsn~category-header-hover-actions~1`
+
+A category header's trailing icons — "Jump to desktop" (`dsn~category-desktop-focus~4`), note (`dsn~group-note-open~5`), repository (`dsn~group-repo-open~2`) and the plus (`dsn~task-create-ui~15`), in that order — sit in an action gutter shown only while the mouse is on the header, the task row's gutter of `dsn~task-row-hover-actions~7` (Carl, 2026-11-28).
+It is laid over the header the same way: an unmanaged `HBox` the header row's `layoutChildren` places at full height, with the `task-action-gutter` fade into `-cs-row-bg` (the header cell's own colour, set on `group-header-cell`), so hovering never reflows or re-truncates the name.
+Play ("Switch to category", `dsn~category-switch~1`) stays out of the gutter, always visible at the header's right edge, with the gutter just left of it: it is the category's main action, the counterpart of a task row's play/pause.
+The root category has no play button, so its gutter ends flush with the right edge; a header with no gutter icons gets no gutter at all, since an empty one would still fade the name out.
+What the header states about the category stays always visible next to the name — the terminal, sync and folders icons, the `⚠` — as do its tags and a collapsed category's running count.
+
+Tags: windows, linux
+
+Covers:
+- req~task-list-window~1
 
 Needs: impl, utest
 
@@ -1715,14 +1732,14 @@ Any http(s) URL **mentioned inside** the description (rather than pasted alone, 
 Under the field sit the model and effort pickers (`dsn~claude-mode-select~3`), pre-selected with the last pick (a fresh install starts on "as is"): they reach the fresh chat as `/model`/`/effort` ahead of the context prompt, for the live-task and the PR flow alike (`Add plain task` starts no chat, so they are ignored).
 The dialog offers an explicit choice of four buttons, in this order: `Add plain task`, `Add remote Claude`, `Add local Claude`, and `Cancel`.
 `Add remote Claude` is enabled whenever a remote resolves: the group's `CONTEXTSWITCHER.md` `remote`, else the app's first configured remote (settings `remotes`), the same fallback `openGroupConfig` uses to pre-fill a new CS config — so a folder without a CS config still offers it.
-`Add local Claude` is enabled for a **local category** — a group whose CS config sets a `workspacesRoot`/`workdir` but **no** `remote` (the lightweight, no-tmux half of a local/remote group pair, `dsn~task-create-local~4`).
+`Add local Claude` is enabled whenever the dialog's **Claude folder** is filled (`dsn~task-create-claude-folder~1`) — which a **local category**, a group whose CS config sets a `workspacesRoot`/`workdir` but **no** `remote` (the lightweight, no-tmux half of a local/remote group pair, `dsn~task-create-local~5`), fills by itself.
 The default (Ctrl+Enter) button follows the category the task lands in: a local category defaults to `Add local Claude`, a group with its own `remote:` to `Add remote Claude`, and a group with neither (including the root) to `Add plain task` — the settings.yaml fallback remote keeps the remote button enabled but no longer makes it the default, since it is a fallback, not a statement about this category.
-A hint under the field states the remote and its source (group default vs configured remote) and the local directory, or why either button is disabled. The editor is flushed first, so a `remote:` just typed into an open CS config counts.
-A PR URL always routes to the PR flow (`dsn~task-from-pr~6`) regardless of the button. Otherwise `Add remote Claude` creates a live task (`dsn~task-create-live~8`), `Add local Claude` a file-only title task plus a local Claude session (`dsn~task-create-local~4`), and `Add plain task` a file-only title task in `group` (empty = root): `TaskFileParser.newTaskFileName` slugs `group/title` into the relative file path, `MainWindow` de-duplicates with `-2`/`-3`…, `newTaskContent` renders minimal frontmatter (seeded from the group defaults, `dsn~group-config-apply~2`) plus a Notes body, `TaskFileAccess.save` creates the group subfolder when needed, and the new row is selected once the watcher delivers it and opened in the editor lane.
+A hint under the field states the remote and its source (group default vs configured remote) and where the local session runs, or why either button is disabled. The editor is flushed first, so a `remote:` just typed into an open CS config counts.
+A PR URL always routes to the PR flow (`dsn~task-from-pr~6`) regardless of the button. Otherwise `Add remote Claude` creates a live task (`dsn~task-create-live~8`), `Add local Claude` a file-only title task plus a local Claude session (`dsn~task-create-local~5`), and `Add plain task` a file-only title task in `group` (empty = root): `TaskFileParser.newTaskFileName` slugs `group/title` into the relative file path, `MainWindow` de-duplicates with `-2`/`-3`…, `newTaskContent` renders minimal frontmatter (seeded from the group defaults, `dsn~group-config-apply~2`) plus a Notes body, `TaskFileAccess.save` creates the group subfolder when needed, and the new row is selected once the watcher delivers it and opened in the editor lane.
 Each slug is capped at 60 chars, cut at a `-` word boundary (trailing `-`/`.` stripped): a live task's input is a free-form multi-sentence **description** (`dsn~task-create-live~8` derives the short title from it later), and an uncapped slug blows the Windows 260-char MAX_PATH under `%USERPROFILE%\.contextswitcher\tasks\` — the file name is only the task id, not the displayed title.
 Submitting the dialog (any of the three add buttons) moves the keyboard focus to the task list on the left, so the arrow keys and the switch chord act on the new task instead of on the toolbar button or `Add task…` row the dialog was opened from — the same move the row's play button makes (`dsn~task-row-hover-actions~7`). The focus request is deferred to the next pulse: the PR flow opens its host dialog from within this one, and the owner window claims the focus back as that closes.
 `TaskRepository` publishes the observable set of subfolder names — including empty folders — so an empty folder still renders as a group.
-Every hand-filled category offers it twice (`~14`, Carl, 2026-09-16): an always-visible plus icon at the right end of its header, and a slim, muted `Add task…` row (`TaskListCell.AddTaskRow`, a flat button with a plus icon, indented to the task titles) right under its header while the category is selected (`dsn~category-action-rows~1`) — both open the dialog for that group so the task lands in it (its per-group workdir defaults then apply).
+Every hand-filled category offers it twice (`~14`, Carl, 2026-09-16): a plus icon at the right end of its header's hover gutter (`dsn~category-header-hover-actions~1`; always visible until 2026-11-28), and a slim, muted `Add task…` row (`TaskListCell.AddTaskRow`, a flat button with a plus icon, indented to the task titles) right under its header while the category is selected (`dsn~category-action-rows~1`) — both open the dialog for that group so the task lands in it (its per-group workdir defaults then apply).
 They replaced the header's hover-only plus and the `Add…` row that only an empty group showed, so adding to a category never depends on hovering or on the category being empty; like the header, the row is a drop target for the category (`dsn~task-move-dnd~6`). An auto category has neither (`dsn~auto-category-placeholder-row~2`).
 
 Tags: windows, linux
@@ -1756,7 +1773,7 @@ Needs: impl, utest
 With a few dozen categories the Add-task dialog's flat, alphabetical category combo (`dsn~task-create-ui~15`) makes the one wanted a scroll away, although it is almost always one of the active virtual desktop's (Oliver, 2026-10-22).
 The combo therefore lists its entries like the `Ctrl+J` popup does (`CategoryJump.rows`, `dsn~category-jump~3`): `(no category)` first, then the active desktop's categories under a `This desktop (<name>)` heading, then the rest under `Other desktops` — each group alphabetical; with the active desktop unknown (non-Windows, no desktop watch running) the list is flat.
 A heading is a disabled, caption-styled cell; the arrow keys step over it in the direction they were going instead of landing on it.
-A host picker right of the combo (`add-task-host`) narrows the list: `(all hosts)` (the default), `local` for the local categories (a CS config with a directory and no `remote:`, `dsn~task-create-local~4`) and one entry per remote some category resolves to (`CategoryJump.hosts`/`onHost`; a category's host is what `Add remote Claude` would use — its own `remote:`, else the settings fallback).
+A host picker right of the combo (`add-task-host`) narrows the list: `(all hosts)` (the default), `local` for the local categories (a CS config with a directory and no `remote:`, `dsn~task-create-local~5`) and one entry per remote some category resolves to (`CategoryJump.hosts`/`onHost`; a category's host is what `Add remote Claude` would use — its own `remote:`, else the settings fallback).
 A pick that the filter removes falls back to the category the dialog was opened for, which is always listed.
 
 Tags: windows, linux
@@ -1780,7 +1797,27 @@ The category's values show as each field's prompt text and follow the category p
   A web link alone is kept as it is — neither form can be derived from the other (the web link lacks the notebook's folder path, the `onenote:` link the `resid`) — and a muted hint under the field says that it opens the browser and how to get the desktop link.
 - **Chat** takes any link as is: Matrix permalinks are rewritten when the task is switched to, Teams links pass through.
 
+The Folders are context only — a local Claude session starts in the separate **Claude folder** field below them (`dsn~task-create-claude-folder~1`).
+
 The clipboard pre-fills them like the description: a folder of this machine (one absolute path to an existing directory, optionally quoted, or the folder itself copied in Explorer — `TaskContextFields.clipboardFolder`, shared with the setup wizard, `dsn~category-from-folder~3`) fills Folders, and a clipboard of nothing but links that holds OneNote's (`TaskContextFields.clipboardNote`) fills Note; either one then leaves the description empty instead of making the path or link the title.
+
+Tags: windows, linux
+
+Covers:
+- req~task-create~1
+
+Needs: impl, utest
+
+### The Add-task dialog names the folder a local Claude starts in
+`dsn~task-create-claude-folder~1`
+
+The Folders field (`dsn~task-create-context-fields~1`) looked like the place to say where a local session runs, but it is only the task's context; the session started in the category's directory, and without one `Add local Claude` stayed disabled however many folders were typed (Oliver, 2026-11-28).
+The dialog therefore has its own **Claude folder** field (`add-task-claude-folder`) under the context fields: `Add local Claude` (`dsn~task-create-local~5`) is enabled exactly while it holds a folder (and the agent is Claude), starts the session there and writes it as the new task's `folder:`.
+`Files.createDirectories` makes a folder that does not exist yet, as before.
+
+The field suggests a folder from the category (`TaskContextFields.claudeFolder`) until it is typed into: a fixed `workdir` as is; a `workspacesRoot` plus a subfolder named after the slugged description (`TaskFileParser.slug`), so each task gets a directory of its own instead of all of them sharing the root — the root itself while the description is empty; nothing for a category with a `remote:`, whose directories are on the remote.
+The suggestion follows the category picked and the description typed; once the user edits the field, it is theirs.
+Remote and plain tasks ignore it; without Claude (`dsn~contexts-only~1`) it is hidden.
 
 Tags: windows, linux
 
@@ -1897,12 +1934,14 @@ Covers:
 Needs: impl, utest
 
 ### Add a local task (a Claude session) in a local category
-`dsn~task-create-local~4`
+`dsn~task-create-local~5`
 
 The `Add task…` dialog's `Add local Claude` button is the local counterpart of `Add remote Claude` (`dsn~task-create-live~8`) for a **local category**: a group whose `CONTEXTSWITCHER.md` sets a `workspacesRoot`/`workdir` but no `remote` — the lightweight, no-tmux half of a local/remote group pair, the shape `TaskFileParser.newTaskContent` already writes as the task's local `folder:` (`dsn~group-config-apply~2`).
-It is enabled exactly for such a group and is then the dialog's default button; a group carrying a `remote:` offers only the remote flow (its directory lives on the remote, not on this machine).
+Such a group makes it the dialog's default button.
+The session runs in the dialog's **Claude folder** (`dsn~task-create-claude-folder~1`), which such a group pre-fills — its `workdir`, or a subfolder per task under its `workspacesRoot` — and which any category takes typed in by hand; the button is enabled exactly while that field holds a folder.
+A group carrying a `remote:` suggests no folder (its directories live on the remote, not on this machine).
 
-The task file is the **plain** one (`MainWindow.createTitleTask`, `dsn~task-create-ui~15`): the description as title, `folder:` seeded from the group defaults, selected and opened in the editor lane.
+The task file is the **plain** one (`MainWindow.createTitleTask`, `dsn~task-create-ui~15`): the description as title, `folder:` the Claude folder, selected and opened in the editor lane.
 Off Windows the tmux window the session runs in is then written back into it (`Main.writeLocalWindowBack`: `tmux:` with session `0` and the window id, plus `claude.cwd`) — without a `remote:`, which is exactly what marks the session as local and lets the pane mirror it (`dsn~terminal-local-mirror~2`).
 On Windows the same call writes `claude.cwd` alone: there is no tmux window, and the cwd is what finds the transcript again for a later resume (`dsn~terminal-owned-session~5`).
 Nothing else is: a local session is not polled, so there is no `@cs_title` to sync and none of the live flow's id bookkeeping.
@@ -1931,7 +1970,7 @@ Needs: impl, utest
 ### A local Claude task gets a short title
 `dsn~task-create-local-title~2`
 
-A local Claude task (`dsn~task-create-local~4`) starts with the typed description as its `title:`, and a description is routinely a paragraph — far more than a row shows before it ellipsizes.
+A local Claude task (`dsn~task-create-local~5`) starts with the typed description as its `title:`, and a description is routinely a paragraph — far more than a row shows before it ellipsizes.
 Unlike a remote task, nothing replaces it later: the local prompt asks for no `@cs_title`, and the local tmux window is named after its directory, so the title is shortened by the app and no tmux is involved.
 `Main.startLocalClaude` hands the new task to `InitialTitleAdopter.adopt` on the FX thread — on Windows (the app-owned session), elsewhere (the local tmux session), and for the category-from-URL flow's local branch alike.
 When the title reads as a description — more than one line, more than 60 characters or more than 8 words (`TaskTitles.looksLikeDescription`) — a `TaskTitleSummarizer` derives one off the FX thread.
@@ -2589,7 +2628,7 @@ The app name goes last because a taskbar button or window switcher truncates the
 Selecting a category header, a task, or a corrupt row switches the title's category; a label header leaves it alone (it sits inside the category already shown).
 A virtual-desktop switch under the active-desktop filter (`dsn~active-desktop-filter~6`) switches it too, to the category of the task that desktop re-selects (`dsn~desktop-last-task-selection~6`) — even while that selection waits for the queue box to lose the keyboard.
 A desktop with no task to select names itself: its desktop name stands in for the category, so the title never keeps the previous desktop's category.
-The counts follow the status poller (`dsn~task-running-indicator~7`) and every row rebuild, so the title stays as current as the dots.
+The counts follow the status poller (`dsn~task-running-indicator~8`) and every row rebuild, so the title stays as current as the dots.
 
 Tags: windows, linux
 
@@ -2732,7 +2771,7 @@ Needs: impl, utest
 `dsn~task-sort-modes~2`
 
 `TaskOrder` (an enum: `ALPHABETICAL`, `LAST_UPDATE`, `ACTION_NEEDED`) builds the comparator `MainWindow.rebuildRows` sorts every block with (ungrouped, per group, Done), replacing the fixed `ORDER` of `dsn~main-window~2` (not bumped — the base order is unchanged, the selected mode only refines it).
-Every mode keeps error rows first, sorts by `TaskStatus` ordinal (active, suspended, done) next, and then puts the pinned tasks of each block first (`dsn~pinned-tasks~2`); the mode decides the order within those blocks, with the case-insensitive title as the final tie-breaker: `ALPHABETICAL` adds nothing, `LAST_UPDATE` sorts by the task file's modification time descending (memoized per rebuild, so at most one `Files.getLastModifiedTime` per entry and rebuild; an unreadable file counts as 0 and sorts last), `ACTION_NEEDED` ranks the live `@cs_status` (`dsn~task-running-indicator~7`): `limit`, then `attention`, then `waiting`, then `working`, then status-less.
+Every mode keeps error rows first, sorts by `TaskStatus` ordinal (active, suspended, done) next, and then puts the pinned tasks of each block first (`dsn~pinned-tasks~2`); the mode decides the order within those blocks, with the case-insensitive title as the final tie-breaker: `ALPHABETICAL` adds nothing, `LAST_UPDATE` sorts by the task file's modification time descending (memoized per rebuild, so at most one `Files.getLastModifiedTime` per entry and rebuild; an unreadable file counts as 0 and sorts last), `ACTION_NEEDED` ranks the live `@cs_status` (`dsn~task-running-indicator~8`): `limit`, then `attention`, then `waiting`, then `working`, then status-less.
 The status and file-time lookups are passed in as functions, so the ordering logic stays pure and unit-tested.
 The task-list toolbar (`dsn~task-list-toolbar~3`) carries an icon-only `MenuButton` (`SORT_VARIANT`) with one radio item per mode; the choice is UI state kept across restarts (`Preferences`, like the last import host) — unlike the narrowing filters, a sort order is how the user reads the list, not a transient view.
 While `ACTION_NEEDED` is active, `updateRunningStatuses` rebuilds the rows instead of merely repainting them — a status change reorders rows, just as it changes row membership for the awaits-input filter.
@@ -2936,7 +2975,7 @@ Needs: impl
 
 The task-list toolbar's filter menu (`dsn~task-list-toolbar~3`) leads with an "Awaits input only" `CheckMenuItem`. Ticking it flips an in-memory `awaitsInputOnly` flag (reset off on launch — never persisted) and rebuilds the rows.
 `MainWindow.rebuildRows` treats a set `awaitsInputOnly` like an active search or tag filter — a narrowed view: it force-expands all groups and the Done section, hides empty groups, and drops every entry that is not `awaitsInput`.
-`awaitsInput(entry)` is true only for a `TaskEntry.Loaded` whose task is `ACTIVE` and whose `runningStatusFor(task)` (the live `@cs_status`, `dsn~task-running-indicator~7`) is `waiting`, `attention` or `limit`; so done, suspended, `working`, and status-less rows are all excluded, and the Done section vanishes while the filter is on.
+`awaitsInput(entry)` is true only for a `TaskEntry.Loaded` whose task is `ACTIVE` and whose `runningStatusFor(task)` (the live `@cs_status`, `dsn~task-running-indicator~8`) is `waiting`, `attention` or `limit`; so done, suspended, `working`, and status-less rows are all excluded, and the Done section vanishes while the filter is on.
 The item's text carries the current awaiting count (`Awaits input only (N)`) — of the tasks ticking it would show, so with *Show active desktop only* on only those of the desktop in view, and none of a switched-off host — refreshed from `rebuildRows` and, so it stays live while the filter is off, from `updateRunningStatuses` — which, while the filter is on, calls `rebuildRows` instead of a plain `taskList.refresh()` because a status change alters row membership, not just the dot color. The filter button badges the number of narrowing filters that are active.
 The filter/count logic reuses the running-status map, so no new polling or state is introduced; this UI wiring is not separately unit-tested (house convention, as with the tag filter).
 
@@ -3270,7 +3309,7 @@ Needs: impl, utest
 ### Delayed send when the chat is done working
 `dsn~message-queue-delayed-send~4`
 
-Below each card's ➤ send button (and below the add box's) sits a **delayed next** toggle — a clock icon: instead of pasting the message now, into a chat that is mid-run where it queues behind whatever Claude is doing and is easily missed, it arms the message, and the status poll (`dsn~task-running-indicator~7`) delivers it on the first tick that reports the task's window `waiting` or `done`.
+Below each card's ➤ send button (and below the add box's) sits a **delayed next** toggle — a clock icon: instead of pasting the message now, into a chat that is mid-run where it queues behind whatever Claude is doing and is easily missed, it arms the message, and the status poll (`dsn~task-running-indicator~8`) delivers it on the first tick that reports the task's window `waiting` or `done`.
 The add box's toggle commits what is typed first, like its send button, and keeps the caret in the emptied box.
 Untick to disarm.
 Several messages can be armed at once: they form a **delayed queue** that goes out one message per idle turn, in the order the armed cards' send-order numbers show (`➊` first) rather than the order the clocks were ticked, so a chat that falls idle never gets a burst.
@@ -3427,7 +3466,7 @@ Needs: impl
 A category header's `▾`/`▸` toggles on **`MOUSE_PRESSED`**, not on a click.
 
 JavaFX synthesizes `MOUSE_CLICKED` only when the press and the release land on the same node, and that Label lives inside a `ListCell`'s *graphic* — which `ListView.refresh()` throws away and rebuilds.
-The running-status poll calls `refresh()` on every tick whose snapshot differs (`dsn~task-running-indicator~7`), so with live Claude sessions flipping between `working`, `waiting` and `attention` it fires constantly.
+The running-status poll calls `refresh()` on every tick whose snapshot differs (`dsn~task-running-indicator~8`), so with live Claude sessions flipping between `working`, `waiting` and `attention` it fires constantly.
 A human press and release are a hundred milliseconds apart; when a rebuild lands between them the Label the press hit no longer exists, no click is synthesized, and the arrow ignores the attempt.
 Field report 2026-09-12: "For the expansion icon at categories, I need to click it twice".
 

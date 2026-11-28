@@ -78,7 +78,7 @@ public final class ShellFxHost {
     /// What [#host] puts in the shell: the panes `MainWindow` builds, the status
     /// bar below the docks and the app-wide controls for the title bar.
     /// Named rather than positional — six nodes in a row are easy to swap.
-    record Panes(Node tasks, Node terminal, Node notes, ConfigFormPane switchActions,
+    record Panes(Node tasks, Node terminal, Node conversation, Node notes, ConfigFormPane switchActions,
             ConfigFormPane configuration, Node queue, Node statusBar, List<Node> appControls,
             boolean contextsOnly) {
 
@@ -237,6 +237,8 @@ public final class ShellFxHost {
         var lanes = new DockLanes(shellView, dockHost);
         Lane tasks = lanes.add("Tasks", panes.tasks());
         Lane terminal = lanes.add("Terminal", panes.terminal());
+        // [impl->dsn~conversation-pane~1]
+        Lane conversation = lanes.add("Conversation", panes.conversation());
         Lane notesLane = lanes.add("Notes", panes.notes());
         Lane switchActions = lanes.add("Switch actions", panes.switchActions().getRoot());
         Lane configuration = lanes.add("Configuration", panes.configuration().getRoot());
@@ -249,6 +251,9 @@ public final class ShellFxHost {
             lanes.open(notesLane, center);
         } else {
             lanes.open(terminal, center);
+            // Behind the terminal: opening a tab selects it.
+            lanes.open(conversation, center);
+            center.selectTab(0);
             lanes.open(notesLane, rightTop);
         }
         lanes.open(switchActions, rightTop);

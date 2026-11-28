@@ -45,7 +45,7 @@
 * Docs drift: `CONSISTENCY.md` lists what prose must agree with code (spec-id revisions, settings keys, shortcuts, links); `scripts/consistency.sh` runs the mechanical half. Run it when touching README.md or `docs/`.
 * Colors: never hard-code one in code — no `Color.web`/hex strings, no color property in a `setStyle` (Oliver, 2026-09-13).
   Give the node a style class instead: AtlantaFX's own (`Styles.TEXT_MUTED`, `Styles.DANGER`, `Styles.WARNING`, …) or one in `main.css` built on the theme's `-color-*` variables, so every theme — and a live theme switch — recolors it; `MainWindow` adds `main.css` to every window, dialogs included.
-  A deliberate constant (the brand blue, claude-semaphore's dot colors) is a named looked-up color in `main.css`'s `.root`, never a literal at a call site.
+  A deliberate constant (the brand blue, the running dot's colors) is a named looked-up color in `main.css`'s `.root`, never a literal at a call site.
   Exceptions: colors that are data (a tag's palette entry) and palettes of widgets CSS does not reach (the JediTermFX terminal, the Android ANSI palette); on Android use `MaterialTheme.colorScheme`.
 * Markdown: one sentence per line (semantic line breaks) in all `*.md`, so diffs stay readable.
   Applies to new and edited text; do not mass-reflow untouched paragraphs (keeps blame useful).

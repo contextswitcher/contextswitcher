@@ -141,6 +141,34 @@ public final class TaskContextFields {
         return lines.size() == 1 && isOneNoteWebUrl(lines.getFirst()) ? lines.getFirst() : null;
     }
 
+    /// The Claude folder the dialog suggests for a local session
+    /// (`dsn~task-create-claude-folder~1`), or null when the category names
+    /// none on this machine: a category with a `remote` has its directories
+    /// there, not here. A fixed `workdir` is the folder as is; a
+    /// `workspacesRoot` gets one subfolder per task, named after the slugged
+    /// description (the root itself while the description is empty).
+    // [impl->dsn~task-create-claude-folder~1]
+    public static @Nullable String claudeFolder(GroupConfig defaults, String description) {
+        if (defaults.remote() != null) {
+            return null;
+        }
+        if (defaults.workdir() != null) {
+            return defaults.workdir();
+        }
+        String root = defaults.workspacesRoot();
+        if (root == null) {
+            return null;
+        }
+        String name = TaskFileParser.slug(description);
+        if (name.isEmpty()) {
+            return root;
+        }
+        if (root.endsWith("\\") || root.endsWith("/")) {
+            return root + name;
+        }
+        return root + (root.contains("\\") ? "\\" : "/") + name;
+    }
+
     /// The frontmatter key a task's local folders go under on the machine
     /// `host`: `folders-<host>` (`dsn~machine-key-variants~1`), since a path
     /// of this machine means nothing on the other one the task directory is

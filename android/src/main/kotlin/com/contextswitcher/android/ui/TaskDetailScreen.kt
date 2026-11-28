@@ -45,6 +45,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -138,6 +141,7 @@ fun TaskDetailScreen(
     // Opening a task makes it the watched one: its Claude session's finished
     // turn raises a notification, also once the app is in the background.
     val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) {
             scope.launch { snackbarHostState.showSnackbar("Notifications are off: no alert when Claude finishes") }
@@ -150,7 +154,10 @@ fun TaskDetailScreen(
             ) {
                 notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
-            TaskWatchService.start(context, liveTask)
+            // Each return to the foreground: a start the background refused is retried.
+            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                TaskWatchService.start(context, liveTask)
+            }
         }
     }
     DisposableEffect(task.id()) {

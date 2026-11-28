@@ -44,3 +44,4 @@ Decisions follow [MADR](https://adr.github.io/madr/). New records: copy the curr
 | [0037](0037-message-provenance-records.md) | Message provenance records | accepted |
 | [0038](0038-extendedtable-for-the-host-settings-table.md) | ExtendedTable for the host settings table | accepted |
 | [0039](0039-global-hotkey-through-a-persistent-powershell-listener.md) | Global hotkey through a persistent PowerShell listener | accepted |
+| [0040](0040-chatpane-for-the-conversation-lane.md) | ChatPane for the conversation lane, fed from the transcript | proposed |

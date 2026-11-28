@@ -303,6 +303,7 @@ Recommended on the remote: `tmux set -g mouse on` (wheel scrolls inside tmux) an
 * **Colors** follow the app theme: Everforest under an Everforest theme, plain black or white otherwise. The mirror can only recolour ANSI 0–15, so a remote program emitting 24-bit colour keeps its own — see [Theme](#theme) for making Claude Code match.
 * **Scrollback, copy, Jump to bottom, Clear input** — the ordinary terminal affordances, plus a button that clears a half-typed prompt.
   `Ctrl`+wheel zooms the terminal font (`Ctrl`+`0` resets it); the size is remembered across restarts and applies to every task's terminal.
+* **Conversation** — a tab behind the terminal shows the same chat as bubbles, your messages on the right and Claude's replies on the left with their Markdown rendered; **Reply** on a message starts an answer in the queue ([`dsn~conversation-pane~1`](docs/requirements/terminal.md)).
 * **Markdown copy** — a selection of Claude's text is copied as the Markdown Claude wrote, and **Copy reply** copies the whole last reply; `autoCopyReplies: true` copies each reply as it finishes.
 * **Links** — URLs are clickable, and so are issue numbers: `#17038` or `PR 17038` opens that issue or PR of the category's `repo:` (guessed from the checkout's git remote when the category names none). Hovering any link spells out its target in the status bar.
 * **Show diff** — pages the task workspace's uncommitted changes, or the last commit when the worktree is clean, through the remote's own git pager in a throwaway tmux window. With `@cs_commit` published and the category's `mainCheckout:` set, it still works after the session deleted its worktree — [see below](#let-claude-report-its-state-remote-setup).
@@ -478,7 +479,7 @@ That window is normally ContextSwitcher's own `cs-mirror-<name>` mirror session,
 A stamped `@cs_session_id` then differs from that task's recorded one, `TmuxWindowOwnership` (`dsn~tmux-window-ownership~4`) reads it as a stolen window, and the next switch resurrects a second window for a task whose own session is still running in the first (field report 2026-09-09).
 
 `UserPromptSubmit` → **working**, `Stop` (Claude finished responding) → **waiting**, `Notification` (Claude asks a question or waits for a permission) → **attention**.
-The row's dot follows traffic-light semantics: orange while working, one red for everything that needs you — waiting, attention and the usage limit, told apart by the dot's tooltip — and gray once done.
+The row's dot follows traffic-light semantics: yellow while working, green once Claude is done and waits for the next prompt, red when it needs you — a question, a permission or the usage limit, told apart by the dot's tooltip. A legend at the left of the status bar names the colours.
 No hook fires when a session runs into its **usage limit** — the turn just ends, so the `Stop` hook reports the ordinary "waiting".
 The app therefore greps the tail of each Claude pane for Claude Code's limit message and marks those tasks as **limit**, sorted and counted as awaiting your input.
 A turn cut short by an **API error** is detected the same way and simply told to `continue`, retried every five minutes while the error is still on screen.

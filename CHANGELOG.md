@@ -6,6 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are release dates ([CalVer](https://calver.org/), `YYYY-MM-DD`), tagged `v<date>` on GitHub.
 Changes collect under *Unreleased* until the next morning's automatic release turns them into that day's version.
 
+## [2026-11-28] - 2026-11-28
+
+### Added
+
+- A **Conversation** tab behind the terminal shows the task's Claude chat as bubbles — your messages on the right, Claude's replies on the left with their Markdown rendered — so it is easy to see who wrote what; **Reply** on a message starts an answer to it in the queue.
+- The *Add task* dialog has a **Claude folder** field: *Add local Claude* starts the session there, in any category. A category with a `workspacesRoot` suggests a subfolder per task, named after the description, so tasks no longer share one directory; the *Folders* field stays context only.
+
+### Fixed
+
+- The *Sync tmux windows…* summary now lists each imported task with its category and title, and its text no longer sticks to the dialog's left edge.
+- The Android app no longer crashes when a task is opened just as the app goes to the background (Android refuses to start the finish watch then); the watch starts once the app is back in front.
+
+### Changed
+
+- The task dots are green when Claude is done, yellow while it works and red when it needs you (question, permission, usage limit); a legend at the left of the status bar names them. Before, a finished turn showed red. The Android app uses the same colours.
+- A category header shows only its play button until you hover it; the desktop, note, repository and *Add task* icons then appear just left of play, like a task row's actions.
+
 ## [2026-11-27] - 2026-11-27
 
 ### Added
@@ -523,6 +540,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 - *Restart to update* in the "What's new" window works while "Checking remote …" is still running.
 - "Review comments sync" no longer queues qodo findings with a stack of repeated "The issue below was found during a code review…" lines: the preamble is stripped again now that qodo writes its headings without `##`.
 
+[2026-11-28]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-27...v2026-11-28
 [2026-11-27]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-26...v2026-11-27
 [2026-11-26]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-25...v2026-11-26
 [2026-11-25]: https://github.com/contextswitcher/contextswitcher/compare/v2026-11-22...v2026-11-25

@@ -21,6 +21,13 @@ repositories {
     // ShellFX 2.x (the main window's shell, MADR 0032) exists only as
     // snapshots in techsenger's repsy repository; restricted to that group so
     // nothing else can resolve from it.
+    // ChatPane (the Conversation lane, MADR 0040) is published as snapshots only.
+    maven("https://central.sonatype.com/repository/maven-snapshots") {
+        mavenContent {
+            snapshotsOnly()
+            includeModule("org.jabref", "chatpane")
+        }
+    }
     maven("https://repo.repsy.io/mvn/techsenger/snapshots") {
         mavenContent {
             snapshotsOnly()
@@ -75,6 +82,9 @@ dependencies {
     implementation(project(":core"))
     implementation("org.openjfx:javafx-controls:26.0.2")
     implementation("org.openjfx:jfx-incubator-richtext:26.0.2")
+    // The Conversation lane's chat view (MADR 0040). Apache-2.0; pulls
+    // commonmark (BSD-2-Clause). Pinned to one timestamped snapshot build.
+    implementation("org.jabref:chatpane:0.1.0-20261008.145123-4")
     // Spike https://github.com/contextswitcher/contextswitcher-private/issues/34 / MADR 0007: embedded terminal. JediTermFX is dual-licensed
     // LGPLv3/Apache-2.0 — we elect Apache-2.0; pty4j is EPL-1.0.
     implementation("com.techsenger.jeditermfx:jeditermfx-core:1.1.0")

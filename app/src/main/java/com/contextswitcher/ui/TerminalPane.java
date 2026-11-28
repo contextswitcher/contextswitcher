@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import atlantafx.base.theme.Styles;
+import com.contextswitcher.discovery.ClaudeConversation;
 import com.contextswitcher.discovery.ClaudeReplies;
 import com.contextswitcher.queue.Attachments;
 import com.contextswitcher.queue.ClaudeMode;
@@ -281,6 +282,8 @@ public class TerminalPane {
 
     // [impl->dsn~terminal-markdown-copy~1]
     private final ClaudeReplies replies;
+    // [impl->dsn~conversation-pane~1]
+    private final ConversationPane conversation;
 
     /// `autoCopyReplies`: copy each finished reply of the mirrored chat.
     // [impl->dsn~terminal-markdown-copy~1]
@@ -304,6 +307,7 @@ public class TerminalPane {
         this.executor = executor;
         this.ssh = ssh;
         this.replies = new ClaudeReplies(ssh);
+        this.conversation = new ConversationPane(executor, new ClaudeConversation(ssh)::fetch);
         message.getStyleClass().add(Styles.TEXT_MUTED);
         // A failed creation shows the remote's error output here, which can
         // run longer than the lane is wide and span several lines.
@@ -863,6 +867,8 @@ public class TerminalPane {
                 && ("waiting".equals(status) || "done".equals(status));
         lastStatusKey = key;
         lastStatus = status;
+        // [impl->dsn~conversation-pane~1]
+        conversation.show(replySource(), status);
         if (finished && autoCopyReplies) {
             copyLastReply(null);
         }
@@ -981,6 +987,19 @@ public class TerminalPane {
 
     public Node getRoot() {
         return root;
+    }
+
+    /// The **Conversation** lane: the shown session's chat as who said what.
+    // [impl->dsn~conversation-pane~1]
+    public Node conversation() {
+        return conversation.getRoot();
+    }
+
+    /// Where a link clicked in the conversation goes, and where **Reply** on
+    /// a message puts its quote (called by `Main`).
+    // [impl->dsn~conversation-pane~1]
+    public void setConversationActions(Consumer<String> openUrl, Consumer<String> replyComposer) {
+        conversation.setActions(openUrl, replyComposer);
     }
 
     /// The status poll's `host windowId -> ClaudeMode` report: the **mirrored**

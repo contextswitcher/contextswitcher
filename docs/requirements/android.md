@@ -247,9 +247,9 @@ Covers:
 Needs: impl, utest
 
 ### Running dot on the task row
-`dsn~android-running-dot~1`
+`dsn~android-running-dot~2`
 
-Each task row leads with the desktop's running dot (`dsn~task-running-indicator~7`): orange while the session works, red when it waits for input, asks, or hit its usage limit, magenta when its turn was interrupted (`dsn~claude-interrupt-detection~1`), grey when done, transparent (keeping the slot) when unknown.
+Each task row leads with the desktop's running dot (`dsn~task-running-indicator~8`): yellow while the session works, green when its turn is done, red when it asks or hit its usage limit, magenta when its turn was interrupted (`dsn~claude-interrupt-detection~1`), transparent (keeping the slot) when unknown.
 While the list is on screen, `TaskListScreen` polls `TmuxStatusPoller.statusCommand()` once per remote every 10 s (`pollStatuses`, shared with the head unit, `dsn~android-auto-tasks~1`), and again whenever the list is reloaded.
 Ceiling: a window recorded by name instead of id shows no dot.
 

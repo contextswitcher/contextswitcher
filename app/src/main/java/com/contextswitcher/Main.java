@@ -888,6 +888,8 @@ public class Main extends Application {
                         .filter(entry -> entry instanceof TaskEntry.Loaded loaded && loaded.id().equals(id))
                         .map(entry -> ((TaskEntry.Loaded) entry).task())
                         .findFirst().orElse(null));
+        // [impl->dsn~conversation-pane~1]
+        terminalPane.setConversationActions(this::openUrl, queuePane::compose);
         MainWindow window = new MainWindow(taskEntries, taskFolders,
                 task -> switchTo(orchestrator, files, task),
                 task -> suspendTo(suspendOrchestrator, task),
@@ -1218,7 +1220,7 @@ public class Main extends Application {
         // [impl->dsn~onenote-backlinks~1]
         startOneNoteBacklinks(repository, files, actionExecutor, scheduler, taskEntries, taskFolders);
 
-        // [impl->dsn~task-running-indicator~7]
+        // [impl->dsn~task-running-indicator~8]
         recomputeStatusHosts(repository);
         taskEntries.addListener(
                 (javafx.collections.ListChangeListener<TaskEntry>) change -> recomputeStatusHosts(repository));
@@ -2135,7 +2137,7 @@ public class Main extends Application {
     /// The distinct remotes of tasks that have a tmux window, for status
     /// polling. Suspended tasks never show a dot, so a host whose tmux tasks
     /// are all suspended is not polled at all — no idle ssh round-trips.
-    // [impl->dsn~task-running-indicator~7]
+    // [impl->dsn~task-running-indicator~8]
     private void recomputeStatusHosts(TaskRepository repository) {
         statusHosts = repository.entries().stream()
                 .filter(TaskEntry.Loaded.class::isInstance)
@@ -3158,6 +3160,7 @@ public class Main extends Application {
                 // backfilled sessionId immediately, not stomp it on auto-save).
                 List<String> changedFiles = new ArrayList<>();
                 StringBuilder errors = new StringBuilder();
+                StringBuilder imported = new StringBuilder();
                 // Host-routed: everything tmux-facing addresses a host, and a local
         // Claude session's is the pseudo-host `TmuxHost.LOCAL` — its commands
         // run through a local shell, every real host's over ssh.
@@ -3282,6 +3285,10 @@ public class Main extends Application {
                                     TmuxSync.coverageKeys(tasks, remote), knownSessionIds,
                                     settings.tasksDir(), LocalDate.now(), settings.hints());
                             created += result.created().size();
+                            // Imports land at the tasks root: no category.
+                            result.created().forEach(label -> imported.append(
+                                    "\n  \u2022 (no category) \u2014 ").append(label)
+                                    .append(" on ").append(remote));
                         }
                     } catch (Exception e) {
                         errors.append("\n").append(remote).append(": ").append(e.getMessage());
@@ -3292,6 +3299,7 @@ public class Main extends Application {
                                 (backfilled == 0 ? "" : ", session ids backfilled " + backfilled)
                                 + (rehomed == 0 ? "" : ", workspaces refreshed " + rehomed)
                                 + (committed == 0 ? "" : ", commits recorded " + committed))
+                        + (imported.length() == 0 ? "" : "\nImported:" + imported)
                         + (errors.length() == 0 ? "" : "\nErrors:" + errors);
                 Logger.info("Tmux sync{}: {}", announce ? "" : " (auto)", summary);
                 MainWindow window = this.window;
@@ -4569,7 +4577,7 @@ public class Main extends Application {
     /// sync — a local session is not polled.
     /// Off the FX thread with the status-bar "Opening …"/outcome shape the
     /// other single-shot buttons use.
-    // [impl->dsn~task-create-local~4]
+    // [impl->dsn~task-create-local~5]
     private void startLocalClaude(MainWindow.TaskFileAccess files, String taskId, String workdir,
             String description, ClaudeMode mode) {
         ExecutorService executor = this.actionExecutor;
@@ -5409,7 +5417,7 @@ public class Main extends Application {
             return;
         }
         // No `remote:` and a tmux window: a local Claude session
-        // (`dsn~task-create-local~4`), mirrored from this machine's own tmux
+        // (`dsn~task-create-local~5`), mirrored from this machine's own tmux
         // server. Windows has no tmux at all, so a task that still carries a
         // `tmux:` section there points at a window that cannot exist.
         // [impl->dsn~terminal-local-mirror~2]

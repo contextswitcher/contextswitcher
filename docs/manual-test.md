@@ -349,8 +349,8 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
 
 - [ ] Name a virtual desktop in Windows Task View (e.g. `vs.code`), then set
       `desktop: vs.code` in a category's `CONTEXTSWITCHER.md` → the group header
-      shows an always-visible monitor icon ("Jump to desktop") right of the
-      category's terminal icon; clicking it switches Windows to that desktop and
+      shows a monitor icon ("Jump to desktop") while hovered, first in the
+      header's hover gutter; clicking it switches Windows to that desktop and
       does **nothing else** (no task switch).
       Status bar reads `Desktop: focused desktop "vs.code"`.
 - [ ] From a desktop several positions away (e.g. desktop 1 → desktop 5), the
@@ -424,7 +424,7 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
 - [ ] In the dialog, pick another category in the combo → the remote/local hints and
       the default button switch to that category's, and the task lands there.
 
-### Add local Claude in a local category (`dsn~task-create-local~4`)
+### Add local Claude in a local category (`dsn~task-create-local~5`)
 
 - [ ] In a **local** category — its `CONTEXTSWITCHER.md` sets `workspacesRoot:`
       (or `workdir:`) and **no** `remote:` — click its **+** → the dialog shows
@@ -436,8 +436,15 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
       `Claude started in <dir>.`
       Watch for the prompt arriving intact — a `"` in the description is the
       risky part (`cmd` re-parses the quotes).
+- [ ] **Claude folder** (`dsn~task-create-claude-folder~1`): in a category with
+      `workspacesRoot:`, type a description → the *Claude folder* field shows
+      `<root>\<slugged description>` and follows the typing; create the task →
+      Claude starts in that new subfolder, which now exists, and the task's
+      `folder:` names it. In a category without any directory (e.g. one with
+      only `folders:`), type a folder into *Claude folder* → *Add local Claude*
+      becomes enabled and starts there; clear the field → disabled again.
 - [ ] Same on **Linux**: the dialog's hint reads `Local Claude opens a tmux
-      window in "<dir>" (group default); attach with tmux attach -t 0.`, no
+      window in "<dir>"; attach with tmux attach -t 0.`, no
       window opens, the status bar reports
       `Claude started in <dir> (tmux attach -t 0).`, and `tmux attach -t 0`
       shows a window named after the directory with Claude running in it and
@@ -1574,7 +1581,8 @@ Needs a real remote with a Claude worktree task, a locally authenticated `gh`, a
 - [ ] Every active task has the accent bar on its left edge; a collapsed category shows the number of them left of its header buttons (nothing while expanded).
 - [ ] A task with a PR shows `#<number>` under its title: before the first `gh` poll without icon, chip-shaped without colour; afterwards with the open/draft/merged/closed icon. Click opens the PR, right-click offers Open/Copy URL.
 - [ ] A category with `workspacesRoot` shows that path on the header's second line; its tasks' `wd` shows only the directory below it.
-- [ ] Each hand-filled category has a plus at the header's right end and a slim `Add task…` row after its last task; an auto category has neither.
+- [ ] Each hand-filled category has a plus in the header's hover gutter (just left of play) and a slim `Add task…` row after its last task; an auto category has neither.
+- [ ] (`dsn~category-header-hover-actions~1`) A category header shows only its play button at the right edge; hovering it fades in desktop, note, repository and plus just left of play, over the name's end, without moving the name.
 
 ## Fork a task (`dsn~task-fork~1`)
 

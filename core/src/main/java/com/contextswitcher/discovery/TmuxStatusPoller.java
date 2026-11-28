@@ -37,7 +37,7 @@ import org.tinylog.Logger;
 /// One `tmux list-windows` runs per host per tick on a daemon scheduler
 /// thread; the merged `host windowId -> status` map is handed to the callback,
 /// which is responsible for marshalling to the UI thread.
-// [impl->dsn~task-running-indicator~7]
+// [impl->dsn~task-running-indicator~8]
 public class TmuxStatusPoller implements AutoCloseable {
 
     /// A `working` window silent for at least this long is treated as `waiting`.

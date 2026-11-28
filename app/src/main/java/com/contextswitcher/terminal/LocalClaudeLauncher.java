@@ -26,7 +26,7 @@ import com.contextswitcher.tasks.Task;
 /// Windows has no tmux, so the app hosts the session itself instead:
 /// [#ownedCommand] builds the argv and `TerminalPane.startOwned` runs it in
 /// the pane's own ConPTY (`dsn~terminal-owned-session~5`).
-// [impl->dsn~task-create-local~4]
+// [impl->dsn~task-create-local~5]
 public class LocalClaudeLauncher {
 
     /// The local tmux session local Claude windows are created in — the

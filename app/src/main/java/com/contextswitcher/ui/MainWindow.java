@@ -382,7 +382,7 @@ public class MainWindow {
     /// whose CS config sets a `workspacesRoot`/`workdir` but no `remote`).
     /// `taskId` is the file-only task just created, whose file the tmux
     /// window id is written back into (`dsn~terminal-local-mirror~2`).
-    // [impl->dsn~task-create-local~4]
+    // [impl->dsn~task-create-local~5]
     public interface LocalClaudeStarter {
         void start(String taskId, String workdir, String description, ClaudeMode mode);
     }
@@ -889,7 +889,7 @@ public class MainWindow {
 
     /// Live `@cs_status` per window (`host windowId -> status`), refreshed by
     /// the status poller; drives the per-row running indicator.
-    // [impl->dsn~task-running-indicator~7]
+    // [impl->dsn~task-running-indicator~8]
     private final Map<String, String> runningStatusByKey = new ConcurrentHashMap<>();
     /// Live `@cs_session_id` per window (`host windowId -> Claude session id`),
     /// from the same status poll. Windows that publish none are absent, so a
@@ -1216,6 +1216,14 @@ public class MainWindow {
         updateNews.newsChecked(items, upstream, behind);
     }
 
+    private static Label legendEntry(String dotClass, String text) {
+        Label dot = new Label("●");
+        dot.getStyleClass().addAll("running-dot", dotClass);
+        Label entry = new Label(text, dot);
+        entry.getStyleClass().add(Styles.TEXT_MUTED);
+        return entry;
+    }
+
     public SwitchStatusBar statusBar() {
         return statusBar;
     }
@@ -1499,7 +1507,15 @@ public class MainWindow {
             Clipboard.getSystemClipboard().setContent(content);
             statusBar().message("Commit " + sha + " copied.");
         });
-        HBox bottomBar = new HBox(statusBar, profileOverride, commitLabel, openLog);
+        // The running dot's legend, left of the messages: a colour alone
+        // reads differently to everyone (demo 2026-11-28).
+        // [impl->dsn~task-running-indicator~8]
+        HBox legend = new HBox(8, legendEntry("running-dot-done", "done"),
+                legendEntry("running-dot-working", "working"),
+                legendEntry("running-dot-needs-you", "needs you"));
+        legend.setAlignment(Pos.CENTER_LEFT);
+        legend.setPadding(new Insets(0, 8, 0, 6));
+        HBox bottomBar = new HBox(legend, statusBar, profileOverride, commitLabel, openLog);
         bottomBar.setAlignment(Pos.CENTER_LEFT);
         bottomBar.setPadding(new Insets(0, 6, 0, 0));
         // The panes as ShellFX dock tabs (MADR 0032). The raw frontmatter editor
@@ -1516,7 +1532,7 @@ public class MainWindow {
         pane.setOnRawShown(switchActions::leaveRaw);
         formPanes = List.of(switchActions, pane);
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(
-                leftPane, terminalLane, editorNode, switchActions, pane, queueNode, bottomBar,
+                leftPane, terminalLane, terminal.conversation(), editorNode, switchActions, pane, queueNode, bottomBar,
                 listToolbar.appControls(), contextsOnly));
         shell = hosted;
         Scene scene = hosted.scene();
@@ -2201,7 +2217,7 @@ public class MainWindow {
     /// same way the poller builds its map (`host windowId`). A suspended
     /// task has none: its window was killed, so a window matching a
     /// lingering id belongs to some other context.
-    // [impl->dsn~task-running-indicator~7]
+    // [impl->dsn~task-running-indicator~8]
     private @Nullable String runningStatusFor(Task task) {
         if (task.status() == TaskStatus.SUSPENDED
                 || task.remote() == null || task.tmux() == null || task.tmux().window() == null) {
@@ -2701,7 +2717,7 @@ public class MainWindow {
     /// repaints the rows — but only when the snapshot actually differs: the
     /// poller ticks every few seconds, and an unconditional refresh() rebuilds
     /// every visible cell, making the rows flicker. Must run on the FX thread.
-    // [impl->dsn~task-running-indicator~7]
+    // [impl->dsn~task-running-indicator~8]
     public void updateRunningStatuses(Map<String, String> fresh) {
         if (runningStatusByKey.equals(fresh)) {
             return;
@@ -3680,8 +3696,8 @@ public class MainWindow {
     /// and the live-task prompt delivery uploads them like a queued message.
     // [impl->dsn~task-create-ui~15]
     // [impl->dsn~task-create-live~8]
-    // [impl->dsn~task-create-local~4]
-    private void addTask(String initialGroup) {
+    // [impl->dsn~task-create-local~5]
+    void addTask(String initialGroup) {
         // A just-edited CS config open in the editor lane may hold the remote;
         // flush it so the button reflects the current, not the on-disk, state.
         saveEditorIfDirty();
@@ -3872,6 +3888,35 @@ public class MainWindow {
         contextGrid.addRow(1, new Label("Note:"), noteField);
         contextGrid.add(noteHint, 1, 2);
         contextGrid.addRow(3, new Label("Chat:"), chatField);
+        // Where `Add local Claude` starts the session — its own field, apart
+        // from the Folders above, which are only context. Suggested from the
+        // category (a workspaces root gets a subfolder per task, named after
+        // the description) until typed into. [impl->dsn~task-create-claude-folder~1]
+        TextField claudeFolderField = new TextField();
+        claudeFolderField.setId("add-task-claude-folder");
+        claudeFolderField.setPromptText("Folder a local Claude starts in");
+        boolean[] claudeFolderTyped = {false};
+        boolean[] claudeFolderFilling = {false};
+        claudeFolderField.textProperty().addListener((obs, old, text) -> {
+            if (!claudeFolderFilling[0]) {
+                claudeFolderTyped[0] = true;
+            }
+        });
+        Runnable suggestClaudeFolder = () -> {
+            if (claudeFolderTyped[0]) {
+                return;
+            }
+            String suggested = TaskContextFields.claudeFolder(groupDefaults(categoryBox.getValue()),
+                    field.getText() == null ? "" : field.getText());
+            claudeFolderFilling[0] = true;
+            claudeFolderField.setText(suggested == null ? "" : suggested);
+            claudeFolderFilling[0] = false;
+        };
+        suggestClaudeFolder.run();
+        categoryBox.valueProperty().addListener((obs, old, value) -> suggestClaudeFolder.run());
+        field.textProperty().addListener((obs, old, text) -> suggestClaudeFolder.run());
+        Label claudeFolderLabel = new Label("Claude folder:");
+        contextGrid.addRow(4, claudeFolderLabel, claudeFolderField);
         noteHint.getStyleClass().add(Styles.TEXT_MUTED);
         noteHint.setWrapText(true);
         noteHint.setMinHeight(Region.USE_PREF_SIZE);
@@ -3959,6 +4004,7 @@ public class MainWindow {
             String remote = target.remote();
             boolean remoteFromGroup = target.defaults().remote() != null;
             String localWorkdir = target.localWorkdir();
+            String claudeFolder = claudeFolderField.getText() == null ? "" : claudeFolderField.getText().strip();
             // The buttons and hints name the picked agent, not always Claude.
             Agent agent = agentBox.getValue() == null ? Agent.CLAUDE : agentBox.getValue();
             String name = agent.displayName();
@@ -3977,16 +4023,16 @@ public class MainWindow {
             // ponytail: local sessions start `claude` only; teach LocalClaudeLauncher the agent's start line when wanted.
             localHint.setText(!agent.isClaude()
                     ? "Add local " + name + " is not supported yet — local sessions run Claude."
-                    : localWorkdir != null
+                    : !claudeFolder.isEmpty()
                     ? (com.contextswitcher.terminal.LocalClaudeLauncher.onWindows()
-                            ? "Local Claude opens a session in \"" + localWorkdir
-                                    + "\" (group default), hosted by this app's terminal pane."
-                            : "Local Claude opens a tmux window in \"" + localWorkdir
-                                    + "\" (group default); attach with tmux attach -t 0.")
-                    : "Add local Claude needs a local category — a group CS config with"
-                            + " workspacesRoot/workdir and no remote.");
+                            ? "Local Claude opens a session in \"" + claudeFolder
+                                    + "\", hosted by this app's terminal pane."
+                            : "Local Claude opens a tmux window in \"" + claudeFolder
+                                    + "\"; attach with tmux attach -t 0.")
+                    : "Add local Claude needs a Claude folder — type one, or set workspacesRoot/workdir"
+                            + " (and no remote) in the category's CS config.");
             remoteButton.setDisable(remote == null);
-            localButton.setDisable(localWorkdir == null || !agent.isClaude());
+            localButton.setDisable(claudeFolder.isEmpty() || !agent.isClaude());
             // The default follows the category the task lands in: a local one
             // starts Claude locally, a group with its own `remote:` on that
             // remote, an unconfigured group creates a plain file (the fallback
@@ -4006,13 +4052,14 @@ public class MainWindow {
         updateTarget.run();
         if (contextsOnly) {
             for (Node claudeOnly : List.of(remoteButton, localButton, onLabel, hostBox, quickMessages,
-                    modeRow, autoRemove, remoteHint, localHint)) {
+                    modeRow, autoRemove, remoteHint, localHint, claudeFolderLabel, claudeFolderField)) {
                 claudeOnly.setVisible(false);
                 claudeOnly.setManaged(false);
             }
         }
         categoryBox.valueProperty().addListener((obs, old, value) -> updateTarget.run());
         agentBox.valueProperty().addListener((obs, old, value) -> updateTarget.run());
+        claudeFolderField.textProperty().addListener((obs, old, value) -> updateTarget.run());
         Runnable fireDefault = () -> Stream.of(localButton, remoteButton, plainButton)
                 .filter(Button::isDefaultButton).findFirst().ifPresent(Button::fire);
         // The area consumes plain Enter (newline), so the default button only
@@ -4049,7 +4096,7 @@ public class MainWindow {
         AddTarget target = addTarget(group);
         GroupConfig defaults = target.defaults();
         String remote = target.remote();
-        String localWorkdir = target.localWorkdir();
+        String claudeFolder = claudeFolderField.getText() == null ? "" : claudeFolderField.getText().strip();
         // The context fields, applied to whichever file the flow writes.
         // [impl->dsn~task-create-context-fields~1]
         List<String> pickedFolders = TaskContextFields.folders(foldersField.getText());
@@ -4066,12 +4113,13 @@ public class MainWindow {
             createTaskFromPrUrl(input, group, mode);
         } else if (clicked == remoteType) {
             createLiveTask(input, group, remote, defaults, mode, autoRemove.isSelected(), context);
-        } else if (clicked == localType && localWorkdir != null) {
-            // The file-only task (its `folder:` is the group's directory,
-            // dsn~group-config-apply~2) plus a local Claude in that directory.
-            String taskId = createTitleTask(input, group, null, autoRemove.isSelected(), context);
+        } else if (clicked == localType && !claudeFolder.isEmpty()) {
+            // The file-only task, its `folder:` the Claude folder
+            // (dsn~group-config-apply~2), plus a local Claude in that folder.
+            // [impl->dsn~task-create-claude-folder~1]
+            String taskId = createTitleTask(input, group, null, autoRemove.isSelected(), context, claudeFolder);
             if (taskId != null) {
-                onStartLocalClaude.start(taskId, localWorkdir, input, mode);
+                onStartLocalClaude.start(taskId, claudeFolder, input, mode);
             }
         } else {
             createTitleTask(input, group, null, autoRemove.isSelected(), context);
@@ -4291,7 +4339,7 @@ public class MainWindow {
     /// new file's frontmatter — https://github.com/contextswitcher/contextswitcher-private/issues/45.
     /// Returns the new task's id (its file name without `.md`), or null when
     /// the file could not be written — the local flow needs it to record the
-    /// tmux window it then starts (`dsn~task-create-local~4`).
+    /// tmux window it then starts (`dsn~task-create-local~5`).
     // [impl->dsn~task-create-ui~15]
     // [impl->dsn~group-config-apply~2]
     private @Nullable String createTitleTask(String title, String group) {
@@ -4314,12 +4362,22 @@ public class MainWindow {
     /// (`dsn~task-create-context-fields~1`).
     private @Nullable String createTitleTask(String title, String group, @Nullable String notes,
             boolean autoRemove, UnaryOperator<String> context) {
+        return createTitleTask(title, group, notes, autoRemove, context, null);
+    }
+
+    /// As above; a non-null `localFolder` (the local flow's Claude folder,
+    /// `dsn~task-create-claude-folder~1`) replaces the group's directory as
+    /// the task's local `folder:`.
+    private @Nullable String createTitleTask(String title, String group, @Nullable String notes,
+            boolean autoRemove, UnaryOperator<String> context, @Nullable String localFolder) {
         String base = group.isEmpty() ? title : group + "/" + title;
         String fileName = uniqueFileName(TaskFileParser.newTaskFileName(base));
         GroupConfig defaults = groupDefaults(group);
         // Any URL inside the description also becomes a browser tab.
         // [impl->dsn~task-url-collect~2]
-        String created = TaskFileParser.newTaskContent(title, defaults.remote(), defaults.resolveWorkdir());
+        String created = localFolder != null
+                ? TaskFileParser.newTaskContent(title, null, localFolder)
+                : TaskFileParser.newTaskContent(title, defaults.remote(), defaults.resolveWorkdir());
         if (notes != null) {
             created = created.stripTrailing() + "\n\n" + notes.strip() + "\n";
         }
