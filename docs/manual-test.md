@@ -424,7 +424,7 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
 - [ ] In the dialog, pick another category in the combo → the remote/local hints and
       the default button switch to that category's, and the task lands there.
 
-### Add local Claude in a local category (`dsn~task-create-local~4`)
+### Add local Claude in a local category (`dsn~task-create-local~5`)
 
 - [ ] In a **local** category — its `CONTEXTSWITCHER.md` sets `workspacesRoot:`
       (or `workdir:`) and **no** `remote:` — click its **+** → the dialog shows
@@ -436,8 +436,15 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
       `Claude started in <dir>.`
       Watch for the prompt arriving intact — a `"` in the description is the
       risky part (`cmd` re-parses the quotes).
+- [ ] **Claude folder** (`dsn~task-create-claude-folder~1`): in a category with
+      `workspacesRoot:`, type a description → the *Claude folder* field shows
+      `<root>\<slugged description>` and follows the typing; create the task →
+      Claude starts in that new subfolder, which now exists, and the task's
+      `folder:` names it. In a category without any directory (e.g. one with
+      only `folders:`), type a folder into *Claude folder* → *Add local Claude*
+      becomes enabled and starts there; clear the field → disabled again.
 - [ ] Same on **Linux**: the dialog's hint reads `Local Claude opens a tmux
-      window in "<dir>" (group default); attach with tmux attach -t 0.`, no
+      window in "<dir>"; attach with tmux attach -t 0.`, no
       window opens, the status bar reports
       `Claude started in <dir> (tmux attach -t 0).`, and `tmux attach -t 0`
       shows a window named after the directory with Claude running in it and

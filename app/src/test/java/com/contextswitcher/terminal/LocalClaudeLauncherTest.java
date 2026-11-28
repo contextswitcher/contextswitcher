@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// [utest->dsn~task-create-local~4]
+// [utest->dsn~task-create-local~5]
 class LocalClaudeLauncherTest {
 
     // [utest->dsn~terminal-owned-session~5]

@@ -4577,7 +4577,7 @@ public class Main extends Application {
     /// sync — a local session is not polled.
     /// Off the FX thread with the status-bar "Opening …"/outcome shape the
     /// other single-shot buttons use.
-    // [impl->dsn~task-create-local~4]
+    // [impl->dsn~task-create-local~5]
     private void startLocalClaude(MainWindow.TaskFileAccess files, String taskId, String workdir,
             String description, ClaudeMode mode) {
         ExecutorService executor = this.actionExecutor;
@@ -5417,7 +5417,7 @@ public class Main extends Application {
             return;
         }
         // No `remote:` and a tmux window: a local Claude session
-        // (`dsn~task-create-local~4`), mirrored from this machine's own tmux
+        // (`dsn~task-create-local~5`), mirrored from this machine's own tmux
         // server. Windows has no tmux at all, so a task that still carries a
         // `tmux:` section there points at a window that cannot exist.
         // [impl->dsn~terminal-local-mirror~2]

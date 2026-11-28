@@ -11,6 +11,7 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 ### Added
 
 - A **Conversation** tab behind the terminal shows the task's Claude chat as bubbles — your messages on the right, Claude's replies on the left with their Markdown rendered — so it is easy to see who wrote what; **Reply** on a message starts an answer to it in the queue.
+- The *Add task* dialog has a **Claude folder** field: *Add local Claude* starts the session there, in any category. A category with a `workspacesRoot` suggests a subfolder per task, named after the description, so tasks no longer share one directory; the *Folders* field stays context only.
 
 ### Fixed
 

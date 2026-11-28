@@ -104,7 +104,7 @@ Needs: impl, utest
 ### A local Claude session is a tmux host like any remote
 `dsn~terminal-local-mirror~2`
 
-A local Claude session runs in **this machine's** tmux server (`dsn~task-create-local~4`), so its task carries a `tmux:` section but no `remote:`.
+A local Claude session runs in **this machine's** tmux server (`dsn~task-create-local~5`), so its task carries a `tmux:` section but no `remote:`.
 That absence is the whole marker: `TmuxHost.of(task)` answers `(local)` — a pseudo-host whose parentheses keep it apart from any real host name or ssh alias — where a remote task answers its `remote:`.
 Everything tmux-facing is addressed by host, so naming the local one is what lets a local session behave like a remote one instead of being a dead end: before, the pane said "No tmux configured for this task." while a session had just been started, the delete dialog offered no way to end its window, and the queue said the task had nowhere to send to.
 
@@ -141,7 +141,7 @@ Needs: impl, utest
 
 Windows has no tmux, so there is nothing for the pane to attach to and a local session used to be a dead end there: a Windows Terminal tab the app could not type into, and a pane saying so.
 The app therefore **hosts the session itself** — `cmd /k claude [--model <alias>] [description]` in the pane's own ConPTY (`TerminalPane.startOwned`, pty4j `setUseWinConPty(true)`, working directory the task's `claude.cwd`), the same mechanism that already hosts `ssh.exe` for the mirror.
-`cmd /k` for the two reasons `dsn~task-create-local~4` already gives: `claude` is a `.cmd` shim and ConPTY starts the command line via `CreateProcess`, which does not apply `PATHEXT`; and the shell survives Claude exiting or being absent, so the pane shows the error instead of going blank.
+`cmd /k` for the two reasons `dsn~task-create-local~5` already gives: `claude` is a `.cmd` shim and ConPTY starts the command line via `CreateProcess`, which does not apply `PATHEXT`; and the shell survives Claude exiting or being absent, so the pane shows the error instead of going blank.
 A `"` in the description becomes `'`: `cmd` knows no escaped quote, so one ended the quoted prompt and `cmd` parsed the rest — `"<"` became an input redirect from a missing file and Claude never started (field report 2026-09-15).
 Typing works because the app owns the pty.
 

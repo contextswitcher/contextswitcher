@@ -110,7 +110,7 @@ class AddTaskDialogUiTest {
     /// Outside a local category (here: the root group of a fresh config) the
     /// local button is offered right of the remote one but disabled, and the
     /// default is `Add plain task` — the test config has no remotes either
-    /// (`dsn~task-create-local~4`).
+    /// (`dsn~task-create-local~5`).
     @Test
     void localClaudeSitsRightOfRemoteAndIsDisabledOutsideALocalCategory() {
         openAddTask();
@@ -278,6 +278,89 @@ class AddTaskDialogUiTest {
         FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
     }
 
+    /// Opened for a category on the active desktop that is not local, the
+    /// `local` filter keeps that category picked — it once landed on the
+    /// `Other desktops` heading, which no CS config belongs to.
+    // [utest->dsn~task-create-category-pick~1]
+    @Test
+    void hostFilterNeverPicksAHeading() throws Exception {
+        Path dir = UiTestSupport.tasksDir;
+        for (String name : java.util.List.of("kappa", "lambda", "mu")) {
+            Files.createDirectories(dir.resolve(name));
+        }
+        Files.writeString(dir.resolve("kappa").resolve("CONTEXTSWITCHER.md"), "---\ndesktop: Focus\n---\n");
+        Files.writeString(dir.resolve("lambda").resolve("CONTEXTSWITCHER.md"),
+                "---\ndesktop: Focus\nworkdir: " + dir.resolve("lambda") + "\n---\n");
+        Files.writeString(dir.resolve("mu").resolve("CONTEXTSWITCHER.md"),
+                "---\nworkdir: " + dir.resolve("mu") + "\n---\n");
+        ListView<Object> list = awaitPresent(() -> FX_ROBOT.selectNodes(ListView.class).fromAll()
+                .<ListView<Object>>map(view -> (ListView<Object>) view).findFirst(),
+                "the task ListView");
+        awaitPresent(() -> list.getItems().stream().filter(item -> item instanceof TaskListCell.GroupHeader header
+                && header.name().equals("mu")).count() == 1 ? Optional.of(true) : Optional.empty(),
+                "the categories to load");
+        Platform.runLater(() -> mainWindow().updateActiveDesktop("Focus"));
+        Platform.runLater(() -> mainWindow().addTask("kappa"));
+        ComboBox<String> category = awaitPresent(() -> FX_ROBOT.selectNodes(ComboBox.class).fromAll()
+                .filter(box -> "add-task-category".equals(box.getId()))
+                .<ComboBox<String>>map(box -> (ComboBox<String>) box).findFirst(),
+                "the add-task category combo");
+        assertThat(category.getValue()).isEqualTo("kappa");
+        ComboBox<String> host = (ComboBox<String>) category.getScene().lookup("#add-task-host");
+        Platform.runLater(() -> host.setValue("local"));
+        // Filtered out, the opened-for category is appended at the end.
+        awaitPresent(() -> Optional.of(category.getItems()).filter(items -> items.getLast().equals("kappa")
+                && items.contains("mu")), "the list narrowed to the local categories");
+        waitForFx();
+        assertThat(category.getValue()).isEqualTo("kappa");
+        Platform.runLater(() -> host.setValue("(all hosts)"));
+        waitForFx();
+        assertThat(category.getValue()).isEqualTo("kappa");
+        // The arrow keys select through the selection model; landing on a
+        // heading steps over it instead of keeping it.
+        Platform.runLater(() -> category.getSelectionModel().select("Other desktops"));
+        waitForFx();
+        assertThat(category.getValue()).isNotIn("Other desktops", "This desktop (Focus)");
+        assertThat(category.getSelectionModel().getSelectedItem()).isEqualTo(category.getValue());
+        FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
+    }
+
+    /// A category with a workspaces root suggests a Claude folder of its own
+    /// per task — a subfolder named after the description — and enables
+    /// `Add local Claude`; a typed folder wins over the suggestion, and an
+    /// emptied one disables the button again.
+    // [utest->dsn~task-create-claude-folder~1]
+    @Test
+    void claudeFolderFollowsTheDescriptionUntilTyped() throws Exception {
+        Path dir = UiTestSupport.tasksDir;
+        Files.createDirectories(dir.resolve("nu"));
+        Path root = dir.resolve("nu-workspaces");
+        Files.writeString(dir.resolve("nu").resolve("CONTEXTSWITCHER.md"),
+                "---\nworkspacesRoot: " + root + "\n---\n");
+        ListView<Object> list = awaitPresent(() -> FX_ROBOT.selectNodes(ListView.class).fromAll()
+                .<ListView<Object>>map(view -> (ListView<Object>) view).findFirst(),
+                "the task ListView");
+        awaitPresent(() -> list.getItems().stream().filter(item -> item instanceof TaskListCell.GroupHeader header
+                && header.name().equals("nu")).count() == 1 ? Optional.of(true) : Optional.empty(),
+                "the category to load");
+        Platform.runLater(() -> mainWindow().addTask("nu"));
+        Button local = awaitButton("Add local Claude");
+        TextArea title = (TextArea) local.getScene().lookup("#add-task-description");
+        TextField folder = (TextField) local.getScene().lookup("#add-task-claude-folder");
+        Platform.runLater(() -> title.setText("Revise the intro"));
+        awaitPresent(() -> Optional.of(folder.getText())
+                .filter(root.resolve("revise-the-intro").toString()::equals), "the suggested subfolder");
+        assertThat(local.isDisabled()).isFalse();
+        assertThat(local.isDefaultButton()).isTrue();
+        Platform.runLater(() -> folder.setText(""));
+        awaitPresent(() -> Optional.of(local).filter(Button::isDisabled), "the local button disabled");
+        // Typed into once, the field no longer follows the description.
+        Platform.runLater(() -> title.setText("Something else"));
+        waitForFx();
+        assertThat(folder.getText()).isEmpty();
+        FX_ROBOT.keyboard().type(KeyCode.ESCAPE);
+    }
+
     /// OneNote's "Copy Link to Page" pair on the clipboard pre-fills the Note
     /// field with its `onenote:` link — not the title — and the filled
     /// context fields land in the new file: the folders under this machine's
@@ -350,6 +433,17 @@ class AddTaskDialogUiTest {
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private static void waitForFx() {
+        java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        Platform.runLater(done::countDown);
+        try {
+            done.await();
+        } catch (InterruptedException e) {
+            throw new IllegalStateException(e);
+        }
+        UiTestSupport.sleep();
     }
 
     /// The dialog pre-fills from the system clipboard — whatever the display

@@ -6,7 +6,7 @@ import com.contextswitcher.tasks.Task;
 
 /// Where a task's tmux server lives: its `remote:` host, or **this machine**
 /// when the task has a `tmux:` section without one — the shape a local Claude
-/// session leaves behind (`dsn~task-create-local~4`).
+/// session leaves behind (`dsn~task-create-local~5`).
 ///
 /// The local case needs a name because everything tmux-facing is addressed by
 /// host: the mirror ([TmuxMirrorCommands]), the kill on suspend/delete, the

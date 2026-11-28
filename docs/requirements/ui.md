@@ -1074,7 +1074,7 @@ Needs: impl, utest
 `dsn~setup-wizard~13`
 
 `Main.runSetupWizard` replaces the clone offer at the fresh-machine moment (`dsn~task-git-clone-setup~2`: the task directory missing or empty and not a git checkout — an existing directory is never re-prompted) with `SetupWizard.show`, one `Dialog` whose content is swapped between four pages by *Back*/*Next* (their `ACTION` consumed, so the dialog stays open; the last page's *Finish* closes it with a `Result`, *Cancel* with none).
-Page one asks where sessions run — *remote over ssh* (default), *in WSL on this machine* (Windows only, `dsn~wsl-sessions~1`) or *this machine*, worded per OS: on Windows a local session runs in the app's own terminal pane and cannot be detached (`dsn~task-create-local~4`).
+Page one asks where sessions run — *remote over ssh* (default), *in WSL on this machine* (Windows only, `dsn~wsl-sessions~1`) or *this machine*, worded per OS: on Windows a local session runs in the app's own terminal pane and cannot be detached (`dsn~task-create-local~5`).
 The WSL choice is offered only on Windows, where WSL exists at all, and it is the one place a `wsl:<distro>` host is composed.
 This machine is checked as soon as the wizard opens (`localVerdict`, off the FX thread, the `Supplier` injected so a test needs no tools): `tmux -V` — not on Windows — and `claude --version`, each resolved like the local launcher resolves them (`RequiredTools.resolve`), since a GUI app's `PATH` is thinner than the login shell's; the verdict sits under the local choice, and *Next* with that choice repeats the check and only moves on when it passes.
 Page two is about the chosen machine and shows the fields that choice needs — the ssh destination, or the WSL distribution in an **editable** `ComboBox` filled from `wsl.exe --list --quiet` (blank means the default distribution) — and, for either, the host's workspaces directory (`dsn~host-table~1`), filled at once for a known host and otherwise once the check knows the remote's home; the configured ssh hosts are offered as radio choices above the destination field, *Another machine:* typing a new one.
@@ -1732,10 +1732,10 @@ Any http(s) URL **mentioned inside** the description (rather than pasted alone, 
 Under the field sit the model and effort pickers (`dsn~claude-mode-select~3`), pre-selected with the last pick (a fresh install starts on "as is"): they reach the fresh chat as `/model`/`/effort` ahead of the context prompt, for the live-task and the PR flow alike (`Add plain task` starts no chat, so they are ignored).
 The dialog offers an explicit choice of four buttons, in this order: `Add plain task`, `Add remote Claude`, `Add local Claude`, and `Cancel`.
 `Add remote Claude` is enabled whenever a remote resolves: the group's `CONTEXTSWITCHER.md` `remote`, else the app's first configured remote (settings `remotes`), the same fallback `openGroupConfig` uses to pre-fill a new CS config — so a folder without a CS config still offers it.
-`Add local Claude` is enabled for a **local category** — a group whose CS config sets a `workspacesRoot`/`workdir` but **no** `remote` (the lightweight, no-tmux half of a local/remote group pair, `dsn~task-create-local~4`).
+`Add local Claude` is enabled whenever the dialog's **Claude folder** is filled (`dsn~task-create-claude-folder~1`) — which a **local category**, a group whose CS config sets a `workspacesRoot`/`workdir` but **no** `remote` (the lightweight, no-tmux half of a local/remote group pair, `dsn~task-create-local~5`), fills by itself.
 The default (Ctrl+Enter) button follows the category the task lands in: a local category defaults to `Add local Claude`, a group with its own `remote:` to `Add remote Claude`, and a group with neither (including the root) to `Add plain task` — the settings.yaml fallback remote keeps the remote button enabled but no longer makes it the default, since it is a fallback, not a statement about this category.
-A hint under the field states the remote and its source (group default vs configured remote) and the local directory, or why either button is disabled. The editor is flushed first, so a `remote:` just typed into an open CS config counts.
-A PR URL always routes to the PR flow (`dsn~task-from-pr~6`) regardless of the button. Otherwise `Add remote Claude` creates a live task (`dsn~task-create-live~8`), `Add local Claude` a file-only title task plus a local Claude session (`dsn~task-create-local~4`), and `Add plain task` a file-only title task in `group` (empty = root): `TaskFileParser.newTaskFileName` slugs `group/title` into the relative file path, `MainWindow` de-duplicates with `-2`/`-3`…, `newTaskContent` renders minimal frontmatter (seeded from the group defaults, `dsn~group-config-apply~2`) plus a Notes body, `TaskFileAccess.save` creates the group subfolder when needed, and the new row is selected once the watcher delivers it and opened in the editor lane.
+A hint under the field states the remote and its source (group default vs configured remote) and where the local session runs, or why either button is disabled. The editor is flushed first, so a `remote:` just typed into an open CS config counts.
+A PR URL always routes to the PR flow (`dsn~task-from-pr~6`) regardless of the button. Otherwise `Add remote Claude` creates a live task (`dsn~task-create-live~8`), `Add local Claude` a file-only title task plus a local Claude session (`dsn~task-create-local~5`), and `Add plain task` a file-only title task in `group` (empty = root): `TaskFileParser.newTaskFileName` slugs `group/title` into the relative file path, `MainWindow` de-duplicates with `-2`/`-3`…, `newTaskContent` renders minimal frontmatter (seeded from the group defaults, `dsn~group-config-apply~2`) plus a Notes body, `TaskFileAccess.save` creates the group subfolder when needed, and the new row is selected once the watcher delivers it and opened in the editor lane.
 Each slug is capped at 60 chars, cut at a `-` word boundary (trailing `-`/`.` stripped): a live task's input is a free-form multi-sentence **description** (`dsn~task-create-live~8` derives the short title from it later), and an uncapped slug blows the Windows 260-char MAX_PATH under `%USERPROFILE%\.contextswitcher\tasks\` — the file name is only the task id, not the displayed title.
 Submitting the dialog (any of the three add buttons) moves the keyboard focus to the task list on the left, so the arrow keys and the switch chord act on the new task instead of on the toolbar button or `Add task…` row the dialog was opened from — the same move the row's play button makes (`dsn~task-row-hover-actions~7`). The focus request is deferred to the next pulse: the PR flow opens its host dialog from within this one, and the owner window claims the focus back as that closes.
 `TaskRepository` publishes the observable set of subfolder names — including empty folders — so an empty folder still renders as a group.
@@ -1773,7 +1773,7 @@ Needs: impl, utest
 With a few dozen categories the Add-task dialog's flat, alphabetical category combo (`dsn~task-create-ui~15`) makes the one wanted a scroll away, although it is almost always one of the active virtual desktop's (Oliver, 2026-10-22).
 The combo therefore lists its entries like the `Ctrl+J` popup does (`CategoryJump.rows`, `dsn~category-jump~3`): `(no category)` first, then the active desktop's categories under a `This desktop (<name>)` heading, then the rest under `Other desktops` — each group alphabetical; with the active desktop unknown (non-Windows, no desktop watch running) the list is flat.
 A heading is a disabled, caption-styled cell; the arrow keys step over it in the direction they were going instead of landing on it.
-A host picker right of the combo (`add-task-host`) narrows the list: `(all hosts)` (the default), `local` for the local categories (a CS config with a directory and no `remote:`, `dsn~task-create-local~4`) and one entry per remote some category resolves to (`CategoryJump.hosts`/`onHost`; a category's host is what `Add remote Claude` would use — its own `remote:`, else the settings fallback).
+A host picker right of the combo (`add-task-host`) narrows the list: `(all hosts)` (the default), `local` for the local categories (a CS config with a directory and no `remote:`, `dsn~task-create-local~5`) and one entry per remote some category resolves to (`CategoryJump.hosts`/`onHost`; a category's host is what `Add remote Claude` would use — its own `remote:`, else the settings fallback).
 A pick that the filter removes falls back to the category the dialog was opened for, which is always listed.
 
 Tags: windows, linux
@@ -1797,7 +1797,27 @@ The category's values show as each field's prompt text and follow the category p
   A web link alone is kept as it is — neither form can be derived from the other (the web link lacks the notebook's folder path, the `onenote:` link the `resid`) — and a muted hint under the field says that it opens the browser and how to get the desktop link.
 - **Chat** takes any link as is: Matrix permalinks are rewritten when the task is switched to, Teams links pass through.
 
+The Folders are context only — a local Claude session starts in the separate **Claude folder** field below them (`dsn~task-create-claude-folder~1`).
+
 The clipboard pre-fills them like the description: a folder of this machine (one absolute path to an existing directory, optionally quoted, or the folder itself copied in Explorer — `TaskContextFields.clipboardFolder`, shared with the setup wizard, `dsn~category-from-folder~3`) fills Folders, and a clipboard of nothing but links that holds OneNote's (`TaskContextFields.clipboardNote`) fills Note; either one then leaves the description empty instead of making the path or link the title.
+
+Tags: windows, linux
+
+Covers:
+- req~task-create~1
+
+Needs: impl, utest
+
+### The Add-task dialog names the folder a local Claude starts in
+`dsn~task-create-claude-folder~1`
+
+The Folders field (`dsn~task-create-context-fields~1`) looked like the place to say where a local session runs, but it is only the task's context; the session started in the category's directory, and without one `Add local Claude` stayed disabled however many folders were typed (Oliver, 2026-11-28).
+The dialog therefore has its own **Claude folder** field (`add-task-claude-folder`) under the context fields: `Add local Claude` (`dsn~task-create-local~5`) is enabled exactly while it holds a folder (and the agent is Claude), starts the session there and writes it as the new task's `folder:`.
+`Files.createDirectories` makes a folder that does not exist yet, as before.
+
+The field suggests a folder from the category (`TaskContextFields.claudeFolder`) until it is typed into: a fixed `workdir` as is; a `workspacesRoot` plus a subfolder named after the slugged description (`TaskFileParser.slug`), so each task gets a directory of its own instead of all of them sharing the root — the root itself while the description is empty; nothing for a category with a `remote:`, whose directories are on the remote.
+The suggestion follows the category picked and the description typed; once the user edits the field, it is theirs.
+Remote and plain tasks ignore it; without Claude (`dsn~contexts-only~1`) it is hidden.
 
 Tags: windows, linux
 
@@ -1914,12 +1934,14 @@ Covers:
 Needs: impl, utest
 
 ### Add a local task (a Claude session) in a local category
-`dsn~task-create-local~4`
+`dsn~task-create-local~5`
 
 The `Add task…` dialog's `Add local Claude` button is the local counterpart of `Add remote Claude` (`dsn~task-create-live~8`) for a **local category**: a group whose `CONTEXTSWITCHER.md` sets a `workspacesRoot`/`workdir` but no `remote` — the lightweight, no-tmux half of a local/remote group pair, the shape `TaskFileParser.newTaskContent` already writes as the task's local `folder:` (`dsn~group-config-apply~2`).
-It is enabled exactly for such a group and is then the dialog's default button; a group carrying a `remote:` offers only the remote flow (its directory lives on the remote, not on this machine).
+Such a group makes it the dialog's default button.
+The session runs in the dialog's **Claude folder** (`dsn~task-create-claude-folder~1`), which such a group pre-fills — its `workdir`, or a subfolder per task under its `workspacesRoot` — and which any category takes typed in by hand; the button is enabled exactly while that field holds a folder.
+A group carrying a `remote:` suggests no folder (its directories live on the remote, not on this machine).
 
-The task file is the **plain** one (`MainWindow.createTitleTask`, `dsn~task-create-ui~15`): the description as title, `folder:` seeded from the group defaults, selected and opened in the editor lane.
+The task file is the **plain** one (`MainWindow.createTitleTask`, `dsn~task-create-ui~15`): the description as title, `folder:` the Claude folder, selected and opened in the editor lane.
 Off Windows the tmux window the session runs in is then written back into it (`Main.writeLocalWindowBack`: `tmux:` with session `0` and the window id, plus `claude.cwd`) — without a `remote:`, which is exactly what marks the session as local and lets the pane mirror it (`dsn~terminal-local-mirror~2`).
 On Windows the same call writes `claude.cwd` alone: there is no tmux window, and the cwd is what finds the transcript again for a later resume (`dsn~terminal-owned-session~5`).
 Nothing else is: a local session is not polled, so there is no `@cs_title` to sync and none of the live flow's id bookkeeping.
@@ -1948,7 +1970,7 @@ Needs: impl, utest
 ### A local Claude task gets a short title
 `dsn~task-create-local-title~2`
 
-A local Claude task (`dsn~task-create-local~4`) starts with the typed description as its `title:`, and a description is routinely a paragraph — far more than a row shows before it ellipsizes.
+A local Claude task (`dsn~task-create-local~5`) starts with the typed description as its `title:`, and a description is routinely a paragraph — far more than a row shows before it ellipsizes.
 Unlike a remote task, nothing replaces it later: the local prompt asks for no `@cs_title`, and the local tmux window is named after its directory, so the title is shortened by the app and no tmux is involved.
 `Main.startLocalClaude` hands the new task to `InitialTitleAdopter.adopt` on the FX thread — on Windows (the app-owned session), elsewhere (the local tmux session), and for the category-from-URL flow's local branch alike.
 When the title reads as a description — more than one line, more than 60 characters or more than 8 words (`TaskTitles.looksLikeDescription`) — a `TaskTitleSummarizer` derives one off the FX thread.

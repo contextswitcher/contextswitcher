@@ -134,4 +134,24 @@ class TaskContextFieldsTest {
         assertThat(TaskFileParser.withBlockList(content, "folders-devbox", List.of("/new")))
                 .isEqualTo("---\ntitle: T\nfolders-devbox:\n  - /new\nstatus: active\n---\n");
     }
+
+    // [utest->dsn~task-create-claude-folder~1]
+    @Test
+    void claudeFolderGivesEachTaskItsOwnSubfolderOfTheWorkspacesRoot() {
+        GroupConfig papers = new GroupConfig(null, "C:\\Projects\\publications", null, null);
+        assertThat(TaskContextFields.claudeFolder(papers, "SG 2026b: revise intro"))
+                .isEqualTo("C:\\Projects\\publications\\sg-2026b-revise-intro");
+        assertThat(TaskContextFields.claudeFolder(papers, "  ")).isEqualTo("C:\\Projects\\publications");
+        assertThat(TaskContextFields.claudeFolder(new GroupConfig(null, "/data/ws/", null, null), "Fix it"))
+                .isEqualTo("/data/ws/fix-it");
+    }
+
+    // [utest->dsn~task-create-claude-folder~1]
+    @Test
+    void claudeFolderTakesAFixedWorkdirAsIsAndNothingFromARemoteCategory() {
+        assertThat(TaskContextFields.claudeFolder(new GroupConfig(null, "/ws", "/fixed", null), "Any"))
+                .isEqualTo("/fixed");
+        assertThat(TaskContextFields.claudeFolder(new GroupConfig("box", "/ws", null, null), "Any")).isNull();
+        assertThat(TaskContextFields.claudeFolder(GroupConfig.EMPTY, "Any")).isNull();
+    }
 }

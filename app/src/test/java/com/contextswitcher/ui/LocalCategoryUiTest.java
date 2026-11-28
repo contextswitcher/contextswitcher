@@ -25,7 +25,7 @@ import static io.gitlab.fxlabs.testfx.util.FxRobotService.FX_ROBOT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// UI automation of the **local category** half of the Add-task dialog
-/// (`dsn~task-create-local~4`): with a task of a local category selected — a
+/// (`dsn~task-create-local~5`): with a task of a local category selected — a
 /// CS config with a `workspacesRoot` and no `remote` — `Add local Claude` is
 /// enabled, is the dialog's default button, and the hint names what the click
 /// will actually do on **this** platform: an app-owned session on Windows, a
@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// The click itself is deliberately not fired: it would start a real Claude.
 ///
 /// Needs a display: `gradlew :app:uiTest` on a desktop, `just uitest` headless.
-// [utest->dsn~task-create-local~4]
+// [utest->dsn~task-create-local~5]
 @Tag("ui")
 @TestFxApplication(LocalCategoryUiTest.TestApp.class)
 class LocalCategoryUiTest {
