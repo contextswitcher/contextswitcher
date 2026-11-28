@@ -888,6 +888,8 @@ public class Main extends Application {
                         .filter(entry -> entry instanceof TaskEntry.Loaded loaded && loaded.id().equals(id))
                         .map(entry -> ((TaskEntry.Loaded) entry).task())
                         .findFirst().orElse(null));
+        // [impl->dsn~conversation-pane~1]
+        terminalPane.setConversationActions(this::openUrl, queuePane::compose);
         MainWindow window = new MainWindow(taskEntries, taskFolders,
                 task -> switchTo(orchestrator, files, task),
                 task -> suspendTo(suspendOrchestrator, task),

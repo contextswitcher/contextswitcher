@@ -18,6 +18,20 @@ Covers:
 
 Needs: dsn
 
+### See who said what in a chat
+`req~conversation-view~1`
+
+Next to the terminal, the task's Claude chat can be read as a conversation in which the user's own messages and Claude's replies are told apart at a glance.
+The terminal shows both as one stream of rendered text, where a long message of one's own is hard to tell from the reply below it.
+From a message, an answer to it can be started without retyping what it is about.
+
+Tags: windows, linux
+
+Covers:
+- feat~remote-development-context~1
+
+Needs: dsn
+
 ### Interrupt the session with a button
 `req~terminal-interrupt~1`
 
@@ -448,6 +462,27 @@ Tags: windows, linux
 
 Covers:
 - req~terminal-live-mirror~1
+
+Needs: impl, utest
+
+### Conversation lane
+`dsn~conversation-pane~1`
+
+A **Conversation** lane (a dock tab behind **Terminal**, movable like every lane) shows the chat of the session the terminal shows as bubbles: the user's messages right, in the accent tint, Claude's replies left with their Markdown rendered (`ConversationPane`, a JabRef ChatPane, MADR 0040).
+Nothing is taken off the screen: the source is the session transcript, as for `dsn~terminal-markdown-copy~1`, read over the side channel with `grep` for user and assistant lines minus tool calls, tool results, thinking and logged API requests, and `tail -n 80` (`ClaudeConversation`).
+Consecutive text lines of one assistant message id form one reply; subagent lines, meta lines and slash-command echoes are skipped.
+
+* The transcript is read when the shown session changes and on every change of its window's poll status (`dsn~task-running-indicator~8`) — a message taken, a reply finished — and by **Refresh**; not while the lane is hidden behind another tab, then once it shows.
+  An unchanged answer leaves the view alone, so reading keeps its place.
+* **Reply** on a message puts the message's first line as a Markdown quote (`> …`, cut at 200 characters) into the queue's add box and focuses it, to be queued or sent like any message.
+* Links open through the app's URL opener.
+
+The lane is read-only; a session without a recorded session id shows a hint instead.
+
+Tags: windows, linux
+
+Covers:
+- req~conversation-view~1
 
 Needs: impl, utest
 

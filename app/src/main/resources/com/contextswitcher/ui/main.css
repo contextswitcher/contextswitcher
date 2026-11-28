@@ -578,3 +578,23 @@
 .dialog-pane.uncapped {
     -fx-max-width: -1;
 }
+
+/* The Conversation lane (dsn~conversation-pane~1): ChatPane colors itself from
+   Modena's lookups, which AtlantaFX does not define — mapped to the theme's.
+   The user's bubbles carry the accent tint, Claude's the subtle ground. */
+.chat-pane {
+    -fx-accent: -color-accent-fg;
+    -fx-base: -color-bg-subtle;
+    -fx-background: -color-bg-default;
+    -fx-control-inner-background: -color-bg-default;
+    -fx-text-background-color: -color-fg-default;
+    -fx-text-inner-color: -color-fg-default;
+}
+.chat-pane .message-cell:outgoing .message-bubble {
+    -fx-background: -color-accent-subtle;
+}
+/* AtlantaFX fixes every list cell at 3em, which cuts a bubble after its first
+   line; 24px is JavaFX's "as tall as the content". */
+.chat-pane .message-cell {
+    -fx-cell-size: 24px;
+}

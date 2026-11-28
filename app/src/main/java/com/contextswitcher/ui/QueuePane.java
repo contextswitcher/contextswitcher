@@ -688,6 +688,15 @@ public class QueuePane {
         scroll.setHvalue(Math.clamp(target / range, 0, 1));
     }
 
+    /// Starts a message with `text` in the add box (the conversation's
+    /// **Reply**): appended, focused, caret at the end. Nothing without a task.
+    // [impl->dsn~conversation-pane~1]
+    public void compose(String text) {
+        if (task != null) {
+            appendTo(addBox, text);
+        }
+    }
+
     /// Appends `text` to `target` — after a blank line when it already holds
     /// something — scrolls it into view, focuses it and puts the caret at its
     /// end, so one can add a URL or more context before queueing it.

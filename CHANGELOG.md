@@ -8,6 +8,10 @@ Changes collect under *Unreleased* until the next morning's automatic release tu
 
 ## [Unreleased]
 
+### Added
+
+- A **Conversation** tab behind the terminal shows the task's Claude chat as bubbles — your messages on the right, Claude's replies on the left with their Markdown rendered — so it is easy to see who wrote what; **Reply** on a message starts an answer to it in the queue.
+
 ### Fixed
 
 - The Android app no longer crashes when a task is opened just as the app goes to the background (Android refuses to start the finish watch then); the watch starts once the app is back in front.

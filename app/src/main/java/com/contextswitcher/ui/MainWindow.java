@@ -1532,7 +1532,7 @@ public class MainWindow {
         pane.setOnRawShown(switchActions::leaveRaw);
         formPanes = List.of(switchActions, pane);
         ShellFxHost.Hosted hosted = ShellFxHost.host(application, stage, new ShellFxHost.Panes(
-                leftPane, terminalLane, editorNode, switchActions, pane, queueNode, bottomBar,
+                leftPane, terminalLane, terminal.conversation(), editorNode, switchActions, pane, queueNode, bottomBar,
                 listToolbar.appControls(), contextsOnly));
         shell = hosted;
         Scene scene = hosted.scene();
