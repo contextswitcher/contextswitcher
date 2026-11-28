@@ -876,7 +876,7 @@ Needs: impl, utest
 ### Category switch button
 `dsn~category-switch~1`
 
-Every named category's header renders an always-visible "Switch to category" icon button (MDI `play`, id `group-switch-button`) right of the desktop button.
+Every named category's header renders an always-visible "Switch to category" icon button (MDI `play`, id `group-switch-button`) at its right edge, the only header icon there not in the hover gutter (`dsn~category-header-hover-actions~1`).
 A click (`MainWindow.switchCategory`) flushes the editor, then runs the ordinary task switch (`Main.switchTo`, status-bar chips and all) on `Task.forCategory(group, remote)`: a stand-in task with id `<group>/`, the category's default host and no section of its own.
 `Main.withCategoryDefaults` fills in the category's `intellij`, `browser` and `folders` (`dsn~category-action-defaults~2`), and the note, chat and environment-profile actions resolve their category fallback from the id's group part, so exactly the category's own actions run.
 When the category resolves to a desktop (its own or the fallback, `dsn~fallback-desktop~2`) the switch waits for the desktop focus (`Main.reportFocusDesktop`, on the action executor) to finish first, because Explorer and new browser tabs open on the desktop in view.
@@ -892,8 +892,8 @@ Needs: impl, utest
 `dsn~category-desktop-focus~4`
 
 A category's `CONTEXTSWITCHER.md` gains an optional `desktop:` key (`GroupConfig.desktop`, parsed by `parseGroupConfig`).
-The group header renders an always-visible "Jump to desktop" icon button (MDI `monitor-multiple`) only when the category names a desktop.
-It is right-aligned, after the header's tags and before the note and repository icons, since like them it leads away from the list (revision `~4`, Carl, 2026-09-16; `~2` had it next to the name, right of the terminal icon; `~1` as a hover play button in the task rows' play slot).
+The group header renders a "Jump to desktop" icon button (MDI `monitor-multiple`) only when the category names a desktop.
+It is right-aligned, first in the header's hover gutter (`dsn~category-header-hover-actions~1`; always visible until 2026-11-28) before the note and repository icons, since like them it leads away from the list (revision `~4`, Carl, 2026-09-16; `~2` had it next to the name, right of the terminal icon; `~1` as a hover play button in the task rows' play slot).
 Clicking it resolves the name fresh from disk (flushing any pending config edit, like the note button) and hands it to `WindowsVirtualDesktopFocus`, reporting the outcome as a one-off status-bar message. It runs nothing else — no task switch, no orchestrator chips.
 `WindowsVirtualDesktopFocus` switches Windows to the named virtual desktop through `powershell` (base64 `-EncodedCommand` like the Explorer/Terminal actions): Windows exposes no supported API to activate a desktop by name, so the script reads the desktop order from `HKCU:\…\Explorer\VirtualDesktops\VirtualDesktopIDs` (a packed array of 16-byte GUIDs), the active desktop from `CurrentVirtualDesktop`, and each renamed desktop's label from `…\Desktops\{GUID}\Name`; it finds the target index and GUID by name (case-insensitive) and the current index.
 The active desktop's GUID is read by the shared `Get-CurrentBytes` helper (`dsn~active-desktop-filter~6`), which knows both places Explorer keeps it — next to `VirtualDesktopIDs` on Windows 11, under `…\Explorer\SessionInfo\{session}\VirtualDesktops` on Windows 10 — so the walk starts from the desktop actually in view instead of stepping fully left first.

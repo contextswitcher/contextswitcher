@@ -349,8 +349,8 @@ Load per [extension/firefox/README.md](../extension/firefox/README.md)
 
 - [ ] Name a virtual desktop in Windows Task View (e.g. `vs.code`), then set
       `desktop: vs.code` in a category's `CONTEXTSWITCHER.md` → the group header
-      shows an always-visible monitor icon ("Jump to desktop") right of the
-      category's terminal icon; clicking it switches Windows to that desktop and
+      shows a monitor icon ("Jump to desktop") while hovered, first in the
+      header's hover gutter; clicking it switches Windows to that desktop and
       does **nothing else** (no task switch).
       Status bar reads `Desktop: focused desktop "vs.code"`.
 - [ ] From a desktop several positions away (e.g. desktop 1 → desktop 5), the
@@ -1574,7 +1574,8 @@ Needs a real remote with a Claude worktree task, a locally authenticated `gh`, a
 - [ ] Every active task has the accent bar on its left edge; a collapsed category shows the number of them left of its header buttons (nothing while expanded).
 - [ ] A task with a PR shows `#<number>` under its title: before the first `gh` poll without icon, chip-shaped without colour; afterwards with the open/draft/merged/closed icon. Click opens the PR, right-click offers Open/Copy URL.
 - [ ] A category with `workspacesRoot` shows that path on the header's second line; its tasks' `wd` shows only the directory below it.
-- [ ] Each hand-filled category has a plus at the header's right end and a slim `Add task…` row after its last task; an auto category has neither.
+- [ ] Each hand-filled category has a plus in the header's hover gutter (just left of play) and a slim `Add task…` row after its last task; an auto category has neither.
+- [ ] (`dsn~category-header-hover-actions~1`) A category header shows only its play button at the right edge; hovering it fades in desktop, note, repository and plus just left of play, over the name's end, without moving the name.
 
 ## Fork a task (`dsn~task-fork~1`)
 

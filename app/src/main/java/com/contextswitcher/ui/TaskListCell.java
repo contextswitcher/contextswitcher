@@ -1077,7 +1077,34 @@ public class TaskListCell extends ListCell<Object> {
         title.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(title, Priority.ALWAYS);
 
-        HBox row = new HBox(6, arrow, title);
+        // The header's action gutter, like a task row's: shown only while the
+        // mouse is on the header and laid over its right end (unmanaged), so
+        // hovering never reflows or re-truncates the name. Play stays out of
+        // it, always visible at the far right: the category's main action
+        // must not wait for a hover, as a task row's play/pause doesn't.
+        // [impl->dsn~category-header-hover-actions~1]
+        HBox gutter = new HBox(2);
+        gutter.setAlignment(Pos.CENTER);
+        gutter.getStyleClass().add("task-action-gutter");
+        gutter.setManaged(false);
+        gutter.visibleProperty().bind(hoverProperty());
+        // The root category (empty name) has no play button.
+        @Nullable Button switchCategory = header.name().isEmpty() ? null : iconButton(MDIInterface.PLAY,
+                "Switch to category \"" + header.name() + "\" — desktop, folders, note, chat, URLs, profile");
+
+        HBox row = new HBox(6, arrow, title) {
+            @Override
+            protected void layoutChildren() {
+                super.layoutChildren();
+                // Full row height, as on a task row, so no glyph peeks out
+                // around it; left of play, else flush with the right edge.
+                double width = snapSizeX(gutter.prefWidth(-1));
+                double right = switchCategory == null
+                        ? getWidth() - snappedRightInset()
+                        : switchCategory.getLayoutX() - getSpacing();
+                gutter.resizeRelocate(snapPositionX(right - width), 0, width, getHeight());
+            }
+        };
 
         // The group's own tags, inherited by every task in the group.
         // [impl->dsn~task-tag-filter~2]
@@ -1099,8 +1126,8 @@ public class TaskListCell extends ListCell<Object> {
         }
 
         // A category pinned to a virtual desktop (its config's desktop:) carries
-        // an always-visible "Jump to desktop" icon, right-aligned with the
-        // note and repository icons: it leads away from the list like they do.
+        // a "Jump to desktop" icon, first in the gutter, ahead of the note and
+        // repository icons: it leads away from the list like they do.
         // Only switches Windows to that desktop; the name is resolved fresh on
         // click. [impl->dsn~category-desktop-focus~4]
         String desktop = groupDesktop.apply(header.name());
@@ -1109,29 +1136,18 @@ public class TaskListCell extends ListCell<Object> {
                     "Jump to desktop \"" + desktop + "\"");
             focusDesktop.setId("group-desktop-button");
             focusDesktop.setOnAction(event -> onFocusDesktop.accept(header.name()));
-            row.getChildren().add(focusDesktop);
+            gutter.getChildren().add(focusDesktop);
         }
 
-        // A full switch into the category without picking one of its tasks:
-        // its desktop, then every action it configures (folders, note, chat,
-        // browser URLs, IntelliJ, environment profile). [impl->dsn~category-switch~1]
-        if (!header.name().isEmpty()) {
-            Button switchCategory = iconButton(MDIInterface.PLAY,
-                    "Switch to category \"" + header.name() + "\" — desktop, folders, note, chat, URLs, profile");
-            switchCategory.setId("group-switch-button");
-            switchCategory.setOnAction(event -> onSwitchCategory.accept(header.name()));
-            row.getChildren().add(switchCategory);
-        }
-
-        // Always-visible note icon when the group config carries a note: URL.
+        // A note icon when the group config carries a note: URL.
         // [impl->dsn~group-note-open~5]
         String note = groupNoteUrl.apply(header.name());
         if (note != null) {
-            row.getChildren().add(urlIconButton(MDITechnology.NOTE_TEXT_OUTLINE, "Open note",
+            gutter.getChildren().add(urlIconButton(MDITechnology.NOTE_TEXT_OUTLINE, "Open note",
                     note, () -> onOpenGroupNote.accept(header.name())));
         }
 
-        // Always-visible repository icon when the group config carries a repo:
+        // A repository icon when the group config carries a repo:
         // URL — the project's home page is what the category name stands for,
         // so it is reachable without opening the config. A plain chain link
         // (not MDI's source-repository, whose branch-and-node glyph reads as a
@@ -1143,10 +1159,10 @@ public class TaskListCell extends ListCell<Object> {
             Button repoButton = urlIconButton(MDIInterface.LINK_VARIANT, "Open " + repo,
                     repo, () -> onOpenGroupRepo.accept(header.name()));
             repoButton.setId("group-repo-button");
-            row.getChildren().add(repoButton);
+            gutter.getChildren().add(repoButton);
         }
 
-        // An always-visible plus at the header's right edge, pre-filling the
+        // A plus at the gutter's right end, pre-filling the
         // dialog with this group. An auto category is filled by its search,
         // never by hand — no plus.
         // [impl->dsn~task-create-ui~15]
@@ -1155,7 +1171,20 @@ public class TaskListCell extends ListCell<Object> {
             Button addInGroup = iconButton(MDIInterface.PLUS, "Add task in " + header.name() + "…");
             addInGroup.setId("group-header-add-button");
             addInGroup.setOnAction(event -> onAddTask.accept(header.name()));
-            row.getChildren().add(addInGroup);
+            gutter.getChildren().add(addInGroup);
+        }
+
+        // A full switch into the category without picking one of its tasks:
+        // its desktop, then every action it configures (folders, note, chat,
+        // browser URLs, IntelliJ, environment profile). [impl->dsn~category-switch~1]
+        if (switchCategory != null) {
+            switchCategory.setId("group-switch-button");
+            switchCategory.setOnAction(event -> onSwitchCategory.accept(header.name()));
+            row.getChildren().add(switchCategory);
+        }
+        // An empty gutter would still lay its fade over the name.
+        if (!gutter.getChildren().isEmpty()) {
+            row.getChildren().add(gutter);
         }
 
         row.setAlignment(Pos.CENTER_LEFT);
